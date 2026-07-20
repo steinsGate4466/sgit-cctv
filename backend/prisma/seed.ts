@@ -20,6 +20,7 @@ const PERMISSIONS = [
   'document.read', 'document.manage',
   'dashboard.read', 'troubleshooting.read',
   'audit.read',
+  'credential.read', 'credential.manage',
 ];
 
 // ---- Roles y sus permisos ----
@@ -29,7 +30,7 @@ const ROLES: Record<string, string[]> = {
     'user.read', 'asset.create', 'asset.read', 'asset.update', 'location.read', 'location.manage',
     'wo.create', 'wo.read', 'wo.update', 'wo.approve', 'incident.create', 'incident.read',
     'incident.update', 'incident.close', 'document.read', 'document.manage', 'dashboard.read',
-    'troubleshooting.read', 'audit.read',
+    'troubleshooting.read', 'audit.read', 'credential.read', 'credential.manage',
   ],
   'Técnico': [
     'asset.read', 'asset.update', 'location.read', 'wo.create', 'wo.read', 'wo.update',

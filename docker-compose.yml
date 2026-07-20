@@ -78,6 +78,7 @@ services:
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-900s}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change_me_refresh}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      CREDENTIAL_ENC_KEY: ${CREDENTIAL_ENC_KEY:-dev-credential-key-change-me}
       PORT: 3000
     ports:
       - "${API_PORT:-3000}:3000"

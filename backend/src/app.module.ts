@@ -18,6 +18,7 @@ import { DocumentsModule } from './modules/documents/documents.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { IntegrationModule } from './modules/integration/integration.module';
+import { CredentialsModule } from './modules/credentials/credentials.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { IntegrationModule } from './modules/integration/integration.module';
     DashboardModule,
     AuditModule,
     IntegrationModule,
+    CredentialsModule,
   ],
   controllers: [HealthController],
   providers: [
