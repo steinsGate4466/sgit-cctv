@@ -1,12 +1,80 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import * as argon2 from 'argon2';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+
+// Proyección segura: nunca expone passwordHash.
+const userSelect = {
+  id: true,
+  email: true,
+  fullName: true,
+  active: true,
+  lastLoginAt: true,
+  createdAt: true,
+  role: { select: { id: true, name: true } },
+};
 
 @Injectable()
 export class UsersService {
   constructor(private prisma: PrismaService) {}
+
   findAll() {
-    return this.prisma.user.findMany({
-      select: { id: true, email: true, fullName: true, active: true, role: { select: { name: true } } },
+    return this.prisma.user.findMany({ select: userSelect, orderBy: { createdAt: 'asc' } });
+  }
+
+  async findOne(id: string) {
+    const user = await this.prisma.user.findUnique({ where: { id }, select: userSelect });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+    return user;
+  }
+
+  // Crea un usuario con contraseña hasheada (argon2) y rol válido.
+  async create(dto: CreateUserDto) {
+    const role = await this.prisma.role.findUnique({ where: { id: dto.roleId } });
+    if (!role) throw new BadRequestException('Rol no válido');
+    const exists = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    if (exists) throw new BadRequestException('El email ya está registrado');
+
+    return this.prisma.user.create({
+      data: {
+        email: dto.email,
+        fullName: dto.fullName,
+        passwordHash: await argon2.hash(dto.password),
+        roleId: dto.roleId,
+      },
+      select: userSelect,
+    });
+  }
+
+  // Actualiza datos, rol, estado y (opcional) contraseña.
+  async update(id: string, dto: UpdateUserDto) {
+    await this.findOne(id);
+    if (dto.roleId) {
+      const role = await this.prisma.role.findUnique({ where: { id: dto.roleId } });
+      if (!role) throw new BadRequestException('Rol no válido');
+    }
+    const data: any = { fullName: dto.fullName, roleId: dto.roleId, active: dto.active };
+    if (dto.password) data.passwordHash = await argon2.hash(dto.password);
+    return this.prisma.user.update({ where: { id }, data, select: userSelect });
+  }
+
+  // Baja lógica: desactiva el usuario (no se borra, preserva trazabilidad).
+  async deactivate(id: string) {
+    await this.findOne(id);
+    return this.prisma.user.update({ where: { id }, data: { active: false }, select: userSelect });
+  }
+
+  // Roles disponibles con sus permisos (para asignar al crear/editar usuarios).
+  listRoles() {
+    return this.prisma.role.findMany({
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        permissions: { select: { permission: { select: { code: true } } } },
+      },
+      orderBy: { name: 'asc' },
     });
   }
 }
