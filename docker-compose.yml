@@ -1,0 +1,104 @@
+# =============================================================================
+#  SGIT-CCTV — Orquestación de servicios (despliegue on-premise Planta Pisco)
+#  Levanta: PostgreSQL, Redis, MinIO, API (NestJS) y Nginx (reverse proxy)
+# =============================================================================
+name: sgit-cctv
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: sgit_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sgit}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sgit_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-sgit_cctv}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sgit} -d ${POSTGRES_DB:-sgit_cctv}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [sgit_net]
+
+  redis:
+    image: redis:7-alpine
+    container_name: sgit_redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [sgit_net]
+
+  minio:
+    image: minio/minio:latest
+    container_name: sgit_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-sgit_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-sgit_minio_pass}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    networks: [sgit_net]
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sgit_api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-sgit}:${POSTGRES_PASSWORD:-sgit_pass}@db:5432/${POSTGRES_DB:-sgit_cctv}?schema=public
+      REDIS_URL: redis://redis:6379
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-sgit_minio}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-sgit_minio_pass}
+      JWT_SECRET: ${JWT_SECRET:-change_me_in_prod}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-900s}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change_me_refresh}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      PORT: 3000
+    ports:
+      - "${API_PORT:-3000}:3000"
+    networks: [sgit_net]
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: sgit_nginx
+    restart: unless-stopped
+    depends_on: [api]
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    networks: [sgit_net]
+
+volumes:
+  db_data:
+  redis_data:
+  minio_data:
+
+networks:
+  sgit_net:
+    driver: bridge

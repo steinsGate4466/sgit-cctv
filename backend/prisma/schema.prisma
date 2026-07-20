@@ -1,0 +1,502 @@
+// =============================================================================
+//  SGIT-CCTV — Esquema de datos (Prisma / PostgreSQL)
+//  Aceros Arequipa · Planta Pisco · Trenes 1, 2 y 3 (Laminación)
+//  Diseño: monolito modular, herencia por tipo de activo, topología PMP,
+//          campos SAP-ready, auditoría append-only.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =====================================================================
+//  SEGURIDAD Y CONTROL DE ACCESO (Módulo 1)
+// =====================================================================
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  fullName     String
+  passwordHash String
+  active       Boolean   @default(true)
+  roleId       String
+  role         Role      @relation(fields: [roleId], references: [id])
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  workOrders   WorkOrder[] @relation("AssignedTechnician")
+  incidents    Incident[]  @relation("IncidentResponsible")
+  auditLogs    AuditLog[]
+
+  @@map("users")
+}
+
+model Role {
+  id          String           @id @default(uuid())
+  name        String           @unique // Administrador, Supervisor TI, Técnico, Consulta
+  description String?
+  users       User[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String           @id @default(uuid())
+  code        String           @unique // ej: asset.create, wo.approve, incident.close
+  description String?
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+// =====================================================================
+//  UBICACIONES — jerarquía física (Módulo 3)
+//  Empresa > Planta > Tren > Área > Sala/Zona > Rack > (Equipo=Asset)
+// =====================================================================
+
+enum LocationType {
+  EMPRESA
+  PLANTA
+  TREN
+  AREA
+  SALA
+  ZONA
+  RACK
+}
+
+model Location {
+  id               String       @id @default(uuid())
+  type             LocationType
+  code             String       @unique // ej: AASA-PISCO-T1-LAMIN-R01
+  name             String
+  parentId         String?
+  parent           Location?    @relation("LocationTree", fields: [parentId], references: [id])
+  children         Location[]   @relation("LocationTree")
+  path             String       @default("") // ruta materializada para navegación rápida
+  // ---- Campos SAP-ready ----
+  sapLocationCode  String?
+  costCenter       String?
+  responsibleArea  String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  assets           Asset[]
+  documents        Document[]
+
+  @@index([parentId])
+  @@index([path])
+  @@map("locations")
+}
+
+// =====================================================================
+//  ACTIVOS TECNOLÓGICOS (Módulo 2) — tabla base + herencia por tipo
+// =====================================================================
+
+enum AssetType {
+  CAMERA
+  NVR
+  SWITCH
+  WIRELESS   // antena / radioenlace (Ubiquiti, Mimosa)
+  ROUTER
+  FIREWALL
+  SERVER
+  UPS
+  FIBER
+  CABINET
+  DECODER    // video wall / decoder Hikvision
+  OTHER
+}
+
+enum AssetStatus {
+  OPERATIVO
+  FUERA_SERVICIO
+  MANTENIMIENTO
+  BAJA
+  STOCK
+}
+
+enum Criticality {
+  BAJA
+  MEDIA
+  ALTA
+  CRITICA // pérdida de visión que detiene o arriesga producción
+}
+
+model Asset {
+  id            String      @id @default(uuid())
+  assetCode     String      @unique // ej: AA-CAM-T1-FX-001
+  type          AssetType
+  brand         String?
+  model         String?
+  serialNumber  String?
+  firmware      String?
+  status        AssetStatus @default(OPERATIVO)
+  criticality   Criticality @default(MEDIA)
+  installDate   DateTime?
+  warrantyEnd   DateTime?
+  locationId    String?
+  location      Location?   @relation(fields: [locationId], references: [id])
+  // ---- Campos SAP-ready ----
+  sapId         String?     @unique
+  costCenter    String?
+  responsibleArea String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  deletedAt     DateTime?   // soft delete
+
+  // Extensiones por tipo (1:1)
+  camera        AssetCamera?
+  nvr           AssetNvr?
+  switchDev     AssetSwitch?
+  wireless      AssetWireless?
+
+  // Relaciones operativas y de red
+  credentials   Credential[]
+  workOrders    WorkOrder[]
+  incidents     Incident[]
+  documents     Document[]
+  history       AssetHistory[]
+  portsOnSwitch SwitchPort[]  @relation("PortSwitch")
+  connectedPort SwitchPort?   @relation("PortConnectedAsset")
+  linksA        NetworkLink[] @relation("LinkEndpointA")
+  linksB        NetworkLink[] @relation("LinkEndpointB")
+
+  @@index([type])
+  @@index([status])
+  @@index([locationId])
+  @@map("assets")
+}
+
+model AssetCamera {
+  assetId          String  @id
+  asset            Asset   @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  resolution       String? // ej: 2560x1440 (4MP)
+  cameraUser       String?
+  rtspUrl          String?
+  ipAddress        String? // se valida como INET a nivel de app/migración
+  macAddress       String?
+  vlanId           String?
+  vlan             Vlan?   @relation(fields: [vlanId], references: [id])
+  nvrId            String? // NVR asociado (Asset de tipo NVR)
+  switchPortId     String? @unique
+  switchPort       SwitchPort? @relation(fields: [switchPortId], references: [id])
+  wirelessUplinkId String? // antena suscriptora/PMP por la que cuelga
+
+  @@map("asset_cameras")
+}
+
+model AssetNvr {
+  assetId       String  @id
+  asset         Asset   @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  channels      Int?
+  diskCount     Int?
+  capacityTb    Float?
+  hasLocalDisk  Boolean @default(false) // relevante para grúas (informe GRU-107)
+  switchIdDirect String? // switch al que se conecta directo (topología anillo)
+  nicPrimary    String? // ej: 172.16.x (segmento industrial)
+  nicSecondary  String? // ej: 10.0.x   (segmento visualización iVMS-4200)
+
+  @@map("asset_nvrs")
+}
+
+model AssetSwitch {
+  assetId    String       @id
+  asset      Asset        @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  portCount  Int?
+  mgmtIp     String?
+  vendor     String?      // Fortinet / FortiSwitch / TP-Link
+  switchRole SwitchRole   @default(DISTRIBUCION)
+  ports      SwitchPort[]
+
+  @@map("asset_switches")
+}
+
+enum SwitchRole {
+  CORE_ANILLO
+  DISTRIBUCION
+  AJENO       // switch de terceros colgado del FortiSwitch
+  POE_ACCESO
+}
+
+enum WirelessMode {
+  PMP_BASE    // antena principal punto-multipunto (púlpito)
+  SUSCRIPTOR  // antena que cuelga de la PMP base
+  PTP         // radioenlace punto a punto
+  ESTACION
+}
+
+model AssetWireless {
+  assetId         String       @id
+  asset           Asset        @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  vendor          String?      // Ubiquiti (airMAX), Mimosa C6x, TP-Link
+  frequency       String?
+  mode            WirelessMode @default(SUSCRIPTOR)
+  parentWirelessId String?     // auto-referencia lógica: suscriptor -> PMP base
+  switchPortId    String?      @unique
+  switchPort      SwitchPort?  @relation(fields: [switchPortId], references: [id])
+  originPoint     String?
+  destPoint       String?
+  signalDbm       Int?
+  linkStable      Boolean      @default(true) // caídas abruptas => sesiones NVR colgadas
+
+  @@map("asset_wireless")
+}
+
+// =====================================================================
+//  RED / TOPOLOGÍA (Módulo transversal — soporte a troubleshooting)
+// =====================================================================
+
+model Vlan {
+  id        String        @id @default(uuid())
+  number    Int           @unique
+  name      String
+  subnet    String?       // CIDR
+  role      String?       // tren / nvr / gestion / visualizacion / industrial
+  cameras   AssetCamera[]
+
+  @@map("vlans")
+}
+
+model SwitchPort {
+  id               String        @id @default(uuid())
+  switchId         String
+  switchAsset      Asset         @relation("PortSwitch", fields: [switchId], references: [id], onDelete: Cascade)
+  assetSwitchId    String?
+  assetSwitch      AssetSwitch?  @relation(fields: [assetSwitchId], references: [assetId])
+  portNumber       Int
+  poe              Boolean       @default(false)
+  vlanNumber       Int?
+  connectedAssetId String?       @unique
+  connectedAsset   Asset?        @relation("PortConnectedAsset", fields: [connectedAssetId], references: [id])
+
+  cameraLink       AssetCamera?
+  wirelessLink     AssetWireless?
+
+  @@unique([switchId, portNumber])
+  @@map("switch_ports")
+}
+
+enum LinkMedium {
+  FIBRA
+  COBRE
+  INALAMBRICO
+}
+
+model NetworkLink {
+  id         String     @id @default(uuid())
+  medium     LinkMedium
+  endpointAId String
+  endpointA  Asset      @relation("LinkEndpointA", fields: [endpointAId], references: [id], onDelete: Cascade)
+  endpointBId String
+  endpointB  Asset      @relation("LinkEndpointB", fields: [endpointBId], references: [id], onDelete: Cascade)
+  isRing     Boolean    @default(false) // tramo del anillo de fibra del core
+  description String?
+
+  @@map("network_links")
+}
+
+// =====================================================================
+//  CREDENCIALES CIFRADAS (soporte a seguridad y reposición rápida)
+// =====================================================================
+
+model Credential {
+  id        String   @id @default(uuid())
+  assetId   String
+  asset     Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  username  String
+  secretEnc String   // cifrado AES a nivel de aplicación
+  type      String?  // admin, viewer, rtsp
+  createdAt DateTime @default(now())
+
+  @@map("credentials")
+}
+
+// =====================================================================
+//  MANTENIMIENTO (Módulo 4)
+// =====================================================================
+
+enum WorkOrderType {
+  PREVENTIVO
+  CORRECTIVO
+  MEJORA
+}
+
+enum WorkOrderStatus {
+  ABIERTA
+  EN_PROCESO
+  EN_ESPERA
+  CERRADA
+  CANCELADA
+}
+
+model WorkOrder {
+  id           String          @id @default(uuid())
+  code         String          @unique // ej: OT-2026-0001
+  assetId      String
+  asset        Asset           @relation(fields: [assetId], references: [id])
+  type         WorkOrderType
+  status       WorkOrderStatus @default(ABIERTA)
+  technicianId String?
+  technician   User?           @relation("AssignedTechnician", fields: [technicianId], references: [id])
+  scheduledDate DateTime?
+  executedDate  DateTime?
+  activity     String?
+  diagnosis    String?
+  spareParts   Json?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  evidences    WorkOrderEvidence[]
+
+  @@index([assetId])
+  @@index([status])
+  @@map("work_orders")
+}
+
+model WorkOrderEvidence {
+  id          String    @id @default(uuid())
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  fileId      String    // referencia a objeto en MinIO
+  caption     String?
+  createdAt   DateTime  @default(now())
+
+  @@map("work_order_evidences")
+}
+
+// =====================================================================
+//  INCIDENCIAS (Módulo 5) + soporte a troubleshooting (Módulo 7)
+// =====================================================================
+
+enum Priority {
+  BAJA
+  MEDIA
+  ALTA
+  CRITICA
+}
+
+enum IncidentStatus {
+  ABIERTA
+  EN_DIAGNOSTICO
+  EN_PROCESO
+  RESUELTA
+  CERRADA
+}
+
+enum IncidentCategory {
+  GENERAL
+  SATURACION_SESIONES_NVR   // "NO MORE USER CAN BE CONNECTED"
+  CAIDA_ENLACE_INALAMBRICO  // enlace PMP/Ubiquiti inestable
+  FALLA_ALMACENAMIENTO_NVR
+  DECODER_VIDEOWALL
+  CAMARA_SIN_IMAGEN
+  RED
+}
+
+model Incident {
+  id              String           @id @default(uuid())
+  code            String           @unique // ej: INC-2026-0001 / IT-CCTV-GRU-...
+  title           String
+  description     String?
+  category        IncidentCategory @default(GENERAL)
+  priority        Priority         @default(MEDIA)
+  status          IncidentStatus   @default(ABIERTA)
+  assetId         String?
+  asset           Asset?           @relation(fields: [assetId], references: [id])
+  responsibleId   String?
+  responsible     User?            @relation("IncidentResponsible", fields: [responsibleId], references: [id])
+  rootCause       String?
+  concurrentSessions Int?          // sesiones en NVR al momento de la falla
+  affectedCameras Int?             // cámaras aguas abajo afectadas
+  reportedAt      DateTime         @default(now())
+  resolvedAt      DateTime?
+  visionDownMin   Int?             // minutos sin visión (impacto en producción)
+  mttrMinutes     Int?             // tiempo de resolución calculado
+
+  @@index([assetId])
+  @@index([status])
+  @@index([category])
+  @@map("incidents")
+}
+
+// =====================================================================
+//  DOCUMENTACIÓN TÉCNICA (Módulo 6)
+// =====================================================================
+
+enum DocumentCategory {
+  MANUAL
+  DIAGRAMA
+  PLANO
+  FOTO
+  CONFIG
+  BACKUP
+}
+
+model Document {
+  id         String           @id @default(uuid())
+  title      String
+  category   DocumentCategory
+  fileId     String           // objeto en MinIO
+  version    Int              @default(1)
+  assetId    String?
+  asset      Asset?           @relation(fields: [assetId], references: [id])
+  locationId String?
+  location   Location?        @relation(fields: [locationId], references: [id])
+  uploadedBy String?
+  createdAt  DateTime         @default(now())
+
+  @@index([assetId])
+  @@index([locationId])
+  @@map("documents")
+}
+
+// =====================================================================
+//  AUDITORÍA E HISTORIAL (transversal)
+// =====================================================================
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String   // CREATE / UPDATE / DELETE / LOGIN / ...
+  entity    String
+  entityId  String?
+  before    Json?
+  after     Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@map("audit_logs")
+}
+
+model AssetHistory {
+  id         String   @id @default(uuid())
+  assetId    String
+  asset      Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  field      String
+  oldValue   String?
+  newValue   String?
+  changedBy  String?
+  createdAt  DateTime @default(now())
+
+  @@index([assetId])
+  @@map("asset_history")
+}
