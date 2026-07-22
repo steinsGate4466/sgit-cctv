@@ -24,9 +24,14 @@ export class StorageService implements OnModuleInit {
     });
   }
 
-  async onModuleInit() {
-    // Intento temprano (no crítico): si falla, se reintenta al primer uso.
-    await this.ensureBucket().catch(() => undefined);
+  onModuleInit() {
+    // NO bloquear el arranque de la app: se asegura el bucket en segundo plano.
+    // Si MinIO no está disponible todavía, el backend arranca igual y se reintenta
+    // al primer uso (subir/leer una foto). Esto evita que el boot quede colgado.
+    this.ensureBucket().catch((e: any) => {
+      // eslint-disable-next-line no-console
+      console.error('StorageService: MinIO no disponible aún:', e?.message || e);
+    });
   }
 
   private async ensureBucket(): Promise<void> {
