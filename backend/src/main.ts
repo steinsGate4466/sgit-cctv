@@ -10,7 +10,11 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }),
   );
-  app.enableCors();
+  // CORS configurable por variable de entorno (whitelist). En dev, permite todo.
+  app.enableCors({
+    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map((s) => s.trim()) : true,
+    credentials: true,
+  });
 
   // Documentación OpenAPI — contrato base para futura integración SAP/Zabbix
   const config = new DocumentBuilder()
@@ -23,7 +27,7 @@ async function bootstrap() {
   SwaggerModule.setup('docs', app, document);
 
   const port = process.env.PORT || 3000;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   // eslint-disable-next-line no-console
   console.log(`SGIT-CCTV API escuchando en :${port} (docs en /docs)`);
 }
