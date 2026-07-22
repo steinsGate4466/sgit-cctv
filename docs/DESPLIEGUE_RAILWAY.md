@@ -29,6 +29,9 @@ El código ya está preparado: el backend hace auto-provisión (crea tablas + da
 
 ## Paso 3 — Backend (API)
 1. **+ New** → **GitHub Repo** → mismo repo → en **Settings** pon **Root Directory** = `/backend` (usará `backend/Dockerfile`).
+   - En **Settings → Deploy → Custom Start Command** pon:
+     `npx prisma db push --skip-generate && (node dist/seed.js || true) && node dist/main.js`
+     (Esto crea las tablas y datos demo SOLO en la nube. Tu Dockerfile y tu entorno local quedan intactos.)
 2. En **Variables** del backend:
 
 | Variable | Valor |
@@ -66,7 +69,7 @@ El código ya está preparado: el backend hace auto-provisión (crea tablas + da
 - Abre la URL del **frontend** → login con `admin@acerosarequipa.local` / (tu ADMIN_PASSWORD).
 
 ## Notas
-- El backend, al arrancar, ejecuta `prisma db push` + `seed` automáticamente: crea las tablas y datos demo. No necesitas correr nada a mano.
+- El backend en Railway usa el **Custom Start Command** para crear tablas + datos demo al arrancar. Tu entorno local NO cambia (sigue con db push/seed manual como hasta ahora).
 - Cada vez que hagas `git push`, Railway **redepliega solo**.
 - Si MinIO no conecta (fotos), el resto del sistema funciona igual; se revisa el `MINIO_ENDPOINT`/puerto.
 - Seguridad: usa secretos fuertes y distintos a los de desarrollo (esto cubre la deuda QA #1).
