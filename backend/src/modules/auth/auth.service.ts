@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import { LoginDto } from './dto/login.dto';
 
 /**
@@ -13,13 +14,14 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
+    private audit: AuditService,
   ) {}
 
   /**
    * Valida credenciales (email + password con argon2) y emite el par de tokens.
    * Qué recibe: LoginDto. Qué devuelve: { accessToken, refreshToken, user }.
    */
-  async login(dto: LoginDto) {
+  async login(dto: LoginDto, ip?: string | null) {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
       include: { role: { include: { permissions: { include: { permission: true } } } } },
@@ -30,6 +32,8 @@ export class AuthService {
     if (!valid) throw new UnauthorizedException('Credenciales inválidas');
 
     await this.prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+    // Trazabilidad: registrar el inicio de sesión.
+    await this.audit.record({ userId: user.id, action: 'LOGIN', entity: 'auth', entityId: user.id, ip });
     return this.buildTokens(user);
   }
 

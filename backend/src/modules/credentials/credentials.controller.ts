@@ -25,8 +25,10 @@ export class CredentialsController {
   }
 
   // Revela el secreto descifrado (permiso elevado + auditado).
+  // Revelar (auditado): permitido a los 3 roles con acceso a datos sensibles
+  // (Jefe de Mantenimiento, Supervisor TI, Técnico de Red) → permiso credential.read.
   @Get(':id/reveal')
-  @RequirePermissions('credential.manage')
+  @RequirePermissions('credential.read')
   reveal(@Param('id') id: string, @CurrentUser() user: any, @Ip() ip: string) {
     return this.credentials.reveal(id, user?.userId, ip);
   }

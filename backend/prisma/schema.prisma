@@ -33,6 +33,8 @@ model User {
   workOrders   WorkOrder[] @relation("AssignedTechnician")
   incidents    Incident[]  @relation("IncidentResponsible")
   auditLogs    AuditLog[]
+  stockMovements StockMovement[]
+  stockChecks    StockCheck[]
 
   @@map("users")
 }
@@ -147,6 +149,8 @@ model Asset {
   model         String?
   serialNumber  String?
   firmware      String?
+  ipAddress     String?     // IP principal (sensible: solo roles con credential.read)
+  referencePlace String?    // lugar de referencia en planta (texto libre)
   status        AssetStatus @default(OPERATIVO)
   criticality   Criticality @default(MEDIA)
   installDate   DateTime?
@@ -177,6 +181,7 @@ model Asset {
   connectedPort SwitchPort?   @relation("PortConnectedAsset")
   linksA        NetworkLink[] @relation("LinkEndpointA")
   linksB        NetworkLink[] @relation("LinkEndpointB")
+  spareLinks    SparePartAsset[]
 
   @@index([type])
   @@index([status])
@@ -359,14 +364,20 @@ model WorkOrder {
   executedDate  DateTime?
   activity     String?
   diagnosis    String?
+  responsible  String?         // responsable de la OM
+  materials    String?         // materiales usados / a usar (uno por línea)
   spareParts   Json?
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
 
+  zone         String?         // zona de intervención (Horno, Laminación, Tren, Púlpito...)
+  incidentId   String?         // incidencia que originó la OM (opcional)
+  incident     Incident?          @relation(fields: [incidentId], references: [id])
   evidences    WorkOrderEvidence[]
 
   @@index([assetId])
   @@index([status])
+  @@index([incidentId])
   @@map("work_orders")
 }
 
@@ -429,6 +440,16 @@ model Incident {
   resolvedAt      DateTime?
   visionDownMin   Int?             // minutos sin visión (impacto en producción)
   mttrMinutes     Int?             // tiempo de resolución calculado
+  zone            String?          // área/zona en planta (Horno, Laminación, Púlpito...)
+  solution        String?          // qué se hizo para resolver
+  materials       String?          // materiales utilizados
+  interveners     String?          // técnicos que intervinieron
+  responsibleName String?          // responsable de la solución
+  observations    String?          // observaciones / recomendaciones
+  lineManagerNotified Boolean @default(false) // ¿jefe de línea enterado?
+
+  workOrders      WorkOrder[]        // OM generadas a partir de esta incidencia
+  evidences       IncidentEvidence[] // fotografías de campo
 
   @@index([assetId])
   @@index([status])
@@ -499,4 +520,99 @@ model AssetHistory {
 
   @@index([assetId])
   @@map("asset_history")
+}
+
+
+// ===================== INVENTARIO / REPUESTOS (F3) =====================
+
+enum MovementType {
+  INGRESO   // entrada a almacén
+  RETIRO    // salida (retiro por código SAP)
+  AJUSTE    // corrección de stock
+}
+
+/// Repuesto de almacén. El código SAP es libre (para retirar del almacén) y
+/// queda listo para sincronizar con SAP a futuro.
+model SparePart {
+  id            String   @id @default(uuid())
+  sapCode       String?  // código SAP (libre)
+  name          String
+  description   String?
+  category      String?  // ej: Fuente PoE, Cámara, Conector, Antena, Disco NVR
+  brand         String?
+  model         String?  // modelo compatible (compatibilidad por modelo)
+  unit          String?  @default("unidad")
+  warehouse     String?  // ubicación/almacén
+  currentStock  Int      @default(0)
+  minStock      Int      @default(0)  // umbral mínimo (alerta)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  lastCheckedAt DateTime?             // última comprobación física
+
+  assets        SparePartAsset[]
+  movements     StockMovement[]
+  checks        StockCheck[]
+
+  @@index([sapCode])
+  @@index([category])
+  @@map("spare_parts")
+}
+
+/// Compatibilidad repuesto <-> activo específico (además del match por modelo).
+model SparePartAsset {
+  id          String    @id @default(uuid())
+  sparePartId String
+  sparePart   SparePart @relation(fields: [sparePartId], references: [id], onDelete: Cascade)
+  assetId     String
+  asset       Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([sparePartId, assetId])
+  @@index([assetId])
+  @@map("spare_part_assets")
+}
+
+/// Movimiento de stock (ingreso/retiro/ajuste). El retiro lleva su código SAP.
+model StockMovement {
+  id          String       @id @default(uuid())
+  sparePartId String
+  sparePart   SparePart    @relation(fields: [sparePartId], references: [id], onDelete: Cascade)
+  type        MovementType
+  quantity    Int          // positivo; el signo lo da el tipo
+  sapCode     String?      // código SAP del retiro/ingreso
+  reason      String?
+  userId      String?
+  user        User?        @relation(fields: [userId], references: [id])
+  createdAt   DateTime     @default(now())
+
+  @@index([sparePartId])
+  @@map("stock_movements")
+}
+
+/// Comprobación física periódica (control diario del almacén).
+model StockCheck {
+  id          String    @id @default(uuid())
+  sparePartId String
+  sparePart   SparePart @relation(fields: [sparePartId], references: [id], onDelete: Cascade)
+  countedQty  Int       // cantidad física comprobada
+  previousQty Int?      // stock que había antes de comprobar
+  note        String?
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id])
+  checkedAt   DateTime  @default(now())
+
+  @@index([sparePartId])
+  @@map("stock_checks")
+}
+
+
+/// Fotografías de campo de una incidencia (almacenadas en MinIO).
+model IncidentEvidence {
+  id          String   @id @default(uuid())
+  incidentId  String
+  incident    Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  fileId      String
+  caption     String?
+  createdAt   DateTime @default(now())
+
+  @@map("incident_evidences")
 }

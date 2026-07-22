@@ -1,0 +1,285 @@
+import { useEffect, useState, FormEvent } from 'react';
+import { api } from '../api/client';
+import Modal from '../components/Modal';
+import { useAuth } from '../auth/AuthContext';
+
+const CATEGORIES = ['GENERAL', 'SATURACION_SESIONES_NVR', 'CAIDA_ENLACE_INALAMBRICO', 'FALLA_ALMACENAMIENTO_NVR', 'DECODER_VIDEOWALL', 'CAMARA_SIN_IMAGEN', 'RED'];
+const PRIORITIES = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
+const STATUSES = ['ABIERTA', 'EN_DIAGNOSTICO', 'EN_PROCESO', 'RESUELTA', 'CERRADA'];
+
+const CAT_ES: Record<string, string> = {
+  GENERAL: 'General', SATURACION_SESIONES_NVR: 'Saturación sesiones NVR', CAIDA_ENLACE_INALAMBRICO: 'Caída enlace inalámbrico',
+  FALLA_ALMACENAMIENTO_NVR: 'Falla almacenamiento NVR', DECODER_VIDEOWALL: 'Decoder / Videowall', CAMARA_SIN_IMAGEN: 'Cámara sin imagen', RED: 'Red',
+};
+const STATUS_ES: Record<string, string> = {
+  ABIERTA: 'Abierta', EN_DIAGNOSTICO: 'En diagnóstico', EN_PROCESO: 'En proceso', RESUELTA: 'Resuelta', CERRADA: 'Cerrada',
+};
+const catEs = (c: string) => CAT_ES[c] || c;
+const stEs = (s: string) => STATUS_ES[s] || s;
+
+function statusBadge(s: string) {
+  if (s === 'ABIERTA') return 'FUERA_SERVICIO';
+  if (s === 'RESUELTA' || s === 'CERRADA') return 'OPERATIVO';
+  return 'MANTENIMIENTO';
+}
+
+export default function Incidents() {
+  const { can, user } = useAuth();
+  const [rows, setRows] = useState<any[]>([]);
+  const [assets, setAssets] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Buscador
+  const [fq, setFq] = useState('');
+  const [fCat, setFCat] = useState('');
+  const [fStatus, setFStatus] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+
+  // Alta
+  const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState<any>({ title: '', category: 'GENERAL', priority: 'MEDIA', assetId: '', zone: '', description: '', affectedCameras: '' });
+
+  // Resolución firmada (profesional)
+  const [resolveId, setResolveId] = useState<string | null>(null);
+  const [rf, setRf] = useState<any>({});
+  const [sigError, setSigError] = useState('');
+  const [signing, setSigning] = useState(false);
+  const [tries, setTries] = useState(5);
+
+  // Fotos
+  const [photoId, setPhotoId] = useState<string | null>(null);
+  const [evidence, setEvidence] = useState<any[]>([]);
+  const [file, setFile] = useState<File | null>(null);
+  const [caption, setCaption] = useState('');
+  const [uploading, setUploading] = useState(false);
+
+  async function load() {
+    setLoading(true);
+    const params = new URLSearchParams({ pageSize: '200' });
+    if (fq.trim()) params.set('q', fq.trim());
+    if (fCat) params.set('category', fCat);
+    if (fStatus) params.set('status', fStatus);
+    if (from) params.set('from', new Date(from + 'T00:00:00').toISOString());
+    if (to) params.set('to', new Date(to + 'T23:59:59.999').toISOString());
+    const [inc, ast] = await Promise.all([
+      api.get('/incidents?' + params.toString()).then((r) => r.data).catch(() => ({ data: [] })),
+      api.get('/assets').then((r) => r.data).catch(() => []),
+    ]);
+    setRows(inc.data || []);
+    setAssets(ast || []);
+    setLoading(false);
+  }
+  useEffect(() => { load(); }, []);
+
+  async function create(e: FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const body: any = { title: form.title, category: form.category, priority: form.priority };
+      if (form.assetId) body.assetId = form.assetId;
+      if (form.zone) body.zone = form.zone.trim();
+      if (form.description) body.description = form.description;
+      if (form.affectedCameras) body.affectedCameras = Number(form.affectedCameras);
+      await api.post('/incidents', body);
+      setShowForm(false);
+      setForm({ title: '', category: 'GENERAL', priority: 'MEDIA', assetId: '', zone: '', description: '', affectedCameras: '' });
+      await load();
+    } catch (err: any) {
+      const m = err?.response?.data?.message;
+      window.alert(Array.isArray(m) ? m.join(', ') : m || 'No se pudo crear la incidencia.');
+    } finally { setSaving(false); }
+  }
+
+  function openResolve(id: string) {
+    setResolveId(id); setSigError(''); setTries(5);
+    setRf({ solution: '', rootCause: '', materials: '', interveners: '', responsibleName: '', observations: '', lineManagerNotified: false, affectedCameras: '', visionDownMin: '', email: user?.email || '', password: '' });
+  }
+  async function submitResolve(e: FormEvent) {
+    e.preventDefault();
+    setSigError(''); setSigning(true);
+    try {
+      const body: any = { email: rf.email, password: rf.password };
+      for (const k of ['solution', 'rootCause', 'materials', 'interveners', 'responsibleName', 'observations']) if (rf[k]) body[k] = rf[k];
+      body.lineManagerNotified = !!rf.lineManagerNotified;
+      if (rf.affectedCameras) body.affectedCameras = Number(rf.affectedCameras);
+      if (rf.visionDownMin) body.visionDownMin = Number(rf.visionDownMin);
+      await api.post('/incidents/' + resolveId + '/resolve', body);
+      setResolveId(null);
+      await load();
+    } catch (err: any) {
+      const m = err?.response?.data?.message;
+      const msg = Array.isArray(m) ? m.join(', ') : m || 'No se pudo resolver.';
+      if (/firma inv|contrase/i.test(msg)) {
+        const left = tries - 1; setTries(left);
+        setSigError(left > 0 ? `Contraseña incorrecta. Te quedan ${left} intento(s).` : 'Contraseña incorrecta. Sin intentos restantes.');
+      } else setSigError(msg);
+    } finally { setSigning(false); }
+  }
+
+  async function openPhotos(id: string) {
+    setPhotoId(id); setFile(null); setCaption('');
+    const ev = await api.get('/incidents/' + id + '/evidence').then((r) => r.data).catch(() => []);
+    setEvidence(ev || []);
+  }
+  async function uploadPhoto(e: FormEvent) {
+    e.preventDefault();
+    if (!file) { window.alert('Selecciona una imagen.'); return; }
+    setUploading(true);
+    try {
+      const fd = new FormData(); fd.append('file', file); if (caption) fd.append('caption', caption);
+      await api.post('/incidents/' + photoId + '/evidence', fd);
+      setFile(null); setCaption('');
+      const ev = await api.get('/incidents/' + photoId + '/evidence').then((r) => r.data).catch(() => []);
+      setEvidence(ev || []);
+    } catch { window.alert('No se pudo subir la imagen.'); }
+    finally { setUploading(false); }
+  }
+  async function downloadReport(i: any) {
+    try {
+      const res = await api.get('/incidents/' + i.id + '/report', { responseType: 'blob' });
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const a = document.createElement('a'); a.href = url; a.download = (i.code || 'informe') + '.pdf';
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    } catch { window.alert('No se pudo generar el informe.'); }
+  }
+
+  function clearFilters() { setFq(''); setFCat(''); setFStatus(''); setFrom(''); setTo(''); }
+
+  if (loading) return <div className="loading">Cargando incidencias…</div>;
+
+  const openIssue = (i: any) => i.status !== 'RESUELTA' && i.status !== 'CERRADA';
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h1 className="page-title">Incidencias</h1>
+          <p className="page-sub">{rows.length} incidencias · bitácora de campo para análisis de problemas de planta</p>
+        </div>
+        {can('incident.create') && <button className="btn-primary" onClick={() => setShowForm(true)}>+ Nueva incidencia</button>}
+      </div>
+
+      <div className="filters">
+        <div style={{ flex: 1, minWidth: 160 }}><label>Buscar</label><input placeholder="código, título, zona…" value={fq} onChange={(e) => setFq(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} /></div>
+        <div><label>Categoría</label><select value={fCat} onChange={(e) => setFCat(e.target.value)}><option value="">Todas</option>{CATEGORIES.map((c) => <option key={c} value={c}>{catEs(c)}</option>)}</select></div>
+        <div><label>Estado</label><select value={fStatus} onChange={(e) => setFStatus(e.target.value)}><option value="">Todos</option>{STATUSES.map((s) => <option key={s} value={s}>{stEs(s)}</option>)}</select></div>
+        <div><label>Desde</label><input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
+        <div><label>Hasta</label><input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
+        <button className="btn-primary" onClick={load}>Buscar</button>
+        <button className="btn-mini" onClick={clearFilters}>Limpiar</button>
+      </div>
+
+      <div className="card">
+        <table>
+          <thead>
+            <tr><th>Código</th><th>Título</th><th>Categoría</th><th>Zona</th><th>Prioridad</th><th>Estado</th><th>Activo</th><th></th></tr>
+          </thead>
+          <tbody>
+            {rows.map((i) => (
+              <tr key={i.id}>
+                <td style={{ fontWeight: 600 }}>{i.code}</td>
+                <td>{i.title}</td>
+                <td className="muted" style={{ fontSize: 11 }}>{catEs(i.category)}</td>
+                <td className="muted" style={{ fontSize: 12 }}>{i.zone || '—'}</td>
+                <td><span className={'badge ' + i.priority}>{i.priority}</span></td>
+                <td><span className={'badge ' + statusBadge(i.status)}>{stEs(i.status)}</span></td>
+                <td className="muted">{i.asset?.assetCode || '—'}</td>
+                <td style={{ whiteSpace: 'nowrap' }}>
+                  {can('incident.update') && <button className="btn-mini" onClick={() => openPhotos(i.id)}>Fotos</button>}
+                  {can('incident.update') && openIssue(i) && <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => openResolve(i.id)}>Resolver</button>}
+                  <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => downloadReport(i)}>Informe</button>
+                </td>
+              </tr>
+            ))}
+            {!rows.length && <tr><td colSpan={8} className="muted" style={{ textAlign: 'center', padding: 30 }}>Sin incidencias</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      {showForm && (
+        <Modal title="Nueva incidencia" onClose={() => setShowForm(false)}>
+          <form onSubmit={create}>
+            <div className="sign-note">Registra qué está pasando en campo (haya o no una OM). Sirve como bitácora para analizar problemas de planta.</div>
+            <label>Título</label>
+            <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required minLength={3} />
+            <div style={{ display: 'flex', gap: 10 }}>
+              <div style={{ flex: 1 }}><label>Categoría</label><select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>{CATEGORIES.map((c) => <option key={c} value={c}>{catEs(c)}</option>)}</select></div>
+              <div style={{ flex: 1 }}><label>Prioridad</label><select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>{PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}</select></div>
+            </div>
+            <label>Zona / área (Horno, Laminación, Púlpito…)</label>
+            <input value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value })} />
+            <label>Activo afectado (opcional)</label>
+            <select value={form.assetId} onChange={(e) => setForm({ ...form, assetId: e.target.value })}>
+              <option value="">— ninguno —</option>
+              {assets.map((a) => <option key={a.id} value={a.id}>{a.assetCode}</option>)}
+            </select>
+            <label>Descripción del problema</label>
+            <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} style={{ width: '100%', resize: 'vertical' }} />
+            <label>Cámaras afectadas (opcional)</label>
+            <input type="number" value={form.affectedCameras} onChange={(e) => setForm({ ...form, affectedCameras: e.target.value })} />
+            <button className="btn" disabled={saving}>{saving ? 'Guardando…' : 'Crear incidencia'}</button>
+          </form>
+        </Modal>
+      )}
+
+      {photoId && (
+        <Modal title="Fotografías de campo" onClose={() => setPhotoId(null)}>
+          <form onSubmit={uploadPhoto}>
+            <div className="sign-note">Sube fotos de lo que ocurre en campo. Se incrustan en el informe PDF de la incidencia.</div>
+            <label>Imagen (JPG / PNG)</label>
+            <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+            <label>Descripción (opcional)</label>
+            <input value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="Ej: cable UTP quemado en el área del horno" />
+            <button className="btn" disabled={uploading}>{uploading ? 'Subiendo…' : 'Subir foto'}</button>
+          </form>
+          <div style={{ marginTop: 14 }}>
+            <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>{evidence.length} foto(s) registradas</div>
+            {evidence.map((ev) => (
+              <div key={ev.id} style={{ fontSize: 12, padding: '4px 0', borderTop: '1px solid #eee' }}>
+                📷 {ev.caption || '(sin descripción)'} <span className="muted">· {new Date(ev.createdAt).toLocaleString()}</span>
+              </div>
+            ))}
+            {!evidence.length && <div className="muted" style={{ fontSize: 12 }}>Aún no hay fotos.</div>}
+          </div>
+        </Modal>
+      )}
+
+      {resolveId && (
+        <Modal title="Resolver incidencia (firmado)" onClose={() => setResolveId(null)}>
+          <form onSubmit={submitResolve}>
+            <div className="sign-note">Registra cómo se resolvió para el análisis de planta. Confirma tu identidad al final (firma auditada).</div>
+            <label>¿Qué se hizo para resolverlo?</label>
+            <textarea value={rf.solution} onChange={(e) => setRf({ ...rf, solution: e.target.value })} rows={2} style={{ width: '100%', resize: 'vertical' }} />
+            <label>Causa raíz</label>
+            <input value={rf.rootCause} onChange={(e) => setRf({ ...rf, rootCause: e.target.value })} />
+            <label>Materiales utilizados</label>
+            <textarea value={rf.materials} onChange={(e) => setRf({ ...rf, materials: e.target.value })} rows={2} style={{ width: '100%', resize: 'vertical' }} />
+            <label>Técnicos que intervinieron</label>
+            <input value={rf.interveners} onChange={(e) => setRf({ ...rf, interveners: e.target.value })} placeholder="Nombres separados por coma" />
+            <label>Responsable de la solución</label>
+            <input value={rf.responsibleName} onChange={(e) => setRf({ ...rf, responsibleName: e.target.value })} />
+            <label>Observaciones / recomendaciones</label>
+            <textarea value={rf.observations} onChange={(e) => setRf({ ...rf, observations: e.target.value })} rows={2} style={{ width: '100%', resize: 'vertical' }} />
+            <div style={{ display: 'flex', gap: 10 }}>
+              <div style={{ flex: 1 }}><label>Cámaras afectadas</label><input type="number" value={rf.affectedCameras} onChange={(e) => setRf({ ...rf, affectedCameras: e.target.value })} /></div>
+              <div style={{ flex: 1 }}><label>Minutos sin visión</label><input type="number" value={rf.visionDownMin} onChange={(e) => setRf({ ...rf, visionDownMin: e.target.value })} /></div>
+            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400, marginTop: 8 }}>
+              <input type="checkbox" checked={!!rf.lineManagerNotified} onChange={(e) => setRf({ ...rf, lineManagerNotified: e.target.checked })} style={{ width: 'auto' }} />
+              El jefe de línea está enterado del problema
+            </label>
+            <h4 style={{ marginTop: 12, marginBottom: 4 }}>🔏 Firma</h4>
+            <label>Correo</label>
+            <input type="email" value={rf.email} onChange={(e) => setRf({ ...rf, email: e.target.value })} required />
+            <label>Contraseña</label>
+            <input type="password" value={rf.password} onChange={(e) => setRf({ ...rf, password: e.target.value })} required />
+            {sigError && <div className="error">{sigError}</div>}
+            <button className="btn" disabled={signing || tries <= 0}>{signing ? 'Firmando…' : 'Firmar y resolver'}</button>
+          </form>
+        </Modal>
+      )}
+    </div>
+  );
+}

@@ -18,6 +18,8 @@ export class CredentialsService {
   async create(dto: CreateCredentialDto) {
     const asset = await this.prisma.asset.findUnique({ where: { id: dto.assetId } });
     if (!asset) throw new NotFoundException('Activo no encontrado');
+    // Reemplaza la credencial del mismo usuario en ese activo (evita duplicados que se acumulan).
+    await this.prisma.credential.deleteMany({ where: { assetId: dto.assetId, username: dto.username } });
     return this.prisma.credential.create({
       data: {
         assetId: dto.assetId,

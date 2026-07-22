@@ -46,7 +46,12 @@ export class AuditService {
   async findMany(q: QueryAuditDto) {
     const page = q.page && q.page > 0 ? q.page : 1;
     const pageSize = q.pageSize && q.pageSize > 0 && q.pageSize <= 200 ? q.pageSize : 50;
-    const where = { entity: q.entity, action: q.action, userId: q.userId };
+    const where: any = { entity: q.entity, action: q.action, userId: q.userId };
+    if (q.from || q.to) {
+      where.createdAt = {};
+      if (q.from) where.createdAt.gte = new Date(q.from);
+      if (q.to) where.createdAt.lte = new Date(q.to);
+    }
 
     const [total, data] = await this.prisma.$transaction([
       this.prisma.auditLog.count({ where }),
@@ -55,6 +60,7 @@ export class AuditService {
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * pageSize,
         take: pageSize,
+        include: { user: { select: { fullName: true, email: true } } },
       }),
     ]);
     return { page, pageSize, total, data };

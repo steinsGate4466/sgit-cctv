@@ -1,17 +1,19 @@
-import { IsEnum, IsOptional, IsString, Matches } from 'class-validator';
+import { IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
 import { AssetType, AssetStatus, Criticality } from '@prisma/client';
 
 export class CreateAssetDto {
-  // Convención de nomenclatura: AA-<TIPO>-T<n>-<zona>-<###>  (ej: AA-CAM-T1-FX-001)
-  @Matches(/^AA-[A-Z]{2,4}-T[1-3]-[A-Z0-9]{1,4}-\d{3}$/, {
-    message: 'assetCode debe seguir el patrón AA-CAM-T1-FX-001',
-  })
+  // Código / rótulo del activo. Formato LIBRE: el estándar de rotulamiento de Aceros
+  // aún no está definido; cuando se estandarice, se hará configurable.
+  @IsString()
+  @MinLength(2)
   assetCode: string;
 
   @IsEnum(AssetType) type: AssetType;
   @IsOptional() @IsString() brand?: string;
   @IsOptional() @IsString() model?: string;
   @IsOptional() @IsString() serialNumber?: string;
+  @IsOptional() @IsString() ipAddress?: string;
+  @IsOptional() @IsString() referencePlace?: string;
   @IsOptional() @IsEnum(AssetStatus) status?: AssetStatus;
   @IsOptional() @IsEnum(Criticality) criticality?: Criticality;
   @IsOptional() @IsString() locationId?: string;

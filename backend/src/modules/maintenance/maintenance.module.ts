@@ -1,5 +1,12 @@
 import { Module } from '@nestjs/common';
+import { MaintenanceService } from './maintenance.service';
+import { MaintenanceController } from './maintenance.controller';
+import { AuditModule } from '../audit/audit.module';
+import { StorageModule } from '../storage/storage.module';
 
-// TODO (fases siguientes): controladores, servicios y DTOs del módulo Maintenance.
-@Module({})
+@Module({
+  imports: [AuditModule, StorageModule],
+  controllers: [MaintenanceController],
+  providers: [MaintenanceService],
+})
 export class MaintenanceModule {}

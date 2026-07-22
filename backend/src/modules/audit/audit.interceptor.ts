@@ -11,6 +11,15 @@ const ACTIONS: Record<string, string> = {
   DELETE: 'DELETE',
 };
 
+// Rutas que ya registran su propia auditoría firmada (CREATE_ASSET, UPDATE_ASSET,
+// UPDATE_NETWORK, CLOSE_WO, RESOLVE). Se excluyen para no duplicar el evento.
+const SKIP: RegExp[] = [
+  /\/assets$/,                          // alta firmada de activo
+  /\/assets\/[^/]+\/(edit|network)$/,   // edición firmada / red
+  /\/work-orders\/[^/]+\/close$/,       // cierre firmado de OM
+  /\/incidents\/[^/]+\/resolve$/,       // resolución firmada
+];
+
 /**
  * AuditInterceptor — registra automáticamente las operaciones de escritura exitosas.
  * Qué hace: tras el handler, si el método es de mutación y la ruta no es de auth,
@@ -25,7 +34,8 @@ export class AuditInterceptor implements NestInterceptor {
     const req = context.switchToHttp().getRequest();
     const action = ACTIONS[req.method];
     const url = String(req.originalUrl || req.url || '');
-    const isAudited = !!action && !url.includes('/auth/');
+    const path = url.split('?')[0];
+    const isAudited = !!action && !url.includes('/auth/') && !SKIP.some((re) => re.test(path));
 
     return next.handle().pipe(
       tap((response) => {
