@@ -3,19 +3,34 @@ import { api } from '../api/client';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
 
-const CATEGORIES = ['GENERAL', 'SATURACION_SESIONES_NVR', 'CAIDA_ENLACE_INALAMBRICO', 'FALLA_ALMACENAMIENTO_NVR', 'DECODER_VIDEOWALL', 'CAMARA_SIN_IMAGEN', 'RED'];
+// Categorías agrupadas para el selector (CCTV/NVR, Red/energía, Entorno de planta).
+const CATEGORY_GROUPS: { label: string; items: string[] }[] = [
+  { label: 'CCTV / NVR', items: ['CAMARA_SIN_IMAGEN', 'SATURACION_SESIONES_NVR', 'FALLA_ALMACENAMIENTO_NVR', 'FALLA_NVR', 'DECODER_VIDEOWALL'] },
+  { label: 'Red / Energía', items: ['CAIDA_ENLACE_INALAMBRICO', 'FALLA_SWITCH', 'FALLA_FIBRA', 'FALLA_FUENTE_POE', 'PERDIDA_CONECTIVIDAD', 'CORTE_ENERGIA', 'FALLA_UPS', 'RED'] },
+  { label: 'Entorno de planta', items: ['FALLA_GABINETE', 'AMBIENTAL_SIDERURGICO', 'SEGURIDAD_FISICA', 'CONFIGURACION_FIRMWARE', 'GENERAL'] },
+];
+const CATEGORIES = CATEGORY_GROUPS.flatMap((g) => g.items);
 const PRIORITIES = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
 const STATUSES = ['ABIERTA', 'EN_DIAGNOSTICO', 'EN_PROCESO', 'RESUELTA', 'CERRADA'];
 
 const CAT_ES: Record<string, string> = {
   GENERAL: 'General', SATURACION_SESIONES_NVR: 'Saturación sesiones NVR', CAIDA_ENLACE_INALAMBRICO: 'Caída enlace inalámbrico',
-  FALLA_ALMACENAMIENTO_NVR: 'Falla almacenamiento NVR', DECODER_VIDEOWALL: 'Decoder / Videowall', CAMARA_SIN_IMAGEN: 'Cámara sin imagen', RED: 'Red',
+  FALLA_ALMACENAMIENTO_NVR: 'Falla almacenamiento NVR', DECODER_VIDEOWALL: 'Decoder / Videowall', CAMARA_SIN_IMAGEN: 'Cámara sin imagen', RED: 'Red (general)',
+  CORTE_ENERGIA: 'Corte de energía', FALLA_GABINETE: 'Falla de gabinete', FALLA_FUENTE_POE: 'Falla fuente / PoE', FALLA_SWITCH: 'Falla de switch / puerto',
+  FALLA_FIBRA: 'Falla de fibra / anillo', FALLA_UPS: 'Falla de UPS', PERDIDA_CONECTIVIDAD: 'Pérdida de conectividad', FALLA_NVR: 'Falla de NVR',
+  AMBIENTAL_SIDERURGICO: 'Ambiental (polvo/calor/escoria)', SEGURIDAD_FISICA: 'Seguridad física / vandalismo', CONFIGURACION_FIRMWARE: 'Configuración / firmware',
 };
 const STATUS_ES: Record<string, string> = {
   ABIERTA: 'Abierta', EN_DIAGNOSTICO: 'En diagnóstico', EN_PROCESO: 'En proceso', RESUELTA: 'Resuelta', CERRADA: 'Cerrada',
 };
+// Etiqueta del estado efectivo del activo (coherente con Activos).
+const ASSET_STATUS_ES: Record<string, string> = {
+  OPERATIVO: 'Operativo', FUERA_SERVICIO: 'Fuera de servicio', MANTENIMIENTO: 'En mantenimiento',
+  CON_INCIDENCIA: 'Con incidencia', BAJA: 'Baja', STOCK: 'En stock',
+};
 const catEs = (c: string) => CAT_ES[c] || c;
 const stEs = (s: string) => STATUS_ES[s] || s;
+const aEs = (s: string) => ASSET_STATUS_ES[s] || s;
 
 function statusBadge(s: string) {
   if (s === 'ABIERTA') return 'FUERA_SERVICIO';
@@ -163,7 +178,7 @@ export default function Incidents() {
 
       <div className="filters">
         <div style={{ flex: 1, minWidth: 160 }}><label>Buscar</label><input placeholder="código, título, zona…" value={fq} onChange={(e) => setFq(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} /></div>
-        <div><label>Categoría</label><select value={fCat} onChange={(e) => setFCat(e.target.value)}><option value="">Todas</option>{CATEGORIES.map((c) => <option key={c} value={c}>{catEs(c)}</option>)}</select></div>
+        <div><label>Categoría</label><select value={fCat} onChange={(e) => setFCat(e.target.value)}><option value="">Todas</option>{CATEGORY_GROUPS.map((g) => <optgroup key={g.label} label={g.label}>{g.items.map((c) => <option key={c} value={c}>{catEs(c)}</option>)}</optgroup>)}</select></div>
         <div><label>Estado</label><select value={fStatus} onChange={(e) => setFStatus(e.target.value)}><option value="">Todos</option>{STATUSES.map((s) => <option key={s} value={s}>{stEs(s)}</option>)}</select></div>
         <div><label>Desde</label><input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
         <div><label>Hasta</label><input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
@@ -185,7 +200,10 @@ export default function Incidents() {
                 <td className="muted" style={{ fontSize: 12 }}>{i.zone || '—'}</td>
                 <td><span className={'badge ' + i.priority}>{i.priority}</span></td>
                 <td><span className={'badge ' + statusBadge(i.status)}>{stEs(i.status)}</span></td>
-                <td className="muted">{i.asset?.assetCode || '—'}</td>
+                <td className="muted">
+                  {i.asset?.assetCode || '—'}
+                  {i.asset?.effectiveStatus && <div style={{ marginTop: 3 }}><span className={'badge ' + i.asset.effectiveStatus} style={{ fontSize: 10 }}>{aEs(i.asset.effectiveStatus)}</span></div>}
+                </td>
                 <td style={{ whiteSpace: 'nowrap' }}>
                   {can('incident.update') && <button className="btn-mini" onClick={() => openPhotos(i.id)}>Fotos</button>}
                   {can('incident.update') && openIssue(i) && <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => openResolve(i.id)}>Resolver</button>}
@@ -205,7 +223,7 @@ export default function Incidents() {
             <label>Título</label>
             <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required minLength={3} />
             <div style={{ display: 'flex', gap: 10 }}>
-              <div style={{ flex: 1 }}><label>Categoría</label><select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>{CATEGORIES.map((c) => <option key={c} value={c}>{catEs(c)}</option>)}</select></div>
+              <div style={{ flex: 1 }}><label>Categoría</label><select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>{CATEGORY_GROUPS.map((g) => <optgroup key={g.label} label={g.label}>{g.items.map((c) => <option key={c} value={c}>{catEs(c)}</option>)}</optgroup>)}</select></div>
               <div style={{ flex: 1 }}><label>Prioridad</label><select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>{PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}</select></div>
             </div>
             <label>Zona / área (Horno, Laminación, Púlpito…)</label>

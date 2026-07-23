@@ -9,7 +9,7 @@ const CRITS = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
 
 // Etiquetas en español (los valores internos siguen en inglés para no romper datos)
 const TYPE_ES: Record<string, string> = { CAMERA: 'Cámara', NVR: 'NVR', SWITCH: 'Switch', WIRELESS: 'Enlace inalámbrico', ROUTER: 'Router', FIREWALL: 'Firewall', SERVER: 'Servidor', UPS: 'UPS', FIBER: 'Fibra', CABINET: 'Gabinete', DECODER: 'Decodificador', OTHER: 'Otro' };
-const STATUS_ES: Record<string, string> = { OPERATIVO: 'Operativo', FUERA_SERVICIO: 'Fuera de servicio', MANTENIMIENTO: 'En mantenimiento', BAJA: 'Baja', STOCK: 'En stock' };
+const STATUS_ES: Record<string, string> = { OPERATIVO: 'Operativo', FUERA_SERVICIO: 'Fuera de servicio', MANTENIMIENTO: 'En mantenimiento', CON_INCIDENCIA: 'Con incidencia', BAJA: 'Baja', STOCK: 'En stock' };
 const CRIT_ES: Record<string, string> = { BAJA: 'Baja', MEDIA: 'Media', ALTA: 'Alta', CRITICA: 'Crítica' };
 const tEs = (v: string) => TYPE_ES[v] || v;
 const sEs = (v: string) => STATUS_ES[v] || v;
@@ -230,7 +230,7 @@ export default function Assets() {
                 <td>{[a.brand, a.model].filter(Boolean).join(' ') || '—'}</td>
                 {can('credential.read') && <td className="muted" style={{ fontFamily: 'monospace', fontSize: 12 }}>{a.ip || '—'}</td>}
                 {can('credential.read') && <td className="muted" style={{ fontFamily: 'monospace', fontSize: 12 }}>{a.password || '—'}</td>}
-                <td><span className={'badge ' + a.status}>{sEs(a.status)}</span></td>
+                <td><span className={'badge ' + (a.effectiveStatus || a.status)}>{sEs(a.effectiveStatus || a.status)}</span></td>
                 <td><span className={'badge ' + a.criticality}>{cEs(a.criticality)}</span></td>
                 <td className="muted">{a.location?.name || '—'}</td>
                 {can('credential.read') && <td><button className="btn-mini" onClick={(e) => { e.stopPropagation(); openQuickEdit(a); }}>Editar</button></td>}
@@ -250,7 +250,15 @@ export default function Assets() {
           <Frow k="Tipo" v={tEs(detail.type)} />
           <Frow k="Marca / Modelo" v={[detail.brand, detail.model].filter(Boolean).join(' ')} />
           <Frow k="N° de serie" v={detail.serialNumber} />
-          <Frow k="Estado" v={sEs(detail.status)} />
+          <div className="frow">
+            <span className="k">Estado operativo</span>
+            <span className="v"><span className={'badge ' + (detail.effectiveStatus || detail.status)}>{sEs(detail.effectiveStatus || detail.status)}</span></span>
+          </div>
+          {detail.effectiveStatus && detail.effectiveStatus !== detail.status && (
+            <div className="muted" style={{ fontSize: 11, marginTop: -2, marginBottom: 4 }}>
+              Estado calculado en vivo desde sus OM/incidencias abiertas. Estado base registrado: {sEs(detail.status)}.
+            </div>
+          )}
           <Frow k="Criticidad" v={cEs(detail.criticality)} />
           <Frow k="Firmware" v={detail.firmware} />
           <Frow k="Ubicación" v={detail.location?.name} />
@@ -268,7 +276,7 @@ export default function Assets() {
                   {savingStatus ? 'Guardando…' : 'Guardar estado'}
                 </button>
               </div>
-              <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>Mantén el estado al día para que el Jefe de Mantenimiento tenga la información actualizada.</div>
+              <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>Estado base del activo. Si el activo tiene una OM o incidencia abierta, el sistema muestra automáticamente “En mantenimiento” / “Fuera de servicio” aunque aquí figure “Operativo”.</div>
             </div>
           )}
 

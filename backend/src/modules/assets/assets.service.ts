@@ -3,6 +3,7 @@ import * as argon2 from 'argon2';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { decryptSecret } from '../../common/crypto/crypto.util';
+import { computeEffectiveStatuses, computeEffectiveStatus } from '../../common/asset-status';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { SignedCreateAssetDto } from './dto/create-asset-signed.dto';
 import { SignedUpdateAssetDto } from './dto/update-asset-signed.dto';
@@ -74,7 +75,11 @@ export class AssetsService {
         : { location: true },
       orderBy: { assetCode: 'asc' },
     });
-    if (!sensitive) return rows;
+    // Estado operativo DERIVADO (F5): calculado desde OM/incidencias abiertas.
+    const eff = await computeEffectiveStatuses(this.prisma, rows);
+    if (!sensitive) {
+      return rows.map((a: any) => ({ ...a, effectiveStatus: eff[a.id] || a.status }));
+    }
     // IP y contraseña (descifrada) solo para roles con credential.read
     // (Jefe de Mantenimiento, Supervisor TI, Técnico de Red).
     return rows.map((a: any) => {
@@ -84,6 +89,7 @@ export class AssetsService {
       if (c) { try { password = decryptSecret(c.secretEnc); } catch { password = null; } }
       return {
         ...rest,
+        effectiveStatus: eff[a.id] || a.status,
         ip: a.ipAddress || camera?.ipAddress || switchDev?.mgmtIp || nvr?.nicPrimary || null,
         password,
         credentialId: c?.id || null,
@@ -114,6 +120,8 @@ export class AssetsService {
       if (asset.switchDev) { asset.switchDev.mgmtIp = null; }
       if (asset.nvr) { asset.nvr.nicPrimary = null; asset.nvr.nicSecondary = null; }
     }
+    // Estado operativo derivado (F5) para que el detalle sea coherente con OM/incidencias.
+    asset.effectiveStatus = await computeEffectiveStatus(this.prisma, asset);
     return asset;
   }
 

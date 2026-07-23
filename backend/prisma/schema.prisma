@@ -419,6 +419,18 @@ enum IncidentCategory {
   DECODER_VIDEOWALL
   CAMARA_SIN_IMAGEN
   RED
+  // ---- Categorías específicas de planta siderúrgica (F5) ----
+  CORTE_ENERGIA             // corte / falla eléctrica que deja sin servicio equipos CCTV
+  FALLA_GABINETE            // gabinete: temperatura, ventilación, humedad, daño físico
+  FALLA_FUENTE_POE          // fuente / inyector / switch PoE que no energiza la cámara
+  FALLA_SWITCH              // switch o puerto (core anillo / distribución / acceso)
+  FALLA_FIBRA               // enlace de fibra / tramo del anillo dañado o degradado
+  FALLA_UPS                 // respaldo de energía (UPS) agotado o en falla
+  PERDIDA_CONECTIVIDAD      // pérdida de IP / VLAN / ping al equipo
+  FALLA_NVR                 // NVR general (reinicios, cuelgue, no graba)
+  AMBIENTAL_SIDERURGICO     // polvo, calor, escoria, vibración, agua propios de la planta
+  SEGURIDAD_FISICA          // vandalismo, robo, golpe o corte de cable
+  CONFIGURACION_FIRMWARE    // config incorrecta / firmware / actualización fallida
 }
 
 model Incident {

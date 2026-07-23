@@ -94,12 +94,15 @@ th, td { text-align: left; padding: 11px 14px; font-size: 13px; border-bottom: 1
 th { background: #fafbfc; color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: .4px; }
 tr:last-child td { border-bottom: none; }
 tbody tr:hover { background: #fafbfe; }
-.badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
-.badge.OPERATIVO { background: #e7f7ee; color: var(--ok); }
-.badge.FUERA_SERVICIO { background: #fdecec; color: var(--crit); }
-.badge.MANTENIMIENTO { background: #fff4e5; color: var(--warn); }
-.badge.CRITICA { background: #fdecec; color: var(--crit); }
-.badge.ALTA { background: #fff4e5; color: var(--warn); }
+.badge { display: inline-block; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600;
+  border: 1px solid transparent; letter-spacing: .2px; }
+.badge.OPERATIVO { background: #e7f7ee; color: var(--ok); border-color: #bfe9cf; }
+.badge.FUERA_SERVICIO { background: #fdecec; color: var(--crit); border-color: #f6c9c9; }
+.badge.MANTENIMIENTO { background: #fff4e5; color: var(--warn); border-color: #f5dcb0; }
+.badge.CON_INCIDENCIA { background: #fff1e6; color: #ea580c; border-color: #f6d3ba; }
+.badge.STOCK { background: #eef4ff; color: var(--steel); border-color: #d5e2f7; }
+.badge.CRITICA { background: #fdecec; color: var(--crit); border-color: #f6c9c9; }
+.badge.ALTA { background: #fff4e5; color: var(--warn); border-color: #f5dcb0; }
 .badge.MEDIA { background: #eef2f9; color: var(--steel); }
 .badge.BAJA { background: #eef2f9; color: var(--muted); }
 .muted { color: var(--muted); }
@@ -134,6 +137,42 @@ tbody tr:hover { background: #fafbfe; }
 .filters input { min-width: 150px; }
 .sign-note { background: #eef4ff; color: var(--steel); border: 1px solid #dbe6fb;
   padding: 9px 12px; border-radius: 8px; font-size: 12px; margin-bottom: 4px; }
+
+/* ============================================================
+   Refinamiento ejecutivo (F5) — más armonía y jerarquía visual
+   ============================================================ */
+:root { --ring: rgba(46,84,150,.12); }
+
+/* Números KPI con tipografía tabular + acento superior */
+.kpi { transition: box-shadow .15s ease, transform .15s ease; position: relative; }
+.kpi:hover { box-shadow: 0 6px 18px rgba(16,24,40,.10); transform: translateY(-1px); }
+.kpi .value { font-variant-numeric: tabular-nums; letter-spacing: -.5px; }
+
+/* Tarjetas y paneles: borde sutil + cabecera con acento */
+.card, .panel { border: 1px solid var(--border); }
+.panel h3 { display: flex; align-items: center; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.panel h3::before { content: ''; width: 4px; height: 14px; background: var(--steel); border-radius: 3px; }
+
+/* Tabla: cabecera fija al hacer scroll + filas más legibles */
+.card table thead th { position: sticky; top: 0; z-index: 1; }
+tbody tr { transition: background .1s ease; }
+tbody tr:hover { background: #f2f6fd; }
+
+/* Título de página con barra de acento (aire ejecutivo) */
+.page-title { position: relative; padding-left: 12px; }
+.page-title::before { content: ''; position: absolute; left: 0; top: 3px; bottom: 3px; width: 4px;
+  background: var(--red); border-radius: 3px; }
+
+/* Botones: foco accesible y transición */
+.btn, .btn-primary, .btn-mini { transition: background .15s ease, box-shadow .15s ease; }
+.btn-primary:focus-visible, .btn:focus-visible, .btn-mini:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); }
+
+/* Barra de filtros como tarjeta contenida */
+.filters { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+  padding: 14px 16px; box-shadow: var(--shadow); }
+
+/* Selector con optgroup legible */
+select optgroup { font-weight: 700; color: var(--navy); }
 
 /* Detalle de activo: modal con scroll */
 .modal-body { max-height: 74vh; overflow-y: auto; }

@@ -28,8 +28,10 @@ export default function Dashboard() {
 
   if (loading) return <div className="loading">Cargando indicadores…</div>;
 
+  const STATUS_ES: Record<string, string> = { OPERATIVO: 'Operativo', FUERA_SERVICIO: 'Fuera de servicio', MANTENIMIENTO: 'En mantenimiento', CON_INCIDENCIA: 'Con incidencia', BAJA: 'Baja', STOCK: 'En stock' };
   const byType = groupCount(assets, 'type');
-  const byStatus = groupCount(assets, 'status');
+  // Estado efectivo (derivado de OM/incidencias) para que coincida con los módulos.
+  const byStatus = groupCount(assets.map((a) => ({ st: STATUS_ES[a.effectiveStatus || a.status] || a.effectiveStatus || a.status })), 'st');
   const byCrit = groupCount(assets, 'criticality');
   const rootCauses = (metrics?.incidentsByRootCause || []).map((c: any) => ({ name: c.category, value: c.count }));
 

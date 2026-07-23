@@ -6,6 +6,12 @@ import { useAuth } from '../auth/AuthContext';
 const TYPES = ['PREVENTIVO', 'CORRECTIVO', 'MEJORA'];
 // Estados que el técnico puede fijar al registrar la intervención (el cierre lo hace el Jefe).
 const WORK_STATES = ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'];
+// Estado efectivo del activo (coherente con el módulo de Activos).
+const ASSET_STATUS_ES: Record<string, string> = {
+  OPERATIVO: 'Operativo', FUERA_SERVICIO: 'Fuera de servicio', MANTENIMIENTO: 'En mantenimiento',
+  CON_INCIDENCIA: 'Con incidencia', BAJA: 'Baja', STOCK: 'En stock',
+};
+const aEs = (s: string) => ASSET_STATUS_ES[s] || s;
 
 function woBadge(s: string) {
   if (s === 'CERRADA') return 'OPERATIVO';
@@ -216,7 +222,10 @@ export default function Maintenance() {
                 <td className="muted" style={{ fontSize: 12 }}>{w.zone || '—'}</td>
                 <td style={{ fontSize: 12 }}>{w.activity || '—'}</td>
                 <td><span className={'badge ' + woBadge(w.status)}>{w.status}</span></td>
-                <td className="muted">{w.asset?.assetCode || '—'}</td>
+                <td className="muted">
+                  {w.asset?.assetCode || '—'}
+                  {w.asset?.effectiveStatus && <div style={{ marginTop: 3 }}><span className={'badge ' + w.asset.effectiveStatus} style={{ fontSize: 10 }}>{aEs(w.asset.effectiveStatus)}</span></div>}
+                </td>
                 <td className="muted" style={{ fontSize: 12 }}>
                   {w.scheduledDate ? new Date(w.scheduledDate).toLocaleDateString() : '—'}
                   {isOverdue(w) && <span className="badge FUERA_SERVICIO" style={{ marginLeft: 6 }}>Vencida</span>}

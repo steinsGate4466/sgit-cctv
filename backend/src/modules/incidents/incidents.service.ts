@@ -8,11 +8,12 @@ import { CreateIncidentDto } from './dto/create-incident.dto';
 import { UpdateIncidentDto } from './dto/update-incident.dto';
 import { QueryIncidentDto } from './dto/query-incident.dto';
 import { ResolveIncidentDto } from './dto/resolve-incident.dto';
+import { computeEffectiveStatuses } from '../../common/asset-status';
 // PDF: require para no depender de @types en el build.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PDFDocument = require('pdfkit');
 
-const assetSel = { asset: { select: { assetCode: true, type: true } } };
+const assetSel = { asset: { select: { id: true, assetCode: true, type: true, status: true } } };
 
 @Injectable()
 export class IncidentsService {
@@ -73,6 +74,12 @@ export class IncidentsService {
         include: assetSel,
       }),
     ]);
+    // Estado operativo derivado del activo afectado (coherencia con la incidencia).
+    const assetsForStatus = data.map((i: any) => i.asset).filter((a: any) => a && a.id);
+    const eff = await computeEffectiveStatuses(this.prisma, assetsForStatus);
+    for (const i of data as any[]) {
+      if (i.asset && i.asset.id) i.asset.effectiveStatus = eff[i.asset.id] || i.asset.status;
+    }
     return { page, pageSize, total, data };
   }
 

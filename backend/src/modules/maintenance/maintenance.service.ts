@@ -8,12 +8,13 @@ import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 import { QueryWorkOrderDto } from './dto/query-work-order.dto';
 import { CloseWorkOrderDto } from './dto/close-work-order.dto';
+import { computeEffectiveStatuses } from '../../common/asset-status';
 // PDF: se carga con require para no depender de @types en el build.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PDFDocument = require('pdfkit');
 
 const inc = {
-  asset: { select: { assetCode: true, type: true } },
+  asset: { select: { id: true, assetCode: true, type: true, status: true } },
   technician: { select: { id: true, fullName: true } },
   incident: { select: { id: true, code: true, title: true } },
 };
@@ -80,6 +81,14 @@ export class MaintenanceService {
         include: inc,
       }),
     ]);
+    // Adjunta el estado operativo derivado del activo (coherencia con la OM/incidencia).
+    const assetsForStatus = data
+      .map((w: any) => w.asset)
+      .filter((a: any) => a && a.id);
+    const eff = await computeEffectiveStatuses(this.prisma, assetsForStatus);
+    for (const w of data as any[]) {
+      if (w.asset && w.asset.id) w.asset.effectiveStatus = eff[w.asset.id] || w.asset.status;
+    }
     return { page, pageSize, total, data };
   }
 
