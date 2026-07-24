@@ -22,6 +22,7 @@ import { CredentialsModule } from './modules/credentials/credentials.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { PreventiveModule } from './modules/preventive/preventive.module';
 import { CorrectiveModule } from './modules/corrective/corrective.module';
+import { CabinetsModule } from './modules/cabinets/cabinets.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { CorrectiveModule } from './modules/corrective/corrective.module';
     InventoryModule,
     PreventiveModule,
     CorrectiveModule,
+    CabinetsModule,
   ],
   controllers: [HealthController],
   providers: [

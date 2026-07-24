@@ -148,12 +148,12 @@ async function main() {
     });
     trenes[`T${n}`] = t.id;
   }
-  // Rack de ejemplo en Tren 1
+  // Gabinete de ejemplo en Tren 1 (antes "Rack")
   const rackT1 = await prisma.location.upsert({
     where: { code: 'AASA-PISCO-T1-R01' },
-    update: {},
+    update: { name: 'Gabinete R-01' },
     create: {
-      code: 'AASA-PISCO-T1-R01', name: 'Rack R-01', type: 'RACK',
+      code: 'AASA-PISCO-T1-R01', name: 'Gabinete R-01', type: 'RACK',
       parentId: trenes['T1'], path: 'AASA/PISCO/T1/R01',
     },
   });
@@ -196,6 +196,21 @@ async function main() {
       status: 'OPERATIVO', criticality: 'ALTA', locationId: trenes['T1'],
       camera: { create: { resolution: '2560x1440', ipAddress: '172.16.10.21', nvrId: nvr.id, wirelessUplinkId: pmp.id } },
     },
+  });
+
+  // 6b) Gabinete (rack) — parámetro de mantenimiento con rótulo, ubicación y equipos montados
+  const gabT1 = await prisma.cabinet.upsert({
+    where: { code: 'GAB-T1-R01' },
+    update: {},
+    create: {
+      code: 'GAB-T1-R01', name: 'Gabinete R-01 (Tren 1)', locationId: rackT1.id,
+      referencePlace: 'Sala de equipos — Tren 1, Gabinete R-01',
+    },
+  });
+  // El NVR y el switch core van montados en ese gabinete (para ubicarlos rápido).
+  await prisma.asset.updateMany({
+    where: { assetCode: { in: ['AA-NVR-T1-R01-001', 'AA-SW-T1-CORE-001'] } },
+    data: { cabinetId: gabT1.id },
   });
 
   // 7) Enlaces de topología (anillo de fibra + uplink)

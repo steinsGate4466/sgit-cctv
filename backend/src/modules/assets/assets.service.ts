@@ -106,7 +106,7 @@ export class AssetsService {
     const asset: any = await this.prisma.asset.findUnique({
       where: { id },
       include: {
-        location: true, camera: true, nvr: true, switchDev: true, wireless: true,
+        location: true, cabinet: true, camera: true, nvr: true, switchDev: true, wireless: true,
         workOrders: {
           orderBy: { createdAt: 'desc' }, take: 8,
           select: { code: true, type: true, status: true, scheduledDate: true, executedDate: true },

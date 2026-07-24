@@ -17,6 +17,7 @@ export class CreateAssetDto {
   @IsOptional() @IsEnum(AssetStatus) status?: AssetStatus;
   @IsOptional() @IsEnum(Criticality) criticality?: Criticality;
   @IsOptional() @IsString() locationId?: string;
+  @IsOptional() @IsString() cabinetId?: string;
   @IsOptional() @IsString() sapId?: string;
   @IsOptional() @IsString() costCenter?: string;
   @IsOptional() @IsString() responsibleArea?: string;

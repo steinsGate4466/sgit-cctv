@@ -101,10 +101,34 @@ model Location {
 
   assets           Asset[]
   documents        Document[]
+  cabinets         Cabinet[]
 
   @@index([parentId])
   @@index([path])
   @@map("locations")
+}
+
+// =====================================================================
+//  GABINETES / RACKS (F6.3) — parámetro de mantenimiento, NO es un activo.
+//  Un gabinete tiene rótulo propio, ubicación y foto; los equipos montados
+//  (NVR, switch, etc.) indican en qué gabinete están para ubicarlos rápido.
+// =====================================================================
+model Cabinet {
+  id          String    @id @default(uuid())
+  code        String    @unique // rótulo del gabinete (ej. GAB-T1-R01)
+  name        String
+  locationId  String?
+  location    Location? @relation(fields: [locationId], references: [id])
+  referencePlace String? // referencia física (texto libre)
+  photoFileId String?    // foto del gabinete en MinIO
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  assets      Asset[]
+
+  @@index([locationId])
+  @@map("cabinets")
 }
 
 // =====================================================================
@@ -158,6 +182,8 @@ model Asset {
   warrantyEnd   DateTime?
   locationId    String?
   location      Location?   @relation(fields: [locationId], references: [id])
+  cabinetId     String?     // gabinete donde está montado (NVR, switch, etc.)
+  cabinet       Cabinet?    @relation(fields: [cabinetId], references: [id])
   // ---- Campos SAP-ready ----
   sapId         String?     @unique
   costCenter    String?
@@ -188,6 +214,7 @@ model Asset {
   @@index([type])
   @@index([status])
   @@index([locationId])
+  @@index([cabinetId])
   @@map("assets")
 }
 

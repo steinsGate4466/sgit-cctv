@@ -6,6 +6,8 @@ import { useAuth } from '../auth/AuthContext';
 const TYPES = ['CAMERA', 'NVR', 'SWITCH', 'WIRELESS', 'ROUTER', 'FIREWALL', 'SERVER', 'UPS', 'FIBER', 'CABINET', 'DECODER', 'PC', 'OTHER'];
 const STATES = ['OPERATIVO', 'FUERA_SERVICIO', 'MANTENIMIENTO', 'BAJA', 'STOCK'];
 const CRITS = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
+// Tipos montados en rack: es obligatorio indicar en qué gabinete están.
+const CABINET_REQUIRED = ['NVR', 'SWITCH', 'SERVER', 'DECODER', 'ROUTER', 'FIREWALL'];
 
 // Etiquetas en español (los valores internos siguen en inglés para no romper datos)
 const TYPE_ES: Record<string, string> = { CAMERA: 'Cámara', NVR: 'NVR', SWITCH: 'Switch', WIRELESS: 'Enlace inalámbrico', ROUTER: 'Router', FIREWALL: 'Firewall', SERVER: 'Servidor', UPS: 'UPS', FIBER: 'Fibra', CABINET: 'Gabinete', DECODER: 'Decodificador', PC: 'PC / iVMS-4200', OTHER: 'Otro' };
@@ -28,6 +30,7 @@ export default function Assets() {
   const { can, user } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
+  const [cabinets, setCabinets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<any>(null);
   const [creds, setCreds] = useState<any[]>([]);
@@ -62,20 +65,21 @@ export default function Assets() {
     Promise.all([
       api.get('/assets').then((r) => r.data).catch(() => []),
       api.get('/locations').then((r) => r.data).catch(() => []),
-    ]).then(([a, l]) => { setRows(a || []); setLocations(l || []); setLoading(false); });
+      api.get('/cabinets').then((r) => r.data).catch(() => []),
+    ]).then(([a, l, c]) => { setRows(a || []); setLocations(l || []); setCabinets(c || []); setLoading(false); });
   }, []);
 
   function openNew() {
     setFormErr('');
     setTries(5);
-    setForm({ assetCode: '', type: 'CAMERA', brand: '', model: '', serialNumber: '', ipAddress: '', devicePass: '', status: 'OPERATIVO', criticality: 'MEDIA', locationId: '', referencePlace: '', sapId: '', responsibleArea: '', email: user?.email || '', password: '' });
+    setForm({ assetCode: '', type: 'CAMERA', brand: '', model: '', serialNumber: '', ipAddress: '', devicePass: '', status: 'OPERATIVO', criticality: 'MEDIA', locationId: '', cabinetId: '', referencePlace: '', sapId: '', responsibleArea: '', email: user?.email || '', password: '' });
   }
   function openEdit(a: any) {
     setFormErr(''); setTries(5); setDetail(null);
     setForm({
       id: a.id, assetCode: a.assetCode || '', type: a.type || 'CAMERA', brand: a.brand || '', model: a.model || '',
       serialNumber: a.serialNumber || '', ipAddress: a.ipAddress || '', status: a.status || 'OPERATIVO',
-      criticality: a.criticality || 'MEDIA', locationId: a.locationId || '', referencePlace: a.referencePlace || '', sapId: a.sapId || '',
+      criticality: a.criticality || 'MEDIA', locationId: a.locationId || '', cabinetId: a.cabinetId || '', referencePlace: a.referencePlace || '', sapId: a.sapId || '',
       responsibleArea: a.responsibleArea || '', devicePass: '', email: user?.email || '', password: '',
     });
   }
@@ -88,7 +92,7 @@ export default function Assets() {
         assetCode: form.assetCode, type: form.type, status: form.status, criticality: form.criticality,
         brand: form.brand || undefined, model: form.model || undefined, serialNumber: form.serialNumber || undefined,
         ipAddress: form.ipAddress || undefined, referencePlace: form.referencePlace || undefined,
-        locationId: form.locationId || undefined, sapId: form.sapId || undefined, responsibleArea: form.responsibleArea || undefined,
+        locationId: form.locationId || undefined, cabinetId: form.cabinetId || undefined, sapId: form.sapId || undefined, responsibleArea: form.responsibleArea || undefined,
         email: form.email, password: form.password,
       };
       let assetId = form.id;
@@ -262,6 +266,7 @@ export default function Assets() {
           <Frow k="Criticidad" v={cEs(detail.criticality)} />
           <Frow k="Firmware" v={detail.firmware} />
           <Frow k="Ubicación" v={detail.location?.name} />
+          <Frow k="Gabinete" v={detail.cabinet ? `${detail.cabinet.code} — ${detail.cabinet.name}` : null} />
           <Frow k="Lugar de referencia" v={detail.referencePlace} />
           <Frow k="Garantía" v={detail.warrantyEnd ? new Date(detail.warrantyEnd).toLocaleDateString() : null} />
 
@@ -383,6 +388,12 @@ export default function Assets() {
               <option value="">— sin ubicación —</option>
               {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
+            <label>Gabinete{CABINET_REQUIRED.includes(form.type) ? ' (obligatorio para este tipo)' : ''}</label>
+            <select value={form.cabinetId} onChange={(e) => setForm({ ...form, cabinetId: e.target.value })} required={CABINET_REQUIRED.includes(form.type)}>
+              <option value="">— sin gabinete —</option>
+              {cabinets.map((c) => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
+            </select>
+            {CABINET_REQUIRED.includes(form.type) && <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>Este tipo va montado en rack: indica el gabinete para ubicarlo rápido en planta.</div>}
             <label>Lugar de referencia (texto libre)</label>
             <input value={form.referencePlace} onChange={(e) => setForm({ ...form, referencePlace: e.target.value })} placeholder="Ej: Púlpito Tren 1, poste 3 lado norte" />
             <div style={{ display: 'flex', gap: 10 }}>
