@@ -15,9 +15,9 @@ export class PreventiveService {
     private audit: AuditService,
   ) {}
 
-  private addMonths(base: Date, months: number): Date {
+  private addDays(base: Date, days: number): Date {
     const d = new Date(base);
-    d.setMonth(d.getMonth() + months);
+    d.setDate(d.getDate() + days);
     return d;
   }
 
@@ -79,17 +79,17 @@ export class PreventiveService {
     const asset = await this.prisma.asset.findUnique({ where: { id: dto.assetId } });
     if (!asset || asset.deletedAt) throw new NotFoundException('Activo no encontrado');
 
-    const interval = dto.intervalMonths && dto.intervalMonths > 0
-      ? dto.intervalMonths
-      : (dto.zoneCritical ? 3 : 6);
+    const interval = dto.intervalDays && dto.intervalDays > 0
+      ? dto.intervalDays
+      : (dto.zoneCritical ? 30 : 60);
     const last = dto.lastServiceAt ? new Date(dto.lastServiceAt) : null;
     const base = last || new Date();
-    const nextDueAt = this.addMonths(base, interval);
+    const nextDueAt = this.addDays(base, interval);
 
     const plan = await this.prisma.preventivePlan.upsert({
       where: { assetId: dto.assetId },
       update: {
-        intervalMonths: interval,
+        intervalDays: interval,
         zoneCritical: dto.zoneCritical ?? undefined,
         lastServiceAt: last ?? undefined,
         nextDueAt,
@@ -97,7 +97,7 @@ export class PreventiveService {
       },
       create: {
         assetId: dto.assetId,
-        intervalMonths: interval,
+        intervalDays: interval,
         zoneCritical: !!dto.zoneCritical,
         lastServiceAt: last,
         nextDueAt,
@@ -106,7 +106,7 @@ export class PreventiveService {
     });
     await this.audit.record({
       userId: userId || null, action: 'PREVENTIVE_PLAN', entity: 'preventive_plans', entityId: plan.id, ip,
-      after: { activo: asset.assetCode, intervaloMeses: interval, zonaCritica: !!dto.zoneCritical },
+      after: { activo: asset.assetCode, intervaloDias: interval, zonaCritica: !!dto.zoneCritical },
     });
     return { ...plan, statusPlan: this.planStatus(plan.nextDueAt, plan.active) };
   }
@@ -135,7 +135,7 @@ export class PreventiveService {
           type: 'PREVENTIVO',
           status: 'ABIERTA',
           assetId: plan.assetId,
-          activity: `Mantenimiento preventivo programado (cada ${plan.intervalMonths} meses).`,
+          activity: `Mantenimiento preventivo programado (cada ${plan.intervalDays} días).`,
           scheduledDate: now,
         },
       });
@@ -156,7 +156,7 @@ export class PreventiveService {
   async markServiced(assetId: string, when: Date = new Date()) {
     const plan = await this.prisma.preventivePlan.findUnique({ where: { assetId } });
     if (!plan || !plan.active) return null;
-    const nextDueAt = this.addMonths(when, plan.intervalMonths);
+    const nextDueAt = this.addDays(when, plan.intervalDays);
     return this.prisma.preventivePlan.update({
       where: { assetId },
       data: { lastServiceAt: when, nextDueAt },

@@ -210,6 +210,7 @@ model Asset {
   linksB        NetworkLink[] @relation("LinkEndpointB")
   spareLinks    SparePartAsset[]
   preventivePlan PreventivePlan?
+  photos        AssetPhoto[]
 
   @@index([type])
   @@index([status])
@@ -655,20 +656,42 @@ model StockCheck {
 /// El intervalo depende de la criticidad de la zona (3 meses críticas, 6 meses el resto),
 /// editable por el Jefe. nextDueAt = lastServiceAt (o alta) + intervalo.
 model PreventivePlan {
-  id             String    @id @default(uuid())
-  assetId        String    @unique
-  asset          Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  intervalMonths Int       @default(6) // 3 = zona crítica, 6 = no crítica (editable)
-  zoneCritical   Boolean   @default(false)
-  lastServiceAt  DateTime?
-  nextDueAt      DateTime?
-  active         Boolean   @default(true)
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id            String    @id @default(uuid())
+  assetId       String    @unique
+  asset         Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  intervalDays  Int       @default(60) // 30 días = zona crítica (suciedad), 60 = no crítica (editable)
+  zoneCritical  Boolean   @default(false)
+  lastServiceAt DateTime?
+  nextDueAt     DateTime?
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@index([nextDueAt])
   @@index([active])
   @@map("preventive_plans")
+}
+
+// ===================== FOTOGRAFÍAS DE ACTIVO (F6.4) =====================
+enum PhotoKind {
+  APUNTA      // a qué apunta (campo de visión, cámaras de púlpito)
+  REFERENCIA  // ubicación de referencia física
+  PLANO       // ubicación en plano (a futuro)
+  GENERAL     // otra foto del equipo
+}
+
+/// Fotografías del activo (a qué apunta, referencia, plano) — en MinIO.
+model AssetPhoto {
+  id        String    @id @default(uuid())
+  assetId   String
+  asset     Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  kind      PhotoKind @default(GENERAL)
+  fileId    String
+  caption   String?
+  createdAt DateTime  @default(now())
+
+  @@index([assetId])
+  @@map("asset_photos")
 }
 
 /// Fotografías de campo de una incidencia (almacenadas en MinIO).

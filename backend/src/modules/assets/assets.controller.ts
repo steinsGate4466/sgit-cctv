@@ -1,5 +1,9 @@
-import { Body, Controller, Delete, Get, Ip, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body, Controller, Delete, Get, Ip, Param, Patch, Post, Query, Res, UploadedFile, UseGuards, UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { AssetsService } from './assets.service';
 import { SignedCreateAssetDto } from './dto/create-asset-signed.dto';
 import { SignedUpdateAssetDto } from './dto/update-asset-signed.dto';
@@ -63,5 +67,33 @@ export class AssetsController {
   @RequirePermissions('asset.delete')
   remove(@Param('id') id: string) {
     return this.assets.remove(id);
+  }
+
+  // ---------- Fotografías del activo ----------
+  @Post(':id/photos')
+  @RequirePermissions('asset.update')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 12 * 1024 * 1024 } }))
+  addPhoto(@Param('id') id: string, @UploadedFile() file: any, @Body('kind') kind?: string, @Body('caption') caption?: string) {
+    return this.assets.addPhoto(id, file, kind, caption);
+  }
+
+  @Get(':id/photos')
+  @RequirePermissions('asset.read')
+  listPhotos(@Param('id') id: string) {
+    return this.assets.listPhotos(id);
+  }
+
+  @Get('photos/:photoId/file')
+  @RequirePermissions('asset.read')
+  async photoFile(@Param('photoId') photoId: string, @Res() res: Response) {
+    const { buffer, contentType } = await this.assets.getPhotoFile(photoId);
+    res.setHeader('Content-Type', contentType);
+    res.send(buffer);
+  }
+
+  @Delete('photos/:photoId')
+  @RequirePermissions('asset.update')
+  removePhoto(@Param('photoId') photoId: string) {
+    return this.assets.removePhoto(photoId);
   }
 }

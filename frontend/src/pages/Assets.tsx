@@ -8,6 +8,9 @@ const STATES = ['OPERATIVO', 'FUERA_SERVICIO', 'MANTENIMIENTO', 'BAJA', 'STOCK']
 const CRITS = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
 // Tipos montados en rack: es obligatorio indicar en qué gabinete están.
 const CABINET_REQUIRED = ['NVR', 'SWITCH', 'SERVER', 'DECODER', 'ROUTER', 'FIREWALL'];
+// Tipos de fotografía del activo.
+const PHOTO_KINDS = ['APUNTA', 'REFERENCIA', 'PLANO', 'GENERAL'];
+const PHOTO_KIND_ES: Record<string, string> = { APUNTA: 'A qué apunta', REFERENCIA: 'Ubicación de referencia', PLANO: 'Ubicación en plano', GENERAL: 'General' };
 
 // Etiquetas en español (los valores internos siguen en inglés para no romper datos)
 const TYPE_ES: Record<string, string> = { CAMERA: 'Cámara', NVR: 'NVR', SWITCH: 'Switch', WIRELESS: 'Enlace inalámbrico', ROUTER: 'Router', FIREWALL: 'Firewall', SERVER: 'Servidor', UPS: 'UPS', FIBER: 'Fibra', CABINET: 'Gabinete', DECODER: 'Decodificador', PC: 'PC / iVMS-4200', OTHER: 'Otro' };
@@ -35,6 +38,13 @@ export default function Assets() {
   const [detail, setDetail] = useState<any>(null);
   const [creds, setCreds] = useState<any[]>([]);
   const [revealed, setRevealed] = useState<any>({});
+
+  // Fotografías del activo (a qué apunta, referencia, plano)
+  const [photos, setPhotos] = useState<any[]>([]);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoKind, setPhotoKind] = useState('REFERENCIA');
+  const [photoCaption, setPhotoCaption] = useState('');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   // Alta firmada de activo
   const [form, setForm] = useState<any>(null);
@@ -118,8 +128,10 @@ export default function Assets() {
   async function openDetail(id: string) {
     setRevealed({});
     setCreds([]);
+    setPhotoFile(null); setPhotoCaption(''); setPhotoKind('REFERENCIA');
     const d = await api.get('/assets/' + id).then((r) => r.data).catch(() => null);
     setDetail(d);
+    setPhotos(d?.photos || []);
     setNewStatus(d?.status || '');
     setIpEdit(d?.ipAddress || '');
     setCred({ username: '', type: '', secret: '' });
@@ -132,6 +144,34 @@ export default function Assets() {
   async function reveal(credId: string) {
     const r = await api.get('/credentials/' + credId + '/reveal').then((res) => res.data).catch(() => null);
     if (r) setRevealed((prev: any) => ({ ...prev, [credId]: r.secret }));
+  }
+
+  async function uploadPhoto() {
+    if (!photoFile || !detail) { window.alert('Selecciona una imagen.'); return; }
+    setUploadingPhoto(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', photoFile);
+      fd.append('kind', photoKind);
+      if (photoCaption) fd.append('caption', photoCaption);
+      await api.post('/assets/' + detail.id + '/photos', fd);
+      setPhotoFile(null); setPhotoCaption('');
+      const ph = await api.get('/assets/' + detail.id + '/photos').then((r) => r.data).catch(() => []);
+      setPhotos(ph || []);
+    } catch { window.alert('No se pudo subir la foto.'); }
+    finally { setUploadingPhoto(false); }
+  }
+  async function viewPhoto(ph: any) {
+    try {
+      const res = await api.get('/assets/photos/' + ph.id + '/file', { responseType: 'blob' });
+      window.open(URL.createObjectURL(new Blob([res.data])), '_blank');
+    } catch { window.alert('No se pudo abrir la foto.'); }
+  }
+  async function delPhoto(ph: any) {
+    if (!window.confirm('¿Eliminar esta foto?')) return;
+    await api.delete('/assets/photos/' + ph.id).catch(() => {});
+    const list = await api.get('/assets/' + detail.id + '/photos').then((r) => r.data).catch(() => []);
+    setPhotos(list || []);
   }
 
   async function saveStatus() {
@@ -297,6 +337,29 @@ export default function Assets() {
             </div>
           )}
 
+          <div className="detail-sec">
+            <h4>📷 Fotografías del equipo</h4>
+            {photos.length ? photos.map((ph) => (
+              <div key={ph.id} className="frow">
+                <span className="v">{PHOTO_KIND_ES[ph.kind] || ph.kind}{ph.caption ? ' — ' + ph.caption : ''}</span>
+                <span style={{ display: 'flex', gap: 6 }}>
+                  <button className="btn-mini" onClick={() => viewPhoto(ph)}>Ver</button>
+                  {can('asset.update') && <button className="btn-mini" onClick={() => delPhoto(ph)}>✕</button>}
+                </span>
+              </div>
+            )) : <div className="muted" style={{ fontSize: 12 }}>Sin fotografías.</div>}
+            {can('asset.update') && (
+              <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <select value={photoKind} onChange={(e) => setPhotoKind(e.target.value)}>
+                  {PHOTO_KINDS.map((k) => <option key={k} value={k}>{PHOTO_KIND_ES[k]}</option>)}
+                </select>
+                <input type="file" accept="image/*" onChange={(e) => setPhotoFile(e.target.files?.[0] || null)} />
+                <input value={photoCaption} onChange={(e) => setPhotoCaption(e.target.value)} placeholder="Descripción (opcional)" />
+                <button className="btn-mini" disabled={uploadingPhoto} onClick={uploadPhoto}>{uploadingPhoto ? 'Subiendo…' : 'Subir foto'}</button>
+              </div>
+            )}
+          </div>
+
           {can('credential.read') ? (
             <div className="detail-sec">
               <h4>🔒 Red y accesos</h4>
@@ -383,11 +446,12 @@ export default function Assets() {
             <input value={form.ipAddress} onChange={(e) => setForm({ ...form, ipAddress: e.target.value })} placeholder="Ej: 172.16.10.21" />
             <label>Contraseña del equipo (opcional)</label>
             <input value={form.devicePass} onChange={(e) => setForm({ ...form, devicePass: e.target.value })} placeholder="clave de la cámara / NVR" />
-            <label>Ubicación</label>
-            <select value={form.locationId} onChange={(e) => setForm({ ...form, locationId: e.target.value })}>
-              <option value="">— sin ubicación —</option>
+            <label>Ubicación (obligatorio)</label>
+            <select value={form.locationId} onChange={(e) => setForm({ ...form, locationId: e.target.value })} required>
+              <option value="">— selecciona ubicación —</option>
               {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
+            <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>¿No está la ubicación? Regístrala primero en el menú “Ubicaciones”.</div>
             <label>Gabinete{CABINET_REQUIRED.includes(form.type) ? ' (obligatorio para este tipo)' : ''}</label>
             <select value={form.cabinetId} onChange={(e) => setForm({ ...form, cabinetId: e.target.value })} required={CABINET_REQUIRED.includes(form.type)}>
               <option value="">— sin gabinete —</option>

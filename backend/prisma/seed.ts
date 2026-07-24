@@ -287,6 +287,21 @@ async function main() {
     },
   });
 
+  // 9a-bis) OM correctivas adicionales para que la antena PMP sea candidata a reemplazo (≥3 en 12 meses)
+  for (const n of [3, 4]) {
+    const when = new Date(Date.now() - n * 20 * 24 * 3600 * 1000);
+    await prisma.workOrder.upsert({
+      where: { code: `OM-2026-000${n}` },
+      update: {},
+      create: {
+        code: `OM-2026-000${n}`, type: 'CORRECTIVO', status: 'CERRADA', assetId: pmp.id,
+        zone: 'Tren 1 — Púlpito (antena PMP)',
+        activity: 'Corrección de enlace PMP inestable (reincidencia).',
+        scheduledDate: when, executedDate: when,
+      },
+    });
+  }
+
   // 9b) PC de visualización con iVMS-4200 (parte del mantenimiento CCTV)
   const pcIvms = await prisma.asset.upsert({
     where: { assetCode: 'AA-PC-T1-PUL-001' },
@@ -299,26 +314,27 @@ async function main() {
     },
   });
 
-  // 9c) Planes de mantenimiento preventivo (3 meses zona crítica, 6 meses el resto).
+  // 9c) Planes de mantenimiento preventivo (30 días zona crítica, 60 días el resto).
   //     La cámara del Tren 1 (cerca del horno) queda VENCIDA para ver la alerta.
-  const addMonths = (d: Date, m: number) => { const x = new Date(d); x.setMonth(x.getMonth() + m); return x; };
+  const addDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
   const plans = [
-    { assetId: camera.id, zoneCritical: true, overdue: true },  // cerca del horno → 3 meses (vencida)
+    { assetId: camera.id, zoneCritical: true, overdue: true },  // cerca del horno → 30 días (vencida)
     { assetId: nvr.id, zoneCritical: true, overdue: false },
     { assetId: pmp.id, zoneCritical: true, overdue: false },
     { assetId: coreSwitch.id, zoneCritical: false, overdue: false },
     { assetId: pcIvms.id, zoneCritical: false, overdue: false },
   ];
   for (const pl of plans) {
-    const interval = pl.zoneCritical ? 3 : 6;
-    const last = pl.overdue ? addMonths(new Date(), -(interval + 1)) : new Date();
+    const interval = pl.zoneCritical ? 30 : 60;
+    const last = pl.overdue ? addDays(new Date(), -(interval + 10)) : new Date();
+    const data = {
+      intervalDays: interval, zoneCritical: pl.zoneCritical,
+      lastServiceAt: last, nextDueAt: addDays(last, interval), active: true,
+    };
     await prisma.preventivePlan.upsert({
       where: { assetId: pl.assetId },
-      update: {},
-      create: {
-        assetId: pl.assetId, intervalMonths: interval, zoneCritical: pl.zoneCritical,
-        lastServiceAt: last, nextDueAt: addMonths(last, interval), active: true,
-      },
+      update: data,
+      create: { assetId: pl.assetId, ...data },
     });
   }
 

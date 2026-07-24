@@ -58,12 +58,12 @@ export default function Preventive() {
   }
 
   function openNew() {
-    setForm({ assetId: '', intervalMonths: 6, zoneCritical: false, lastServiceAt: '', active: true });
+    setForm({ assetId: '', intervalDays: 60, zoneCritical: false, lastServiceAt: '', active: true });
   }
   function openEdit(p: any) {
     setForm({
       assetId: p.assetId, assetCode: p.asset?.assetCode,
-      intervalMonths: p.intervalMonths, zoneCritical: p.zoneCritical,
+      intervalDays: p.intervalDays, zoneCritical: p.zoneCritical,
       lastServiceAt: p.lastServiceAt ? String(p.lastServiceAt).slice(0, 10) : '',
       active: p.active,
     });
@@ -75,7 +75,7 @@ export default function Preventive() {
     try {
       const body: any = {
         assetId: form.assetId,
-        intervalMonths: Number(form.intervalMonths) || (form.zoneCritical ? 3 : 6),
+        intervalDays: Number(form.intervalDays) || (form.zoneCritical ? 30 : 60),
         zoneCritical: !!form.zoneCritical,
         active: !!form.active,
       };
@@ -96,7 +96,7 @@ export default function Preventive() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 className="page-title">Mantenimiento Preventivo</h1>
-          <p className="page-sub">Programación por activo · 3 meses en zonas críticas, 6 meses en el resto</p>
+          <p className="page-sub">Programación por activo · 30 días en zonas críticas (suciedad), 60 días en el resto</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {can('wo.create') && <button className="btn-mini" onClick={openNew}>+ Nuevo plan</button>}
@@ -123,7 +123,7 @@ export default function Preventive() {
                 <td style={{ fontWeight: 600 }}>{p.asset?.assetCode || '—'}</td>
                 <td className="muted">{p.asset?.location?.name || '—'}</td>
                 <td>{p.zoneCritical ? <span className="badge ALTA">Crítica</span> : <span className="badge BAJA">Normal</span>}</td>
-                <td>{p.intervalMonths} meses</td>
+                <td>{p.intervalDays} días</td>
                 <td className="muted">{fmt(p.lastServiceAt)}</td>
                 <td className="muted">{fmt(p.nextDueAt)}</td>
                 <td><span className={'badge ' + (PLAN_BADGE[p.statusPlan] || 'BAJA')}>{PLAN_ES[p.statusPlan] || p.statusPlan}</span></td>
@@ -170,11 +170,11 @@ export default function Preventive() {
               </>
             )}
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400, marginTop: 10 }}>
-              <input type="checkbox" checked={!!form.zoneCritical} onChange={(e) => setForm({ ...form, zoneCritical: e.target.checked, intervalMonths: e.target.checked ? 3 : 6 })} style={{ width: 'auto' }} />
-              Zona crítica (cerca del horno / alta exposición) → 3 meses
+              <input type="checkbox" checked={!!form.zoneCritical} onChange={(e) => setForm({ ...form, zoneCritical: e.target.checked, intervalDays: e.target.checked ? 30 : 60 })} style={{ width: 'auto' }} />
+              Zona crítica (cerca del horno / suciedad) → 30 días
             </label>
-            <label>Intervalo (meses)</label>
-            <input type="number" min={1} value={form.intervalMonths} onChange={(e) => setForm({ ...form, intervalMonths: e.target.value })} />
+            <label>Intervalo (días)</label>
+            <input type="number" min={1} value={form.intervalDays} onChange={(e) => setForm({ ...form, intervalDays: e.target.value })} />
             <label>Último mantenimiento (opcional)</label>
             <input type="date" value={form.lastServiceAt} onChange={(e) => setForm({ ...form, lastServiceAt: e.target.value })} />
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400, marginTop: 10 }}>

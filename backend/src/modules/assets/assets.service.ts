@@ -1,7 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import * as argon2 from 'argon2';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { StorageService } from '../storage/storage.service';
 import { decryptSecret } from '../../common/crypto/crypto.util';
 import { computeEffectiveStatuses, computeEffectiveStatus } from '../../common/asset-status';
 import { CreateAssetDto } from './dto/create-asset.dto';
@@ -16,6 +18,7 @@ export class AssetsService {
   constructor(
     private prisma: PrismaService,
     private audit: AuditService,
+    private storage: StorageService,
   ) {}
 
   /**
@@ -107,6 +110,7 @@ export class AssetsService {
       where: { id },
       include: {
         location: true, cabinet: true, camera: true, nvr: true, switchDev: true, wireless: true,
+        photos: { orderBy: { createdAt: 'asc' } },
         workOrders: {
           orderBy: { createdAt: 'desc' }, take: 8,
           select: { code: true, type: true, status: true, scheduledDate: true, executedDate: true },
@@ -177,5 +181,38 @@ export class AssetsService {
 
   remove(id: string) {
     return this.prisma.asset.update({ where: { id }, data: { deletedAt: new Date(), status: 'BAJA' } });
+  }
+
+  // ---------- Fotografías del activo (a qué apunta, referencia, plano) ----------
+  async addPhoto(id: string, file: any, kind?: string, caption?: string) {
+    const asset = await this.prisma.asset.findUnique({ where: { id } });
+    if (!asset || asset.deletedAt) throw new NotFoundException('Activo no encontrado');
+    if (!file || !file.buffer) throw new BadRequestException('Imagen requerida');
+    const ext = (file.originalname?.split('.').pop() || 'jpg').toLowerCase();
+    const objectName = `asset/${id}/${Date.now()}-${randomUUID()}.${ext}`;
+    await this.storage.put(objectName, file.buffer, file.mimetype || 'image/jpeg');
+    return this.prisma.assetPhoto.create({
+      data: { assetId: id, kind: (kind as any) || 'GENERAL', fileId: objectName, caption: caption || null },
+    });
+  }
+
+  listPhotos(id: string) {
+    return this.prisma.assetPhoto.findMany({ where: { assetId: id }, orderBy: { createdAt: 'asc' } });
+  }
+
+  async getPhotoFile(photoId: string): Promise<{ buffer: Buffer; contentType: string }> {
+    const ph = await this.prisma.assetPhoto.findUnique({ where: { id: photoId } });
+    if (!ph) throw new NotFoundException('Foto no encontrada');
+    const buffer = await this.storage.getBuffer(ph.fileId);
+    const ext = ph.fileId.split('.').pop()?.toLowerCase();
+    return { buffer, contentType: ext === 'png' ? 'image/png' : 'image/jpeg' };
+  }
+
+  async removePhoto(photoId: string) {
+    const ph = await this.prisma.assetPhoto.findUnique({ where: { id: photoId } });
+    if (!ph) throw new NotFoundException('Foto no encontrada');
+    await this.prisma.assetPhoto.delete({ where: { id: photoId } });
+    await this.storage.remove(ph.fileId).catch(() => null);
+    return { ok: true };
   }
 }
