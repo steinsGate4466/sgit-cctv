@@ -63,8 +63,8 @@ export default function Cabinets() {
   async function viewPhoto(g: any) {
     try {
       const res = await api.get('/cabinets/' + g.id + '/photo', { responseType: 'blob' });
-      const url = URL.createObjectURL(new Blob([res.data]));
-      window.open(url, '_blank');
+      // res.data ya es un Blob con su Content-Type; usarlo directo preserva el tipo imagen.
+      window.open(URL.createObjectURL(res.data), '_blank');
     } catch { window.alert('El gabinete no tiene foto.'); }
   }
 

@@ -10,7 +10,7 @@ const CRITS = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
 const CABINET_REQUIRED = ['NVR', 'SWITCH', 'SERVER', 'DECODER', 'ROUTER', 'FIREWALL'];
 // Tipos de fotografía del activo.
 const PHOTO_KINDS = ['APUNTA', 'REFERENCIA', 'PLANO', 'GENERAL'];
-const PHOTO_KIND_ES: Record<string, string> = { APUNTA: 'A qué apunta', REFERENCIA: 'Ubicación de referencia', PLANO: 'Ubicación en plano', GENERAL: 'General' };
+const PHOTO_KIND_ES: Record<string, string> = { APUNTA: 'Imagen en pantalla (púlpito)', REFERENCIA: 'Ubicación de referencia', PLANO: 'Ubicación en plano', GENERAL: 'General' };
 
 // Etiquetas en español (los valores internos siguen en inglés para no romper datos)
 const TYPE_ES: Record<string, string> = { CAMERA: 'Cámara', NVR: 'NVR', SWITCH: 'Switch', WIRELESS: 'Enlace inalámbrico', ROUTER: 'Router', FIREWALL: 'Firewall', SERVER: 'Servidor', UPS: 'UPS', FIBER: 'Fibra', CABINET: 'Gabinete', DECODER: 'Decodificador', PC: 'PC / iVMS-4200', OTHER: 'Otro' };
@@ -164,7 +164,9 @@ export default function Assets() {
   async function viewPhoto(ph: any) {
     try {
       const res = await api.get('/assets/photos/' + ph.id + '/file', { responseType: 'blob' });
-      window.open(URL.createObjectURL(new Blob([res.data])), '_blank');
+      // res.data ya es un Blob con su Content-Type (image/jpeg|png); usarlo directo
+      // preserva el tipo para que el navegador lo muestre como imagen y no como texto.
+      window.open(URL.createObjectURL(res.data), '_blank');
     } catch { window.alert('No se pudo abrir la foto.'); }
   }
   async function delPhoto(ph: any) {
