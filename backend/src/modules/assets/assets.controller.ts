@@ -83,6 +83,16 @@ export class AssetsController {
     return this.assets.listPhotos(id);
   }
 
+  // Informe del equipo (PDF). Solo Técnico de Red, Jefe y Supervisor TI (credential.read).
+  @Get(':id/report')
+  @RequirePermissions('credential.read')
+  async report(@Param('id') id: string, @Res() res: Response) {
+    const { buffer, filename } = await this.assets.buildReport(id);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
+  }
+
   @Get('photos/:photoId/file')
   @RequirePermissions('asset.read')
   async photoFile(@Param('photoId') photoId: string, @Res() res: Response) {

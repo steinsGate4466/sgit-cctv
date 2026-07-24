@@ -6,6 +6,13 @@ import { AuditService } from '../audit/audit.service';
 import { StorageService } from '../storage/storage.service';
 import { decryptSecret } from '../../common/crypto/crypto.util';
 import { computeEffectiveStatuses, computeEffectiveStatus } from '../../common/asset-status';
+// PDF: require para no depender de @types en el build.
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const PDFDocument = require('pdfkit');
+
+const TYPE_ES: Record<string, string> = { CAMERA: 'Cámara', NVR: 'NVR', SWITCH: 'Switch', WIRELESS: 'Enlace inalámbrico', ROUTER: 'Router', FIREWALL: 'Firewall', SERVER: 'Servidor', UPS: 'UPS', FIBER: 'Fibra', CABINET: 'Gabinete', DECODER: 'Decodificador', PC: 'PC / iVMS-4200', OTHER: 'Otro' };
+const STATUS_ES: Record<string, string> = { OPERATIVO: 'Operativo', FUERA_SERVICIO: 'Fuera de servicio', MANTENIMIENTO: 'En mantenimiento', CON_INCIDENCIA: 'Con incidencia', BAJA: 'Baja', STOCK: 'En stock' };
+const PHOTO_ES: Record<string, string> = { APUNTA: 'Imagen en pantalla (púlpito)', REFERENCIA: 'Ubicación de referencia', PLANO: 'Ubicación en plano', GENERAL: 'General' };
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { SignedCreateAssetDto } from './dto/create-asset-signed.dto';
 import { SignedUpdateAssetDto } from './dto/update-asset-signed.dto';
@@ -214,5 +221,111 @@ export class AssetsService {
     await this.prisma.assetPhoto.delete({ where: { id: photoId } });
     await this.storage.remove(ph.fileId).catch(() => null);
     return { ok: true };
+  }
+
+  // ---------- Informe del equipo (PDF): ficha técnica + fotos + historial ----------
+  async buildReport(id: string): Promise<{ buffer: Buffer; filename: string }> {
+    const asset: any = await this.prisma.asset.findUnique({
+      where: { id },
+      include: {
+        location: true, cabinet: true,
+        photos: { orderBy: { createdAt: 'asc' } },
+        preventivePlan: true,
+        workOrders: {
+          orderBy: { createdAt: 'desc' }, take: 10,
+          select: { code: true, type: true, status: true, scheduledDate: true, executedDate: true, activity: true },
+        },
+      },
+    });
+    if (!asset || asset.deletedAt) throw new NotFoundException('Activo no encontrado');
+    const eff = await computeEffectiveStatus(this.prisma, asset);
+
+    const images: { buffer: Buffer; kind: string; caption?: string | null }[] = [];
+    for (const ph of asset.photos) {
+      try { images.push({ buffer: await this.storage.getBuffer(ph.fileId), kind: ph.kind, caption: ph.caption }); } catch { /* omitir */ }
+    }
+
+    const doc = new PDFDocument({ size: 'A4', margin: 50 });
+    const chunks: Buffer[] = [];
+    doc.on('data', (c: Buffer) => chunks.push(c));
+    const done = new Promise<Buffer>((resolve) => doc.on('end', () => resolve(Buffer.concat(chunks))));
+
+    const NAVY = '#1b2a4a', RED = '#c0392b', GREY = '#555555';
+    const pageW = doc.page.width;
+    const fmt = (d?: Date | null) => (d ? new Date(d).toLocaleDateString('es-PE') : '—');
+
+    doc.rect(0, 0, pageW, 92).fill(NAVY);
+    doc.fillColor('#ffffff').fontSize(17).text('ACEROS AREQUIPA — Planta Pisco', 50, 26);
+    doc.fillColor('#cfd8e3').fontSize(10).text('SGIT-CCTV · Informe del equipo (ficha técnica)', 50, 50);
+    doc.fillColor('#ffffff').fontSize(20).text(asset.assetCode, 0, 34, { align: 'right', width: pageW - 50 });
+    doc.fillColor('#000000');
+
+    let y = 116;
+    const heading = (t: string) => {
+      doc.fontSize(13).fillColor(NAVY).text(t, 50, y); y = doc.y + 6;
+      doc.moveTo(50, y).lineTo(pageW - 50, y).strokeColor('#dddddd').stroke(); y += 8;
+    };
+    const line = (label: string, value: string) => {
+      doc.fontSize(10).fillColor(GREY).text(label, 50, y);
+      doc.fontSize(11).fillColor('#000000').text(value || '—', 210, y, { width: pageW - 260 });
+      y = doc.y + 6;
+    };
+
+    heading('Ficha del activo');
+    line('Tipo', TYPE_ES[asset.type] || asset.type);
+    line('Marca / Modelo', [asset.brand, asset.model].filter(Boolean).join(' ') || '—');
+    line('N° de serie', asset.serialNumber || '—');
+    line('Estado operativo', STATUS_ES[eff] || eff);
+    line('Criticidad', asset.criticality);
+    line('IP', asset.ipAddress || '—');
+    line('Ubicación', asset.location ? asset.location.name : '—');
+    line('Gabinete', asset.cabinet ? `${asset.cabinet.code} — ${asset.cabinet.name}` : '—');
+    line('Lugar de referencia', asset.referencePlace || '—');
+    line('Código SAP', asset.sapId || '—');
+
+    y += 6;
+    heading('Plan de mantenimiento preventivo');
+    if (asset.preventivePlan) {
+      line('Intervalo', `${asset.preventivePlan.intervalDays} días${asset.preventivePlan.zoneCritical ? ' (zona crítica)' : ''}`);
+      line('Último preventivo', fmt(asset.preventivePlan.lastServiceAt));
+      line('Próximo preventivo', fmt(asset.preventivePlan.nextDueAt));
+    } else {
+      doc.fontSize(11).fillColor(GREY).text('Sin plan preventivo asignado.', 50, y); y = doc.y + 6;
+    }
+
+    y += 6;
+    heading('Historial de mantenimiento (últimas 10)');
+    if (asset.workOrders.length) {
+      for (const w of asset.workOrders) {
+        doc.fontSize(10).fillColor('#000000').text(`• ${w.code} · ${w.type} · ${w.status} · ${fmt(w.executedDate || w.scheduledDate)}`, 55, y, { width: pageW - 110 });
+        y = doc.y + 2;
+        if (w.activity) { doc.fontSize(9).fillColor(GREY).text(`   ${w.activity}`, 60, y, { width: pageW - 120 }); y = doc.y + 3; }
+        if (y > doc.page.height - 120) { doc.addPage(); y = 50; }
+      }
+    } else {
+      doc.fontSize(11).fillColor(GREY).text('Sin órdenes de mantenimiento registradas.', 50, y); y = doc.y + 6;
+    }
+
+    if (images.length) {
+      doc.addPage();
+      doc.fontSize(13).fillColor(NAVY).text('Fotografías del equipo', 50, 50);
+      let iy = 82; const maxW = pageW - 100;
+      for (const img of images) {
+        if (iy > doc.page.height - 250) { doc.addPage(); iy = 50; }
+        doc.fontSize(10).fillColor(NAVY).text(PHOTO_ES[img.kind] || img.kind, 50, iy); iy = doc.y + 4;
+        try { doc.image(img.buffer, 50, iy, { fit: [maxW, 220], align: 'center' }); iy += 228; }
+        catch { doc.fontSize(9).fillColor(RED).text('(imagen no renderizable)', 50, iy); iy += 20; }
+        if (img.caption) { doc.fontSize(9).fillColor(GREY).text(img.caption, 50, iy, { width: maxW }); iy = doc.y + 12; }
+      }
+    }
+
+    doc.fontSize(8).fillColor(GREY).text(
+      `Documento generado por SGIT-CCTV el ${new Date().toLocaleString('es-PE')}. Ficha técnica — Aceros Arequipa, Planta Pisco.`,
+      50, doc.page.height - 38, { width: pageW - 100, align: 'center' },
+    );
+
+    doc.end();
+    const buffer = await done;
+    return { buffer, filename: `informe-${asset.assetCode}.pdf` };
   }
 }

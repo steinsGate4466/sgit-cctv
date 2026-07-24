@@ -175,6 +175,14 @@ export default function Assets() {
     const list = await api.get('/assets/' + detail.id + '/photos').then((r) => r.data).catch(() => []);
     setPhotos(list || []);
   }
+  async function downloadReport() {
+    try {
+      const res = await api.get('/assets/' + detail.id + '/report', { responseType: 'blob' });
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const a = document.createElement('a'); a.href = url; a.download = (detail.assetCode || 'informe') + '.pdf';
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    } catch { window.alert('No se pudo generar el informe.'); }
+  }
 
   async function saveStatus() {
     if (!detail || !newStatus || newStatus === detail.status) return;
@@ -289,7 +297,8 @@ export default function Assets() {
       {detail && (
         <Modal title={detail.assetCode} onClose={() => setDetail(null)}>
           {can('credential.read') && (
-            <div style={{ marginBottom: 10, textAlign: 'right' }}>
+            <div style={{ marginBottom: 10, textAlign: 'right', display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+              <button className="btn-mini" onClick={downloadReport}>📄 Informe del equipo (PDF)</button>
               <button className="btn-mini" onClick={() => openEdit(detail)}>✏️ Editar activo (firmado)</button>
             </div>
           )}
