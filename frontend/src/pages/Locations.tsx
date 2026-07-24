@@ -14,6 +14,9 @@ export default function Locations() {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState<any>(null);
   const [saving, setSaving] = useState(false);
+  const [photoFor, setPhotoFor] = useState<any>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   async function load() {
     const l = await api.get('/locations').then((r) => r.data).catch(() => []);
@@ -40,6 +43,25 @@ export default function Locations() {
     } finally { setSaving(false); }
   }
 
+  async function uploadPhoto(e: FormEvent) {
+    e.preventDefault();
+    if (!photoFile) { window.alert('Selecciona una imagen.'); return; }
+    setUploading(true);
+    try {
+      const fd = new FormData(); fd.append('file', photoFile);
+      await api.post('/locations/' + photoFor.id + '/photo', fd);
+      setPhotoFor(null); setPhotoFile(null);
+      await load();
+    } catch { window.alert('No se pudo subir la foto.'); }
+    finally { setUploading(false); }
+  }
+  async function viewPhoto(l: any) {
+    try {
+      const res = await api.get('/locations/' + l.id + '/photo', { responseType: 'blob' });
+      window.open(URL.createObjectURL(res.data), '_blank');
+    } catch { window.alert('La ubicación no tiene foto.'); }
+  }
+
   if (loading) return <div className="loading">Cargando ubicaciones…</div>;
 
   return (
@@ -55,7 +77,7 @@ export default function Locations() {
       <div className="card">
         <table>
           <thead>
-            <tr><th>Código</th><th>Nombre</th><th>Tipo</th><th>Pertenece a</th><th>Activos</th>{can('asset.update') && <th></th>}</tr>
+            <tr><th>Código</th><th>Nombre</th><th>Tipo</th><th>Pertenece a</th><th>Activos</th><th>Foto</th>{can('asset.update') && <th></th>}</tr>
           </thead>
           <tbody>
             {rows.map((l) => (
@@ -65,10 +87,16 @@ export default function Locations() {
                 <td className="muted">{TYPE_ES[l.type] || l.type}</td>
                 <td className="muted">{l.parent?.name || '—'}</td>
                 <td>{l._count?.assets ?? 0}</td>
-                {can('asset.update') && <td><button className="btn-mini" onClick={() => openEdit(l)}>Editar</button></td>}
+                <td>{l.hasPhoto ? <button className="btn-mini" onClick={() => viewPhoto(l)}>Ver</button> : <span className="muted" style={{ fontSize: 12 }}>—</span>}</td>
+                {can('asset.update') && (
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    <button className="btn-mini" onClick={() => openEdit(l)}>Editar</button>
+                    <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => { setPhotoFor(l); setPhotoFile(null); }}>Foto</button>
+                  </td>
+                )}
               </tr>
             ))}
-            {!rows.length && <tr><td colSpan={6} className="muted" style={{ textAlign: 'center', padding: 30 }}>Sin ubicaciones. Crea una con “+ Nueva ubicación”.</td></tr>}
+            {!rows.length && <tr><td colSpan={7} className="muted" style={{ textAlign: 'center', padding: 30 }}>Sin ubicaciones. Crea una con “+ Nueva ubicación”.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -96,6 +124,17 @@ export default function Locations() {
             <label>Área responsable</label>
             <input value={form.responsibleArea} onChange={(e) => setForm({ ...form, responsibleArea: e.target.value })} />
             <button className="btn" disabled={saving}>{saving ? 'Guardando…' : 'Guardar ubicación'}</button>
+          </form>
+        </Modal>
+      )}
+
+      {photoFor && (
+        <Modal title={'Foto de referencia · ' + photoFor.name} onClose={() => setPhotoFor(null)}>
+          <form onSubmit={uploadPhoto}>
+            <div className="sign-note">Sube una foto de referencia de la ubicación para identificarla en planta.</div>
+            <label>Imagen (JPG / PNG)</label>
+            <input type="file" accept="image/*" onChange={(e) => setPhotoFile(e.target.files?.[0] || null)} />
+            <button className="btn" disabled={uploading}>{uploading ? 'Subiendo…' : 'Subir foto'}</button>
           </form>
         </Modal>
       )}

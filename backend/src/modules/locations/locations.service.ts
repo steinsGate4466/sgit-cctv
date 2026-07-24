@@ -1,16 +1,40 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { CreateLocationDto, UpdateLocationDto } from './dto/location.dto';
 
 @Injectable()
 export class LocationsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private storage: StorageService,
+  ) {}
 
-  findAll() {
-    return this.prisma.location.findMany({
+  async findAll() {
+    const rows = await this.prisma.location.findMany({
       orderBy: { path: 'asc' },
       include: { parent: { select: { name: true } }, _count: { select: { assets: true } } },
     });
+    return rows.map((l: any) => ({ ...l, hasPhoto: !!l.photoFileId }));
+  }
+
+  async uploadPhoto(id: string, file: any) {
+    const loc = await this.prisma.location.findUnique({ where: { id } });
+    if (!loc) throw new NotFoundException('Ubicación no encontrada');
+    if (!file || !file.buffer) throw new BadRequestException('Imagen requerida');
+    const ext = (file.originalname?.split('.').pop() || 'jpg').toLowerCase();
+    const objectName = `location/${id}/${Date.now()}-${randomUUID()}.${ext}`;
+    await this.storage.put(objectName, file.buffer, file.mimetype || 'image/jpeg');
+    return this.prisma.location.update({ where: { id }, data: { photoFileId: objectName } });
+  }
+
+  async getPhoto(id: string): Promise<{ buffer: Buffer; contentType: string }> {
+    const loc = await this.prisma.location.findUnique({ where: { id } });
+    if (!loc || !loc.photoFileId) throw new NotFoundException('La ubicación no tiene foto');
+    const buffer = await this.storage.getBuffer(loc.photoFileId);
+    const ext = loc.photoFileId.split('.').pop()?.toLowerCase();
+    return { buffer, contentType: ext === 'png' ? 'image/png' : 'image/jpeg' };
   }
 
   async create(dto: CreateLocationDto) {

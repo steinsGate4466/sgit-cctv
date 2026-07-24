@@ -17,6 +17,15 @@ export default function Corrective() {
     ]).then(([a, s, w]) => { setRows(a || []); setSummary(s); setOms(w.data || []); setLoading(false); });
   }, []);
 
+  async function downloadOM(w: any) {
+    try {
+      const res = await api.get('/work-orders/' + w.id + '/report', { responseType: 'blob' });
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const a = document.createElement('a'); a.href = url; a.download = (w.code || 'informe') + '.pdf';
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    } catch { window.alert('No se pudo generar el informe.'); }
+  }
+
   if (loading) return <div className="loading">Cargando historial correctivo…</div>;
 
   return (
@@ -56,7 +65,7 @@ export default function Corrective() {
       <div className="card">
         <table>
           <thead>
-            <tr><th>Código</th><th>Activo</th><th>Zona</th><th>Actividad</th><th>Estado</th><th>Programada</th></tr>
+            <tr><th>Código</th><th>Activo</th><th>Zona</th><th>Actividad</th><th>Estado</th><th>Programada</th><th></th></tr>
           </thead>
           <tbody>
             {oms.map((w) => (
@@ -67,9 +76,10 @@ export default function Corrective() {
                 <td style={{ fontSize: 12 }}>{w.activity || '—'}</td>
                 <td><span className={'badge ' + (w.status === 'CERRADA' ? 'OPERATIVO' : w.status === 'CANCELADA' ? 'BAJA' : 'MANTENIMIENTO')}>{w.status}</span></td>
                 <td className="muted" style={{ fontSize: 12 }}>{w.scheduledDate ? new Date(w.scheduledDate).toLocaleDateString() : '—'}</td>
+                <td><button className="btn-mini" onClick={() => downloadOM(w)}>Informe</button></td>
               </tr>
             ))}
-            {!oms.length && <tr><td colSpan={6} className="muted" style={{ textAlign: 'center', padding: 30 }}>Sin órdenes correctivas.</td></tr>}
+            {!oms.length && <tr><td colSpan={7} className="muted" style={{ textAlign: 'center', padding: 30 }}>Sin órdenes correctivas.</td></tr>}
           </tbody>
         </table>
       </div>

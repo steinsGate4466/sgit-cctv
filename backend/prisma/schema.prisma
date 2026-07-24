@@ -92,6 +92,7 @@ model Location {
   parent           Location?    @relation("LocationTree", fields: [parentId], references: [id])
   children         Location[]   @relation("LocationTree")
   path             String       @default("") // ruta materializada para navegación rápida
+  photoFileId      String?      // foto de referencia de la ubicación (MinIO)
   // ---- Campos SAP-ready ----
   sapLocationCode  String?
   costCenter       String?

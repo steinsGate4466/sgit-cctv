@@ -83,9 +83,10 @@ export class AssetsController {
     return this.assets.listPhotos(id);
   }
 
-  // Informe del equipo (PDF). Solo Técnico de Red, Jefe y Supervisor TI (credential.read).
+  // Informe del equipo (PDF). Disponible para quien pueda ver activos (técnico incluido);
+  // el informe NO contiene contraseñas, solo ficha, fotos e historial.
   @Get(':id/report')
-  @RequirePermissions('credential.read')
+  @RequirePermissions('asset.read')
   async report(@Param('id') id: string, @Res() res: Response) {
     const { buffer, filename } = await this.assets.buildReport(id);
     res.setHeader('Content-Type', 'application/pdf');

@@ -1,5 +1,9 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body, Controller, Get, Param, Patch, Post, Res, UploadedFile, UseGuards, UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { LocationsService } from './locations.service';
 import { CreateLocationDto, UpdateLocationDto } from './dto/location.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -34,5 +38,20 @@ export class LocationsController {
   @RequirePermissions('asset.update')
   update(@Param('id') id: string, @Body() dto: UpdateLocationDto) {
     return this.locations.update(id, dto);
+  }
+
+  // Foto de referencia de la ubicación.
+  @Get(':id/photo')
+  async photo(@Param('id') id: string, @Res() res: Response) {
+    const { buffer, contentType } = await this.locations.getPhoto(id);
+    res.setHeader('Content-Type', contentType);
+    res.send(buffer);
+  }
+
+  @Post(':id/photo')
+  @RequirePermissions('asset.update')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 12 * 1024 * 1024 } }))
+  uploadPhoto(@Param('id') id: string, @UploadedFile() file: any) {
+    return this.locations.uploadPhoto(id, file);
   }
 }

@@ -296,12 +296,10 @@ export default function Assets() {
 
       {detail && (
         <Modal title={detail.assetCode} onClose={() => setDetail(null)}>
-          {can('credential.read') && (
-            <div style={{ marginBottom: 10, textAlign: 'right', display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-              <button className="btn-mini" onClick={downloadReport}>📄 Informe del equipo (PDF)</button>
-              <button className="btn-mini" onClick={() => openEdit(detail)}>✏️ Editar activo (firmado)</button>
-            </div>
-          )}
+          <div style={{ marginBottom: 10, textAlign: 'right', display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+            <button className="btn-mini" onClick={downloadReport}>📄 Informe del equipo (PDF)</button>
+            {can('credential.read') && <button className="btn-mini" onClick={() => openEdit(detail)}>✏️ Editar activo (firmado)</button>}
+          </div>
           <Frow k="Tipo" v={tEs(detail.type)} />
           <Frow k="Marca / Modelo" v={[detail.brand, detail.model].filter(Boolean).join(' ')} />
           <Frow k="N° de serie" v={detail.serialNumber} />

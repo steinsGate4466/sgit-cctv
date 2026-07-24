@@ -272,6 +272,22 @@ export class MaintenanceService {
       y = doc.y + 3;
     }
 
+    // Condición del equipo (checklist llenado por el técnico)
+    y += 6;
+    heading('Condición del equipo (revisión del técnico)');
+    const cond: any = (wo as any).condition;
+    if (cond && typeof cond === 'object' && Object.keys(cond).length) {
+      for (const [k, v] of Object.entries(cond)) {
+        const color = v === 'Cambiar' ? RED : v === 'Observado' ? '#b45309' : '#000000';
+        doc.fontSize(11).fillColor(GREY).text('•  ' + k + ': ', 60, y, { continued: true });
+        doc.fillColor(color).text(String(v));
+        y = doc.y + 3;
+      }
+    } else {
+      doc.fontSize(11).fillColor(GREY).text('Sin checklist de condición registrado', 60, y);
+      y = doc.y + 3;
+    }
+
     // Evidencias fotográficas (páginas siguientes)
     if (images.length) {
       doc.addPage();
