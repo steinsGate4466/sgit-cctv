@@ -18,6 +18,7 @@ export default function Preventive() {
   const [plans, setPlans] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
   const [assets, setAssets] = useState<any[]>([]);
+  const [oms, setOms] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
 
@@ -25,19 +26,22 @@ export default function Preventive() {
   const [saving, setSaving] = useState(false);
 
   async function load() {
-    const [p, s] = await Promise.all([
+    const [p, s, w] = await Promise.all([
       api.get('/preventive/plans').then((r) => r.data).catch(() => []),
       api.get('/preventive/summary').then((r) => r.data).catch(() => null),
+      api.get('/work-orders?type=PREVENTIVO&pageSize=200').then((r) => r.data).catch(() => ({ data: [] })),
     ]);
     setPlans(p || []);
     setSummary(s);
+    setOms(w.data || []);
   }
   useEffect(() => {
     Promise.all([
       api.get('/preventive/plans').then((r) => r.data).catch(() => []),
       api.get('/preventive/summary').then((r) => r.data).catch(() => null),
       api.get('/assets').then((r) => r.data).catch(() => []),
-    ]).then(([p, s, a]) => { setPlans(p || []); setSummary(s); setAssets(a || []); setLoading(false); });
+      api.get('/work-orders?type=PREVENTIVO&pageSize=200').then((r) => r.data).catch(() => ({ data: [] })),
+    ]).then(([p, s, a, w]) => { setPlans(p || []); setSummary(s); setAssets(a || []); setOms(w.data || []); setLoading(false); });
   }, []);
 
   async function generate() {
@@ -127,6 +131,28 @@ export default function Preventive() {
               </tr>
             ))}
             {!plans.length && <tr><td colSpan={8} className="muted" style={{ textAlign: 'center', padding: 30 }}>Sin planes preventivos. Crea uno con “+ Nuevo plan”.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      <h3 style={{ margin: '22px 0 10px', color: 'var(--navy)', fontSize: 15 }}>Órdenes preventivas ({oms.length})</h3>
+      <div className="card">
+        <table>
+          <thead>
+            <tr><th>Código</th><th>Activo</th><th>Zona</th><th>Actividad</th><th>Estado</th><th>Programada</th></tr>
+          </thead>
+          <tbody>
+            {oms.map((w) => (
+              <tr key={w.id}>
+                <td style={{ fontWeight: 600 }}>{w.code}</td>
+                <td className="muted">{w.asset?.assetCode || '—'}</td>
+                <td className="muted" style={{ fontSize: 12 }}>{w.zone || '—'}</td>
+                <td style={{ fontSize: 12 }}>{w.activity || '—'}</td>
+                <td><span className={'badge ' + (w.status === 'CERRADA' ? 'OPERATIVO' : w.status === 'CANCELADA' ? 'BAJA' : 'MANTENIMIENTO')}>{w.status}</span></td>
+                <td className="muted" style={{ fontSize: 12 }}>{w.scheduledDate ? new Date(w.scheduledDate).toLocaleDateString() : '—'}</td>
+              </tr>
+            ))}
+            {!oms.length && <tr><td colSpan={6} className="muted" style={{ textAlign: 'center', padding: 30 }}>Aún no hay OM preventivas. Usa “Generar OM vencidas”.</td></tr>}
           </tbody>
         </table>
       </div>

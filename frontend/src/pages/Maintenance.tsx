@@ -13,6 +13,10 @@ const ASSET_STATUS_ES: Record<string, string> = {
 };
 const aEs = (s: string) => ASSET_STATUS_ES[s] || s;
 
+// Checklist de condición del equipo (evidencia detallada del técnico).
+const CONDITION_ITEMS = ['Limpieza', 'Lente / imagen', 'Cableado', 'Fijación / soporte', 'Energía / PoE', 'Conectividad'];
+const COND_STATES = ['OK', 'Observado', 'Cambiar'];
+
 function woBadge(s: string) {
   if (s === 'CERRADA') return 'OPERATIVO';
   if (s === 'CANCELADA') return 'BAJA';
@@ -108,7 +112,7 @@ export default function Maintenance() {
 
   function openIntervention(w: any) {
     setIntId(w.id);
-    setIntForm({ activity: w.activity || '', diagnosis: w.diagnosis || '', materials: w.materials || '', zone: w.zone || '', status: w.status === 'CERRADA' || w.status === 'CANCELADA' ? 'EN_PROCESO' : w.status });
+    setIntForm({ activity: w.activity || '', diagnosis: w.diagnosis || '', materials: w.materials || '', zone: w.zone || '', status: w.status === 'CERRADA' || w.status === 'CANCELADA' ? 'EN_PROCESO' : w.status, condition: w.condition || {} });
   }
   async function submitIntervention(e: FormEvent) {
     e.preventDefault();
@@ -120,6 +124,7 @@ export default function Maintenance() {
         materials: intForm.materials || undefined,
         zone: intForm.zone || undefined,
         status: intForm.status,
+        condition: intForm.condition && Object.keys(intForm.condition).length ? intForm.condition : undefined,
       });
       setIntId(null);
       await load();
@@ -295,6 +300,22 @@ export default function Maintenance() {
             <input value={intForm.diagnosis} onChange={(e) => setIntForm({ ...intForm, diagnosis: e.target.value })} />
             <label>Materiales utilizados (uno por línea)</label>
             <textarea value={intForm.materials} onChange={(e) => setIntForm({ ...intForm, materials: e.target.value })} rows={3} style={{ width: '100%', resize: 'vertical' }} placeholder="Ej: 2x Conector RJ45 / 1x Fuente PoE 48V" />
+            <label>Condición del equipo (checklist)</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 6 }}>
+              {CONDITION_ITEMS.map((item) => (
+                <div key={item} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 13 }}>{item}</span>
+                  <select
+                    value={intForm.condition?.[item] || 'OK'}
+                    onChange={(e) => setIntForm({ ...intForm, condition: { ...(intForm.condition || {}), [item]: e.target.value } })}
+                    style={{ width: 140 }}
+                  >
+                    {COND_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              ))}
+            </div>
+            <div className="muted" style={{ fontSize: 11, marginBottom: 6 }}>Marca “Observado” o “Cambiar” lo que amerite; alimenta el análisis de reemplazo y el predictivo.</div>
             <label>Estado</label>
             <select value={intForm.status} onChange={(e) => setIntForm({ ...intForm, status: e.target.value })}>
               {WORK_STATES.map((s) => <option key={s} value={s}>{s}</option>)}

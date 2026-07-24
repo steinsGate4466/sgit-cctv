@@ -7,6 +7,7 @@ import Incidents from './pages/Incidents';
 import Users from './pages/Users';
 import Maintenance from './pages/Maintenance';
 import Preventive from './pages/Preventive';
+import Corrective from './pages/Corrective';
 import Inventory from './pages/Inventory';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="/incidents" element={<Incidents />} />
         <Route path="/maintenance" element={<Maintenance />} />
         <Route path="/preventive" element={<Preventive />} />
+        <Route path="/corrective" element={<Corrective />} />
         <Route path="/inventory" element={<Inventory />} />
         <Route path="/audit" element={<Audit />} />
         <Route path="/users" element={<Users />} />
