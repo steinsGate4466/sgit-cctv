@@ -6,6 +6,7 @@ const TITLES: Record<string, string> = {
   '/assets': 'Activos Tecnológicos',
   '/incidents': 'Incidencias',
   '/maintenance': 'Órdenes de Mantenimiento',
+  '/preventive': 'Mantenimiento Preventivo',
   '/inventory': 'Inventario de Repuestos',
   '/audit': 'Auditoría',
   '/users': 'Usuarios',
@@ -34,6 +35,7 @@ export default function Layout() {
           {can('asset.read') && <NavLink to="/assets"><span className="ico">▤</span> Activos</NavLink>}
           {can('incident.read') && <NavLink to="/incidents"><span className="ico">⚠</span> Incidencias</NavLink>}
           {can('wo.read') && <NavLink to="/maintenance"><span className="ico">🔧</span> Mantenimiento</NavLink>}
+          {can('wo.read') && <NavLink to="/preventive"><span className="ico">🗓️</span> Preventivo</NavLink>}
           {can('inventory.read') && <NavLink to="/inventory"><span className="ico">📦</span> Inventario</NavLink>}
           {can('audit.read') && <NavLink to="/audit"><span className="ico">▦</span> Auditoría</NavLink>}
           {can('user.manage') && <NavLink to="/users"><span className="ico">◉</span> Usuarios</NavLink>}

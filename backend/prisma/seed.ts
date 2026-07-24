@@ -272,6 +272,41 @@ async function main() {
     },
   });
 
+  // 9b) PC de visualización con iVMS-4200 (parte del mantenimiento CCTV)
+  const pcIvms = await prisma.asset.upsert({
+    where: { assetCode: 'AA-PC-T1-PUL-001' },
+    update: {},
+    create: {
+      assetCode: 'AA-PC-T1-PUL-001', type: 'PC', brand: 'Dell', model: 'iVMS-4200 v3.x',
+      status: 'OPERATIVO', criticality: 'ALTA', locationId: trenes['T1'],
+      referencePlace: 'Púlpito Tren 1 — estación de visualización iVMS-4200',
+      ipAddress: '10.0.0.50',
+    },
+  });
+
+  // 9c) Planes de mantenimiento preventivo (3 meses zona crítica, 6 meses el resto).
+  //     La cámara del Tren 1 (cerca del horno) queda VENCIDA para ver la alerta.
+  const addMonths = (d: Date, m: number) => { const x = new Date(d); x.setMonth(x.getMonth() + m); return x; };
+  const plans = [
+    { assetId: camera.id, zoneCritical: true, overdue: true },  // cerca del horno → 3 meses (vencida)
+    { assetId: nvr.id, zoneCritical: true, overdue: false },
+    { assetId: pmp.id, zoneCritical: true, overdue: false },
+    { assetId: coreSwitch.id, zoneCritical: false, overdue: false },
+    { assetId: pcIvms.id, zoneCritical: false, overdue: false },
+  ];
+  for (const pl of plans) {
+    const interval = pl.zoneCritical ? 3 : 6;
+    const last = pl.overdue ? addMonths(new Date(), -(interval + 1)) : new Date();
+    await prisma.preventivePlan.upsert({
+      where: { assetId: pl.assetId },
+      update: {},
+      create: {
+        assetId: pl.assetId, intervalMonths: interval, zoneCritical: pl.zoneCritical,
+        lastServiceAt: last, nextDueAt: addMonths(last, interval), active: true,
+      },
+    });
+  }
+
   // 10) Inventario / repuestos demo (con faltantes y sin stock para ver alertas)
   async function ensureSpare(data: any) {
     const found = await prisma.sparePart.findFirst({ where: { name: data.name } });

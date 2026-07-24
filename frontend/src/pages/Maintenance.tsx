@@ -3,7 +3,7 @@ import { api } from '../api/client';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
 
-const TYPES = ['PREVENTIVO', 'CORRECTIVO', 'MEJORA'];
+const TYPES = ['PREVENTIVO', 'CORRECTIVO', 'MEJORA', 'PREDICTIVO'];
 // Estados que el técnico puede fijar al registrar la intervención (el cierre lo hace el Jefe).
 const WORK_STATES = ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'];
 // Estado efectivo del activo (coherente con el módulo de Activos).

@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { StorageService } from '../storage/storage.service';
+import { PreventiveService } from '../preventive/preventive.service';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 import { QueryWorkOrderDto } from './dto/query-work-order.dto';
@@ -25,6 +26,7 @@ export class MaintenanceService {
     private prisma: PrismaService,
     private audit: AuditService,
     private storage: StorageService,
+    private preventive: PreventiveService,
   ) {}
 
   private async nextCode(): Promise<string> {
@@ -145,6 +147,12 @@ export class MaintenanceService {
       ip,
       after: { firmadoPor: signer!.email, om: wo.code },
     });
+    // Si es una OM PREVENTIVA, reprograma el plan del activo (próximo = ahora + intervalo).
+    if (wo.type === 'PREVENTIVO' && wo.assetId) {
+      await this.preventive
+        .markServiced(wo.assetId, updated.executedDate || new Date())
+        .catch(() => null);
+    }
     return updated;
   }
 

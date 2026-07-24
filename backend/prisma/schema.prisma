@@ -123,6 +123,7 @@ enum AssetType {
   FIBER
   CABINET
   DECODER    // video wall / decoder Hikvision
+  PC         // estación de visualización (iVMS-4200) — parte del mantenimiento CCTV
   OTHER
 }
 
@@ -182,6 +183,7 @@ model Asset {
   linksA        NetworkLink[] @relation("LinkEndpointA")
   linksB        NetworkLink[] @relation("LinkEndpointB")
   spareLinks    SparePartAsset[]
+  preventivePlan PreventivePlan?
 
   @@index([type])
   @@index([status])
@@ -341,6 +343,7 @@ enum WorkOrderType {
   PREVENTIVO
   CORRECTIVO
   MEJORA
+  PREDICTIVO  // anticipado por condición (curva P-F): señal, recurrencia, desgaste
 }
 
 enum WorkOrderStatus {
@@ -367,6 +370,7 @@ model WorkOrder {
   responsible  String?         // responsable de la OM
   materials    String?         // materiales usados / a usar (uno por línea)
   spareParts   Json?
+  condition    Json?           // checklist de condición del preventivo (limpieza, cableado, etc.)
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
 
@@ -407,6 +411,7 @@ enum IncidentStatus {
   ABIERTA
   EN_DIAGNOSTICO
   EN_PROCESO
+  EN_ESPERA        // el técnico la deja en espera (a la espera de repuesto/manlift/decisión)
   RESUELTA
   CERRADA
 }
@@ -616,6 +621,28 @@ model StockCheck {
   @@map("stock_checks")
 }
 
+
+// ===================== MANTENIMIENTO PREVENTIVO (F6.1) =====================
+
+/// Plan de mantenimiento preventivo por activo.
+/// El intervalo depende de la criticidad de la zona (3 meses críticas, 6 meses el resto),
+/// editable por el Jefe. nextDueAt = lastServiceAt (o alta) + intervalo.
+model PreventivePlan {
+  id             String    @id @default(uuid())
+  assetId        String    @unique
+  asset          Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  intervalMonths Int       @default(6) // 3 = zona crítica, 6 = no crítica (editable)
+  zoneCritical   Boolean   @default(false)
+  lastServiceAt  DateTime?
+  nextDueAt      DateTime?
+  active         Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([nextDueAt])
+  @@index([active])
+  @@map("preventive_plans")
+}
 
 /// Fotografías de campo de una incidencia (almacenadas en MinIO).
 model IncidentEvidence {
