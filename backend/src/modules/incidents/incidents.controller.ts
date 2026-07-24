@@ -51,9 +51,10 @@ export class IncidentsController {
     return this.incidents.update(id, dto);
   }
 
-  // Resolver con firma + retroalimentación (correo + contraseña del que cierra).
+  // Resolver/cerrar con firma. SOLO el Jefe de Mantenimiento (incident.close).
+  // El técnico registra y avanza estados, pero el cierre lo firma el Jefe.
   @Post(':id/resolve')
-  @RequirePermissions('incident.update')
+  @RequirePermissions('incident.close')
   resolve(@Param('id') id: string, @Body() dto: ResolveIncidentDto, @Ip() ip: string) {
     return this.incidents.resolveSigned(id, dto, ip);
   }

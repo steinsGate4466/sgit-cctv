@@ -11,7 +11,9 @@ const CATEGORY_GROUPS: { label: string; items: string[] }[] = [
 ];
 const CATEGORIES = CATEGORY_GROUPS.flatMap((g) => g.items);
 const PRIORITIES = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
-const STATUSES = ['ABIERTA', 'EN_DIAGNOSTICO', 'EN_PROCESO', 'RESUELTA', 'CERRADA'];
+const STATUSES = ['ABIERTA', 'EN_DIAGNOSTICO', 'EN_PROCESO', 'EN_ESPERA', 'RESUELTA', 'CERRADA'];
+// Estados que el técnico puede fijar. El cierre (RESUELTA/CERRADA) lo firma el Jefe.
+const NON_TERMINAL = ['ABIERTA', 'EN_DIAGNOSTICO', 'EN_PROCESO', 'EN_ESPERA'];
 
 const CAT_ES: Record<string, string> = {
   GENERAL: 'General', SATURACION_SESIONES_NVR: 'Saturación sesiones NVR', CAIDA_ENLACE_INALAMBRICO: 'Caída enlace inalámbrico',
@@ -21,7 +23,7 @@ const CAT_ES: Record<string, string> = {
   AMBIENTAL_SIDERURGICO: 'Ambiental (polvo/calor/escoria)', SEGURIDAD_FISICA: 'Seguridad física / vandalismo', CONFIGURACION_FIRMWARE: 'Configuración / firmware',
 };
 const STATUS_ES: Record<string, string> = {
-  ABIERTA: 'Abierta', EN_DIAGNOSTICO: 'En diagnóstico', EN_PROCESO: 'En proceso', RESUELTA: 'Resuelta', CERRADA: 'Cerrada',
+  ABIERTA: 'Abierta', EN_DIAGNOSTICO: 'En diagnóstico', EN_PROCESO: 'En proceso', EN_ESPERA: 'En espera', RESUELTA: 'Resuelta', CERRADA: 'Cerrada',
 };
 // Etiqueta del estado efectivo del activo (coherente con Activos).
 const ASSET_STATUS_ES: Record<string, string> = {
@@ -162,6 +164,18 @@ export default function Incidents() {
 
   function clearFilters() { setFq(''); setFCat(''); setFStatus(''); setFrom(''); setTo(''); }
 
+  // Cambio de estado NO terminal (Abierta / En diagnóstico / En proceso / En espera).
+  // El cierre (Resuelta) se hace con firma del Jefe (botón "Resolver").
+  async function changeStatus(id: string, status: string) {
+    try {
+      await api.patch('/incidents/' + id, { status });
+      await load();
+    } catch (err: any) {
+      const m = err?.response?.data?.message;
+      window.alert(Array.isArray(m) ? m.join(', ') : m || 'No se pudo actualizar el estado.');
+    }
+  }
+
   if (loading) return <div className="loading">Cargando incidencias…</div>;
 
   const openIssue = (i: any) => i.status !== 'RESUELTA' && i.status !== 'CERRADA';
@@ -205,8 +219,18 @@ export default function Incidents() {
                   {i.asset?.effectiveStatus && <div style={{ marginTop: 3 }}><span className={'badge ' + i.asset.effectiveStatus} style={{ fontSize: 10 }}>{aEs(i.asset.effectiveStatus)}</span></div>}
                 </td>
                 <td style={{ whiteSpace: 'nowrap' }}>
+                  {can('incident.update') && openIssue(i) && (
+                    <select
+                      value={NON_TERMINAL.includes(i.status) ? i.status : 'ABIERTA'}
+                      onChange={(e) => changeStatus(i.id, e.target.value)}
+                      title="Actualizar estado (avisa al Jefe de Mantenimiento)"
+                      style={{ width: 'auto', padding: '4px 6px', marginRight: 4, fontSize: 12 }}
+                    >
+                      {NON_TERMINAL.map((s) => <option key={s} value={s}>{stEs(s)}</option>)}
+                    </select>
+                  )}
                   {can('incident.update') && <button className="btn-mini" onClick={() => openPhotos(i.id)}>Fotos</button>}
-                  {can('incident.update') && openIssue(i) && <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => openResolve(i.id)}>Resolver</button>}
+                  {can('incident.close') && openIssue(i) && <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => openResolve(i.id)}>Resolver</button>}
                   <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => downloadReport(i)}>Informe</button>
                 </td>
               </tr>

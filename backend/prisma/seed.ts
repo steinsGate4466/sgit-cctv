@@ -30,11 +30,13 @@ const ROLES: Record<string, string[]> = {
   'Jefe de Mantenimiento': PERMISSIONS,
   // Supervisor TI: supervisa y analiza TODO, pero SIN borrar, sin gestionar usuarios
   // y sin revelar/gestionar credenciales.
+  // Supervisor TI: supervisa TODO, pero el CIERRE/resolución de incidencias y OM
+  // queda reservado al Jefe de Mantenimiento (sin incident.close ni wo.approve).
   'Supervisor TI': [
     'user.read', 'asset.create', 'asset.read', 'asset.update',
     'location.read', 'location.manage',
     'wo.read', 'wo.update',
-    'incident.create', 'incident.read', 'incident.update', 'incident.close',
+    'incident.create', 'incident.read', 'incident.update',
     'document.read', 'document.manage',
     'dashboard.read', 'troubleshooting.read', 'credential.read',
     'inventory.read', 'inventory.manage', 'inventory.check',

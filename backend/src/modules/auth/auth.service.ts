@@ -17,24 +17,70 @@ export class AuthService {
     private audit: AuditService,
   ) {}
 
+  // Anti fuerza bruta en el SERVIDOR (no solo en el cliente): registra los intentos
+  // fallidos por correo y bloquea temporalmente tras varios fallos.
+  private attempts = new Map<string, { fails: number; lockedUntil: number }>();
+  private readonly MAX_FAILS = 5;
+  private readonly LOCK_MS = 15 * 60 * 1000; // 15 minutos
+
   /**
    * Valida credenciales (email + password con argon2) y emite el par de tokens.
    * Qué recibe: LoginDto. Qué devuelve: { accessToken, refreshToken, user }.
+   * Incluye bloqueo por intentos fallidos para frenar fuerza bruta.
    */
   async login(dto: LoginDto, ip?: string | null) {
+    const key = dto.email.trim().toLowerCase();
+    const now = Date.now();
+
+    // 1) ¿Está bloqueado ahora mismo?
+    const rec = this.attempts.get(key);
+    if (rec && rec.lockedUntil > now) {
+      const mins = Math.ceil((rec.lockedUntil - now) / 60000);
+      await this.audit.record({
+        action: 'LOGIN_BLOQUEADO', entity: 'auth', ip,
+        after: { email: dto.email, minutosRestantes: mins },
+      });
+      throw new UnauthorizedException(
+        `Cuenta bloqueada temporalmente por varios intentos fallidos. Inténtalo en ${mins} min.`,
+      );
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
       include: { role: { include: { permissions: { include: { permission: true } } } } },
     });
-    if (!user || !user.active) throw new UnauthorizedException('Credenciales inválidas');
+    const valid = user && user.active
+      ? await argon2.verify(user.passwordHash, dto.password).catch(() => false)
+      : false;
 
-    const valid = await argon2.verify(user.passwordHash, dto.password).catch(() => false);
-    if (!valid) throw new UnauthorizedException('Credenciales inválidas');
+    if (!valid) {
+      await this.registerFail(key, dto.email, ip);
+      throw new UnauthorizedException('Credenciales inválidas');
+    }
 
-    await this.prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
-    // Trazabilidad: registrar el inicio de sesión.
-    await this.audit.record({ userId: user.id, action: 'LOGIN', entity: 'auth', entityId: user.id, ip });
+    // Éxito: limpia el contador de intentos.
+    this.attempts.delete(key);
+    await this.prisma.user.update({ where: { id: user!.id }, data: { lastLoginAt: new Date() } });
+    await this.audit.record({ userId: user!.id, action: 'LOGIN', entity: 'auth', entityId: user!.id, ip });
     return this.buildTokens(user);
+  }
+
+  /** Registra un intento fallido y bloquea la cuenta si se supera el máximo. */
+  private async registerFail(key: string, email: string, ip?: string | null) {
+    const now = Date.now();
+    const rec = this.attempts.get(key) || { fails: 0, lockedUntil: 0 };
+    rec.fails += 1;
+    let locked = false;
+    if (rec.fails >= this.MAX_FAILS) {
+      rec.lockedUntil = now + this.LOCK_MS;
+      rec.fails = 0;
+      locked = true;
+    }
+    this.attempts.set(key, rec);
+    await this.audit.record({
+      action: locked ? 'LOGIN_BLOQUEADO' : 'LOGIN_FALLIDO', entity: 'auth', ip,
+      after: { email, intento: 'contraseña/usuario incorrecto', bloqueado: locked },
+    });
   }
 
   /**

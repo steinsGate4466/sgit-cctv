@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -99,13 +99,12 @@ export class IncidentsService {
   async update(id: string, dto: UpdateIncidentDto) {
     const current = await this.prisma.incident.findUnique({ where: { id } });
     if (!current) throw new NotFoundException('Incidencia no encontrada');
-    const data: any = { ...dto };
-    const closing = dto.status === 'RESUELTA' || dto.status === 'CERRADA';
-    if (closing && !current.resolvedAt) {
-      const resolvedAt = new Date();
-      data.resolvedAt = resolvedAt;
-      data.mttrMinutes = Math.max(0, Math.round((resolvedAt.getTime() - current.reportedAt.getTime()) / 60000));
+    // El cierre/resolución NO se hace por esta vía: exige firma del Jefe (endpoint /resolve).
+    // Aquí solo se permiten estados no terminales (Abierta, En diagnóstico, En proceso, En espera).
+    if (dto.status === 'RESUELTA' || dto.status === 'CERRADA') {
+      throw new ForbiddenException('El cierre de la incidencia lo firma el Jefe de Mantenimiento (usa “Resolver”).');
     }
+    const data: any = { ...dto };
     return this.prisma.incident.update({ where: { id }, data, include: assetSel });
   }
 
