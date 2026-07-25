@@ -22,6 +22,8 @@ const PERMISSIONS = [
   'audit.read',
   'credential.read', 'credential.manage',
   'inventory.read', 'inventory.manage', 'inventory.check',
+  // Accesibilidad / trabajo en altura (manlift, izaje) — SSOMA
+  'access.read', 'access.request', 'access.approve',
 ];
 
 // ---- Roles y sus permisos ----
@@ -40,6 +42,8 @@ const ROLES: Record<string, string[]> = {
     'document.read', 'document.manage',
     'dashboard.read', 'troubleshooting.read', 'credential.read',
     'inventory.read', 'inventory.manage', 'inventory.check',
+    // Supervisa las solicitudes de acceso, pero NO las aprueba (eso es del Jefe).
+    'access.read', 'access.request',
   ],
   // Técnico: rol de campo. Registra y llena formularios (incidencias y OT), actualiza su
   // trabajo; NO borra, NO aprueba, NO cierra, NO gestiona usuarios ni credenciales.
@@ -49,6 +53,8 @@ const ROLES: Record<string, string[]> = {
     'incident.create', 'incident.read', 'incident.update',
     'document.read', 'dashboard.read', 'troubleshooting.read',
     'inventory.read', 'inventory.check',
+    // Levanta la solicitud de acceso especial desde campo (no la aprueba).
+    'access.read', 'access.request',
   ],
   // Técnico de Red: como el Técnico, pero PUEDE ver datos de red y credenciales (accesos).
   'Técnico de Red': [
@@ -58,12 +64,13 @@ const ROLES: Record<string, string[]> = {
     'document.read', 'dashboard.read', 'troubleshooting.read',
     'credential.read', 'credential.manage',
     'inventory.read', 'inventory.check',
+    'access.read', 'access.request',
   ],
   // Consultor Externo / Jefe de Producción: SOLO lectura del avance del proceso.
   'Consultor Externo': [
     'dashboard.read', 'incident.read', 'wo.read',
     'troubleshooting.read', 'asset.read', 'location.read',
-    'inventory.read',
+    'inventory.read', 'access.read',
   ],
 };
 

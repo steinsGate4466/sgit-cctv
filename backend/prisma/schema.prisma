@@ -35,6 +35,8 @@ model User {
   auditLogs    AuditLog[]
   stockMovements StockMovement[]
   stockChecks    StockCheck[]
+  accessRequested AccessRequest[] @relation("AccessRequester")
+  accessReviewed  AccessRequest[] @relation("AccessReviewer")
 
   @@map("users")
 }
@@ -212,6 +214,7 @@ model Asset {
   spareLinks    SparePartAsset[]
   preventivePlan PreventivePlan?
   photos        AssetPhoto[]
+  accessRequests AccessRequest[]
 
   @@index([type])
   @@index([status])
@@ -671,6 +674,83 @@ model PreventivePlan {
   @@index([nextDueAt])
   @@index([active])
   @@map("preventive_plans")
+}
+
+// ============ ACCESIBILIDAD / TRABAJO EN ALTURA — SSOMA (F6.9) ============
+// Hay cámaras y antenas en altura o sobre grúas donde NO se puede intervenir sin
+// manlift, izaje o andamio. El manlift es un recurso caro y el trabajo en altura
+// (desde 1.80 m) exige PETAR/IPERC/ATS. Por eso el técnico sustenta la solicitud
+// con fotos y datos de seguridad, y SOLO el Jefe de Mantenimiento la aprueba.
+
+enum AccessMeans {
+  MANLIFT           // plataforma elevadora
+  GRUA              // izaje / permiso de grúa
+  ANDAMIO
+  ESCALERA
+  LINEA_VIDA
+  OTRO
+}
+
+enum AccessRequestStatus {
+  SOLICITADO
+  EN_REVISION
+  APROBADO
+  RECHAZADO
+}
+
+/// Solicitud de acceso especial a un activo inaccesible (trabajo en altura).
+model AccessRequest {
+  id             String              @id @default(uuid())
+  code           String              @unique // ej: ACC-2026-0001
+  assetId        String
+  asset          Asset               @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  requestedById  String?
+  requestedBy    User?               @relation("AccessRequester", fields: [requestedById], references: [id])
+
+  // ---- Sustento técnico ----
+  heightMeters   Float?              // altura estimada (trabajo en altura desde 1.80 m)
+  means          AccessMeans         @default(MANLIFT)
+  locationKind   String?             // poste / estructura / grúa / techo / puente grúa
+  justification  String              // por qué es inaccesible sin ese medio
+  accessRoute    String?             // cómo se llega / restricciones de la zona
+
+  // ---- Datos SSOMA (seguridad) ----
+  requiresPetar  Boolean             @default(true)  // permiso de trabajo de alto riesgo
+  hasIperc       Boolean             @default(false) // IPERC elaborado
+  hasAts         Boolean             @default(false) // ATS del día
+  personnelCount Int?                @default(2)     // mínimo 2 personas en altura
+  eppDetail      String?             // arnés, línea de vida, casco con barbiquejo...
+  risks          String?             // riesgos identificados
+  productionImpact String?           // ¿requiere parar el tren / coordinar con Producción?
+
+  // ---- Revisión (solo Jefe de Mantenimiento) ----
+  status         AccessRequestStatus @default(SOLICITADO)
+  reviewedById   String?
+  reviewedBy     User?               @relation("AccessReviewer", fields: [reviewedById], references: [id])
+  reviewedAt     DateTime?
+  decisionNotes  String?
+
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  photos         AccessRequestPhoto[]
+
+  @@index([assetId])
+  @@index([status])
+  @@map("access_requests")
+}
+
+/// Fotografías que sustentan la inaccesibilidad (obligatorias para aprobar).
+model AccessRequestPhoto {
+  id        String        @id @default(uuid())
+  requestId String
+  request   AccessRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  fileId    String
+  caption   String?
+  createdAt DateTime      @default(now())
+
+  @@index([requestId])
+  @@map("access_request_photos")
 }
 
 // ===================== FOTOGRAFÍAS DE ACTIVO (F6.4) =====================

@@ -10,6 +10,7 @@ import Preventive from './pages/Preventive';
 import Corrective from './pages/Corrective';
 import Cabinets from './pages/Cabinets';
 import Locations from './pages/Locations';
+import Access from './pages/Access';
 import Inventory from './pages/Inventory';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -34,6 +35,7 @@ export default function App() {
         <Route path="/corrective" element={<Corrective />} />
         <Route path="/cabinets" element={<Cabinets />} />
         <Route path="/locations" element={<Locations />} />
+        <Route path="/access" element={<Access />} />
         <Route path="/inventory" element={<Inventory />} />
         <Route path="/audit" element={<Audit />} />
         <Route path="/users" element={<Users />} />
