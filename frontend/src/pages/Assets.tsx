@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import Modal from '../components/Modal';
+import AccessRequestForm, { MEANS_ES, STATUS_ES as ACC_STATUS_ES, STATUS_BADGE as ACC_BADGE } from '../components/AccessRequestForm';
 import { useAuth } from '../auth/AuthContext';
 
 const TYPES = ['CAMERA', 'NVR', 'SWITCH', 'WIRELESS', 'ROUTER', 'FIREWALL', 'SERVER', 'UPS', 'FIBER', 'CABINET', 'DECODER', 'PC', 'OTHER'];
@@ -45,6 +46,9 @@ export default function Assets() {
   const [photoKind, setPhotoKind] = useState('REFERENCIA');
   const [photoCaption, setPhotoCaption] = useState('');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  // Solicitud de acceso especial (activo inaccesible)
+  const [accessFor, setAccessFor] = useState<any>(null);
 
   // Alta firmada de activo
   const [form, setForm] = useState<any>(null);
@@ -347,6 +351,37 @@ export default function Assets() {
           )}
 
           <div className="detail-sec">
+            <h4>🦺 Accesibilidad del equipo</h4>
+            {detail.accessRequests && detail.accessRequests.length > 0 ? (
+              <>
+                {detail.accessRequests.map((ar: any) => (
+                  <div key={ar.id} className="frow">
+                    <span className="v">
+                      {ar.code}
+                      <span className="muted" style={{ fontWeight: 400, fontSize: 11 }}>
+                        {' · '}{MEANS_ES[ar.means] || ar.means}{ar.heightMeters != null ? ` · ${ar.heightMeters} m` : ''}
+                      </span>
+                    </span>
+                    <span className={'badge ' + (ACC_BADGE[ar.status] || 'BAJA')}>{ACC_STATUS_ES[ar.status] || ar.status}</span>
+                  </div>
+                ))}
+                <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+                  El seguimiento y la aprobación se hacen en el módulo <b>Accesibilidad</b>.
+                </div>
+              </>
+            ) : (
+              <div className="muted" style={{ fontSize: 12 }}>
+                Equipo con acceso normal. Si no se puede intervenir sin plataforma, grúa o andamio, márcalo aquí.
+              </div>
+            )}
+            {can('access.request') && (
+              <button className="btn-mini" style={{ marginTop: 8 }} onClick={() => setAccessFor(detail)}>
+                🦺 Marcar activo inaccesible (solicitar acceso especial)
+              </button>
+            )}
+          </div>
+
+          <div className="detail-sec">
             <h4>📷 Fotografías del equipo</h4>
             {photos.length ? photos.map((ph) => (
               <div key={ph.id} className="frow">
@@ -481,6 +516,19 @@ export default function Assets() {
             {formErr && <div className="error">{formErr}</div>}
             <button className="btn" disabled={saving || tries <= 0}>{saving ? 'Guardando…' : (form.id ? 'Firmar y guardar cambios' : 'Firmar y registrar')}</button>
           </form>
+        </Modal>
+      )}
+
+      {accessFor && (
+        <Modal title={'Activo inaccesible · ' + accessFor.assetCode} onClose={() => setAccessFor(null)}>
+          <AccessRequestForm
+            assetId={accessFor.id}
+            assetCode={accessFor.assetCode}
+            onDone={async () => {
+              setAccessFor(null);
+              if (detail) await openDetail(detail.id); // refresca la ficha con la solicitud nueva
+            }}
+          />
         </Modal>
       )}
 

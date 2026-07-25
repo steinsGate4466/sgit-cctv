@@ -118,6 +118,11 @@ export class AssetsService {
       include: {
         location: true, cabinet: true, camera: true, nvr: true, switchDev: true, wireless: true,
         photos: { orderBy: { createdAt: 'asc' } },
+        // Accesibilidad: si el activo es inaccesible (altura/manlift), se ve en su ficha.
+        accessRequests: {
+          orderBy: { createdAt: 'desc' }, take: 5,
+          select: { id: true, code: true, status: true, means: true, heightMeters: true, createdAt: true },
+        },
         workOrders: {
           orderBy: { createdAt: 'desc' }, take: 8,
           select: { code: true, type: true, status: true, scheduledDate: true, executedDate: true },
