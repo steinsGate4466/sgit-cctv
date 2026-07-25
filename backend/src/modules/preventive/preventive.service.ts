@@ -31,15 +31,28 @@ export class PreventiveService {
     return 'AL_DIA';
   }
 
-  /** Código correlativo de OM que no colisione con códigos manuales ya existentes. */
+  /**
+   * Código correlativo del año que no colisione con códigos manuales (SAP) ya existentes.
+   * Parte del mayor correlativo del año en curso, no del total de OM.
+   */
   private async nextCode(): Promise<string> {
     const year = new Date().getFullYear();
-    let n = await this.prisma.workOrder.count();
+    const prefix = `OM-${year}-`;
+    const last = await this.prisma.workOrder.findFirst({
+      where: { code: { startsWith: prefix } },
+      orderBy: { code: 'desc' },
+      select: { code: true },
+    });
+    let n = 0;
+    if (last) {
+      const parsed = parseInt(last.code.slice(prefix.length), 10);
+      if (!Number.isNaN(parsed)) n = parsed;
+    }
     // eslint-disable-next-line no-constant-condition
     while (true) {
       n++;
-      const code = `OM-${year}-${String(n).padStart(4, '0')}`;
-      const exists = await this.prisma.workOrder.findUnique({ where: { code } });
+      const code = `${prefix}${String(n).padStart(4, '0')}`;
+      const exists = await this.prisma.workOrder.findUnique({ where: { code }, select: { id: true } });
       if (!exists) return code;
     }
   }
@@ -112,41 +125,123 @@ export class PreventiveService {
   }
 
   /**
-   * Genera OM preventivas para los planes vencidos que no tengan ya una OM preventiva
-   * abierta. Pensado para un botón del Jefe o una tarea programada diaria.
+   * Genera órdenes de mantenimiento **PREVENTIVAS** (y solo preventivas) para los planes
+   * vencidos. Es la única generación automática del sistema: correctivo, mejora y
+   * predictivo siempre nacen de una decisión humana (incidencia, análisis o mejora).
+   *
+   * Reglas de negocio aplicadas:
+   *  1. Solo planes ACTIVOS y con vencimiento dentro de la ventana (vencidos + lookahead).
+   *  2. Se excluyen activos dados de baja (deletedAt) o en estado BAJA / STOCK:
+   *     no tiene sentido mantener un equipo que no está en operación.
+   *  3. No se duplica: si el activo ya tiene una OM preventiva abierta, se omite.
+   *  4. La OM hereda la ZONA del activo (ubicación) para ubicar el trabajo en planta.
+   *  5. `scheduledDate` = fecha real de vencimiento del plan (no "hoy"), para que el
+   *     indicador de OM vencidas refleje el atraso verdadero.
+   *  6. Todo queda auditado con el detalle de lo generado.
+   *
+   * @param lookaheadDays  genera también las que vencen dentro de N días (0 = solo vencidas).
    */
-  async generateDue(userId?: string | null, ip?: string | null) {
+  async generateDue(userId?: string | null, ip?: string | null, lookaheadDays = 0) {
     const now = new Date();
+    const limit = lookaheadDays > 0 ? this.addDays(now, lookaheadDays) : now;
+
     const due = await this.prisma.preventivePlan.findMany({
-      where: { active: true, nextDueAt: { lte: now } },
-      include: { asset: { select: { assetCode: true } } },
+      where: {
+        active: true,
+        nextDueAt: { lte: limit },
+        // Solo activos vigentes y en operación.
+        asset: { deletedAt: null, status: { notIn: ['BAJA', 'STOCK'] as any } },
+      },
+      include: {
+        asset: {
+          select: {
+            id: true, assetCode: true, type: true,
+            location: { select: { name: true } },
+            cabinet: { select: { code: true } },
+          },
+        },
+      },
+      orderBy: { nextDueAt: 'asc' },
     });
-    let created = 0;
-    const codes: string[] = [];
+
+    const created: { code: string; asset: string; dueAt: Date | null }[] = [];
+    const skipped: { asset: string; motivo: string }[] = [];
+
     for (const plan of due) {
+      // Regla 3: no duplicar si ya hay una preventiva en curso para ese activo.
       const openWo = await this.prisma.workOrder.findFirst({
         where: { assetId: plan.assetId, type: 'PREVENTIVO', status: { in: OPEN_WO as any } },
+        select: { id: true },
       });
-      if (openWo) continue;
+      if (openWo) {
+        skipped.push({ asset: plan.asset.assetCode, motivo: 'ya tiene una OM preventiva abierta' });
+        continue;
+      }
+
+      // Regla 4: zona = gabinete (si está montado) o ubicación del activo.
+      const zone = plan.asset.cabinet?.code
+        ? `${plan.asset.location?.name || 'Planta'} — ${plan.asset.cabinet.code}`
+        : plan.asset.location?.name || undefined;
+
       const code = await this.nextCode();
-      await this.prisma.workOrder.create({
-        data: {
-          code,
-          type: 'PREVENTIVO',
-          status: 'ABIERTA',
-          assetId: plan.assetId,
-          activity: `Mantenimiento preventivo programado (cada ${plan.intervalDays} días).`,
-          scheduledDate: now,
-        },
-      });
-      codes.push(code);
-      created++;
+      try {
+        await this.prisma.workOrder.create({
+          data: {
+            code,
+            type: 'PREVENTIVO',
+            status: 'ABIERTA',
+            assetId: plan.assetId,
+            zone,
+            activity:
+              `Mantenimiento preventivo programado del activo ${plan.asset.assetCode} ` +
+              `(frecuencia: cada ${plan.intervalDays} días${plan.zoneCritical ? ', zona crítica' : ''}).`,
+            scheduledDate: plan.nextDueAt || now, // Regla 5
+          },
+        });
+        created.push({ code, asset: plan.asset.assetCode, dueAt: plan.nextDueAt });
+      } catch (e: any) {
+        // Colisión de código por concurrencia (P2002): se omite y se reporta, sin romper el lote.
+        skipped.push({ asset: plan.asset.assetCode, motivo: 'código en uso, reintentar' });
+      }
     }
+
     await this.audit.record({
-      userId: userId || null, action: 'PREVENTIVE_GENERATE', entity: 'work_orders', ip,
-      after: { generadas: created, codigos: codes },
+      userId: userId || null,
+      action: 'PREVENTIVE_GENERATE',
+      entity: 'work_orders',
+      ip,
+      after: {
+        generadas: created.length,
+        omitidas: skipped.length,
+        ventanaDias: lookaheadDays,
+        codigos: created.map((c) => c.code),
+        detalleOmitidas: skipped.slice(0, 20),
+      },
     });
-    return { generated: created, codes };
+
+    return { generated: created.length, codes: created.map((c) => c.code), created, skipped };
+  }
+
+  /**
+   * Estado de la generación automática (para mostrarlo en el tablero de Preventivo):
+   * si está activa, a qué hora corre y cuándo fue la última ejecución automática.
+   */
+  async autoGenStatus() {
+    const enabled = (process.env.PREVENTIVE_AUTOGEN || 'on').toLowerCase() !== 'off';
+    const hour = Number(process.env.PREVENTIVE_AUTOGEN_HOUR ?? 6);
+    const lookaheadDays = Number(process.env.PREVENTIVE_LOOKAHEAD_DAYS ?? 0);
+    const last = await this.prisma.auditLog.findFirst({
+      where: { action: 'PREVENTIVE_GENERATE', ip: 'sistema (automático)' },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true, after: true },
+    });
+    return {
+      enabled,
+      hour,
+      lookaheadDays,
+      lastRunAt: last?.createdAt || null,
+      lastRunGenerated: (last?.after as any)?.generadas ?? null,
+    };
   }
 
   /**

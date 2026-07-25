@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Ip, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Ip, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PreventiveService } from './preventive.service';
 import { UpsertPreventivePlanDto } from './dto/upsert-plan.dto';
@@ -33,10 +33,19 @@ export class PreventiveController {
     return this.preventive.upsertPlan(dto, user?.userId, ip);
   }
 
-  // Generar las OM preventivas vencidas (botón del Jefe o tarea programada).
+  // Estado de la generación automática (activa, hora, última ejecución).
+  @Get('autogen-status')
+  @RequirePermissions('wo.read')
+  autoGenStatus() {
+    return this.preventive.autoGenStatus();
+  }
+
+  // Generación manual (además de la automática diaria). SOLO crea OM PREVENTIVAS.
+  // `days` permite adelantar las que vencen dentro de N días.
   @Post('generate')
   @RequirePermissions('wo.create')
-  generate(@CurrentUser() user: any, @Ip() ip: string) {
-    return this.preventive.generateDue(user?.userId, ip);
+  generate(@CurrentUser() user: any, @Ip() ip: string, @Query('days') days?: string) {
+    const lookahead = Math.max(0, Math.min(90, Number(days) || 0));
+    return this.preventive.generateDue(user?.userId, ip, lookahead);
   }
 }

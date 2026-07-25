@@ -19,6 +19,7 @@ export default function Preventive() {
   const [summary, setSummary] = useState<any>(null);
   const [assets, setAssets] = useState<any[]>([]);
   const [oms, setOms] = useState<any[]>([]);
+  const [auto, setAuto] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
 
@@ -26,14 +27,16 @@ export default function Preventive() {
   const [saving, setSaving] = useState(false);
 
   async function load() {
-    const [p, s, w] = await Promise.all([
+    const [p, s, w, ag] = await Promise.all([
       api.get('/preventive/plans').then((r) => r.data).catch(() => []),
       api.get('/preventive/summary').then((r) => r.data).catch(() => null),
       api.get('/work-orders?type=PREVENTIVO&pageSize=200').then((r) => r.data).catch(() => ({ data: [] })),
+      api.get('/preventive/autogen-status').then((r) => r.data).catch(() => null),
     ]);
     setPlans(p || []);
     setSummary(s);
     setOms(w.data || []);
+    setAuto(ag);
   }
   useEffect(() => {
     Promise.all([
@@ -41,7 +44,10 @@ export default function Preventive() {
       api.get('/preventive/summary').then((r) => r.data).catch(() => null),
       api.get('/assets').then((r) => r.data).catch(() => []),
       api.get('/work-orders?type=PREVENTIVO&pageSize=200').then((r) => r.data).catch(() => ({ data: [] })),
-    ]).then(([p, s, a, w]) => { setPlans(p || []); setSummary(s); setAssets(a || []); setOms(w.data || []); setLoading(false); });
+      api.get('/preventive/autogen-status').then((r) => r.data).catch(() => null),
+    ]).then(([p, s, a, w, ag]) => {
+      setPlans(p || []); setSummary(s); setAssets(a || []); setOms(w.data || []); setAuto(ag); setLoading(false);
+    });
   }, []);
 
   async function downloadOM(w: any) {
@@ -57,7 +63,9 @@ export default function Preventive() {
     setGenerating(true);
     try {
       const r = await api.post('/preventive/generate', {});
-      window.alert(`Se generaron ${r.data?.generated ?? 0} OM preventiva(s).`);
+      const g = r.data?.generated ?? 0;
+      const om = r.data?.skipped?.length ?? 0;
+      window.alert(`Se generaron ${g} OM preventiva(s).${om ? ` ${om} activo(s) omitido(s) (ya tenían una OM abierta o están fuera de operación).` : ''}`);
       await load();
     } catch (err: any) {
       const m = err?.response?.data?.message;
@@ -111,6 +119,22 @@ export default function Preventive() {
           {can('wo.create') && <button className="btn-primary" disabled={generating} onClick={generate}>{generating ? 'Generando…' : 'Generar OM vencidas'}</button>}
         </div>
       </div>
+
+      {auto && (
+        <div className="sign-note" style={{ marginBottom: 16 }}>
+          {auto.enabled ? (
+            <>
+              🤖 <b>Generación automática activa</b> — el sistema crea solo las OM <b>preventivas</b> vencidas cada día a las {String(auto.hour).padStart(2, '0')}:00 (hora de planta).
+              {auto.lastRunAt
+                ? <> Última ejecución: {new Date(auto.lastRunAt).toLocaleString()} ({auto.lastRunGenerated ?? 0} generadas).</>
+                : <> Aún sin ejecuciones registradas.</>}
+              <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>Correctivo, mejora y predictivo NO se generan solos: nacen de una incidencia o del análisis del equipo.</div>
+            </>
+          ) : (
+            <>⏸️ Generación automática desactivada. Las OM preventivas se crean con el botón “Generar OM vencidas”.</>
+          )}
+        </div>
+      )}
 
       <div className="kpi-grid">
         <div className="kpi ok"><div className="label">Al día</div><div className="value">{summary?.alDia ?? 0}</div></div>
