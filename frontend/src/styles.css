@@ -134,7 +134,9 @@ input:focus, select:focus { border-color: var(--steel); box-shadow: 0 0 0 3px rg
 .panel .empty { color: var(--muted); font-size: 13px; padding: 30px 0; text-align: center; }
 
 /* ---------- Tables ---------- */
-.card { background: var(--card); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+/* overflow-x: las tablas tienen muchas columnas (IP, estado, criticidad, acciones)
+   y en laptops chicas o en el celular se salían de la pantalla. */
+.card { background: var(--card); border-radius: 12px; box-shadow: var(--shadow); overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: 11px 14px; font-size: 13px; border-bottom: 1px solid var(--border); }
 th { background: #fafbfc; color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: .4px; }
@@ -237,6 +239,35 @@ select optgroup { font-weight: 700; color: var(--navy); }
 .train-pct { font-size: 26px; font-weight: 800; color: var(--navy); font-variant-numeric: tabular-nums; margin: 2px 0; }
 .train-detail { font-size: 11px; color: var(--muted); }
 .train-down { color: var(--crit); font-weight: 600; }
+
+/* ---------- Ficha rápida por QR (uso en celular, en planta) ---------- */
+.scan-wrap { max-width: 560px; margin: 0 auto; padding: 18px 16px 40px; }
+.scan-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.scan-code { font-size: 22px; font-weight: 800; color: var(--navy); letter-spacing: .5px; }
+.scan-card { padding: 6px 16px; }
+.scan-note { background: #eef4ff; border: 1px solid #dbe6fb; color: var(--steel);
+  padding: 10px 12px; border-radius: 8px; font-size: 13px; margin-top: 12px; }
+.scan-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
+.scan-actions .btn-primary, .scan-actions .btn-mini { width: 100%; padding: 12px; font-size: 14px; }
+
+/* ---------- Ajustes responsive (bugs visuales corregidos) ---------- */
+@media (max-width: 1024px) {
+  /* La barra lateral fija dejaba el contenido sin espacio en laptops chicas. */
+  .app { grid-template-columns: 200px 1fr; }
+}
+@media (max-width: 780px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar { position: sticky; top: 0; z-index: 30; }
+  .nav { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px; }
+  .nav-group { display: contents; }
+  .nav-group-title { display: none; }
+  .nav a { margin: 0; padding: 8px 10px; font-size: 13px; }
+  .content { padding: 16px 14px; }
+  .filters { flex-direction: column; align-items: stretch; }
+  .filters input, .filters select { width: 100%; }
+  /* Los botones de acción se apilaban fuera de la celda. */
+  td .btn-mini { margin-bottom: 4px; }
+}
 
 /* Detalle de activo: modal con scroll */
 .modal-body { max-height: 74vh; overflow-y: auto; }

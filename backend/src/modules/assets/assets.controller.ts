@@ -69,6 +69,27 @@ export class AssetsController {
     return this.assets.remove(id);
   }
 
+  // ---------- Identificación por QR ----------
+  // Hoja de etiquetas para imprimir y pegar en los equipos de planta.
+  @Get('qr/sheet')
+  @RequirePermissions('asset.read')
+  async qrSheet(@Res() res: Response, @Query('ids') ids?: string) {
+    const list = ids ? ids.split(',').map((s) => s.trim()).filter(Boolean) : undefined;
+    const { buffer, filename } = await this.assets.qrSheet(list);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
+  }
+
+  // QR individual (PNG) del activo.
+  @Get(':id/qr')
+  @RequirePermissions('asset.read')
+  async qr(@Param('id') id: string, @Res() res: Response) {
+    const { buffer } = await this.assets.qrPng(id);
+    res.setHeader('Content-Type', 'image/png');
+    res.send(buffer);
+  }
+
   // ---------- Fotografías del activo ----------
   @Post(':id/photos')
   @RequirePermissions('asset.update')

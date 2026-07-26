@@ -49,6 +49,11 @@ export default function Assets() {
 
   // Solicitud de acceso especial (activo inaccesible)
   const [accessFor, setAccessFor] = useState<any>(null);
+  // Contraseñas reveladas en la tabla (bajo demanda, auditado)
+  const [rowPass, setRowPass] = useState<Record<string, string>>({});
+  // QR del activo
+  const [qrFor, setQrFor] = useState<any>(null);
+  const [qrUrl, setQrUrl] = useState('');
 
   // Alta firmada de activo
   const [form, setForm] = useState<any>(null);
@@ -143,6 +148,31 @@ export default function Assets() {
       const c = await api.get('/credentials?assetId=' + id).then((r) => r.data).catch(() => []);
       setCreds(c || []);
     }
+  }
+
+  /** Revela la clave de un equipo desde la tabla (una sola, auditada en el servidor). */
+  async function revealRow(a: any) {
+    if (!a.credentialId) return;
+    const r = await api.get('/credentials/' + a.credentialId + '/reveal').then((res) => res.data).catch(() => null);
+    if (r) setRowPass((p) => ({ ...p, [a.id]: r.secret }));
+    else window.alert('No se pudo revelar la contraseña.');
+  }
+
+  /** Muestra el QR del activo para pegarlo en el equipo. */
+  async function openQr(a: any) {
+    setQrFor(a); setQrUrl('');
+    try {
+      const res = await api.get('/assets/' + a.id + '/qr', { responseType: 'blob' });
+      setQrUrl(URL.createObjectURL(res.data));
+    } catch { window.alert('No se pudo generar el QR.'); }
+  }
+  async function downloadQrSheet() {
+    try {
+      const res = await api.get('/assets/qr/sheet', { responseType: 'blob' });
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const a = document.createElement('a'); a.href = url; a.download = 'etiquetas-qr.pdf';
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    } catch { window.alert('No se pudo generar la hoja de etiquetas.'); }
   }
 
   async function reveal(credId: string) {
@@ -273,7 +303,10 @@ export default function Assets() {
           <h1 className="page-title">Activos Tecnológicos</h1>
           <p className="page-sub">{rows.length} activos · haz clic en un activo para ver el detalle</p>
         </div>
-        {can('asset.create') && <button className="btn-primary" onClick={openNew}>+ Nuevo activo</button>}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button className="btn-mini" onClick={downloadQrSheet}>🏷️ Etiquetas QR (PDF)</button>
+          {can('asset.create') && <button className="btn-primary" onClick={openNew}>+ Nuevo activo</button>}
+        </div>
       </div>
       <div className="card">
         <table>
@@ -287,7 +320,15 @@ export default function Assets() {
                 <td>{tEs(a.type)}</td>
                 <td>{[a.brand, a.model].filter(Boolean).join(' ') || '—'}</td>
                 {can('credential.read') && <td className="muted" style={{ fontFamily: 'monospace', fontSize: 12 }}>{a.ip || '—'}</td>}
-                {can('credential.read') && <td className="muted" style={{ fontFamily: 'monospace', fontSize: 12 }}>{a.password || '—'}</td>}
+                {can('credential.read') && (
+                  <td className="muted" style={{ fontFamily: 'monospace', fontSize: 12 }}>
+                    {/* La clave no viaja en el listado: se revela una a una y queda auditado. */}
+                    {!a.hasPassword ? '—'
+                      : rowPass[a.id]
+                        ? <b>{rowPass[a.id]}</b>
+                        : <button className="btn-mini" onClick={(e) => { e.stopPropagation(); revealRow(a); }}>••••• ver</button>}
+                  </td>
+                )}
                 <td><span className={'badge ' + (a.effectiveStatus || a.status)}>{sEs(a.effectiveStatus || a.status)}</span></td>
                 <td><span className={'badge ' + a.criticality}>{cEs(a.criticality)}</span></td>
                 <td className="muted">{a.location?.name || '—'}</td>
@@ -300,7 +341,8 @@ export default function Assets() {
 
       {detail && (
         <Modal title={detail.assetCode} onClose={() => setDetail(null)}>
-          <div style={{ marginBottom: 10, textAlign: 'right', display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+          <div style={{ marginBottom: 10, textAlign: 'right', display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+            <button className="btn-mini" onClick={() => openQr(detail)}>🏷️ QR</button>
             <button className="btn-mini" onClick={downloadReport}>📄 Informe del equipo (PDF)</button>
             {can('credential.read') && <button className="btn-mini" onClick={() => openEdit(detail)}>✏️ Editar activo (firmado)</button>}
           </div>
@@ -516,6 +558,28 @@ export default function Assets() {
             {formErr && <div className="error">{formErr}</div>}
             <button className="btn" disabled={saving || tries <= 0}>{saving ? 'Guardando…' : (form.id ? 'Firmar y guardar cambios' : 'Firmar y registrar')}</button>
           </form>
+        </Modal>
+      )}
+
+      {qrFor && (
+        <Modal title={'Etiqueta QR · ' + qrFor.assetCode} onClose={() => { setQrFor(null); setQrUrl(''); }}>
+          <div className="sign-note">
+            Imprime y pega esta etiqueta en el equipo. Al escanearla con el celular, el técnico
+            entra directo a la ficha del activo sin buscarlo entre cientos.
+          </div>
+          <div style={{ textAlign: 'center', padding: '10px 0' }}>
+            {qrUrl
+              ? <img src={qrUrl} alt={'QR ' + qrFor.assetCode} style={{ width: 240, height: 240 }} />
+              : <div className="muted">Generando QR…</div>}
+            <div style={{ fontWeight: 700, color: 'var(--navy)', marginTop: 8 }}>{qrFor.assetCode}</div>
+            <div className="muted" style={{ fontSize: 12 }}>{qrFor.location?.name || ''}</div>
+          </div>
+          {qrUrl && (
+            <a className="btn" href={qrUrl} download={`qr-${qrFor.assetCode}.png`}
+               style={{ display: 'block', textAlign: 'center', textDecoration: 'none', lineHeight: '2.2' }}>
+              Descargar PNG
+            </a>
+          )}
         </Modal>
       )}
 

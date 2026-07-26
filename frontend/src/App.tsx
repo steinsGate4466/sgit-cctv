@@ -13,6 +13,7 @@ import Improvements from './pages/Improvements';
 import Cabinets from './pages/Cabinets';
 import Locations from './pages/Locations';
 import Access from './pages/Access';
+import AssetScan from './pages/AssetScan';
 import Inventory from './pages/Inventory';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -40,6 +41,8 @@ export default function App() {
         <Route path="/cabinets" element={<Cabinets />} />
         <Route path="/locations" element={<Locations />} />
         <Route path="/access" element={<Access />} />
+        {/* Destino del QR pegado en el equipo (ficha rápida para el celular) */}
+        <Route path="/a/:id" element={<AssetScan />} />
         <Route path="/inventory" element={<Inventory />} />
         <Route path="/audit" element={<Audit />} />
         <Route path="/users" element={<Users />} />

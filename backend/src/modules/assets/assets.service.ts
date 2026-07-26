@@ -4,11 +4,12 @@ import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { StorageService } from '../storage/storage.service';
-import { decryptSecret } from '../../common/crypto/crypto.util';
 import { computeEffectiveStatuses, computeEffectiveStatus } from '../../common/asset-status';
-// PDF: require para no depender de @types en el build.
+// PDF y QR: require para no depender de @types en el build.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PDFDocument = require('pdfkit');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const QRCode = require('qrcode');
 
 const TYPE_ES: Record<string, string> = { CAMERA: 'Cámara', NVR: 'NVR', SWITCH: 'Switch', WIRELESS: 'Enlace inalámbrico', ROUTER: 'Router', FIREWALL: 'Firewall', SERVER: 'Servidor', UPS: 'UPS', FIBER: 'Fibra', CABINET: 'Gabinete', DECODER: 'Decodificador', PC: 'PC / iVMS-4200', OTHER: 'Otro' };
 const STATUS_ES: Record<string, string> = { OPERATIVO: 'Operativo', FUERA_SERVICIO: 'Fuera de servicio', MANTENIMIENTO: 'En mantenimiento', CON_INCIDENCIA: 'Con incidencia', BAJA: 'Baja', STOCK: 'En stock' };
@@ -90,18 +91,20 @@ export class AssetsService {
     if (!sensitive) {
       return rows.map((a: any) => ({ ...a, effectiveStatus: eff[a.id] || a.status }));
     }
-    // IP y contraseña (descifrada) solo para roles con credential.read
-    // (Jefe de Mantenimiento, Supervisor TI, Técnico de Red).
+    // IP visible para roles con credential.read (Jefe, Supervisor TI, Técnico de Red).
+    //
+    // SEGURIDAD: la contraseña YA NO se descifra ni viaja en el listado. Antes se
+    // enviaban todas las claves de los equipos con solo abrir la pantalla (y también
+    // al pintar el dashboard). Ahora se indica si existe credencial y se revela una
+    // sola, bajo demanda, por el endpoint /credentials/:id/reveal, que queda auditado.
     return rows.map((a: any) => {
       const { credentials, camera, switchDev, nvr, ...rest } = a;
-      let password: string | null = null;
       const c = credentials?.[0];
-      if (c) { try { password = decryptSecret(c.secretEnc); } catch { password = null; } }
       return {
         ...rest,
         effectiveStatus: eff[a.id] || a.status,
         ip: a.ipAddress || camera?.ipAddress || switchDev?.mgmtIp || nvr?.nicPrimary || null,
-        password,
+        hasPassword: !!c,
         credentialId: c?.id || null,
       };
     });
@@ -118,6 +121,7 @@ export class AssetsService {
       include: {
         location: true, cabinet: true, camera: true, nvr: true, switchDev: true, wireless: true,
         photos: { orderBy: { createdAt: 'asc' } },
+        preventivePlan: true,
         // Accesibilidad: si el activo es inaccesible (altura/manlift), se ve en su ficha.
         accessRequests: {
           orderBy: { createdAt: 'desc' }, take: 5,
@@ -226,6 +230,91 @@ export class AssetsService {
     await this.prisma.assetPhoto.delete({ where: { id: photoId } });
     await this.storage.remove(ph.fileId).catch(() => null);
     return { ok: true };
+  }
+
+  // ---------- Identificación por QR ----------
+  /**
+   * URL pública a la que apunta la etiqueta QR del activo.
+   * El técnico escanea con el celular y entra directo a la ficha, sin buscar
+   * el equipo entre cientos de registros.
+   */
+  private assetUrl(id: string): string {
+    const base = (process.env.APP_PUBLIC_URL || process.env.CORS_ORIGIN || '')
+      .split(',')[0]
+      .trim()
+      .replace(/\/$/, '');
+    return `${base}/a/${id}`;
+  }
+
+  /** QR del activo en PNG (para pantalla o etiqueta individual). */
+  async qrPng(id: string): Promise<{ buffer: Buffer; filename: string }> {
+    const asset = await this.prisma.asset.findUnique({
+      where: { id }, select: { assetCode: true, deletedAt: true },
+    });
+    if (!asset || asset.deletedAt) throw new NotFoundException('Activo no encontrado');
+    const buffer: Buffer = await QRCode.toBuffer(this.assetUrl(id), {
+      type: 'png', width: 512, margin: 1,
+      color: { dark: '#16233bff', light: '#ffffffff' },
+      errorCorrectionLevel: 'M', // tolera desgaste/suciedad de planta
+    });
+    return { buffer, filename: `qr-${asset.assetCode}.png` };
+  }
+
+  /**
+   * Hoja de etiquetas en PDF lista para imprimir y pegar en los equipos.
+   * Cada etiqueta lleva el QR, el código del activo y su ubicación.
+   */
+  async qrSheet(ids?: string[]): Promise<{ buffer: Buffer; filename: string }> {
+    const assets = await this.prisma.asset.findMany({
+      where: { deletedAt: null, ...(ids && ids.length ? { id: { in: ids } } : {}) },
+      select: {
+        id: true, assetCode: true, type: true,
+        location: { select: { name: true } },
+        cabinet: { select: { code: true } },
+      },
+      orderBy: { assetCode: 'asc' },
+      take: 200,
+    });
+    if (!assets.length) throw new NotFoundException('No hay activos para generar etiquetas');
+
+    const doc = new PDFDocument({ size: 'A4', margin: 28 });
+    const chunks: Buffer[] = [];
+    doc.on('data', (c: Buffer) => chunks.push(c));
+    const done = new Promise<Buffer>((resolve) => doc.on('end', () => resolve(Buffer.concat(chunks))));
+
+    const NAVY = '#16233b', GREY = '#555555';
+    const cols = 3, rows = 4;                 // 12 etiquetas por hoja
+    const cellW = (doc.page.width - 56) / cols;
+    const cellH = (doc.page.height - 56) / rows;
+
+    let i = 0;
+    for (const a of assets) {
+      const pos = i % (cols * rows);
+      if (i > 0 && pos === 0) doc.addPage();
+      const cx = 28 + (pos % cols) * cellW;
+      const cy = 28 + Math.floor(pos / cols) * cellH;
+
+      // Marco de corte
+      doc.rect(cx + 4, cy + 4, cellW - 8, cellH - 8).lineWidth(0.5).strokeColor('#cccccc').stroke();
+
+      const png: Buffer = await QRCode.toBuffer(this.assetUrl(a.id), {
+        type: 'png', width: 300, margin: 0,
+        color: { dark: '#000000ff', light: '#ffffffff' }, errorCorrectionLevel: 'M',
+      });
+      const qrSize = Math.min(cellW - 60, cellH - 78);
+      doc.image(png, cx + (cellW - qrSize) / 2, cy + 16, { width: qrSize, height: qrSize });
+
+      let ty = cy + 16 + qrSize + 8;
+      doc.fontSize(10).fillColor(NAVY).text(a.assetCode, cx + 8, ty, { width: cellW - 16, align: 'center' });
+      ty = doc.y + 1;
+      const sub = [a.location?.name, a.cabinet?.code].filter(Boolean).join(' · ') || TYPE_ES[a.type] || a.type;
+      doc.fontSize(7).fillColor(GREY).text(sub, cx + 8, ty, { width: cellW - 16, align: 'center' });
+      i++;
+    }
+
+    doc.end();
+    const buffer = await done;
+    return { buffer, filename: `etiquetas-qr-${new Date().toISOString().slice(0, 10)}.pdf` };
   }
 
   // ---------- Informe del equipo (PDF): ficha técnica + fotos + historial ----------
