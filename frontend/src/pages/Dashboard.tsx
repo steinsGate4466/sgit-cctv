@@ -49,6 +49,8 @@ export default function Dashboard() {
         <Kpi label="Mantenimientos pendientes" value={kpis?.pendingWorkOrders ?? 0} cls="warn" />
         <Kpi label="OM vencidas" value={kpis?.overdueWorkOrders ?? 0} cls={kpis?.overdueWorkOrders ? 'crit' : 'ok'} hint="Programadas y no ejecutadas" />
         <Kpi label="OM próximas (7 días)" value={kpis?.upcomingWorkOrders ?? 0} cls="warn" />
+        <Kpi label="Preventivos vencidos" value={kpis?.preventiveOverdue ?? 0} cls={kpis?.preventiveOverdue ? 'crit' : 'ok'} hint="Planes fuera de frecuencia" />
+        <Kpi label="Accesos por aprobar" value={kpis?.accessRequestsPending ?? 0} cls={kpis?.accessRequestsPending ? 'warn' : 'ok'} hint="Manlift / trabajo en altura" />
       </div>
 
       <div className="panel-grid">
