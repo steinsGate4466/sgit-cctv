@@ -51,7 +51,11 @@ input:focus, select:focus { border-color: var(--steel); box-shadow: 0 0 0 3px rg
 .sidebar .brand { padding: 20px 22px; border-bottom: 1px solid rgba(255,255,255,.08); }
 .sidebar .brand .logo { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: 1px; }
 .sidebar .brand .sub { font-size: 11px; color: #8fa0bd; margin-top: 2px; }
-.nav { padding: 14px 10px; flex: 1; }
+.nav { padding: 14px 10px; flex: 1; overflow-y: auto; }
+/* Menú agrupado por dominio: con 14 opciones, una lista plana marea. */
+.nav-group { margin-bottom: 10px; }
+.nav-group-title { font-size: 10px; text-transform: uppercase; letter-spacing: .8px;
+  color: #7d8cab; padding: 8px 14px 4px; font-weight: 700; }
 .nav a { display: flex; align-items: center; gap: 10px; padding: 11px 14px;
   border-radius: 8px; color: #cdd6e6; font-weight: 500; margin-bottom: 4px; }
 .nav a:hover { background: rgba(255,255,255,.06); color: #fff; }

@@ -8,6 +8,8 @@ import Users from './pages/Users';
 import Maintenance from './pages/Maintenance';
 import Preventive from './pages/Preventive';
 import Corrective from './pages/Corrective';
+import Predictive from './pages/Predictive';
+import Improvements from './pages/Improvements';
 import Cabinets from './pages/Cabinets';
 import Locations from './pages/Locations';
 import Access from './pages/Access';
@@ -33,6 +35,8 @@ export default function App() {
         <Route path="/maintenance" element={<Maintenance />} />
         <Route path="/preventive" element={<Preventive />} />
         <Route path="/corrective" element={<Corrective />} />
+        <Route path="/predictive" element={<Predictive />} />
+        <Route path="/improvements" element={<Improvements />} />
         <Route path="/cabinets" element={<Cabinets />} />
         <Route path="/locations" element={<Locations />} />
         <Route path="/access" element={<Access />} />

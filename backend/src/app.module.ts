@@ -24,6 +24,7 @@ import { PreventiveModule } from './modules/preventive/preventive.module';
 import { CorrectiveModule } from './modules/corrective/corrective.module';
 import { CabinetsModule } from './modules/cabinets/cabinets.module';
 import { AccessModule } from './modules/access/access.module';
+import { PredictiveModule } from './modules/predictive/predictive.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { AccessModule } from './modules/access/access.module';
     CorrectiveModule,
     CabinetsModule,
     AccessModule,
+    PredictiveModule,
   ],
   controllers: [HealthController],
   providers: [
