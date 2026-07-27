@@ -1,10 +1,14 @@
 import { useState, FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 
 export default function Login() {
   const { login } = useAuth();
   const nav = useNavigate();
+  const location = useLocation();
+  // Ruta a la que el usuario quería llegar (ej.: la ficha del activo del QR).
+  const destino = (location.state as any)?.from as string | undefined;
+  const vieneDeQr = !!destino && destino.startsWith('/a/');
   // El correo NO viene precargado: revelar el usuario administrador en la pantalla
   // de acceso es una fuga de información innecesaria.
   const [email, setEmail] = useState('');
@@ -22,7 +26,8 @@ export default function Login() {
     try {
       await login(email, password);
       setTries(5);
-      nav('/dashboard');
+      // Vuelve a donde iba (ficha del QR, por ejemplo) o al tablero.
+      nav(destino || '/dashboard', { replace: true });
     } catch (err: any) {
       // El servidor manda el motivo real (credenciales o bloqueo temporal).
       // Antes se mostraba siempre "contraseña incorrecta", aunque la cuenta
@@ -81,6 +86,12 @@ export default function Login() {
             <h1>Iniciar sesión</h1>
             <p>Ingresa con tu cuenta corporativa</p>
           </div>
+
+          {vieneDeQr && (
+            <div className="scan-note" style={{ marginBottom: 14 }}>
+              🏷️ Escaneaste la etiqueta de un equipo. Al ingresar te llevamos directo a su ficha.
+            </div>
+          )}
 
           <label>Correo</label>
           <input

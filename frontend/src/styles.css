@@ -242,31 +242,106 @@ select optgroup { font-weight: 700; color: var(--navy); }
 
 /* ---------- Ficha rápida por QR (uso en celular, en planta) ---------- */
 .scan-wrap { max-width: 560px; margin: 0 auto; padding: 18px 16px 40px; }
-.scan-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
-.scan-code { font-size: 22px; font-weight: 800; color: var(--navy); letter-spacing: .5px; }
-.scan-card { padding: 6px 16px; }
+.scan-head { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-bottom: 14px; flex-wrap: wrap; }
+.scan-code { font-size: 22px; font-weight: 800; color: var(--navy); letter-spacing: .5px;
+  word-break: break-all; }  /* códigos largos no rompen el diseño */
+.scan-card { padding: 6px 16px; overflow-x: visible; }
+/* En la ficha del QR las filas se apilan si el valor es largo */
+.scan-card .frow { flex-wrap: wrap; gap: 2px; }
+.scan-card .frow .k { flex: 0 0 auto; }
+.scan-card .frow .v { text-align: right; margin-left: auto; word-break: break-word; }
 .scan-note { background: #eef4ff; border: 1px solid #dbe6fb; color: var(--steel);
   padding: 10px 12px; border-radius: 8px; font-size: 13px; margin-top: 12px; }
 .scan-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
 .scan-actions .btn-primary, .scan-actions .btn-mini { width: 100%; padding: 12px; font-size: 14px; }
 
-/* ---------- Ajustes responsive (bugs visuales corregidos) ---------- */
+/* =========================================================================
+   USO EN PLANTA — optimización para celular
+   Rango objetivo: desde 5.4" (iPhone 13 mini, 375 px) hasta 6.9" (430 px+).
+   Criterios: nada de scroll horizontal, texto legible sin zoom, y botones
+   de al menos 44 px (se usan con guantes).
+   ========================================================================= */
+
+/* Laptops chicas: la barra lateral ahogaba el contenido */
 @media (max-width: 1024px) {
-  /* La barra lateral fija dejaba el contenido sin espacio en laptops chicas. */
   .app { grid-template-columns: 200px 1fr; }
+  .kpi-grid { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
 }
+
+/* Tablet y celular grande */
 @media (max-width: 780px) {
   .app { grid-template-columns: 1fr; }
-  .sidebar { position: sticky; top: 0; z-index: 30; }
-  .nav { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px; }
+
+  /* Menú superior desplazable en lugar de barra lateral */
+  .sidebar { position: sticky; top: 0; z-index: 30; padding-top: env(safe-area-inset-top); }
+  .sidebar .brand { padding: 12px 16px; }
+  .sidebar .brand .logo { font-size: 18px; }
+  .sidebar .foot { display: none; }
+  .nav { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 6px; padding: 8px 10px;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .nav::-webkit-scrollbar { display: none; }
   .nav-group { display: contents; }
   .nav-group-title { display: none; }
-  .nav a { margin: 0; padding: 8px 10px; font-size: 13px; }
-  .content { padding: 16px 14px; }
-  .filters { flex-direction: column; align-items: stretch; }
-  .filters input, .filters select { width: 100%; }
-  /* Los botones de acción se apilaban fuera de la celda. */
+  .nav a { margin: 0; padding: 9px 13px; font-size: 13px; white-space: nowrap; border-radius: 20px; }
+
+  .topbar { height: auto; padding: 10px 16px; }
+  .topbar .title { font-size: 15px; }
+  .topbar .user > div:first-child { display: none; }  /* nombre completo: ocupa demasiado */
+  .content { padding: 14px 12px calc(24px + env(safe-area-inset-bottom)); }
+
+  .page-title { font-size: 18px; }
+  .page-sub { font-size: 12px; }
+
+  /* KPIs de dos en dos: legibles sin achicar el número */
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .kpi { padding: 13px; }
+  .kpi .value { font-size: 23px; }
+  .kpi .label { font-size: 10.5px; }
+  .kpi .hint { font-size: 10.5px; }
+
+  .panel-grid { grid-template-columns: 1fr; }
+  .train-grid { grid-template-columns: repeat(2, 1fr); }
+
+  /* Filtros apilados y a todo el ancho */
+  .filters { flex-direction: column; align-items: stretch; padding: 12px; gap: 10px; }
+  .filters > div { width: 100%; }
+  .filters input, .filters select { width: 100%; min-width: 0; }
+  .filters .btn-primary, .filters .btn-mini { width: 100%; padding: 12px; }
+
+  /* Tablas: se indica que se pueden desplazar y no se aplastan las columnas */
+  .card { -webkit-overflow-scrolling: touch; }
+  table { min-width: 620px; }
+  th, td { padding: 10px 12px; }
+
+  /* Objetivos táctiles cómodos con guantes */
+  .btn-mini { padding: 9px 13px; font-size: 12.5px; }
   td .btn-mini { margin-bottom: 4px; }
+  .btn, .btn-primary { padding: 13px; font-size: 14px; }
+
+  /* Modales a pantalla casi completa */
+  .modal { width: 100%; max-width: 100%; border-radius: 14px 14px 0 0; }
+  .modal-overlay { align-items: flex-end; }
+  .modal-body { max-height: 78vh; padding-bottom: calc(22px + env(safe-area-inset-bottom)); }
+
+  /* 16px evita que iOS haga zoom automático al enfocar un campo */
+  input, select, textarea { font-size: 16px; }
+}
+
+/* Celulares chicos (iPhone 13 mini / SE: 375 px y menos) */
+@media (max-width: 400px) {
+  .kpi-grid { grid-template-columns: 1fr; }
+  .train-grid { grid-template-columns: 1fr; }
+  .content { padding: 12px 10px calc(20px + env(safe-area-inset-bottom)); }
+  .scan-code { font-size: 19px; }
+  .scan-wrap { padding: 14px 12px 34px; }
+  .kpi .value { font-size: 26px; }   /* con una sola columna cabe más grande */
+  .modal-head h3 { font-size: 14px; }
+}
+
+/* Pantallas grandes de 6.7"–6.9" en horizontal: aprovechar el ancho */
+@media (min-width: 700px) and (max-width: 950px) and (orientation: landscape) {
+  .kpi-grid { grid-template-columns: repeat(4, 1fr); }
 }
 
 /* Detalle de activo: modal con scroll */
