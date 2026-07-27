@@ -63,10 +63,11 @@ export class AssetsController {
     return this.assets.updateNetwork(id, dto, ip, user?.userId);
   }
 
+  // Baja de activo (lógica y auditada). Solo Jefe de Mantenimiento (asset.delete).
   @Delete(':id')
   @RequirePermissions('asset.delete')
-  remove(@Param('id') id: string) {
-    return this.assets.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user: any, @Ip() ip: string) {
+    return this.assets.remove(id, user?.userId, ip);
   }
 
   // ---------- Identificación por QR ----------

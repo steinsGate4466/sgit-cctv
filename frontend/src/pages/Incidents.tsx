@@ -6,7 +6,8 @@ import { useAuth } from '../auth/AuthContext';
 // Categorías agrupadas para el selector (CCTV/NVR, Red/energía, Entorno de planta).
 const CATEGORY_GROUPS: { label: string; items: string[] }[] = [
   { label: 'CCTV / NVR', items: ['CAMARA_SIN_IMAGEN', 'SATURACION_SESIONES_NVR', 'FALLA_ALMACENAMIENTO_NVR', 'FALLA_NVR', 'DECODER_VIDEOWALL'] },
-  { label: 'Red / Energía', items: ['CAIDA_ENLACE_INALAMBRICO', 'FALLA_SWITCH', 'FALLA_FIBRA', 'FALLA_FUENTE_POE', 'PERDIDA_CONECTIVIDAD', 'CORTE_ENERGIA', 'FALLA_UPS', 'RED'] },
+  { label: 'Red / Conectividad', items: ['CAIDA_ENLACE_INALAMBRICO', 'FALLA_SWITCH', 'FALLA_FIBRA', 'PERDIDA_CONECTIVIDAD', 'RED'] },
+  { label: 'Eléctrico', items: ['CORTE_ENERGIA', 'TABLERO_ELECTRICO', 'VARIACION_TENSION', 'CORTOCIRCUITO', 'SOBRECARGA', 'PUESTA_A_TIERRA', 'CABLEADO_ELECTRICO', 'TRANSFORMADOR', 'FALLA_UPS', 'FALLA_FUENTE_POE'] },
   { label: 'Entorno de planta', items: ['FALLA_GABINETE', 'AMBIENTAL_SIDERURGICO', 'SEGURIDAD_FISICA', 'CONFIGURACION_FIRMWARE', 'GENERAL'] },
 ];
 const CATEGORIES = CATEGORY_GROUPS.flatMap((g) => g.items);
@@ -21,6 +22,8 @@ const CAT_ES: Record<string, string> = {
   CORTE_ENERGIA: 'Corte de energía', FALLA_GABINETE: 'Falla de gabinete', FALLA_FUENTE_POE: 'Falla fuente / PoE', FALLA_SWITCH: 'Falla de switch / puerto',
   FALLA_FIBRA: 'Falla de fibra / anillo', FALLA_UPS: 'Falla de UPS', PERDIDA_CONECTIVIDAD: 'Pérdida de conectividad', FALLA_NVR: 'Falla de NVR',
   AMBIENTAL_SIDERURGICO: 'Ambiental (polvo/calor/escoria)', SEGURIDAD_FISICA: 'Seguridad física / vandalismo', CONFIGURACION_FIRMWARE: 'Configuración / firmware',
+  TABLERO_ELECTRICO: 'Tablero eléctrico / breaker', VARIACION_TENSION: 'Variación de tensión', PUESTA_A_TIERRA: 'Puesta a tierra',
+  CORTOCIRCUITO: 'Cortocircuito', SOBRECARGA: 'Sobrecarga', CABLEADO_ELECTRICO: 'Cableado eléctrico dañado', TRANSFORMADOR: 'Transformador / alimentación',
 };
 const STATUS_ES: Record<string, string> = {
   ABIERTA: 'Abierta', EN_DIAGNOSTICO: 'En diagnóstico', EN_PROCESO: 'En proceso', EN_ESPERA: 'En espera', RESUELTA: 'Resuelta', CERRADA: 'Cerrada',
@@ -64,6 +67,11 @@ export default function Incidents() {
   const [sigError, setSigError] = useState('');
   const [signing, setSigning] = useState(false);
   const [tries, setTries] = useState(5);
+
+  // Propuesta técnica de solución (la documenta el técnico antes del cierre)
+  const [propId, setPropId] = useState<string | null>(null);
+  const [prop, setProp] = useState<any>({});
+  const [propSaving, setPropSaving] = useState(false);
 
   // Fotos
   const [photoId, setPhotoId] = useState<string | null>(null);
@@ -133,6 +141,31 @@ export default function Incidents() {
         setSigError(left > 0 ? `Contraseña incorrecta. Te quedan ${left} intento(s).` : 'Contraseña incorrecta. Sin intentos restantes.');
       } else setSigError(msg);
     } finally { setSigning(false); }
+  }
+
+  function openProposal(i: any) {
+    setPropId(i.id);
+    setProp({
+      proposal: i.proposal || '', proposalCost: i.proposalCost || '',
+      proposalRisk: i.proposalRisk || '', requiresThirdParty: !!i.requiresThirdParty,
+    });
+  }
+  async function submitProposal(e: FormEvent) {
+    e.preventDefault();
+    setPropSaving(true);
+    try {
+      await api.patch('/incidents/' + propId, {
+        proposal: prop.proposal || undefined,
+        proposalCost: prop.proposalCost || undefined,
+        proposalRisk: prop.proposalRisk || undefined,
+        requiresThirdParty: !!prop.requiresThirdParty,
+      });
+      setPropId(null);
+      await load();
+    } catch (err: any) {
+      const m = err?.response?.data?.message;
+      window.alert(Array.isArray(m) ? m.join(', ') : m || 'No se pudo guardar la propuesta.');
+    } finally { setPropSaving(false); }
   }
 
   async function openPhotos(id: string) {
@@ -230,6 +263,11 @@ export default function Incidents() {
                     </select>
                   )}
                   {can('incident.update') && <button className="btn-mini" onClick={() => openPhotos(i.id)}>Fotos</button>}
+                  {can('incident.update') && openIssue(i) && (
+                    <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => openProposal(i)}>
+                      {i.proposal ? '📝 Propuesta ✓' : '📝 Propuesta'}
+                    </button>
+                  )}
                   {can('incident.close') && openIssue(i) && <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => openResolve(i.id)}>Resolver</button>}
                   <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => downloadReport(i)}>Informe</button>
                 </td>
@@ -262,6 +300,35 @@ export default function Incidents() {
             <label>Cámaras afectadas (opcional)</label>
             <input type="number" value={form.affectedCameras} onChange={(e) => setForm({ ...form, affectedCameras: e.target.value })} />
             <button className="btn" disabled={saving}>{saving ? 'Guardando…' : 'Crear incidencia'}</button>
+          </form>
+        </Modal>
+      )}
+
+      {propId && (
+        <Modal title="Propuesta técnica de solución" onClose={() => setPropId(null)}>
+          <form onSubmit={submitProposal}>
+            <div className="sign-note">
+              Documenta <b>qué se propone hacer</b> para resolverlo de fondo. Esta información
+              sustenta el pedido ante Jefatura y queda en el informe de la incidencia.
+            </div>
+            <label>Propuesta de solución</label>
+            <textarea value={prop.proposal} onChange={(e) => setProp({ ...prop, proposal: e.target.value })}
+              rows={4} style={{ width: '100%', resize: 'vertical' }}
+              placeholder="Ej: reemplazar el ramal eléctrico del gabinete GAB-T1-R01 y colocar breaker independiente de 16A; hoy comparte circuito con el tablero de iluminación y cae con la carga del horno." />
+            <label>Recursos / materiales requeridos</label>
+            <textarea value={prop.proposalCost} onChange={(e) => setProp({ ...prop, proposalCost: e.target.value })}
+              rows={2} style={{ width: '100%', resize: 'vertical' }}
+              placeholder="Ej: 1 breaker 16A, 30 m cable THW 2.5 mm², 1 jornada de electricista" />
+            <label>Riesgo si no se atiende</label>
+            <textarea value={prop.proposalRisk} onChange={(e) => setProp({ ...prop, proposalRisk: e.target.value })}
+              rows={2} style={{ width: '100%', resize: 'vertical' }}
+              placeholder="Ej: pérdida recurrente de visión en el Tren 1 durante colada; riesgo de daño al NVR por caídas de tensión." />
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400, marginTop: 10 }}>
+              <input type="checkbox" checked={!!prop.requiresThirdParty}
+                onChange={(e) => setProp({ ...prop, requiresThirdParty: e.target.checked })} style={{ width: 'auto' }} />
+              Requiere apoyo de terceros (área eléctrica, contratista)
+            </label>
+            <button className="btn" disabled={propSaving}>{propSaving ? 'Guardando…' : 'Guardar propuesta'}</button>
           </form>
         </Modal>
       )}

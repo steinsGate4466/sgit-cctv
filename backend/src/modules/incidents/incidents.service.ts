@@ -247,6 +247,16 @@ export class IncidentsService {
     heading('Descripción del problema');
     doc.fontSize(11).fillColor('#000000').text(inc.description || '—', 50, y, { width: pageW - 100 }); y = doc.y + 10;
 
+    // Propuesta técnica: qué se plantea hacer, qué demanda y qué riesgo hay si no se atiende.
+    if (inc.proposal || inc.proposalCost || inc.proposalRisk || inc.requiresThirdParty) {
+      heading('Propuesta técnica de solución');
+      block('Propuesta planteada', inc.proposal || '—');
+      block('Recursos / materiales requeridos', inc.proposalCost || '—');
+      block('Riesgo si no se atiende', inc.proposalRisk || '—');
+      line('Requiere apoyo de terceros', inc.requiresThirdParty ? 'Sí' : 'No');
+      y += 4;
+    }
+
     heading('Análisis y solución');
     block('¿Qué se hizo para resolverlo?', inc.solution || '—');
     block('Causa raíz', inc.rootCause || '—');

@@ -165,6 +165,9 @@ tbody tr:hover { background: #fafbfe; }
 .btn-mini { background: #eef2f9; color: var(--steel); border: 1px solid var(--border);
   padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
 .btn-mini:hover { background: var(--steel); color: #fff; }
+/* Acción destructiva: se distingue para que no se pulse por error */
+.btn-mini.btn-danger { color: var(--crit); border-color: #f6c9c9; background: #fdecec; }
+.btn-mini.btn-danger:hover { background: var(--crit); color: #fff; border-color: var(--crit); }
 
 /* ---------- Modal ---------- */
 .modal-overlay { position: fixed; inset: 0; background: rgba(16,24,40,.5);

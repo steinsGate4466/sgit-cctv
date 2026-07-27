@@ -4,6 +4,7 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('users')
 @ApiBearerAuth()
@@ -38,13 +39,13 @@ export class UsersController {
 
   @Patch(':id')
   @RequirePermissions('user.manage')
-  update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
-    return this.users.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: UpdateUserDto, @CurrentUser() user: any) {
+    return this.users.update(id, dto, user?.userId);
   }
 
   @Delete(':id')
   @RequirePermissions('user.manage')
-  deactivate(@Param('id') id: string) {
-    return this.users.deactivate(id);
+  deactivate(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.users.deactivate(id, user?.userId);
   }
 }

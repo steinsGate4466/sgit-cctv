@@ -47,12 +47,44 @@ export class UsersService {
     });
   }
 
+  /**
+   * Verifica que la operación no deje al sistema sin ningún Jefe de Mantenimiento activo.
+   * Sin ese rol nadie podría cerrar OM, aprobar accesos ni gestionar usuarios: el sistema
+   * quedaría bloqueado y sin forma de recuperarse desde la propia aplicación.
+   */
+  private async assertNoDejaSinJefe(userId: string, motivo: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId }, include: { role: { select: { name: true } } },
+    });
+    if (!user || user.role.name !== 'Jefe de Mantenimiento' || !user.active) return;
+    const otros = await this.prisma.user.count({
+      where: { active: true, id: { not: userId }, role: { name: 'Jefe de Mantenimiento' } },
+    });
+    if (otros === 0) {
+      throw new BadRequestException(
+        `No se puede ${motivo}: es el único Jefe de Mantenimiento activo. ` +
+        'Asigna ese rol a otro usuario primero.',
+      );
+    }
+  }
+
   // Actualiza datos, rol, estado y (opcional) contraseña.
-  async update(id: string, dto: UpdateUserDto) {
+  async update(id: string, dto: UpdateUserDto, currentUserId?: string) {
     await this.findOne(id);
     if (dto.roleId) {
       const role = await this.prisma.role.findUnique({ where: { id: dto.roleId } });
       if (!role) throw new BadRequestException('Rol no válido');
+      // Cambiar de rol al único Jefe activo dejaría el sistema sin administrador.
+      if (role.name !== 'Jefe de Mantenimiento') {
+        await this.assertNoDejaSinJefe(id, 'cambiar el rol de este usuario');
+      }
+    }
+    // Nadie puede desactivarse a sí mismo (se quedaría fuera del sistema al instante).
+    if (dto.active === false) {
+      if (currentUserId && currentUserId === id) {
+        throw new BadRequestException('No puedes desactivar tu propio usuario.');
+      }
+      await this.assertNoDejaSinJefe(id, 'desactivar este usuario');
     }
     const data: any = { fullName: dto.fullName, roleId: dto.roleId, active: dto.active };
     if (dto.password) data.passwordHash = await argon2.hash(dto.password);
@@ -60,8 +92,12 @@ export class UsersService {
   }
 
   // Baja lógica: desactiva el usuario (no se borra, preserva trazabilidad).
-  async deactivate(id: string) {
+  async deactivate(id: string, currentUserId?: string) {
     await this.findOne(id);
+    if (currentUserId && currentUserId === id) {
+      throw new BadRequestException('No puedes desactivar tu propio usuario.');
+    }
+    await this.assertNoDejaSinJefe(id, 'desactivar este usuario');
     return this.prisma.user.update({ where: { id }, data: { active: false }, select: userSelect });
   }
 

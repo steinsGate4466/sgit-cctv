@@ -287,6 +287,30 @@ export default function Assets() {
       window.alert(Array.isArray(m) ? m.join(', ') : m || 'No se pudo guardar la credencial.');
     }
   }
+  /** Baja de activo: limpieza de registros de prueba o equipos retirados de planta. */
+  async function removeAsset(a: any) {
+    const paso1 = window.confirm(
+      `¿Dar de baja el activo ${a.assetCode}?\n\n` +
+      'Dejará de aparecer en listados, planes preventivos y tableros.\n' +
+      'Su historial (OM, incidencias, auditoría) se conserva como evidencia.',
+    );
+    if (!paso1) return;
+    const conf = window.prompt(`Confirma escribiendo el código del activo: ${a.assetCode}`);
+    if (conf !== a.assetCode) {
+      if (conf !== null) window.alert('El código no coincide. No se dio de baja.');
+      return;
+    }
+    try {
+      await api.delete('/assets/' + a.id);
+      setDetail(null);
+      await loadAssets();
+      window.alert('Activo dado de baja.');
+    } catch (err: any) {
+      const m = err?.response?.data?.message;
+      window.alert(Array.isArray(m) ? m.join(', ') : m || 'No se pudo dar de baja el activo.');
+    }
+  }
+
   async function delCredential(id: string) {
     if (!window.confirm('¿Eliminar esta credencial?')) return;
     await api.delete('/credentials/' + id).catch(() => {});
@@ -345,6 +369,9 @@ export default function Assets() {
             <button className="btn-mini" onClick={() => openQr(detail)}>🏷️ QR</button>
             <button className="btn-mini" onClick={downloadReport}>📄 Informe del equipo (PDF)</button>
             {can('credential.read') && <button className="btn-mini" onClick={() => openEdit(detail)}>✏️ Editar activo (firmado)</button>}
+            {can('asset.delete') && (
+              <button className="btn-mini btn-danger" onClick={() => removeAsset(detail)}>🗑️ Dar de baja</button>
+            )}
           </div>
           <Frow k="Tipo" v={tEs(detail.type)} />
           <Frow k="Marca / Modelo" v={[detail.brand, detail.model].filter(Boolean).join(' ')} />

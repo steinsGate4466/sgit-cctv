@@ -195,8 +195,38 @@ export class AssetsService {
     return { id: updated.id, ipAddress: updated.ipAddress };
   }
 
-  remove(id: string) {
-    return this.prisma.asset.update({ where: { id }, data: { deletedAt: new Date(), status: 'BAJA' } });
+  /**
+   * Baja de activo (borrado lógico). No se elimina físicamente: se conserva el
+   * historial de OM, incidencias y auditoría asociado, que es evidencia documental.
+   * El activo deja de aparecer en listados, planes y tableros.
+   */
+  async remove(id: string, userId?: string | null, ip?: string | null) {
+    const asset = await this.prisma.asset.findUnique({ where: { id } });
+    if (!asset || asset.deletedAt) throw new NotFoundException('Activo no encontrado');
+
+    const [wos, incs] = await Promise.all([
+      this.prisma.workOrder.count({ where: { assetId: id, status: { in: ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'] as any } } }),
+      this.prisma.incident.count({ where: { assetId: id, status: { in: ['ABIERTA', 'EN_DIAGNOSTICO', 'EN_PROCESO', 'EN_ESPERA'] as any } } }),
+    ]);
+    if (wos > 0 || incs > 0) {
+      throw new BadRequestException(
+        `No se puede dar de baja: el activo tiene ${wos} OM y ${incs} incidencia(s) abiertas. ` +
+        'Ciérralas o cancélalas primero.',
+      );
+    }
+
+    const updated = await this.prisma.asset.update({
+      where: { id },
+      data: { deletedAt: new Date(), status: 'BAJA' },
+    });
+    // Se desactiva su plan preventivo para que no siga generando OM.
+    await this.prisma.preventivePlan.updateMany({ where: { assetId: id }, data: { active: false } });
+
+    await this.audit.record({
+      userId: userId || null, action: 'DELETE_ASSET', entity: 'assets', entityId: id, ip,
+      after: { assetCode: asset.assetCode, tipo: asset.type },
+    });
+    return { ok: true, assetCode: updated.assetCode };
   }
 
   // ---------- Fotografías del activo (a qué apunta, referencia, plano) ----------

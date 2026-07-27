@@ -468,6 +468,14 @@ enum IncidentCategory {
   AMBIENTAL_SIDERURGICO     // polvo, calor, escoria, vibración, agua propios de la planta
   SEGURIDAD_FISICA          // vandalismo, robo, golpe o corte de cable
   CONFIGURACION_FIRMWARE    // config incorrecta / firmware / actualización fallida
+  // ---- Fallas ELÉCTRICAS específicas (planta siderúrgica) ----
+  TABLERO_ELECTRICO         // tablero, breaker, llave térmica, borneras
+  VARIACION_TENSION         // caída/pico de tensión, fluctuación por carga del horno
+  PUESTA_A_TIERRA           // falla o ausencia de puesta a tierra
+  CORTOCIRCUITO             // cortocircuito en el ramal o el equipo
+  SOBRECARGA                // circuito sobrecargado
+  CABLEADO_ELECTRICO        // cable eléctrico dañado, quemado o mal empalmado
+  TRANSFORMADOR             // falla en transformador / fuente de alimentación mayor
 }
 
 model Incident {
@@ -496,6 +504,13 @@ model Incident {
   responsibleName String?          // responsable de la solución
   observations    String?          // observaciones / recomendaciones
   lineManagerNotified Boolean @default(false) // ¿jefe de línea enterado?
+  // ---- Propuesta técnica de solución (documentación previa al cierre) ----
+  // El ERP no solo registra la falla: deja constancia de QUÉ se propone hacer,
+  // qué se necesita y qué pasa si no se atiende. Sirve para sustentar ante Jefatura.
+  proposal        String?          // propuesta de solución planteada por el técnico
+  proposalCost    String?          // materiales / recursos que demanda
+  proposalRisk    String?          // riesgo o consecuencia de no atenderla
+  requiresThirdParty Boolean @default(false) // requiere apoyo de terceros (eléctrica, contratista)
 
   workOrders      WorkOrder[]        // OM generadas a partir de esta incidencia
   evidences       IncidentEvidence[] // fotografías de campo
