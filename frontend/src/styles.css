@@ -231,17 +231,29 @@ select optgroup { font-weight: 700; color: var(--navy); }
 .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 .section-title:first-of-type { margin-top: 18px; }
 
-/* Disponibilidad por Tren */
-.train-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+/* Estado por Tren (tarjetas interactivas) */
+.train-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
 .train-card { border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px;
-  border-left: 4px solid var(--steel); background: #fbfcfe; }
+  border-left: 4px solid var(--steel); background: #fbfcfe; text-align: left; width: 100%;
+  font-family: inherit; cursor: pointer; transition: box-shadow .15s ease, transform .15s ease; }
+.train-card:hover { box-shadow: 0 6px 18px rgba(16,24,40,.10); transform: translateY(-1px); }
+.train-card:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); }
 .train-card.ok { border-left-color: var(--ok); }
 .train-card.warn { border-left-color: var(--warn); }
 .train-card.crit { border-left-color: var(--crit); }
-.train-name { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .4px; }
-.train-pct { font-size: 26px; font-weight: 800; color: var(--navy); font-variant-numeric: tabular-nums; margin: 2px 0; }
+.train-name { font-size: 12px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+.train-pct { font-size: 27px; font-weight: 800; color: var(--navy); font-variant-numeric: tabular-nums; margin: 2px 0 6px; }
+.train-bar { height: 5px; background: #e9eef7; border-radius: 3px; overflow: hidden; margin-bottom: 8px; }
+.train-bar span { display: block; height: 100%; background: var(--ok); }
+.train-card.warn .train-bar span { background: var(--warn); }
+.train-card.crit .train-bar span { background: var(--crit); }
 .train-detail { font-size: 11px; color: var(--muted); }
-.train-down { color: var(--crit); font-weight: 600; }
+.train-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
+.chip { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 20px; border: 1px solid transparent; }
+.chip.ok { background: #e7f7ee; color: var(--ok); border-color: #bfe9cf; }
+.chip.warn { background: #fff1e6; color: #ea580c; border-color: #f6d3ba; }
+.chip.crit { background: #fdecec; color: var(--crit); border-color: #f6c9c9; }
+.chip.info { background: #fff4e5; color: var(--warn); border-color: #f5dcb0; }
 
 /* ---------- Ficha rápida por QR (uso en celular, en planta) ---------- */
 .scan-wrap { max-width: 560px; margin: 0 auto; padding: 18px 16px 40px; }

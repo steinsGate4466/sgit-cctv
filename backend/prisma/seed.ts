@@ -172,7 +172,7 @@ async function main() {
     update: {},
     create: {
       assetCode: 'AA-SW-T1-CORE-001', type: 'SWITCH', brand: 'Fortinet', model: 'FortiSwitch',
-      status: 'OPERATIVO', criticality: 'CRITICA', locationId: rackT1.id,
+      status: 'OPERATIVO', criticality: 'CRITICA', train: 'TREN_1', locationId: rackT1.id,
       switchDev: { create: { portCount: 24, mgmtIp: '172.16.200.2', vendor: 'Fortinet', switchRole: 'CORE_ANILLO' } },
     },
   });
@@ -181,7 +181,7 @@ async function main() {
     update: {},
     create: {
       assetCode: 'AA-NVR-T1-R01-001', type: 'NVR', brand: 'Hikvision', model: 'DS-96xxNI',
-      status: 'OPERATIVO', criticality: 'CRITICA', locationId: rackT1.id,
+      status: 'OPERATIVO', criticality: 'CRITICA', train: 'TREN_1', locationId: rackT1.id,
       nvr: { create: { channels: 64, diskCount: 8, capacityTb: 90, hasLocalDisk: true, nicPrimary: '172.16.100.10', nicSecondary: '10.0.0.10' } },
     },
   });
@@ -190,7 +190,7 @@ async function main() {
     update: {},
     create: {
       assetCode: 'AA-AP-T1-PUL-001', type: 'WIRELESS', brand: 'Ubiquiti', model: 'airMAX PMP',
-      status: 'OPERATIVO', criticality: 'ALTA', locationId: trenes['T1'],
+      status: 'OPERATIVO', criticality: 'ALTA', train: 'TREN_1', locationId: trenes['T1'],
       wireless: { create: { vendor: 'Ubiquiti', frequency: '5 GHz', mode: 'PMP_BASE', originPoint: 'Púlpito T1', linkStable: true } },
     },
   });
@@ -200,7 +200,7 @@ async function main() {
     create: {
       assetCode: 'AA-CAM-T1-FX-001', type: 'CAMERA', brand: 'Hikvision', model: 'DS-2CD1143G0-I',
       firmware: 'V5.5.x',
-      status: 'OPERATIVO', criticality: 'ALTA', locationId: trenes['T1'],
+      status: 'OPERATIVO', criticality: 'ALTA', train: 'TREN_1', locationId: trenes['T1'],
       camera: { create: { resolution: '2560x1440', ipAddress: '172.16.10.21', nvrId: nvr.id, wirelessUplinkId: pmp.id } },
     },
   });
@@ -315,7 +315,7 @@ async function main() {
     update: {},
     create: {
       assetCode: 'AA-PC-T1-PUL-001', type: 'PC', brand: 'Dell', model: 'iVMS-4200 v3.x',
-      status: 'OPERATIVO', criticality: 'ALTA', locationId: trenes['T1'],
+      status: 'OPERATIVO', criticality: 'ALTA', train: 'TREN_1', locationId: trenes['T1'],
       referencePlace: 'Púlpito Tren 1 — estación de visualización iVMS-4200',
       ipAddress: '10.0.0.50',
     },

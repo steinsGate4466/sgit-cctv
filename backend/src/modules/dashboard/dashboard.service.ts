@@ -97,10 +97,7 @@ export class DashboardService {
   async overview() {
     const assets = await this.prisma.asset.findMany({
       where: { deletedAt: null },
-      select: {
-        id: true, type: true, status: true, criticality: true,
-        location: { select: { name: true, path: true } },
-      },
+      select: { id: true, type: true, status: true, criticality: true, train: true },
     });
     const eff = await computeEffectiveStatuses(this.prisma, assets);
 
@@ -110,34 +107,99 @@ export class DashboardService {
       return Object.entries(m).map(([name, value]) => ({ name, value }));
     };
 
-    // Tren al que pertenece el activo (se deduce de la ruta de la ubicación: AASA/PISCO/T1).
-    const trenDe = (path?: string | null): string => {
-      if (!path) return 'Sin asignar';
-      const m = path.match(/\/T(\d+)/i);
-      return m ? `Tren ${m[1]}` : 'Otras zonas';
-    };
-
-    const byTrain: Record<string, { total: number; caidos: number; camaras: number }> = {};
-    for (const a of assets) {
-      const t = trenDe(a.location?.path);
-      if (!byTrain[t]) byTrain[t] = { total: 0, caidos: 0, camaras: 0 };
-      byTrain[t].total++;
-      if (a.type === 'CAMERA') byTrain[t].camaras++;
-      const e = eff[a.id] || a.status;
-      if (e === 'FUERA_SERVICIO' || e === 'CON_INCIDENCIA') byTrain[t].caidos++;
-    }
-
     return {
       byType: count(assets.map((a) => a.type)),
       byStatus: count(assets.map((a) => eff[a.id] || a.status)),
       byCriticality: count(assets.map((a) => a.criticality)),
-      byTrain: Object.entries(byTrain).map(([tren, v]) => ({
-        tren,
-        total: v.total,
-        camaras: v.camaras,
-        caidos: v.caidos,
-        disponibilidad: v.total > 0 ? Number((((v.total - v.caidos) / v.total) * 100).toFixed(1)) : 100,
-      })).sort((a, b) => a.tren.localeCompare(b.tren)),
+      byTrain: this.agruparPorTren(assets, eff),
+    };
+  }
+
+  /**
+   * Estado de la infraestructura POR TREN. Es la vista que le importa a Producción:
+   * "¿cómo está la visión del Tren 2 ahora mismo?".
+   * Usa el campo `train` del activo (dato explícito), no el texto de la ubicación.
+   */
+  private agruparPorTren(assets: any[], eff: Record<string, string>) {
+    const ORDEN = ['TREN_1', 'TREN_2', 'TREN_3', 'PATIO', 'PLANTA_GENERAL', 'SIN_ASIGNAR'];
+    const acc: Record<string, any> = {};
+
+    for (const a of assets) {
+      const t = a.train || 'SIN_ASIGNAR';
+      if (!acc[t]) {
+        acc[t] = {
+          train: t, total: 0, camaras: 0,
+          operativos: 0, enMantenimiento: 0, conIncidencia: 0, fueraServicio: 0,
+          camarasCaidas: 0, criticos: 0,
+        };
+      }
+      const g = acc[t];
+      g.total++;
+      if (a.type === 'CAMERA') g.camaras++;
+      if (a.criticality === 'CRITICA') g.criticos++;
+
+      const e = eff[a.id] || a.status;
+      if (e === 'OPERATIVO') g.operativos++;
+      else if (e === 'MANTENIMIENTO') g.enMantenimiento++;
+      else if (e === 'CON_INCIDENCIA') g.conIncidencia++;
+      else if (e === 'FUERA_SERVICIO') g.fueraServicio++;
+
+      if (a.type === 'CAMERA' && (e === 'FUERA_SERVICIO' || e === 'CON_INCIDENCIA')) g.camarasCaidas++;
+    }
+
+    return Object.values(acc)
+      .map((g: any) => {
+        // Base de cálculo: activos en operación (excluye baja y stock).
+        const enOperacion = g.operativos + g.enMantenimiento + g.conIncidencia + g.fueraServicio;
+        const afectados = g.conIncidencia + g.fueraServicio;
+        return {
+          ...g,
+          disponibilidad: enOperacion > 0
+            ? Number((((enOperacion - afectados) / enOperacion) * 100).toFixed(1))
+            : 100,
+          disponibilidadCamaras: g.camaras > 0
+            ? Number((((g.camaras - g.camarasCaidas) / g.camaras) * 100).toFixed(1))
+            : 100,
+        };
+      })
+      .sort((a: any, b: any) => ORDEN.indexOf(a.train) - ORDEN.indexOf(b.train));
+  }
+
+  /** Detalle de un tren: sus activos con problemas y sus trabajos pendientes. */
+  async trainDetail(train: string) {
+    const where: any = train === 'SIN_ASIGNAR'
+      ? { deletedAt: null, train: null }
+      : { deletedAt: null, train: train as any };
+
+    const assets = await this.prisma.asset.findMany({
+      where,
+      select: {
+        id: true, assetCode: true, type: true, status: true, criticality: true,
+        location: { select: { name: true } }, cabinet: { select: { code: true } },
+      },
+      orderBy: { assetCode: 'asc' },
+    });
+    const eff = await computeEffectiveStatuses(this.prisma, assets);
+    const ids = assets.map((a) => a.id);
+
+    const [oms, incs] = await Promise.all([
+      ids.length ? this.prisma.workOrder.count({
+        where: { assetId: { in: ids }, status: { in: ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'] as any } },
+      }) : 0,
+      ids.length ? this.prisma.incident.count({
+        where: { assetId: { in: ids }, status: { in: ['ABIERTA', 'EN_DIAGNOSTICO', 'EN_PROCESO', 'EN_ESPERA'] as any } },
+      }) : 0,
+    ]);
+
+    return {
+      train,
+      omAbiertas: oms,
+      incidenciasAbiertas: incs,
+      // Solo los que requieren atención: es lo que se necesita ver en el tablero.
+      activos: assets
+        .map((a) => ({ ...a, effectiveStatus: eff[a.id] || a.status }))
+        .filter((a) => a.effectiveStatus !== 'OPERATIVO'),
+      totalActivos: assets.length,
     };
   }
 

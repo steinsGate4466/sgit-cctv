@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { DashboardService } from './dashboard.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -23,6 +23,13 @@ export class DashboardController {
   @RequirePermissions('dashboard.read')
   overview() {
     return this.dashboard.overview();
+  }
+
+  // Detalle de un Tren: activos con problema y trabajos pendientes.
+  @Get('train/:train')
+  @RequirePermissions('dashboard.read')
+  trainDetail(@Param('train') train: string) {
+    return this.dashboard.trainDetail(train);
   }
 
   // Causas raíz reales de las incidencias (no la categoría).

@@ -169,6 +169,18 @@ enum Criticality {
   CRITICA // pérdida de visión que detiene o arriesga producción
 }
 
+/// Zona productiva de la planta a la que pertenece el activo.
+/// Antes el tren se deducía del texto de la ruta de ubicación (frágil: dependía de
+/// que alguien escribiera "T1" en el código). Ahora es un dato explícito del activo,
+/// que es como lo maneja la operación: "esa cámara es del Tren 2".
+enum PlantTrain {
+  TREN_1
+  TREN_2
+  TREN_3
+  PATIO           // patios, almacenes y exteriores
+  PLANTA_GENERAL  // servicios comunes, oficinas, accesos
+}
+
 model Asset {
   id            String      @id @default(uuid())
   assetCode     String      @unique // ej: AA-CAM-T1-FX-001
@@ -181,6 +193,7 @@ model Asset {
   referencePlace String?    // lugar de referencia en planta (texto libre)
   status        AssetStatus @default(OPERATIVO)
   criticality   Criticality @default(MEDIA)
+  train         PlantTrain? // zona productiva (Tren 1/2/3, patio, general)
   installDate   DateTime?
   warrantyEnd   DateTime?
   locationId    String?
@@ -220,6 +233,7 @@ model Asset {
   @@index([status])
   @@index([locationId])
   @@index([cabinetId])
+  @@index([train])
   @@map("assets")
 }
 

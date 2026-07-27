@@ -70,9 +70,19 @@ export class AssetsService {
         deletedAt: null,
         type: q.type,
         status: q.status,
+        train: q.train,
         locationId: q.locationId,
+        cabinetId: q.cabinetId,
         ...(q.search
-          ? { OR: [{ assetCode: { contains: q.search, mode: 'insensitive' } }, { model: { contains: q.search, mode: 'insensitive' } }] }
+          ? {
+              OR: [
+                { assetCode: { contains: q.search, mode: 'insensitive' } },
+                { model: { contains: q.search, mode: 'insensitive' } },
+                { brand: { contains: q.search, mode: 'insensitive' } },
+                { serialNumber: { contains: q.search, mode: 'insensitive' } },
+                { referencePlace: { contains: q.search, mode: 'insensitive' } },
+              ],
+            }
           : {}),
       },
       include: sensitive
