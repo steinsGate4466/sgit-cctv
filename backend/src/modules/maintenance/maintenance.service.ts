@@ -10,6 +10,7 @@ import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 import { QueryWorkOrderDto } from './dto/query-work-order.dto';
 import { CloseWorkOrderDto } from './dto/close-work-order.dto';
 import { OpenWorkOrderDto } from './dto/open-work-order.dto';
+import { ProgressWorkOrderDto } from './dto/progress-work-order.dto';
 import { computeEffectiveStatuses } from '../../common/asset-status';
 // PDF: se carga con require para no depender de @types en el build.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -88,6 +89,7 @@ export class MaintenanceService {
         externalRef: dto.externalRef,
         // Parada estimada (tentativa; la real la confirma el técnico por radio)
         plannedStopAt: dto.plannedStopAt ? new Date(dto.plannedStopAt) : undefined,
+        plannedDurationMin: dto.plannedDurationMin,
       },
       include: inc,
     });
@@ -217,8 +219,20 @@ export class MaintenanceService {
   }
 
   async findOne(id: string) {
-    const wo = await this.prisma.workOrder.findUnique({ where: { id }, include: { ...inc, evidences: true } });
+    const wo: any = await this.prisma.workOrder.findUnique({
+      where: { id },
+      include: {
+        ...inc,
+        evidences: true,
+        progress: {
+          orderBy: { reportedAt: 'asc' },
+          include: { reportedBy: { select: { id: true, fullName: true } } },
+        },
+      },
+    });
     if (!wo) throw new NotFoundException('Orden de mantenimiento no encontrada');
+    // Desviación de lo que estimó Producción, calculada al vuelo.
+    wo.desviacion = MaintenanceService.calcularDesviacion(wo);
     return wo;
   }
 
@@ -309,6 +323,115 @@ export class MaintenanceService {
         .catch(() => null);
     }
     return updated;
+  }
+
+  /**
+   * REPORTE DE AVANCE.
+   *
+   * No cierra la orden: la deja EN PROCESO con el porcentaje declarado. Se
+   * guarda cada reporte en el historial para que el Jefe de Mantenimiento vea
+   * la secuencia completa —"30% porque la parada se acortó", "60% porque faltó
+   * manlift"— que es lo que explica por qué un trabajo tomó tres paradas.
+   *
+   * No exige firma: es un parte de avance, no una decisión con consecuencias.
+   * Queda a nombre del usuario de la sesión y auditado.
+   */
+  async addProgress(
+    id: string,
+    dto: ProgressWorkOrderDto,
+    userId?: string | null,
+    ip?: string | null,
+  ) {
+    const wo = await this.prisma.workOrder.findUnique({ where: { id } });
+    if (!wo) throw new NotFoundException('Orden de mantenimiento no encontrada');
+    if (wo.status === 'CERRADA' || wo.status === 'CANCELADA') {
+      throw new BadRequestException('No se puede reportar avance sobre una orden cerrada.');
+    }
+
+    const pct = Math.max(0, Math.min(100, Number(dto.pct)));
+    // El avance no retrocede sin explicación: si alguien baja el porcentaje,
+    // tiene que decir por qué (se encontró más trabajo del previsto, por ejemplo).
+    if (pct < wo.progressPct && !dto.note?.trim()) {
+      throw new BadRequestException(
+        `El avance baja de ${wo.progressPct}% a ${pct}%. Explica el motivo.`,
+      );
+    }
+
+    const [, updated] = await this.prisma.$transaction([
+      this.prisma.workOrderProgress.create({
+        data: { workOrderId: id, pct, note: dto.note?.trim() || null, reportedById: userId || null },
+      }),
+      this.prisma.workOrder.update({
+        where: { id },
+        data: {
+          progressPct: pct,
+          // Reportar avance implica que el trabajo está en marcha.
+          status: wo.status === 'ABIERTA' ? 'EN_PROCESO' : wo.status,
+        },
+        include: inc,
+      }),
+    ]);
+
+    await this.audit.record({
+      userId: userId || null,
+      action: 'PROGRESS_WO',
+      entity: 'work_orders',
+      entityId: id,
+      ip,
+      before: { avance: wo.progressPct },
+      after: { om: wo.code, avance: pct, motivo: dto.note || null },
+    });
+    return updated;
+  }
+
+  /** Historial de avance de una orden, del más antiguo al más reciente. */
+  async listProgress(id: string) {
+    return this.prisma.workOrderProgress.findMany({
+      where: { workOrderId: id },
+      orderBy: { reportedAt: 'asc' },
+      include: { reportedBy: { select: { id: true, fullName: true } } },
+    });
+  }
+
+  /**
+   * DESVIACIÓN de lo planificado por Producción.
+   *
+   * Compara lo que Producción estimó contra lo que realmente ocurrió.
+   * Devuelve null cuando falta el dato en vez de inventar un cero: una
+   * desviación de 0 y "no se sabe" no son lo mismo.
+   */
+  static calcularDesviacion(wo: any) {
+    const inicioReal: Date | null = wo.startedAt || null;
+    const finReal: Date | null = wo.endedAt || null;
+
+    const duracionRealMin = inicioReal && finReal
+      ? Math.round((new Date(finReal).getTime() - new Date(inicioReal).getTime()) / 60000)
+      : null;
+
+    // Retraso en arrancar: cuánto después de la hora estimada de parada
+    // empezó realmente el trabajo. Positivo = arrancó tarde.
+    const retrasoInicioMin = wo.plannedStopAt && inicioReal
+      ? Math.round(
+          (new Date(inicioReal).getTime() - new Date(wo.plannedStopAt).getTime()) / 60000,
+        )
+      : null;
+
+    // Exceso sobre la duración estimada. Positivo = tomó más de lo previsto.
+    const desviacionMin = wo.plannedDurationMin && duracionRealMin !== null
+      ? duracionRealMin - wo.plannedDurationMin
+      : null;
+
+    const desviacionPct = wo.plannedDurationMin && duracionRealMin !== null
+      ? Math.round(((duracionRealMin - wo.plannedDurationMin) / wo.plannedDurationMin) * 100)
+      : null;
+
+    return {
+      duracionEstimadaMin: wo.plannedDurationMin ?? null,
+      duracionRealMin,
+      retrasoInicioMin,
+      desviacionMin,
+      desviacionPct,
+    };
   }
 
   // ---------- Evidencias fotográficas ----------

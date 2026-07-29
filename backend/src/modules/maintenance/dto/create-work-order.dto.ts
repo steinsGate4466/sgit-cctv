@@ -1,4 +1,5 @@
-import { IsEnum, IsISO8601, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsEnum, IsInt, IsISO8601, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import { Type } from 'class-transformer';
 import { WorkOrderType, RequestChannel } from '@prisma/client';
 
 export class CreateWorkOrderDto {
@@ -35,4 +36,7 @@ export class CreateWorkOrderDto {
    * el técnico por radio cuando ya está en campo.
    */
   @IsOptional() @IsISO8601() plannedStopAt?: string;
+
+  /** Cuánto estima Producción que dura la parada, en minutos. */
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) plannedDurationMin?: number;
 }

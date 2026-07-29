@@ -29,6 +29,12 @@ describe('MaintenanceService — ejecución de OM en campo', () => {
         })),
       },
       user: { findUnique: jest.fn().mockResolvedValue(over.usuario ?? USUARIO('Técnico de Red')) },
+      workOrderProgress: {
+        create: jest.fn().mockImplementation(({ data }: any) => ({ id: 'p1', ...data })),
+        findMany: jest.fn().mockResolvedValue(over.avances ?? []),
+      },
+      // $transaction recibe un arreglo de promesas ya construidas.
+      $transaction: jest.fn((ops: any[]) => Promise.all(ops)),
     };
     const audit = { record: jest.fn().mockResolvedValue(null) };
     const preventive = { markServiced: jest.fn().mockResolvedValue(null) };
@@ -159,6 +165,82 @@ describe('MaintenanceService — ejecución de OM en campo', () => {
       const { svc, prisma } = build({ wo: abierta, usuario: USUARIO('Técnico') });
       await svc.openSigned('w1', { email: 'tec@aa.local', password: 'correcta' } as any);
       expect(prisma.workOrder.update).toHaveBeenCalled();
+    });
+  });
+
+  // ---------------------------------------------------------------- avance
+  describe('reporte de avance', () => {
+    const enCurso = { id: 'w1', code: 'OM-2026-0001', status: 'ABIERTA', progressPct: 0 };
+
+    it('guarda el avance y deja la orden EN PROCESO', async () => {
+      const { svc, prisma } = build({ wo: enCurso });
+      await svc.addProgress('w1', { pct: 30, note: 'la parada se acortó' } as any, 'u1');
+      expect(prisma.workOrderProgress.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ pct: 30 }) }),
+      );
+      const d = prisma.workOrder.update.mock.calls[0][0].data;
+      expect(d.progressPct).toBe(30);
+      expect(d.status).toBe('EN_PROCESO');
+    });
+
+    it('acota el porcentaje entre 0 y 100', async () => {
+      const { svc, prisma } = build({ wo: enCurso });
+      await svc.addProgress('w1', { pct: 150 } as any, 'u1');
+      expect(prisma.workOrder.update.mock.calls[0][0].data.progressPct).toBe(100);
+    });
+
+    it('no deja bajar el avance sin explicación', async () => {
+      // Si el avance retrocede es porque apareció más trabajo del previsto:
+      // eso hay que poder justificarlo ante el Jefe.
+      const { svc } = build({ wo: { ...enCurso, progressPct: 60 } });
+      await expect(svc.addProgress('w1', { pct: 40 } as any, 'u1'))
+        .rejects.toThrow(/explica el motivo/i);
+    });
+
+    it('sí deja bajarlo si se explica', async () => {
+      const { svc, prisma } = build({ wo: { ...enCurso, progressPct: 60 } });
+      await svc.addProgress('w1', { pct: 40, note: 'se encontró otro tramo dañado' } as any, 'u1');
+      expect(prisma.workOrder.update).toHaveBeenCalled();
+    });
+
+    it('no admite avance sobre una orden cerrada', async () => {
+      const { svc } = build({ wo: { ...enCurso, status: 'CERRADA' } });
+      await expect(svc.addProgress('w1', { pct: 80 } as any, 'u1'))
+        .rejects.toThrow(/cerrada/i);
+    });
+  });
+
+  // ------------------------------------------------------------ desviación
+  describe('desviación de lo planificado', () => {
+    it('calcula duración real, retraso de inicio y exceso', async () => {
+      const d = MaintenanceService.calcularDesviacion({
+        plannedStopAt: new Date('2026-07-29T08:00:00Z'),
+        plannedDurationMin: 60,
+        startedAt: new Date('2026-07-29T08:30:00Z'), // arrancó 30 min tarde
+        endedAt: new Date('2026-07-29T10:00:00Z'),   // duró 90 min
+      });
+      expect(d.duracionRealMin).toBe(90);
+      expect(d.retrasoInicioMin).toBe(30);
+      expect(d.desviacionMin).toBe(30);   // 90 real - 60 estimado
+      expect(d.desviacionPct).toBe(50);
+    });
+
+    it('devuelve null cuando falta el dato, no un cero', async () => {
+      // Una desviación de 0 y "no se sabe" no son lo mismo: si se devolviera
+      // cero, el informe diría que Producción estima perfecto.
+      const d = MaintenanceService.calcularDesviacion({ startedAt: null, endedAt: null });
+      expect(d.duracionRealMin).toBeNull();
+      expect(d.desviacionMin).toBeNull();
+      expect(d.desviacionPct).toBeNull();
+    });
+
+    it('si terminó antes de lo estimado, la desviación es negativa', async () => {
+      const d = MaintenanceService.calcularDesviacion({
+        plannedDurationMin: 120,
+        startedAt: new Date('2026-07-29T08:00:00Z'),
+        endedAt: new Date('2026-07-29T09:00:00Z'),
+      });
+      expect(d.desviacionMin).toBe(-60);
     });
   });
 

@@ -49,7 +49,27 @@ ADD COLUMN     "closedById" TEXT,
 ADD COLUMN     "companionId" TEXT,
 ADD COLUMN     "rootCause" "RootCause",
 ADD COLUMN     "rootCauseNote" TEXT,
-ADD COLUMN     "isRecurrent" BOOLEAN NOT NULL DEFAULT false;
+ADD COLUMN     "isRecurrent" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "plannedDurationMin" INTEGER,
+ADD COLUMN     "progressPct" INTEGER NOT NULL DEFAULT 0;
+
+-- Historial de avance de la orden.
+-- Una orden no siempre se termina el mismo dia: la parada se acorta, falta el
+-- manlift, no llega el repuesto. En vez de forzar el cierre, queda EN PROCESO
+-- con su avance y el motivo, a la vista del Jefe de Mantenimiento.
+CREATE TABLE "work_order_progress" (
+    "id" TEXT NOT NULL,
+    "workOrderId" TEXT NOT NULL,
+    "pct" INTEGER NOT NULL,
+    "note" TEXT,
+    "reportedById" TEXT,
+    "reportedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "work_order_progress_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE INDEX "work_order_progress_workOrderId_idx" ON "work_order_progress"("workOrderId");
 
 -- CreateIndex
 CREATE INDEX "work_orders_locationId_idx" ON "work_orders"("locationId");
@@ -74,3 +94,9 @@ ALTER TABLE "work_orders" ADD CONSTRAINT "work_orders_companionId_fkey" FOREIGN 
 
 -- AddForeignKey
 ALTER TABLE "assets" ADD CONSTRAINT "assets_mappedInWorkOrderId_fkey" FOREIGN KEY ("mappedInWorkOrderId") REFERENCES "work_orders"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "work_order_progress" ADD CONSTRAINT "work_order_progress_workOrderId_fkey" FOREIGN KEY ("workOrderId") REFERENCES "work_orders"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "work_order_progress" ADD CONSTRAINT "work_order_progress_reportedById_fkey" FOREIGN KEY ("reportedById") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;

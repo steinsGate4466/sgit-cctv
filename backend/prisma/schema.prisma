@@ -45,6 +45,7 @@ model User {
   woOpened        WorkOrder[]     @relation("WoOpenedBy")
   woClosed        WorkOrder[]     @relation("WoClosedBy")
   woAccompanied   WorkOrder[]     @relation("WoCompanion")
+  woProgress      WorkOrderProgress[] @relation("WoProgressBy")
 
   @@map("users")
 }
@@ -555,7 +556,11 @@ model WorkOrder {
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
 
-  zone         String?         // zona de intervención en texto libre (previo al Bloque 1)
+  /// REFERENCIA DEL SITIO en esta orden concreta, en texto libre.
+  /// No se retira: complementa a `locationId`. La ubicación dice DÓNDE de
+  /// forma estructurada; esto recoge el detalle que el técnico anota ese día
+  /// ("columna 14, junto a la escalera norte, poste de la izquierda").
+  zone         String?
   incidentId   String?         // incidencia que originó la OM (opcional)
   incident     Incident?          @relation(fields: [incidentId], references: [id])
   evidences    WorkOrderEvidence[]
@@ -572,6 +577,9 @@ model WorkOrder {
   /// Hora de parada ESTIMADA por Producción al crear la orden. Es tentativa:
   /// cambia según la producción del turno.
   plannedStopAt DateTime?
+  /// Cuánto estima Producción que dura la parada, en minutos. Junto con las
+  /// horas reales permite medir la DESVIACIÓN de lo planificado.
+  plannedDurationMin Int?
   /// Horas REALES. Las pone el técnico ya en campo, después de confirmar por
   /// radio con Producción a qué hora se detiene de verdad.
   startedAt     DateTime?
@@ -591,6 +599,15 @@ model WorkOrder {
   rootCauseNote String?          // detalle opcional
   isRecurrent   Boolean          @default(false) // el técnico marca si ya había pasado
 
+  // ---- AVANCE (Bloque 1) ----
+  /// Porcentaje de avance declarado, 0 a 100.
+  /// Una orden no siempre se termina el mismo día: la parada se acorta, falta
+  /// el manlift, no llega el repuesto. En vez de forzar el cierre, la orden
+  /// queda EN PROCESO con su avance a la vista del Jefe de Mantenimiento.
+  /// Se guarda aquí, además del historial, para poder listar sin consultas extra.
+  progressPct   Int              @default(0)
+  progress      WorkOrderProgress[]
+
   /// Activos levantados durante esta orden (solo aplica a las de tipo MAPEO).
   mappedAssets  Asset[]          @relation("AssetMappedInWo")
 
@@ -600,6 +617,32 @@ model WorkOrder {
   @@index([incidentId])
   @@index([type, status])
   @@map("work_orders")
+}
+
+// =====================================================================
+//  AVANCE DE LA ORDEN (Bloque 1)
+//
+//  Es un HISTORIAL, no un solo número. Para el Jefe de Mantenimiento la
+//  justificación no es "quedó al 60%", sino la secuencia:
+//    29/07  30%  "la parada se acortó, Producción reinició antes"
+//    30/07  60%  "faltó manlift, no se alcanzó la cámara del lecho"
+//    31/07 100%  "terminado"
+//  Esa cadena es la que responde por qué un trabajo tomó tres paradas.
+// =====================================================================
+model WorkOrderProgress {
+  id           String    @id @default(uuid())
+  workOrderId  String
+  workOrder    WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  /// Avance acumulado declarado en este reporte (0-100).
+  pct          Int
+  /// Por qué no se avanzó más. Es el dato que justifica ante el Jefe.
+  note         String?
+  reportedById String?
+  reportedBy   User?     @relation("WoProgressBy", fields: [reportedById], references: [id])
+  reportedAt   DateTime  @default(now())
+
+  @@index([workOrderId])
+  @@map("work_order_progress")
 }
 
 model WorkOrderEvidence {

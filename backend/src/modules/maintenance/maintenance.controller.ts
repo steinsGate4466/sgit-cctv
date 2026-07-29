@@ -11,7 +11,9 @@ import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 import { QueryWorkOrderDto } from './dto/query-work-order.dto';
 import { CloseWorkOrderDto } from './dto/close-work-order.dto';
 import { OpenWorkOrderDto } from './dto/open-work-order.dto';
+import { ProgressWorkOrderDto } from './dto/progress-work-order.dto';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('maintenance')
 @ApiBearerAuth()
@@ -63,6 +65,28 @@ export class MaintenanceController {
   @RequirePermissions('wo.update')
   open(@Param('id') id: string, @Body() dto: OpenWorkOrderDto, @Ip() ip: string) {
     return this.wo.openSigned(id, dto, ip);
+  }
+
+  /**
+   * Reporte de AVANCE. No cierra la orden: la deja en proceso con el
+   * porcentaje y el motivo. Sin firma —es un parte, no una decisión—.
+   */
+  @Post(':id/progress')
+  @RequirePermissions('wo.update')
+  progress(
+    @Param('id') id: string,
+    @Body() dto: ProgressWorkOrderDto,
+    @CurrentUser() user: any,
+    @Ip() ip: string,
+  ) {
+    return this.wo.addProgress(id, dto, user?.userId, ip);
+  }
+
+  /** Historial de avance, para que el Jefe vea la secuencia completa. */
+  @Get(':id/progress')
+  @RequirePermissions('wo.read')
+  progressList(@Param('id') id: string) {
+    return this.wo.listProgress(id);
   }
 
   // Cierre firmado: SOLO Jefe de Mantenimiento (permiso wo.approve).
