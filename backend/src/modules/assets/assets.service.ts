@@ -6,13 +6,15 @@ import { AuditService } from '../audit/audit.service';
 import { StorageService } from '../storage/storage.service';
 import { computeEffectiveStatuses, computeEffectiveStatus } from '../../common/asset-status';
 import { resolverContextoDePlanta } from '../../common/plant-context';
+import { evaluarFicha, resumenPendiente } from '../../common/asset-completeness';
+import { fichaParaCrear, fichaParaActualizar, sinFichas } from './asset-spec.util';
 // PDF y QR: require para no depender de @types en el build.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PDFDocument = require('pdfkit');
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const QRCode = require('qrcode');
 
-const TYPE_ES: Record<string, string> = { CAMERA: 'Cámara', NVR: 'NVR', SWITCH: 'Switch', WIRELESS: 'Enlace inalámbrico', ROUTER: 'Router', FIREWALL: 'Firewall', SERVER: 'Servidor', UPS: 'UPS', FIBER: 'Fibra', CABINET: 'Gabinete', DECODER: 'Decodificador', PC: 'PC / iVMS-4200', OTHER: 'Otro' };
+const TYPE_ES: Record<string, string> = { CAMERA: 'Cámara', NVR: 'NVR', SWITCH: 'Switch', WIRELESS: 'Enlace inalámbrico', ROUTER: 'Router', FIREWALL: 'Firewall', SERVER: 'Servidor', UPS: 'UPS', FIBER: 'Fibra', CABINET: 'Gabinete', DECODER: 'Decodificador', PC: 'PC / iVMS-4200', PANTALLA: 'Pantalla de púlpito', OTHER: 'Otro' };
 const STATUS_ES: Record<string, string> = { OPERATIVO: 'Operativo', FUERA_SERVICIO: 'Fuera de servicio', MANTENIMIENTO: 'En mantenimiento', CON_INCIDENCIA: 'Con incidencia', BAJA: 'Baja', STOCK: 'En stock' };
 const PHOTO_ES: Record<string, string> = { APUNTA: 'Imagen en pantalla (púlpito)', REFERENCIA: 'Ubicación de referencia', PLANO: 'Ubicación en plano', GENERAL: 'General' };
 import { CreateAssetDto } from './dto/create-asset.dto';
@@ -52,17 +54,41 @@ export class AssetsService {
       throw new BadRequestException('Firma inválida: contraseña incorrecta');
     }
 
-    const { email, password, ...data } = dto;
-    const asset = await this.prisma.asset.create({ data: data as CreateAssetDto });
+    const { email, password, ...resto } = dto;
+    // La ficha del tipo (cámara, grabador, switch, antena, decodificador,
+    // pantalla, PC) se escribe en la MISMA operación que el activo: si fueran
+    // dos pasos y el segundo fallara, quedaría un activo sin ficha y nadie
+    // sabría que quedó a medias.
+    const base = sinFichas(resto);
+    const ficha = fichaParaCrear(dto.type, dto);
+
+    const asset = await this.prisma.asset.create({
+      data: { ...(base as any), ...ficha },
+      include: { camera: true, nvr: true, switchDev: true, wireless: true, location: true, photos: true },
+    });
+
+    // Se marca como incompleta si le falta algo clave. No bloquea el alta:
+    // el técnico registra en campo con lo mínimo y completa después.
+    const completitud = evaluarFicha(asset);
+    if (completitud.incompleta) {
+      await this.prisma.asset.update({ where: { id: asset.id }, data: { isDraft: true } });
+    }
+
     await this.audit.record({
       userId: signer!.id,
       action: 'CREATE_ASSET',
       entity: 'assets',
       entityId: asset.id,
       ip,
-      after: { assetCode: asset.assetCode, type: asset.type, firmadoPor: signer!.email },
+      after: {
+        assetCode: asset.assetCode,
+        type: asset.type,
+        firmadoPor: signer!.email,
+        fichaCompleta: `${completitud.porcentaje}%`,
+        faltan: completitud.faltanClave.map((f) => f.etiqueta),
+      },
     });
-    return asset;
+    return { ...asset, isDraft: completitud.incompleta, completitud };
   }
 
   /**
@@ -141,6 +167,9 @@ export class AssetsService {
       // true = al activo le falta asignar etapa del proceso. Alimenta el
       // panel de avance del mapeo.
       etapaPendiente: ctx[a.id]?.requiereAsignarEtapa ?? true,
+      // Porcentaje de ficha completa. Se calcula sobre lo que trae el listado,
+      // así que es orientativo; el detalle exacto está en la ficha del activo.
+      fichaPct: evaluarFicha(a).porcentaje,
     });
 
     if (!sensitive) {
@@ -213,6 +242,11 @@ export class AssetsService {
       where: { id },
       include: {
         location: true, cabinet: true, camera: true, nvr: true, switchDev: true, wireless: true,
+        decoder: { include: { outputs: true } },
+        screen: { include: { cells: true, fedByOutputs: true } },
+        pc: true,
+        cablesTo: true,
+        cablesFrom: true,
         photos: { orderBy: { createdAt: 'asc' } },
         preventivePlan: true,
         // Accesibilidad: si el activo es inaccesible (altura/manlift), se ve en su ficha.
@@ -252,6 +286,10 @@ export class AssetsService {
       intervaloPreventivoDias: c?.intervaloDias ?? null,
       etapaPendiente: c?.requiereAsignarEtapa ?? true,
     };
+    // Qué le falta a la ficha. Alimenta el QR ("faltan canal y foto") y el
+    // panel de avance del mapeo.
+    asset.completitud = evaluarFicha(asset);
+    asset.pendiente = resumenPendiente(asset);
     return asset;
   }
 
@@ -313,13 +351,34 @@ export class AssetsService {
       });
       throw new BadRequestException('Firma inválida: contraseña incorrecta');
     }
-    const { email, password, ...data } = dto;
-    const updated = await this.prisma.asset.update({ where: { id }, data: data as any });
+    const { email, password, ...resto } = dto;
+    // El tipo NO se toma del cuerpo sino del activo guardado: si se aceptara
+    // del formulario, se podría cambiar el tipo y adjuntar una ficha que no
+    // corresponde, dejando filas en la tabla equivocada.
+    const base = sinFichas(resto);
+    const ficha = fichaParaActualizar(asset.type, dto);
+
+    const updated = await this.prisma.asset.update({
+      where: { id },
+      data: { ...(base as any), ...ficha },
+      include: { camera: true, nvr: true, switchDev: true, wireless: true, location: true, photos: true },
+    });
+
+    // Se recalcula: al completar la ficha el activo puede dejar de estar incompleto.
+    const completitud = evaluarFicha(updated);
+    if (updated.isDraft !== completitud.incompleta) {
+      await this.prisma.asset.update({ where: { id }, data: { isDraft: completitud.incompleta } });
+    }
+
     await this.audit.record({
       userId: signer!.id, action: 'UPDATE_ASSET', entity: 'assets', entityId: id, ip,
-      after: { assetCode: updated.assetCode, firmadoPor: signer!.email },
+      after: {
+        assetCode: updated.assetCode,
+        firmadoPor: signer!.email,
+        fichaCompleta: `${completitud.porcentaje}%`,
+      },
     });
-    return updated;
+    return { ...updated, isDraft: completitud.incompleta, completitud };
   }
 
   /**
