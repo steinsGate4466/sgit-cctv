@@ -1,0 +1,178 @@
+# =============================================================================
+#  SGIT-CCTV - Integracion Continua
+#  Aceros Arequipa - Planta Pisco - Laminacion
+#
+#  Objetivo: que NINGUN error de compilacion llegue a Railway.
+#  Antes, un error de tipos (ej. TS2339) solo aparecia cuando Railway
+#  intentaba construir la imagen: tarde, en produccion y sin diagnostico.
+#  Ahora se detecta aqui, en cada push, antes de desplegar.
+# =============================================================================
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  #  1) BACKEND - el que habria atrapado el fallo de Railway
+  # ---------------------------------------------------------------------------
+  backend:
+    name: Backend - tipos, compilacion y pruebas
+    runs-on: ubuntu-latest
+    env:
+      # Prisma exige la variable para LEER el esquema. No se conecta a ninguna
+      # base de datos: generate y validate funcionan sin conexion.
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci?schema=public
+
+    steps:
+      - name: Descargar el codigo
+        uses: actions/checkout@v4
+
+      - name: Preparar Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      # npm ci instala EXACTAMENTE lo del package-lock.json.
+      # Es lo correcto en CI: reproducible y no altera el lock.
+      - name: Instalar dependencias
+        working-directory: backend
+        run: npm ci
+
+      # El cliente de Prisma es codigo generado. Sin este paso, TypeScript no
+      # conoce los tipos de los modelos y la compilacion falla.
+      - name: Generar cliente Prisma
+        working-directory: backend
+        run: npx prisma generate
+
+      - name: Validar el esquema de datos
+        working-directory: backend
+        run: npx prisma validate
+
+      # === PASO CLAVE ===
+      # nest build ejecuta el compilador de TypeScript de verdad.
+      # Aqui es donde se caza el error que rompio el despliegue en Railway.
+      - name: Compilar (verificacion de tipos real)
+        working-directory: backend
+        run: npm run build
+
+      - name: Pruebas unitarias
+        working-directory: backend
+        run: npm test -- --ci --runInBand
+
+  # ---------------------------------------------------------------------------
+  #  2) FRONTEND - hasta hoy NUNCA se verificaron sus tipos
+  # ---------------------------------------------------------------------------
+  #  vite build transpila pero NO comprueba tipos. Es decir: un error de
+  #  TypeScript en el frontend llegaba a produccion sin que nadie lo notara.
+  #  El paso typecheck (tsc --noEmit) cierra ese hueco.
+  # ---------------------------------------------------------------------------
+  frontend:
+    name: Frontend - tipos y compilacion
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar el codigo
+        uses: actions/checkout@v4
+
+      - name: Preparar Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # El frontend aun no tiene package-lock.json, por eso npm ci no aplica.
+      # Cuando lo generes (basta un npm install y confirmar el archivo),
+      # cambia esta linea por npm ci para tener builds reproducibles.
+      - name: Instalar dependencias
+        working-directory: frontend
+        run: npm install --no-audit --no-fund
+
+      - name: Verificar tipos
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Compilar
+        working-directory: frontend
+        run: npm run build
+
+  # ---------------------------------------------------------------------------
+  #  3) MIGRACIONES - evita la deuda tecnica silenciosa
+  # ---------------------------------------------------------------------------
+  #  Problema real que previene: alguien edita schema.prisma y hace push SIN
+  #  crear la migracion. En local funciona (por db push), pero Railway aplica
+  #  migraciones y queda desincronizado. Aqui se detecta al instante.
+  # ---------------------------------------------------------------------------
+  migraciones:
+    name: Migraciones - sin desfase con el esquema
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci_shadow
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_shadow?schema=public
+
+    steps:
+      - name: Descargar el codigo
+        uses: actions/checkout@v4
+
+      - name: Preparar Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependencias
+        working-directory: backend
+        run: npm ci
+
+      - name: Generar cliente Prisma
+        working-directory: backend
+        run: npx prisma generate
+
+      # Aplica TODAS las migraciones sobre una base vacia y limpia.
+      # Si una migracion esta rota, se descubre aqui y no en produccion.
+      - name: Aplicar migraciones sobre base limpia
+        working-directory: backend
+        run: npx prisma migrate deploy
+
+      # --exit-code devuelve 2 si hay diferencias => el job falla.
+      - name: Comprobar que el esquema coincide con las migraciones
+        working-directory: backend
+        run: |
+          if ! npx prisma migrate diff \
+              --from-migrations ./prisma/migrations \
+              --to-schema-datamodel ./prisma/schema.prisma \
+              --shadow-database-url "$DATABASE_URL" \
+              --exit-code ; then
+            echo "::error::El esquema (schema.prisma) tiene cambios SIN migracion."
+            echo "Solucion: cd backend && npx prisma migrate dev --name <nombre-del-cambio>"
+            exit 1
+          fi
+
+      # La semilla es el punto de partida de la planta. Si se rompe, el
+      # despliegue queda sin roles, permisos ni jerarquia de Laminacion.
+      - name: Verificar que la semilla funciona
+        working-directory: backend
+        run: npx prisma db seed
