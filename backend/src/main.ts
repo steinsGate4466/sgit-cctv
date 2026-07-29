@@ -7,6 +7,13 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // IP REAL del usuario para la auditoría.
+  // La aplicación corre detrás de un proxy (Railway / Nginx on-premise), así que
+  // `req.ip` devolvía la IP interna del proxy (ej. 10.x.x.x) y la traza no servía
+  // para saber desde dónde se conectó la persona. Con 'trust proxy' Express toma
+  // la IP del cliente desde la cabecera X-Forwarded-For.
+  app.getHttpAdapter().getInstance().set('trust proxy', true);
+
   // Cabeceras de seguridad (equivalente a lo esencial de helmet, sin dependencias):
   // evitan que el navegador adivine tipos, que la app se embeba en un iframe ajeno
   // (clickjacking) y que se filtre la URL interna al navegar a sitios externos.

@@ -359,6 +359,11 @@ select optgroup { font-weight: 700; color: var(--navy); }
   .kpi-grid { grid-template-columns: repeat(4, 1fr); }
 }
 
+/* Aviso discreto que remite a otra pantalla */
+.hint-link { font-size: 12px; color: var(--muted); background: #f7f9fc; border: 1px dashed var(--border);
+  border-radius: 8px; padding: 9px 14px; margin: 14px 0 4px; }
+.hint-link b { color: var(--steel); }
+
 /* ---------- Tablero por Tren ---------- */
 /* Pestañas de zona */
 .train-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 18px 0 16px; }

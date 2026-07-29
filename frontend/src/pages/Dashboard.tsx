@@ -1,6 +1,5 @@
 import { useEffect, useState, ReactNode } from 'react';
 import { api } from '../api/client';
-import Modal from '../components/Modal';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar,
   XAxis, YAxis, Tooltip, CartesianGrid, Legend,
@@ -18,10 +17,6 @@ const STATUS_ES: Record<string, string> = {
   CON_INCIDENCIA: 'Con incidencia', BAJA: 'Baja', STOCK: 'En stock',
 };
 const CRIT_ES: Record<string, string> = { BAJA: 'Baja', MEDIA: 'Media', ALTA: 'Alta', CRITICA: 'Crítica' };
-const TRAIN_ES: Record<string, string> = {
-  TREN_1: 'Tren 1', TREN_2: 'Tren 2', TREN_3: 'Tren 3',
-  PATIO: 'Patio / exteriores', PLANTA_GENERAL: 'Planta general', SIN_ASIGNAR: 'Sin asignar',
-};
 
 export default function Dashboard() {
   const [kpis, setKpis] = useState<any>(null);
@@ -29,20 +24,6 @@ export default function Dashboard() {
   const [metrics, setMetrics] = useState<any>(null);
   const [causes, setCauses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  // Detalle del tren seleccionado
-  const [trainDetail, setTrainDetail] = useState<any>(null);
-  const [loadingTrain, setLoadingTrain] = useState(false);
-
-  async function openTrain(t: any) {
-    setLoadingTrain(true);
-    setTrainDetail({ train: t.train, ...t, activos: [] });
-    try {
-      const d = await api.get('/dashboard/train/' + t.train).then((r) => r.data);
-      setTrainDetail({ ...t, ...d });
-    } catch { /* se muestra lo que ya se tiene */ }
-    finally { setLoadingTrain(false); }
-  }
-
   useEffect(() => {
     Promise.all([
       api.get('/dashboard/kpis').then((r) => r.data).catch(() => null),
@@ -78,77 +59,11 @@ export default function Dashboard() {
         <Kpi label="Tiempo medio de reparación" value={(metrics?.mttrMinutes ?? 0) + ' min'} hint="MTTR de incidencias resueltas" />
       </div>
 
-      {(ov?.byTrain?.length ?? 0) > 0 && (
-        <div className="panel" style={{ marginTop: 4, marginBottom: 22 }}>
-          <h3>Estado por Tren de Laminación</h3>
-          <div className="train-grid">
-            {ov.byTrain.map((t: any) => (
-              <button
-                key={t.train}
-                className={'train-card ' + availClass(t.disponibilidad)}
-                onClick={() => openTrain(t)}
-                title="Ver detalle del tren"
-              >
-                <div className="train-name">{TRAIN_ES[t.train] || t.train}</div>
-                <div className="train-pct">{t.disponibilidad}%</div>
-                <div className="train-bar">
-                  <span style={{ width: `${t.disponibilidad}%` }} />
-                </div>
-                <div className="train-detail">
-                  {t.total} activos · {t.camaras} cámaras
-                </div>
-                <div className="train-chips">
-                  {t.fueraServicio > 0 && <span className="chip crit">{t.fueraServicio} fuera de servicio</span>}
-                  {t.conIncidencia > 0 && <span className="chip warn">{t.conIncidencia} con incidencia</span>}
-                  {t.enMantenimiento > 0 && <span className="chip info">{t.enMantenimiento} en mant.</span>}
-                  {t.fueraServicio === 0 && t.conIncidencia === 0 && t.enMantenimiento === 0 && (
-                    <span className="chip ok">Todo operativo</span>
-                  )}
-                </div>
-              </button>
-            ))}
-          </div>
-          <div className="muted" style={{ fontSize: 11, marginTop: 10 }}>
-            Haz clic en un tren para ver qué equipos requieren atención.
-          </div>
-        </div>
-      )}
-
-      {trainDetail && (
-        <Modal title={'Detalle · ' + (TRAIN_ES[trainDetail.train] || trainDetail.train)} onClose={() => setTrainDetail(null)}>
-          <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 14 }}>
-            <div className="kpi"><div className="label">Disponibilidad</div><div className="value">{trainDetail.disponibilidad ?? 0}%</div></div>
-            <div className="kpi"><div className="label">Cámaras</div><div className="value">{trainDetail.camaras ?? 0}</div><div className="hint">{trainDetail.camarasCaidas ?? 0} con problema</div></div>
-            <div className="kpi warn"><div className="label">OM abiertas</div><div className="value">{trainDetail.omAbiertas ?? 0}</div></div>
-            <div className="kpi red"><div className="label">Incidencias</div><div className="value">{trainDetail.incidenciasAbiertas ?? 0}</div></div>
-          </div>
-
-          <div className="detail-sec">
-            <h4>Equipos que requieren atención</h4>
-            {loadingTrain ? (
-              <div className="muted" style={{ fontSize: 12 }}>Cargando…</div>
-            ) : trainDetail.activos?.length ? (
-              trainDetail.activos.map((a: any) => (
-                <div key={a.id} className="frow">
-                  <span className="v" style={{ fontSize: 13 }}>
-                    {a.assetCode}
-                    <span className="muted" style={{ fontWeight: 400, fontSize: 11 }}>
-                      {' · '}{a.location?.name || '—'}{a.cabinet?.code ? ` · ${a.cabinet.code}` : ''}
-                    </span>
-                  </span>
-                  <span className={'badge ' + a.effectiveStatus} style={{ fontSize: 10 }}>
-                    {STATUS_ES[a.effectiveStatus] || a.effectiveStatus}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <div className="muted" style={{ fontSize: 12 }}>
-                Todos los equipos de esta zona están operativos.
-              </div>
-            )}
-          </div>
-        </Modal>
-      )}
+      {/* El estado por Tren tiene su propia pantalla ("Estado por Tren"):
+          aquí solo se muestra el resumen ejecutivo de toda la planta. */}
+      <div className="hint-link">
+        ¿Necesitas el detalle de una zona? Revisa <b>Estado por Tren</b> en el menú.
+      </div>
 
       {/* ───────── Bloque 2: CUMPLIMIENTO DEL MANTENIMIENTO (el Jefe) ───────── */}
       <div className="section-title">Cumplimiento del mantenimiento</div>
