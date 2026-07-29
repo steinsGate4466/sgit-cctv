@@ -113,7 +113,7 @@ export default function Layout() {
               <div>{user?.role}</div>
             </div>
             <div className="avatar">{initials}</div>
-            <button className="logout" onClick={logout}>Salir</button>
+            <button className="logout" onClick={() => logout()}>Salir</button>
           </div>
         </header>
         <main className="content">

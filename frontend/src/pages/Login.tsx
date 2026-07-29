@@ -18,6 +18,11 @@ export default function Login() {
   const [blocked, setBlocked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [tries, setTries] = useState(5);
+  // Si la sesión se cerró sola por inactividad, el usuario tiene que entender
+  // por qué: si no, lo vive como un fallo del sistema.
+  const [porInactividad] = useState(
+    () => new URLSearchParams(location.search).get('motivo') === 'inactividad',
+  );
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -53,6 +58,16 @@ export default function Login() {
 
   return (
     <div className="login-wrap">
+      {porInactividad && (
+        <div style={{
+          position: 'fixed', top: 12, left: '50%', transform: 'translateX(-50%)',
+          background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d',
+          borderRadius: 8, padding: '10px 16px', fontSize: 13, zIndex: 50,
+          maxWidth: 'calc(100% - 24px)', textAlign: 'center',
+        }}>
+          Tu sesión se cerró por inactividad. Vuelve a ingresar.
+        </div>
+      )}
       {/* Panel de marca — identidad industrial */}
       <div className="login-brandside">
         <div className="lb-content">

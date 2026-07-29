@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import Modal from '../components/Modal';
 import AccessRequestForm, { MEANS_ES, STATUS_ES as ACC_STATUS_ES, STATUS_BADGE as ACC_BADGE } from '../components/AccessRequestForm';
 import { useAuth } from '../auth/AuthContext';
+import { useAutoOcultar } from '../auth/useInactivity';
 
 const TYPES = ['CAMERA', 'NVR', 'SWITCH', 'WIRELESS', 'ROUTER', 'FIREWALL', 'SERVER', 'UPS', 'FIBER', 'CABINET', 'DECODER', 'PC', 'OTHER'];
 const STATES = ['OPERATIVO', 'FUERA_SERVICIO', 'MANTENIMIENTO', 'BAJA', 'STOCK'];
@@ -357,6 +358,12 @@ export default function Assets() {
   }
 
   if (loading) return <div className="loading">Cargando activos…</div>;
+
+  // Las contraseñas reveladas se borran solas al minuto. Aunque el usuario
+  // siga trabajando, una clave no debe quedarse escrita en pantalla: basta que
+  // alguien pase por detrás del púlpito.
+  useAutoOcultar(rowPass, () => setRowPass({}), 60);
+  useAutoOcultar(revealed, () => setRevealed({}), 60);
 
   // El servidor ya devuelve la página filtrada: aquí solo se pinta.
   const visibles = rows;

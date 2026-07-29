@@ -1,0 +1,79 @@
+# =============================================================================
+#  SGIT-CCTV - Respaldo automatico diario de la base de datos
+#  Aceros Arequipa - Planta Pisco
+#
+#  POR QUE AQUI Y NO EN EL SERVIDOR
+#  Railway no respalda solo en el plan actual, y el contenedor de la aplicacion
+#  no trae pg_dump. GitHub Actions si tiene programador y puede levantar un
+#  contenedor de PostgreSQL 16, asi que el respaldo no depende de que alguien
+#  se acuerde de ejecutarlo ni de instalar nada en produccion.
+#
+#  REQUISITO (una sola vez)
+#  Repositorio > Settings > Secrets and variables > Actions > New secret
+#     Nombre : DATABASE_PUBLIC_URL
+#     Valor  : la cadena publica de Railway (Postgres > Variables)
+#
+#  DONDE QUEDA
+#  En Actions > la ejecucion > seccion Artifacts. Se conserva 30 dias.
+# =============================================================================
+name: Respaldo diario
+
+on:
+  schedule:
+    # 06:00 UTC = 01:00 en Peru. Fuera de horario de trabajo.
+    - cron: '0 6 * * *'
+  workflow_dispatch: # permite lanzarlo a mano antes de una migracion
+
+jobs:
+  respaldo:
+    name: Respaldar base de datos
+    runs-on: ubuntu-latest
+
+    steps:
+      # Si el secreto no esta configurado, el trabajo TERMINA BIEN en vez de
+      # fallar. Asi no llegan correos de error todos los dias hasta que alguien
+      # lo configure.
+      - name: Comprobar que el secreto existe
+        id: chequeo
+        run: |
+          if [ -z "${{ secrets.DATABASE_PUBLIC_URL }}" ]; then
+            echo "::warning::Falta el secreto DATABASE_PUBLIC_URL. No se genero respaldo."
+            echo "listo=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "listo=si" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generar el respaldo
+        if: steps.chequeo.outputs.listo == 'si'
+        run: |
+          mkdir -p respaldo
+          FECHA=$(date +%Y-%m-%d_%H%M)
+          # La misma imagen de PostgreSQL 16 que usa produccion: asi la version
+          # de pg_dump coincide con la del servidor y no hay error de version.
+          docker run --rm postgres:16-alpine \
+            pg_dump "${{ secrets.DATABASE_PUBLIC_URL }}" \
+            --no-owner --no-privileges --clean --if-exists \
+            > "respaldo/sgit-cctv_${FECHA}.sql"
+          echo "ARCHIVO=respaldo/sgit-cctv_${FECHA}.sql" >> "$GITHUB_ENV"
+
+      # Un archivo creado no es un respaldo valido: se comprueba que tenga
+      # tablas de verdad antes de darlo por bueno.
+      - name: Verificar que el respaldo sirve
+        if: steps.chequeo.outputs.listo == 'si'
+        run: |
+          TAM=$(stat -c%s "$ARCHIVO")
+          TABLAS=$(grep -c 'CREATE TABLE' "$ARCHIVO" || true)
+          echo "Tamano: $TAM bytes · Tablas: $TABLAS"
+          if [ "$TAM" -lt 2048 ] || [ "$TABLAS" -lt 10 ]; then
+            echo "::error::El respaldo salio vacio o incompleto ($TAM bytes, $TABLAS tablas)."
+            exit 1
+          fi
+
+      - name: Guardar el respaldo
+        if: steps.chequeo.outputs.listo == 'si'
+        uses: actions/upload-artifact@v4
+        with:
+          name: respaldo-bd
+          path: respaldo/*.sql
+          retention-days: 30
+          compression-level: 9

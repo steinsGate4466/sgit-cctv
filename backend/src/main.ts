@@ -3,9 +3,12 @@ import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { StructuredLogger } from './common/logger.service';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // Registro estructurado: en producción (LOG_FORMAT=json) cada línea sale en
+  // JSON y se puede filtrar por nivel o por módulo. En desarrollo no cambia nada.
+  const app = await NestFactory.create(AppModule, { logger: new StructuredLogger() });
 
   // IP REAL del usuario para la auditoría.
   // La aplicación corre detrás de un proxy (Railway / Nginx on-premise), así que
