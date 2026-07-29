@@ -79,11 +79,14 @@ enum LocationType {
   EMPRESA
   PLANTA
   TREN
-  ETAPA // etapa del proceso de laminación (F8) — nivel entre TREN y el punto físico
   AREA
   SALA
   ZONA
   RACK
+  /// Etapa del proceso de laminación (F8). Va al FINAL porque PostgreSQL
+  /// siempre añade los valores nuevos de un enum al final: si aquí figurara
+  /// en otra posición, el esquema y la base no coincidirían.
+  ETAPA
 }
 
 /// Ambiente físico donde vive el equipo. Es lo que REALMENTE lo degrada.
@@ -168,6 +171,7 @@ model Location {
 
   @@index([parentId])
   @@index([path])
+  @@index([stageId])
   @@map("locations")
 }
 

@@ -156,99 +156,13 @@ async function main() {
     trenes[`T${n}`] = t.id;
   }
 
-  // ---------------------------------------------------------------------
-  // 5b) ETAPAS DEL PROCESO DE LAMINACIÓN (F8)
-  //
-  //     Catálogo editable, no enum: los tres trenes no comparten las mismas
-  //     etapas (Tren 1 hace perfiles, Tren 2 sólo corrugado, Tren 3 es línea
-  //     nueva). El intervalo preventivo se deriva del AMBIENTE y la
-  //     criticidad mínima de la ETAPA — no de una casilla marcada a criterio.
-  // ---------------------------------------------------------------------
-  const ETAPAS = [
-    { code: 'PATIO_PALANQUILLA', name: 'Patio de palanquilla', sequence: 1,
-      environment: 'INTEMPERIE_SALINA', baseCriticality: 'MEDIA', defaultIntervalDays: 45,
-      watches: 'Grúa puente, carga de material' },
-    { code: 'HORNO_RECALENTADOR', name: 'Horno recalentador (1100-1200 °C)', sequence: 2,
-      environment: 'CALOR_RADIANTE', baseCriticality: 'ALTA', defaultIntervalDays: 30,
-      watches: 'Empujador, carga y descarga, llama' },
-    { code: 'DESBASTE', name: 'Tren de desbaste (8 cajas)', sequence: 3,
-      environment: 'VAPOR_AGUA', baseCriticality: 'CRITICA', defaultIntervalDays: 30,
-      watches: 'Atascos y lazos de material' },
-    { code: 'INTERMEDIO', name: 'Tren intermedio', sequence: 4,
-      environment: 'VAPOR_AGUA', baseCriticality: 'CRITICA', defaultIntervalDays: 30,
-      watches: 'Lazos y guías' },
-    { code: 'ACABADO', name: 'Tren continuo / acabado (10 casetas)', sequence: 5,
-      environment: 'VAPOR_AGUA', baseCriticality: 'CRITICA', defaultIntervalDays: 30,
-      watches: 'Velocidad y formación de lazo' },
-    { code: 'LECHO_ENFRIAMIENTO', name: 'Lecho de enfriamiento', sequence: 6,
-      environment: 'POLVO_METALICO', baseCriticality: 'ALTA', defaultIntervalDays: 45,
-      watches: 'Alineación de barras, atascos' },
-    { code: 'CIZALLA', name: 'Cizalla / corte a medida', sequence: 7,
-      environment: 'POLVO_METALICO', baseCriticality: 'MEDIA', defaultIntervalDays: 45,
-      watches: 'Corte a longitud' },
-    { code: 'EMPAQUETADO', name: 'Empaquetado / atado', sequence: 8,
-      environment: 'POLVO_METALICO', baseCriticality: 'MEDIA', defaultIntervalDays: 45,
-      watches: 'Atado y etiquetado' },
-    { code: 'ALMACEN_PT', name: 'Almacén de producto terminado / despacho', sequence: 9,
-      environment: 'INTEMPERIE_SALINA', baseCriticality: 'BAJA', defaultIntervalDays: 45,
-      watches: 'Inventario y carga de camiones' },
-    { code: 'PULPITO', name: 'Púlpito de control', sequence: 10,
-      environment: 'CLIMATIZADO', baseCriticality: 'ALTA', defaultIntervalDays: 90,
-      watches: 'Estaciones de visualización iVMS-4200' },
-    { code: 'SALA_ELECTRICA', name: 'Sala eléctrica / MCC', sequence: 11,
-      environment: 'EMI_ALTA', baseCriticality: 'ALTA', defaultIntervalDays: 60,
-      watches: 'Tableros y centros de control de motores' },
-    { code: 'TALLER_RODILLOS', name: 'Taller de rodillos', sequence: 12,
-      environment: 'POLVO_METALICO', baseCriticality: 'BAJA', defaultIntervalDays: 45,
-      watches: 'Cambio de cajas y rodillos' },
-  ] as const;
-
-  const etapaCatalogo: Record<string, string> = {};
-  for (const e of ETAPAS) {
-    const row = await prisma.processStage.upsert({
-      where: { code: e.code },
-      // No se pisan los valores editados por el Jefe de Mantenimiento:
-      // sólo se refresca el nombre y el orden del proceso.
-      update: { name: e.name, sequence: e.sequence },
-      create: {
-        code: e.code, name: e.name, sequence: e.sequence,
-        environment: e.environment as any,
-        baseCriticality: e.baseCriticality as any,
-        defaultIntervalDays: e.defaultIntervalDays,
-        watches: e.watches,
-      },
-    });
-    etapaCatalogo[e.code] = row.id;
-  }
-
-  // Instancia las etapas bajo CADA tren. `etapas['T1']['DESBASTE']` -> id.
-  const etapas: Record<string, Record<string, string>> = {};
-  for (const n of [1, 2, 3]) {
-    const trenCode = `AASA-PISCO-T${n}`;
-    etapas[`T${n}`] = {};
-    for (const e of ETAPAS) {
-      const loc = await prisma.location.upsert({
-        where: { code: `${trenCode}-${e.code}` },
-        update: { stageId: etapaCatalogo[e.code] },
-        create: {
-          code: `${trenCode}-${e.code}`, name: e.name, type: 'ETAPA',
-          parentId: trenes[`T${n}`], path: `AASA/PISCO/T${n}/${e.code}`,
-          stageId: etapaCatalogo[e.code],
-        },
-      });
-      etapas[`T${n}`][e.code] = loc.id;
-    }
-  }
-
-  // Gabinete de ejemplo — vive en la SALA ELÉCTRICA del Tren 1, no colgando
-  // del tren: así el gabinete hereda ambiente EMI_ALTA e intervalo de 60 días.
+  // Gabinete de ejemplo en Tren 1 (antes "Rack")
   const rackT1 = await prisma.location.upsert({
     where: { code: 'AASA-PISCO-T1-R01' },
-    update: { name: 'Gabinete R-01', parentId: etapas['T1']['SALA_ELECTRICA'] },
+    update: { name: 'Gabinete R-01' },
     create: {
       code: 'AASA-PISCO-T1-R01', name: 'Gabinete R-01', type: 'RACK',
-      parentId: etapas['T1']['SALA_ELECTRICA'],
-      path: 'AASA/PISCO/T1/SALA_ELECTRICA/R01',
+      parentId: trenes['T1'], path: 'AASA/PISCO/T1/R01',
     },
   });
 
@@ -277,8 +191,7 @@ async function main() {
     update: {},
     create: {
       assetCode: 'AA-AP-T1-PUL-001', type: 'WIRELESS', brand: 'Ubiquiti', model: 'airMAX PMP',
-      // La base PMP está en el púlpito de control (ambiente climatizado).
-      status: 'OPERATIVO', criticality: 'ALTA', train: 'TREN_1', locationId: etapas['T1']['PULPITO'],
+      status: 'OPERATIVO', criticality: 'ALTA', train: 'TREN_1', locationId: trenes['T1'],
       wireless: { create: { vendor: 'Ubiquiti', frequency: '5 GHz', mode: 'PMP_BASE', originPoint: 'Púlpito T1', linkStable: true } },
     },
   });
@@ -288,9 +201,7 @@ async function main() {
     create: {
       assetCode: 'AA-CAM-T1-FX-001', type: 'CAMERA', brand: 'Hikvision', model: 'DS-2CD1143G0-I',
       firmware: 'V5.5.x',
-      // Cámara sobre el tren de desbaste: ambiente VAPOR_AGUA, criticidad
-      // CRITICA por la etapa (atasco a 1100 °C con el operador ciego).
-      status: 'OPERATIVO', criticality: 'ALTA', train: 'TREN_1', locationId: etapas['T1']['DESBASTE'],
+      status: 'OPERATIVO', criticality: 'ALTA', train: 'TREN_1', locationId: trenes['T1'],
       camera: { create: { resolution: '2560x1440', ipAddress: '172.16.10.21', nvrId: nvr.id, wirelessUplinkId: pmp.id } },
     },
   });
