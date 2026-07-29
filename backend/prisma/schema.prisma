@@ -79,10 +79,62 @@ enum LocationType {
   EMPRESA
   PLANTA
   TREN
+  ETAPA // etapa del proceso de laminación (F8) — nivel entre TREN y el punto físico
   AREA
   SALA
   ZONA
   RACK
+}
+
+/// Ambiente físico donde vive el equipo. Es lo que REALMENTE lo degrada.
+/// No es lo mismo una cámara sobre el horno recalentador (1,100 °C) que una
+/// en el púlpito climatizado: el intervalo de mantenimiento preventivo se
+/// deriva de aquí y no de una casilla "crítico sí/no" marcada a criterio.
+enum Environment {
+  CALOR_RADIANTE    // horno recalentador — radiación directa, degrada sellos y óptica
+  VAPOR_AGUA        // trenes — refrigeración de rodillos, condensación interna
+  POLVO_METALICO    // cascarilla, taller de rodillos, cizalla — abrasión
+  INTEMPERIE_SALINA // patios y almacenes — Pisco es costa: corrosión acelerada
+  EMI_ALTA          // salas eléctricas y MCC — interferencia electromagnética
+  CLIMATIZADO       // púlpitos de control — polvo normal
+}
+
+// =====================================================================
+//  ETAPAS DEL PROCESO DE LAMINACIÓN (F8)
+//
+//  Es CATÁLOGO EDITABLE, no un enum. Razón técnica concreta: los tres
+//  trenes NO comparten las mismas etapas —el Tren 1 produce perfiles, el
+//  Tren 2 sólo corrugado y el Tren 3 es una línea distinta—. Con un enum,
+//  cada diferencia obligaría a migración de base de datos y redespliegue;
+//  con una tabla lo edita el Jefe de Mantenimiento desde la interfaz.
+//
+//  El catálogo define la etapa UNA vez; el árbol de ubicaciones la
+//  instancia en cada tren que la tenga.
+// =====================================================================
+model ProcessStage {
+  id                  String      @id @default(uuid())
+  code                String      @unique // ej: DESBASTE, HORNO_RECAL
+  name                String
+  /// Orden dentro del proceso (palanquilla -> producto terminado). Permite
+  /// dibujar el tren de izquierda a derecha y detectar tramos ciegos seguidos.
+  sequence            Int
+  environment         Environment
+  /// Criticidad MÍNIMA de todo activo instalado en esta etapa. Una cámara
+  /// caída en el tren de desbaste deja al operador ciego ante un atasco a
+  /// 1,100 °C; una caída en el almacén no detiene nada.
+  baseCriticality     Criticality
+  /// Intervalo preventivo sugerido en días, derivado del ambiente. Editable.
+  defaultIntervalDays Int
+  /// Qué vigila el CCTV en esta etapa (para el informe y la capacitación).
+  watches             String?
+  active              Boolean     @default(true)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  locations           Location[]
+
+  @@index([sequence])
+  @@map("process_stages")
 }
 
 model Location {
@@ -95,6 +147,14 @@ model Location {
   children         Location[]   @relation("LocationTree")
   path             String       @default("") // ruta materializada para navegación rápida
   photoFileId      String?      // foto de referencia de la ubicación (MinIO)
+  // ---- Proceso de laminación (F8) ----
+  /// Etapa del proceso que representa esta ubicación. Sólo aplica a type=ETAPA.
+  stageId          String?
+  stage            ProcessStage? @relation(fields: [stageId], references: [id])
+  /// Ambiente puntual. Normalmente se hereda de la etapa; se usa sólo cuando
+  /// un punto concreto difiere del resto (ej. una cámara dentro de un cofre
+  /// refrigerado en plena zona de calor).
+  environment      Environment?
   // ---- Campos SAP-ready ----
   sapLocationCode  String?
   costCenter       String?
@@ -169,10 +229,17 @@ enum Criticality {
   CRITICA // pérdida de visión que detiene o arriesga producción
 }
 
-/// Zona productiva de la planta a la que pertenece el activo.
-/// Antes el tren se deducía del texto de la ruta de ubicación (frágil: dependía de
-/// que alguien escribiera "T1" en el código). Ahora es un dato explícito del activo,
-/// que es como lo maneja la operación: "esa cámara es del Tren 2".
+/// OBSOLETO desde F8 — se conserva sólo por seguridad de reversión.
+///
+/// Este enum creaba una SEGUNDA jerarquía en competencia con el árbol de
+/// ubicaciones: nada impedía que un activo colgara de "Tren 2" en el árbol y
+/// dijera TREN_1 aquí. Es el mismo problema de duplicación de verdad que se
+/// corrigió en F5 con el estado derivado, pero en la dimensión de ubicación.
+///
+/// A partir de F8 el tren se DEDUCE subiendo el árbol de ubicaciones
+/// (ver common/plant-context.ts). La columna Asset.train permanece poblada
+/// durante una fase de transición y se eliminará cuando todos los módulos
+/// lean del árbol. No escribir lógica nueva contra este campo.
 enum PlantTrain {
   TREN_1
   TREN_2
@@ -193,7 +260,9 @@ model Asset {
   referencePlace String?    // lugar de referencia en planta (texto libre)
   status        AssetStatus @default(OPERATIVO)
   criticality   Criticality @default(MEDIA)
-  train         PlantTrain? // zona productiva (Tren 1/2/3, patio, general)
+  /// OBSOLETO desde F8: el tren se deduce del árbol de ubicaciones.
+  /// Se mantiene poblado en la transición para poder revertir sin pérdida.
+  train         PlantTrain?
   installDate   DateTime?
   warrantyEnd   DateTime?
   locationId    String?
