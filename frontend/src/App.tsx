@@ -9,6 +9,7 @@ import Maintenance from './pages/Maintenance';
 import Preventive from './pages/Preventive';
 import Corrective from './pages/Corrective';
 import Predictive from './pages/Predictive';
+import TrainBoard from './pages/TrainBoard';
 import Improvements from './pages/Improvements';
 import Cabinets from './pages/Cabinets';
 import Locations from './pages/Locations';
@@ -31,6 +32,7 @@ export default function App() {
       >
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/trains" element={<TrainBoard />} />
         <Route path="/assets" element={<Assets />} />
         <Route path="/incidents" element={<Incidents />} />
         <Route path="/maintenance" element={<Maintenance />} />

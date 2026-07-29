@@ -165,7 +165,10 @@ export class DashboardService {
       .sort((a: any, b: any) => ORDEN.indexOf(a.train) - ORDEN.indexOf(b.train));
   }
 
-  /** Detalle de un tren: sus activos con problemas y sus trabajos pendientes. */
+  /**
+   * Tablero completo de un Tren: todo lo que su responsable necesita ver en una
+   * sola pantalla, sin mezclarse con el resto de la planta.
+   */
   async trainDetail(train: string) {
     const where: any = train === 'SIN_ASIGNAR'
       ? { deletedAt: null, train: null }
@@ -176,30 +179,79 @@ export class DashboardService {
       select: {
         id: true, assetCode: true, type: true, status: true, criticality: true,
         location: { select: { name: true } }, cabinet: { select: { code: true } },
+        preventivePlan: { select: { nextDueAt: true, intervalDays: true, active: true } },
       },
-      orderBy: { assetCode: 'asc' },
+      orderBy: [{ criticality: 'desc' }, { assetCode: 'asc' }],
     });
     const eff = await computeEffectiveStatuses(this.prisma, assets);
     const ids = assets.map((a) => a.id);
+    const now = new Date();
 
-    const [oms, incs] = await Promise.all([
-      ids.length ? this.prisma.workOrder.count({
+    const [omsAbiertas, incidencias] = await Promise.all([
+      ids.length ? this.prisma.workOrder.findMany({
         where: { assetId: { in: ids }, status: { in: ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'] as any } },
-      }) : 0,
-      ids.length ? this.prisma.incident.count({
+        select: {
+          id: true, code: true, type: true, status: true, scheduledDate: true, activity: true,
+          asset: { select: { assetCode: true } },
+        },
+        orderBy: { scheduledDate: 'asc' }, take: 50,
+      }) : [],
+      ids.length ? this.prisma.incident.findMany({
         where: { assetId: { in: ids }, status: { in: ['ABIERTA', 'EN_DIAGNOSTICO', 'EN_PROCESO', 'EN_ESPERA'] as any } },
-      }) : 0,
+        select: {
+          id: true, code: true, title: true, category: true, priority: true, status: true,
+          reportedAt: true, asset: { select: { assetCode: true } },
+        },
+        orderBy: { reportedAt: 'desc' }, take: 50,
+      }) : [],
     ]);
+
+    const conEstado = assets.map((a) => ({ ...a, effectiveStatus: eff[a.id] || a.status }));
+    const enOperacion = conEstado.filter((a) => !['BAJA', 'STOCK'].includes(a.effectiveStatus));
+    const afectados = enOperacion.filter((a) => ['FUERA_SERVICIO', 'CON_INCIDENCIA'].includes(a.effectiveStatus));
+    const camaras = enOperacion.filter((a) => a.type === 'CAMERA');
+    const camarasCaidas = camaras.filter((a) => ['FUERA_SERVICIO', 'CON_INCIDENCIA'].includes(a.effectiveStatus));
+    const preventivosVencidos = assets.filter(
+      (a) => a.preventivePlan?.active && a.preventivePlan.nextDueAt && new Date(a.preventivePlan.nextDueAt) < now,
+    );
+    const omVencidas = omsAbiertas.filter((w) => w.scheduledDate && new Date(w.scheduledDate) < now);
+
+    const pct = (ok: number, total: number) => (total > 0 ? Number(((ok / total) * 100).toFixed(1)) : 100);
 
     return {
       train,
-      omAbiertas: oms,
-      incidenciasAbiertas: incs,
-      // Solo los que requieren atención: es lo que se necesita ver en el tablero.
-      activos: assets
-        .map((a) => ({ ...a, effectiveStatus: eff[a.id] || a.status }))
-        .filter((a) => a.effectiveStatus !== 'OPERATIVO'),
-      totalActivos: assets.length,
+      resumen: {
+        totalActivos: assets.length,
+        enOperacion: enOperacion.length,
+        camaras: camaras.length,
+        camarasOperativas: camaras.length - camarasCaidas.length,
+        camarasCaidas: camarasCaidas.length,
+        criticos: assets.filter((a) => a.criticality === 'CRITICA').length,
+        disponibilidad: pct(enOperacion.length - afectados.length, enOperacion.length),
+        disponibilidadCamaras: pct(camaras.length - camarasCaidas.length, camaras.length),
+        operativos: enOperacion.filter((a) => a.effectiveStatus === 'OPERATIVO').length,
+        enMantenimiento: enOperacion.filter((a) => a.effectiveStatus === 'MANTENIMIENTO').length,
+        conIncidencia: enOperacion.filter((a) => a.effectiveStatus === 'CON_INCIDENCIA').length,
+        fueraServicio: enOperacion.filter((a) => a.effectiveStatus === 'FUERA_SERVICIO').length,
+        omAbiertas: omsAbiertas.length,
+        omVencidas: omVencidas.length,
+        incidenciasAbiertas: incidencias.length,
+        incidenciasCriticas: incidencias.filter((i) => ['ALTA', 'CRITICA'].includes(i.priority as any)).length,
+        preventivosVencidos: preventivosVencidos.length,
+      },
+      requierenAtencion: afectados,
+      activos: conEstado,
+      ordenes: omsAbiertas.map((w) => ({
+        ...w, vencida: !!(w.scheduledDate && new Date(w.scheduledDate) < now),
+      })),
+      incidencias,
+      preventivosVencidos: preventivosVencidos.map((a) => ({
+        id: a.id, assetCode: a.assetCode,
+        nextDueAt: a.preventivePlan?.nextDueAt,
+        diasAtraso: a.preventivePlan?.nextDueAt
+          ? Math.floor((now.getTime() - new Date(a.preventivePlan.nextDueAt).getTime()) / 86400000)
+          : 0,
+      })),
     };
   }
 

@@ -359,6 +359,56 @@ select optgroup { font-weight: 700; color: var(--navy); }
   .kpi-grid { grid-template-columns: repeat(4, 1fr); }
 }
 
+/* ---------- Tablero por Tren ---------- */
+/* Pestañas de zona */
+.train-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 18px 0 16px; }
+.train-tab { background: var(--card); border: 1px solid var(--border); color: var(--muted);
+  padding: 9px 18px; border-radius: 22px; font-size: 13px; font-weight: 600; cursor: pointer;
+  font-family: inherit; transition: all .15s ease; }
+.train-tab:hover { border-color: var(--steel); color: var(--steel); }
+.train-tab.active { background: var(--navy); border-color: var(--navy); color: #fff; }
+
+/* Estado general destacado: lo primero que se ve */
+.status-hero { display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  border-radius: 12px; padding: 20px 24px; border: 1px solid var(--border); flex-wrap: wrap;
+  border-left: 6px solid var(--steel); background: var(--card); box-shadow: var(--shadow); }
+.status-hero.ok { border-left-color: var(--ok); background: linear-gradient(90deg, #f2fbf6 0%, var(--card) 45%); }
+.status-hero.warn { border-left-color: var(--warn); background: linear-gradient(90deg, #fffaf1 0%, var(--card) 45%); }
+.status-hero.crit { border-left-color: var(--crit); background: linear-gradient(90deg, #fef4f4 0%, var(--card) 45%); }
+.sh-left { display: flex; align-items: center; gap: 14px; }
+.sh-dot { font-size: 30px; line-height: 1; }
+.status-hero.ok .sh-dot { color: var(--ok); }
+.status-hero.warn .sh-dot { color: var(--warn); }
+.status-hero.crit .sh-dot { color: var(--crit); }
+.sh-title { font-size: 19px; font-weight: 800; color: var(--navy); }
+.sh-sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.sh-right { text-align: right; }
+.sh-pct { font-size: 40px; font-weight: 800; color: var(--navy); line-height: 1; font-variant-numeric: tabular-nums; }
+.sh-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+
+/* Barra apilada de estados */
+.stack-bar { display: flex; height: 22px; border-radius: 6px; overflow: hidden; background: #eef2f9; }
+.seg { display: block; height: 100%; }
+.seg.ok { background: var(--ok); }
+.seg.info { background: var(--warn); }
+.seg.warn { background: #ea580c; }
+.seg.crit { background: var(--crit); }
+.stack-legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px; }
+.leg { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.leg b { color: var(--text); font-size: 13px; }
+.leg-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.leg-dot.ok { background: var(--ok); }
+.leg-dot.info { background: var(--warn); }
+.leg-dot.warn { background: #ea580c; }
+.leg-dot.crit { background: var(--crit); }
+
+/* Sub-pestañas de detalle */
+.subtabs { display: flex; gap: 4px; margin: 22px 0 12px; border-bottom: 2px solid var(--border); flex-wrap: wrap; }
+.subtab { background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px;
+  padding: 10px 16px; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; font-family: inherit; }
+.subtab:hover { color: var(--steel); }
+.subtab.active { color: var(--navy); border-bottom-color: var(--red); }
+
 /* Detalle de activo: modal con scroll */
 .modal-body { max-height: 74vh; overflow-y: auto; }
 .detail-sec { margin-top: 16px; }

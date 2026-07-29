@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 
 const TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard Ejecutivo',
+  '/trains': 'Estado por Tren',
   '/assets': 'Activos Tecnológicos',
   '/cabinets': 'Gabinetes',
   '/locations': 'Ubicaciones',
@@ -40,6 +41,7 @@ export default function Layout() {
       titulo: '',
       items: [
         can('dashboard.read') && <NavLink key="d" to="/dashboard"><span className="ico">▦</span> Dashboard</NavLink>,
+        can('dashboard.read') && <NavLink key="t" to="/trains"><span className="ico">🚂</span> Estado por Tren</NavLink>,
       ].filter(Boolean) as ReactNode[],
     },
     {
