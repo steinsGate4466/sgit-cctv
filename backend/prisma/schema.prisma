@@ -159,6 +159,12 @@ model Location {
   children         Location[]   @relation("LocationTree")
   path             String       @default("") // ruta materializada para navegación rápida
   photoFileId      String?      // foto de referencia de la ubicación (MinIO)
+  /// CÓMO LLEGAR, en texto llano.
+  /// "Desde el púlpito del Tren 2, bajar la escalera norte, 20 m hacia el
+  /// lecho de enfriamiento, poste de la izquierda."
+  /// Es la mejora de mayor impacto para el personal nuevo, que hoy recibe una
+  /// orden con un código de activo y no tiene idea de dónde está.
+  howToGet         String?
   // ---- Proceso de laminación (F8) ----
   /// Etapa del proceso que representa esta ubicación. Sólo aplica a type=ETAPA.
   stageId          String?
@@ -209,6 +215,74 @@ model Cabinet {
 }
 
 // =====================================================================
+//  CABLEADO — enums (Bloque 2)
+// =====================================================================
+
+enum CableCategory {
+  CAT5E
+  CAT6
+  CAT6A
+  FIBRA_MONOMODO
+  FIBRA_MULTIMODO
+  COAXIAL          // cámaras analógicas conectadas a DVR
+  OTRO
+}
+
+/// Por dónde corre el tramo. Importa para el diagnóstico: un cable sin
+/// blindaje que corre por la misma bandeja que la fuerza, en una planta con
+/// hornos y centros de control de motores, se llena de ruido y da fallas
+/// intermitentes imposibles de reproducir.
+enum CableRoute {
+  AEREA
+  CANALETA
+  BANDEJA          // compartida con fuerza: revisar blindaje
+  SUBTERRANEA
+  TUBERIA
+  INTEMPERIE
+}
+
+enum CableStatus {
+  INSTALADO
+  DANADO
+  A_REEMPLAZAR
+  RETIRADO
+}
+
+enum VideoOutputType {
+  HDMI
+  VGA
+  DVI
+  DISPLAYPORT
+  BNC
+}
+
+/// Distribución del videowall en una pantalla.
+enum ScreenLayout {
+  UNO              // 1x1, una cámara a pantalla completa
+  DOS_X_DOS        // 4 cuadros
+  TRES_X_TRES      // 9 cuadros
+  CUATRO_X_CUATRO  // 16 cuadros
+  OTRO
+}
+
+/// De dónde recibe la señal una pantalla. En varios púlpitos la maneja el PC
+/// con iVMS-4200 y no un decodificador: hay que contemplar los dos casos o la
+/// mitad de los púlpitos no se puede registrar.
+enum ScreenSource {
+  DECODIFICADOR
+  PC
+}
+
+/// En qué red vive la IP de gestión de un equipo.
+/// En Pisco la gestión va en 10.x.x.x y las cámaras y antenas en 192.x.x.x.
+/// Saberlo determina si el servidor puede alcanzar el equipo por ping.
+enum MgmtNetwork {
+  GESTION      // 10.x.x.x — alcanzable desde el servidor
+  CAMARAS      // 192.x.x.x — detrás del grabador, no alcanzable
+  OTRA
+}
+
+// =====================================================================
 //  ACTIVOS TECNOLÓGICOS (Módulo 2) — tabla base + herencia por tipo
 // =====================================================================
 
@@ -226,6 +300,11 @@ enum AssetType {
   DECODER    // video wall / decoder Hikvision
   PC         // estación de visualización (iVMS-4200) — parte del mantenimiento CCTV
   OTHER
+  /// Monitor del videowall del púlpito. Es activo propio y no un campo del
+  /// decodificador porque se quema, se raya y pierde brillo: eso genera su
+  /// propia orden de mantenimiento y su propio historial.
+  /// Va al final: PostgreSQL añade los valores nuevos de un enum al final.
+  PANTALLA
 }
 
 enum AssetStatus {
@@ -310,8 +389,22 @@ model Asset {
   spareLinks    SparePartAsset[]
   preventivePlan PreventivePlan?
   photos        AssetPhoto[]
+  // ---- Fichas por tipo (Bloque 2) ----
+  decoder       AssetDecoder?
+  screen        AssetScreen?
+  pc            AssetPc?
+  // ---- Tramos de cable (Bloque 2) ----
+  cablesFrom    AssetCable[]  @relation("CableFrom")
+  cablesTo      AssetCable[]  @relation("CableTo")
+  /// Cuadros de videowall donde aparece esta cámara.
+  screenCells   ScreenCell[]  @relation("ScreenCellCamera")
   /// Orden de MAPEO en la que se levantó este activo. Permite reconstruir
   /// quién lo registró, cuándo y con quién.
+  /// FICHA INCOMPLETA. El técnico guarda en campo con lo mínimo y completa
+  /// después; el sistema no bloquea el registro. Sin esto, ante un formulario
+  /// exigente el técnico inventa datos para poder guardar, y eso es peor que
+  /// dejarlo vacío.
+  isDraft       Boolean     @default(false)
   mappedInWorkOrderId String?
   mappedInWorkOrder   WorkOrder? @relation("AssetMappedInWo", fields: [mappedInWorkOrderId], references: [id])
   accessRequests AccessRequest[]
@@ -335,6 +428,19 @@ model AssetCamera {
   vlanId           String?
   vlan             Vlan?   @relation(fields: [vlanId], references: [id])
   nvrId            String? // NVR asociado (Asset de tipo NVR)
+  /// CANAL del grabador donde entra esta cámara. Sin él no hay mapa de canales
+  /// ni forma de traducir lo que reporta el púlpito.
+  nvrChannel       Int?
+  /// NOMBRE tal como aparece en el grabador y en la pantalla del púlpito.
+  /// Es el IDIOMA COMÚN: el operador no dice "AA-CAM-T2-045", dice "la de la
+  /// grúa 2". Sin este campo cada reporte hay que traducirlo a mano.
+  nvrName          String?
+  /// Tipo físico: fija, domo, PTZ, bullet, térmica.
+  cameraStyle      String?
+  /// De qué puerto PoE se alimenta. Es lo que el técnico necesita en sitio:
+  /// "es PoE y cuelga del puerto 8 del switch de la caja R-03".
+  poeSourcePortId  String?
+  poeSourcePort    SwitchPort? @relation("CameraPoeSource", fields: [poeSourcePortId], references: [id])
   switchPortId     String? @unique
   switchPort       SwitchPort? @relation(fields: [switchPortId], references: [id])
   wirelessUplinkId String? // antena suscriptora/PMP por la que cuelga
@@ -360,7 +466,16 @@ model AssetSwitch {
   assetId    String       @id
   asset      Asset        @relation(fields: [assetId], references: [id], onDelete: Cascade)
   portCount  Int?
+  /// Cuántos puertos entregan PoE y con qué presupuesto total en watts.
+  /// Permite saber si el switch aún puede alimentar otra cámara. Agregar
+  /// equipos sin revisar el presupuesto es causa habitual de caídas
+  /// intermitentes que nadie asocia al switch.
+  poePorts   Int?
+  poeBudgetW Int?
   mgmtIp     String?
+  /// En qué red vive esa IP de gestión. Determina si el servidor la alcanza
+  /// por ping: en Pisco la gestión va en 10.x y las cámaras en 192.x.
+  mgmtNetwork MgmtNetwork?
   vendor     String?      // Fortinet / FortiSwitch / TP-Link
   switchRole SwitchRole   @default(DISTRIBUCION)
   ports      SwitchPort[]
@@ -394,6 +509,11 @@ model AssetWireless {
   originPoint     String?
   destPoint       String?
   signalDbm       Int?
+  ssid            String?
+  /// ¿Tenemos las credenciales de esta antena?
+  /// Hay antenas en planta de las que nadie tiene la clave. Marcarlo permite
+  /// planificar la campaña de barrido con datos y no de memoria.
+  hasCredentials  Boolean      @default(false)
   linkStable      Boolean      @default(true) // caídas abruptas => sesiones NVR colgadas
 
   @@map("asset_wireless")
@@ -402,6 +522,158 @@ model AssetWireless {
 // =====================================================================
 //  RED / TOPOLOGÍA (Módulo transversal — soporte a troubleshooting)
 // =====================================================================
+
+
+// =====================================================================
+//  TRAMOS DE CABLE (Bloque 2)
+//
+//  POR QUÉ ES UN TRAMO ENTRE DOS PUNTOS Y NO UN DATO DE LA CÁMARA
+//  Ethernet tiene un límite duro de 90 m de tramo horizontal. Pasado eso el
+//  enlace NO falla: falla A VECES. Funciona con frío, se cae con calor.
+//  Eso es exactamente el "se arregla y vuelve a fallar" que nadie explica.
+//  Y nadie lo va a descubrir si no está anotado que ese tramo mide 118 m.
+//
+//  Modelado como tramo (de dónde a dónde) y no como atributo del equipo,
+//  porque así alimenta el diagrama de topología, el análisis de impacto y la
+//  detección de reincidencia POR TRAMO: varias cámaras que fallan y comparten
+//  el mismo tramo apuntan al cable, no a las cámaras.
+// =====================================================================
+model AssetCable {
+  id              String        @id @default(uuid())
+  code            String?       // rótulo del tramo, si lo tiene
+  category        CableCategory
+  /// Longitud del tramo en metros. El almacén compra por rollo, pero el
+  /// tramo instalado se mide en metros.
+  meters          Float?
+  /// true = estimado a ojo · false = medido con metrajo.
+  /// Se distingue porque no se puede decidir un reemplazo sobre un número
+  /// inventado: el aviso de los 90 m dice si el dato es medido o aproximado.
+  metersEstimated Boolean       @default(true)
+  /// Blindado (STP/FTP). En una siderúrgica un UTP común corriendo junto a
+  /// una bandeja de fuerza se llena de ruido: mismo síntoma intermitente.
+  shielded        Boolean       @default(false)
+  route           CableRoute?
+  status          CableStatus   @default(INSTALADO)
+
+  // ---- Extremos del tramo ----
+  /// Equipo de origen (switch, grabador, antena) y puerto del que sale.
+  fromAssetId     String?
+  fromAsset       Asset?        @relation("CableFrom", fields: [fromAssetId], references: [id])
+  fromPortNumber  Int?
+  /// Equipo de destino.
+  toAssetId       String?
+  toAsset         Asset?        @relation("CableTo", fields: [toAssetId], references: [id])
+
+  installedAt     DateTime?
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([fromAssetId])
+  @@index([toAssetId])
+  @@index([status])
+  @@map("asset_cables")
+}
+
+// =====================================================================
+//  DECODIFICADOR Y VIDEOWALL DEL PÚLPITO (Bloque 2)
+//
+//  La cadena real es:
+//    GRABADOR -> DECODIFICADOR -> salida HDMI 1 -> PANTALLA 1 -> 2x2 -> cámaras
+//
+//  Para qué sirve tenerla completa: cuando el operador llama por radio no dice
+//  un código, dice "se puso negro el cuadro de arriba a la izquierda de la
+//  pantalla 2". Con esta cadena eso se traduce solo a una cámara concreta,
+//  su canal y la antena de la que cuelga.
+// =====================================================================
+model AssetDecoder {
+  assetId      String  @id
+  asset        Asset   @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  /// Cuántas salidas de video tiene el equipo.
+  outputCount  Int?
+  /// De qué grabador consume el video.
+  sourceNvrId  String?
+  mgmtIp       String?
+  outputs      DecoderOutput[]
+
+  @@map("asset_decoders")
+}
+
+model DecoderOutput {
+  id            String          @id @default(uuid())
+  decoderAssetId String
+  decoder       AssetDecoder    @relation(fields: [decoderAssetId], references: [assetId], onDelete: Cascade)
+  /// Número de salida física (1, 2, 3…).
+  number        Int
+  type          VideoOutputType @default(HDMI)
+  /// A qué pantalla alimenta esta salida.
+  screenAssetId String?
+  screen        AssetScreen?    @relation(fields: [screenAssetId], references: [assetId])
+
+  @@unique([decoderAssetId, number])
+  @@map("decoder_outputs")
+}
+
+// =====================================================================
+//  PANTALLA DEL PÚLPITO (Bloque 2)
+//
+//  Es un ACTIVO propio y no un campo del decodificador: una pantalla se
+//  quema, se raya y pierde brillo. Eso genera su propia orden de
+//  mantenimiento, su historial y su garantía. Como texto dentro del
+//  decodificador no se podría abrir una OM por "Pantalla 2 quemada".
+// =====================================================================
+model AssetScreen {
+  assetId    String        @id
+  asset      Asset         @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  /// Rótulo con el que la llaman en el púlpito: "Pantalla 1", "Pantalla 2".
+  label      String?
+  sizeInch   Float?
+  layout     ScreenLayout?
+  /// De dónde recibe la señal. En varios púlpitos la maneja el PC con
+  /// iVMS-4200 y no un decodificador: si no se contemplan los dos casos, la
+  /// mitad de los púlpitos no se puede registrar.
+  sourceKind ScreenSource?
+  sourcePcAssetId String?
+
+  fedByOutputs DecoderOutput[]
+  cells        ScreenCell[]
+
+  @@map("asset_screens")
+}
+
+/// Qué cámara se ve en cada cuadro de la pantalla.
+/// Es lo que traduce "el cuadro de arriba a la izquierda" a un equipo real.
+model ScreenCell {
+  id            String       @id @default(uuid())
+  screenAssetId String
+  screen        AssetScreen  @relation(fields: [screenAssetId], references: [assetId], onDelete: Cascade)
+  /// Posición en la rejilla, empezando en 1 arriba a la izquierda.
+  position      Int
+  cameraAssetId String?
+  camera        Asset?       @relation("ScreenCellCamera", fields: [cameraAssetId], references: [id])
+
+  @@unique([screenAssetId, position])
+  @@map("screen_cells")
+}
+
+// =====================================================================
+//  PC DEL PÚLPITO (Bloque 2)
+//  Estación con iVMS-4200. En varios púlpitos es la que pinta las pantallas.
+// =====================================================================
+model AssetPc {
+  assetId        String  @id
+  asset          Asset   @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  hostname       String?
+  os             String?
+  ivmsVersion    String?
+  /// Cuántas salidas de video tiene, para saber cuántas pantallas maneja.
+  videoOutputs   Int?
+  /// Qué grabadores tiene configurados, en texto: es lo que se pierde cuando
+  /// se reinstala el equipo y nadie recuerda qué tenía.
+  nvrsConfigured String?
+
+  @@map("asset_pcs")
+}
 
 model Vlan {
   id        String        @id @default(uuid())
@@ -428,6 +700,9 @@ model SwitchPort {
 
   cameraLink       AssetCamera?
   wirelessLink     AssetWireless?
+  /// Cámaras que este puerto ALIMENTA por PoE. Es distinto de cameraLink:
+  /// una cámara puede recibir datos por antena y energía por este puerto.
+  poweredCameras   AssetCamera[] @relation("CameraPoeSource")
 
   @@unique([switchId, portNumber])
   @@map("switch_ports")
