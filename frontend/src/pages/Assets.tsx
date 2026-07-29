@@ -127,6 +127,18 @@ export default function Assets() {
   // página 4 y filtras, la 4 puede no existir en el resultado nuevo.
   useEffect(() => { setPage(1); }, [fq, fType, fStatus]);
 
+  // Las contraseñas reveladas se borran solas al minuto: aunque el usuario siga
+  // trabajando, una clave no debe quedarse escrita en pantalla —basta que
+  // alguien pase por detrás del púlpito—.
+  //
+  // ATENCIÓN: estos hooks van AQUÍ, junto al resto, y NUNCA después del
+  // `if (loading) return ...`. React exige que se llame siempre a los mismos
+  // hooks en el mismo orden: si una salida temprana los saltea en el primer
+  // render y luego sí se ejecutan, React aborta el componente y la pantalla
+  // queda en blanco. TypeScript no detecta esto; solo se ve al ejecutarlo.
+  useAutoOcultar(rowPass, () => setRowPass({}), 60);
+  useAutoOcultar(revealed, () => setRevealed({}), 60);
+
   function openNew() {
     setFormErr('');
     setTries(5);
@@ -358,12 +370,6 @@ export default function Assets() {
   }
 
   if (loading) return <div className="loading">Cargando activos…</div>;
-
-  // Las contraseñas reveladas se borran solas al minuto. Aunque el usuario
-  // siga trabajando, una clave no debe quedarse escrita en pantalla: basta que
-  // alguien pase por detrás del púlpito.
-  useAutoOcultar(rowPass, () => setRowPass({}), 60);
-  useAutoOcultar(revealed, () => setRevealed({}), 60);
 
   // El servidor ya devuelve la página filtrada: aquí solo se pinta.
   const visibles = rows;
