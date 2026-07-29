@@ -18,11 +18,13 @@ export class LocationsController {
   constructor(private readonly locations: LocationsService) {}
 
   @Get()
+  @RequirePermissions('location.read')
   findAll() {
     return this.locations.findAll();
   }
 
   @Get('tree')
+  @RequirePermissions('location.read')
   tree() {
     return this.locations.tree();
   }
@@ -42,6 +44,7 @@ export class LocationsController {
 
   // Foto de referencia de la ubicación.
   @Get(':id/photo')
+  @RequirePermissions('location.read')
   async photo(@Param('id') id: string, @Res() res: Response) {
     const { buffer, contentType } = await this.locations.getPhoto(id);
     res.setHeader('Content-Type', contentType);

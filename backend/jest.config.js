@@ -11,6 +11,7 @@ module.exports = {
   collectCoverageFrom: ['src/**/*.(t|j)s'],
   coverageDirectory: './coverage',
   // El esquema de Prisma y los DTO usan decoradores; ts-jest los respeta vía tsconfig.
-  transform: { '^.+\\.(t|j)s$': ['ts-jest', { isolatedModules: true }] },
+  // isolatedModules vive en tsconfig.json (la opcion aqui quedo deprecada en ts-jest).
+  transform: { '^.+\\.(t|j)s$': 'ts-jest' },
   testPathIgnorePatterns: ['/node_modules/', '/dist/'],
 };

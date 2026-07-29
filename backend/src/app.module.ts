@@ -34,15 +34,17 @@ import { PredictiveModule } from './modules/predictive/predictive.module';
     UsersModule,
     LocationsModule,
     AssetsModule,
-    NetworkModule,
     MaintenanceModule,
     IncidentsModule,
     TroubleshootingModule,
-    DocumentsModule,
     DashboardModule,
     AuditModule,
-    IntegrationModule,
     CredentialsModule,
+    // ---- Módulos reservados para fases siguientes ----
+    // Sus modelos YA existen en el esquema de datos; falta exponer su API.
+    NetworkModule,      // topología: VLAN, puertos de switch y enlaces (F8)
+    DocumentsModule,    // planos, manuales y respaldos de configuración (F8)
+    IntegrationModule,  // SAP, HikCentral, Zabbix, Active Directory (F9)
     InventoryModule,
     PreventiveModule,
     CorrectiveModule,
