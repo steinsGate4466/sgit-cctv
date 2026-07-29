@@ -187,24 +187,24 @@ export class DashboardService {
     const ids = assets.map((a) => a.id);
     const now = new Date();
 
-    const [omsAbiertas, incidencias] = await Promise.all([
-      ids.length ? this.prisma.workOrder.findMany({
-        where: { assetId: { in: ids }, status: { in: ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'] as any } },
-        select: {
-          id: true, code: true, type: true, status: true, scheduledDate: true, activity: true,
-          asset: { select: { assetCode: true } },
-        },
-        orderBy: { scheduledDate: 'asc' }, take: 50,
-      }) : [],
-      ids.length ? this.prisma.incident.findMany({
-        where: { assetId: { in: ids }, status: { in: ['ABIERTA', 'EN_DIAGNOSTICO', 'EN_PROCESO', 'EN_ESPERA'] as any } },
-        select: {
-          id: true, code: true, title: true, category: true, priority: true, status: true,
-          reportedAt: true, asset: { select: { assetCode: true } },
-        },
-        orderBy: { reportedAt: 'desc' }, take: 50,
-      }) : [],
-    ]);
+    // Nota: no se usa un ternario con [] porque TypeScript infiere `never` al unir
+    // el array vacío con el tipo de Prisma. Con `in: []` la consulta ya devuelve vacío.
+    const omsAbiertas = await this.prisma.workOrder.findMany({
+      where: { assetId: { in: ids }, status: { in: ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'] as any } },
+      select: {
+        id: true, code: true, type: true, status: true, scheduledDate: true, activity: true,
+        asset: { select: { assetCode: true } },
+      },
+      orderBy: { scheduledDate: 'asc' }, take: 50,
+    });
+    const incidencias = await this.prisma.incident.findMany({
+      where: { assetId: { in: ids }, status: { in: ['ABIERTA', 'EN_DIAGNOSTICO', 'EN_PROCESO', 'EN_ESPERA'] as any } },
+      select: {
+        id: true, code: true, title: true, category: true, priority: true, status: true,
+        reportedAt: true, asset: { select: { assetCode: true } },
+      },
+      orderBy: { reportedAt: 'desc' }, take: 50,
+    });
 
     const conEstado = assets.map((a) => ({ ...a, effectiveStatus: eff[a.id] || a.status }));
     const enOperacion = conEstado.filter((a) => !['BAJA', 'STOCK'].includes(a.effectiveStatus));
@@ -212,7 +212,9 @@ export class DashboardService {
     const camaras = enOperacion.filter((a) => a.type === 'CAMERA');
     const camarasCaidas = camaras.filter((a) => ['FUERA_SERVICIO', 'CON_INCIDENCIA'].includes(a.effectiveStatus));
     const preventivosVencidos = assets.filter(
-      (a) => a.preventivePlan?.active && a.preventivePlan.nextDueAt && new Date(a.preventivePlan.nextDueAt) < now,
+      (a) => !!a.preventivePlan?.active
+        && !!a.preventivePlan?.nextDueAt
+        && new Date(a.preventivePlan.nextDueAt as any) < now,
     );
     const omVencidas = omsAbiertas.filter((w) => w.scheduledDate && new Date(w.scheduledDate) < now);
 
