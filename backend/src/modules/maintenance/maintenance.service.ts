@@ -9,6 +9,7 @@ import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 import { QueryWorkOrderDto } from './dto/query-work-order.dto';
 import { CloseWorkOrderDto } from './dto/close-work-order.dto';
+import { OpenWorkOrderDto } from './dto/open-work-order.dto';
 import { computeEffectiveStatuses } from '../../common/asset-status';
 // PDF: se carga con require para no depender de @types en el build.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -16,9 +17,16 @@ const PDFDocument = require('pdfkit');
 
 const inc = {
   asset: { select: { id: true, assetCode: true, type: true, status: true } },
+  location: { select: { id: true, code: true, name: true } },
   technician: { select: { id: true, fullName: true } },
   incident: { select: { id: true, code: true, title: true } },
+  openedBy: { select: { id: true, fullName: true } },
+  closedBy: { select: { id: true, fullName: true } },
+  companion: { select: { id: true, fullName: true } },
 };
+
+/** Roles que pueden ejecutar una orden de MAPEO (levantamiento en campo). */
+const PUEDE_MAPEAR = ['Jefe de Mantenimiento', 'Supervisor TI', 'Técnico de Red'];
 
 @Injectable()
 export class MaintenanceService {
@@ -29,18 +37,43 @@ export class MaintenanceService {
     private preventive: PreventiveService,
   ) {}
 
+  /**
+   * Correlativo POR AÑO.
+   *
+   * DEFECTO CORREGIDO: antes contaba TODAS las órdenes de la historia y le
+   * sumaba uno, pero ponía el año actual en el código. Resultado: al empezar
+   * 2027 la numeración habría seguido en OM-2027-0051 en vez de OM-2027-0001,
+   * y si alguna orden se cancelaba, el conteo podía repetir un código ya usado
+   * —que revienta contra la restricción de unicidad—.
+   *
+   * Ahora se toma el MAYOR correlativo del año en curso, no la cantidad.
+   */
   private async nextCode(): Promise<string> {
     const year = new Date().getFullYear();
-    const count = await this.prisma.workOrder.count();
-    return `OM-${year}-${String(count + 1).padStart(4, '0')}`;
+    const ultima = await this.prisma.workOrder.findFirst({
+      where: { code: { startsWith: `OM-${year}-` } },
+      orderBy: { code: 'desc' },
+      select: { code: true },
+    });
+    const ultimo = ultima ? Number(ultima.code.split('-').pop()) || 0 : 0;
+    return `OM-${year}-${String(ultimo + 1).padStart(4, '0')}`;
   }
 
   async create(dto: CreateWorkOrderDto) {
+    // Una orden tiene que decir SOBRE QUÉ es: un equipo concreto o una zona.
+    // Sin ninguno de los dos, el técnico no sabe a dónde ir.
+    if (!dto.assetId && !dto.locationId) {
+      throw new BadRequestException(
+        'Indica el activo o la ubicación sobre la que se hará el trabajo.',
+      );
+    }
+
     return this.prisma.workOrder.create({
       data: {
         code: dto.code || (await this.nextCode()),
         type: dto.type,
-        assetId: dto.assetId,
+        assetId: dto.assetId || undefined,
+        locationId: dto.locationId || undefined,
         activity: dto.activity,
         responsible: dto.responsible,
         materials: dto.materials,
@@ -48,9 +81,98 @@ export class MaintenanceService {
         incidentId: dto.incidentId || undefined,
         scheduledDate: dto.scheduledDate ? new Date(dto.scheduledDate) : undefined,
         technicianId: dto.technicianId,
+        // Recepción del pedido de Producción
+        requestedBy: dto.requestedBy,
+        requestChannel: dto.requestChannel,
+        receivedAt: dto.receivedAt ? new Date(dto.receivedAt) : undefined,
+        externalRef: dto.externalRef,
+        // Parada estimada (tentativa; la real la confirma el técnico por radio)
+        plannedStopAt: dto.plannedStopAt ? new Date(dto.plannedStopAt) : undefined,
       },
       include: inc,
     });
+  }
+
+  /**
+   * APERTURA en campo — firmada.
+   *
+   * Marca el inicio real del trabajo. A partir de aquí, en una orden de MAPEO
+   * todo activo que se registre queda ligado a esta orden y a quien firmó.
+   */
+  async openSigned(id: string, dto: OpenWorkOrderDto, ip?: string | null) {
+    const wo = await this.prisma.workOrder.findUnique({ where: { id } });
+    if (!wo) throw new NotFoundException('Orden de mantenimiento no encontrada');
+    if (wo.status === 'CERRADA' || wo.status === 'CANCELADA') {
+      throw new BadRequestException('Esta orden ya está cerrada.');
+    }
+    if (wo.startedAt) {
+      throw new BadRequestException(
+        `La orden ya fue abierta el ${wo.startedAt.toLocaleString('es-PE')}.`,
+      );
+    }
+
+    const signer = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+      include: { role: { select: { name: true } } },
+    });
+    const valid = signer && signer.active
+      ? await argon2.verify(signer.passwordHash, dto.password).catch(() => false)
+      : false;
+    if (!valid) {
+      await this.audit.record({
+        userId: signer?.id || null,
+        action: 'FIRMA_FALLIDA',
+        entity: 'work_orders',
+        entityId: id,
+        ip,
+        after: { intento: dto.email, motivo: 'contraseña incorrecta', accion: 'abrir OM' },
+      });
+      throw new BadRequestException('Firma inválida: contraseña incorrecta');
+    }
+
+    // El levantamiento de activos exige criterio técnico de red: los datos que
+    // se capturan (puerto PoE, canal del grabador, enlace) no los conoce un
+    // técnico eléctrico. Él acompaña y queda declarado, pero no firma.
+    if (wo.type === 'MAPEO' && !PUEDE_MAPEAR.includes(signer!.role?.name || '')) {
+      throw new BadRequestException(
+        'Solo el Técnico de Red, el Supervisor TI o el Jefe de Mantenimiento pueden abrir una orden de mapeo.',
+      );
+    }
+
+    // El acompañante no puede ser el mismo que firma: si van dos a campo,
+    // son dos personas distintas.
+    if (dto.companionId && dto.companionId === signer!.id) {
+      throw new BadRequestException('El acompañante debe ser una persona distinta.');
+    }
+
+    const updated = await this.prisma.workOrder.update({
+      where: { id },
+      data: {
+        status: 'EN_PROCESO',
+        startedAt: dto.startedAt ? new Date(dto.startedAt) : new Date(),
+        openedById: signer!.id,
+        companionId: dto.companionId || undefined,
+        // Si nadie la tenía asignada, queda a nombre de quien la abre.
+        technicianId: wo.technicianId || signer!.id,
+      },
+      include: inc,
+    });
+
+    await this.audit.record({
+      userId: signer!.id,
+      action: 'OPEN_WO',
+      entity: 'work_orders',
+      entityId: id,
+      ip,
+      after: {
+        om: wo.code,
+        tipo: wo.type,
+        firmadoPor: signer!.email,
+        inicioReal: updated.startedAt,
+        acompanante: dto.companionId || null,
+      },
+    });
+    return updated;
   }
 
   async findAll(q: QueryWorkOrderDto) {
@@ -129,23 +251,56 @@ export class MaintenanceService {
       throw new BadRequestException('Firma inválida: contraseña incorrecta');
     }
 
+    const ahora = new Date();
+    const fin = dto.endedAt ? new Date(dto.endedAt) : ahora;
+
+    // El cierre no puede ser anterior al inicio: sería un dato imposible que
+    // luego ensucia cualquier cálculo de duración.
+    if (wo.startedAt && fin < wo.startedAt) {
+      throw new BadRequestException(
+        'La hora de cierre no puede ser anterior a la de inicio del trabajo.',
+      );
+    }
+
     const updated = await this.prisma.workOrder.update({
       where: { id },
       data: {
         status: 'CERRADA',
-        executedDate: wo.executedDate || new Date(),
+        executedDate: wo.executedDate || ahora,
         diagnosis: dto.diagnosis ?? wo.diagnosis,
         technicianId: wo.technicianId || signer!.id,
+        // Cierre en campo (Bloque 1)
+        endedAt: fin,
+        closedById: signer!.id,
+        rootCause: dto.rootCause ?? undefined,
+        rootCauseNote: dto.rootCauseNote ?? undefined,
+        isRecurrent: dto.isRecurrent ?? undefined,
+        // Si el técnico cerró sin haber abierto formalmente, se deja constancia
+        // del inicio para que la duración no quede en blanco.
+        startedAt: wo.startedAt || wo.executedDate || ahora,
       },
       include: inc,
     });
+
+    // Duración real del trabajo, en minutos. Sirve para comparar contra la
+    // parada que estimó Producción y saber si estiman bien.
+    const minutos = updated.startedAt && updated.endedAt
+      ? Math.round((updated.endedAt.getTime() - updated.startedAt.getTime()) / 60000)
+      : null;
+
     await this.audit.record({
       userId: signer!.id,
       action: 'CLOSE_WO',
       entity: 'work_orders',
       entityId: id,
       ip,
-      after: { firmadoPor: signer!.email, om: wo.code },
+      after: {
+        firmadoPor: signer!.email,
+        om: wo.code,
+        causa: dto.rootCause || null,
+        reincidente: dto.isRecurrent ?? false,
+        duracionMinutos: minutos,
+      },
     });
     // Si es una OM PREVENTIVA, reprograma el plan del activo (próximo = ahora + intervalo).
     if (wo.type === 'PREVENTIVO' && wo.assetId) {

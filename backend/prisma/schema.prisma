@@ -27,6 +27,11 @@ model User {
   roleId       String
   role         Role      @relation(fields: [roleId], references: [id])
   lastLoginAt  DateTime?
+  /// PIN corto para reanudar una orden en campo sin teclear la contraseña
+  /// completa con guantes. Se guarda cifrado (argon2), igual que la contraseña.
+  /// La apertura y el cierre de la orden SIEMPRE exigen contraseña completa.
+  pinHash      String?
+  pinUpdatedAt DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -37,6 +42,9 @@ model User {
   stockChecks    StockCheck[]
   accessRequested AccessRequest[] @relation("AccessRequester")
   accessReviewed  AccessRequest[] @relation("AccessReviewer")
+  woOpened        WorkOrder[]     @relation("WoOpenedBy")
+  woClosed        WorkOrder[]     @relation("WoClosedBy")
+  woAccompanied   WorkOrder[]     @relation("WoCompanion")
 
   @@map("users")
 }
@@ -168,6 +176,7 @@ model Location {
   assets           Asset[]
   documents        Document[]
   cabinets         Cabinet[]
+  workOrders       WorkOrder[]
 
   @@index([parentId])
   @@index([path])
@@ -300,6 +309,10 @@ model Asset {
   spareLinks    SparePartAsset[]
   preventivePlan PreventivePlan?
   photos        AssetPhoto[]
+  /// Orden de MAPEO en la que se levantó este activo. Permite reconstruir
+  /// quién lo registró, cuándo y con quién.
+  mappedInWorkOrderId String?
+  mappedInWorkOrder   WorkOrder? @relation("AssetMappedInWo", fields: [mappedInWorkOrderId], references: [id])
   accessRequests AccessRequest[]
 
   @@index([type])
@@ -463,6 +476,49 @@ enum WorkOrderType {
   CORRECTIVO
   MEJORA
   PREDICTIVO  // anticipado por condición (curva P-F): señal, recurrencia, desgaste
+  /// Levantamiento de activos en campo. El mapeo TAMBIÉN es una orden de
+  /// trabajo: se recibe, se asigna, se ejecuta y se cierra con informe.
+  /// Va al final del enum porque PostgreSQL añade los valores nuevos al final.
+  MAPEO
+}
+
+/// Por dónde llegó el pedido de Producción.
+/// Hoy llega por WhatsApp al ingeniero y de ahí se pasa de boca: al registrar
+/// la vía queda constancia de cómo entró y deja de perderse.
+enum RequestChannel {
+  SAP        // orden creada en SAP por Producción
+  WHATSAPP   // mensaje al ingeniero
+  RADIO      // pedido por radio desde el púlpito
+  CORREO
+  VERBAL     // en persona
+  SISTEMA    // generada por el propio SGIT (preventivo automático)
+}
+
+/// Causa encontrada al cerrar la orden.
+/// Es una LISTA y no texto libre porque el técnico cierra contra el reloj de
+/// la parada: con texto libre se escribe "se solucionó" y el dato no sirve
+/// para detectar por qué algo vuelve a fallar.
+enum RootCause {
+  ENERGIA_CORTE          // corte o falla eléctrica
+  FUENTE_POE             // inyector / fuente PoE
+  CABLE_DANADO           // cable cortado, aplastado, quemado
+  CABLE_FUERA_NORMA      // tramo por encima de los 90 m
+  CONECTOR                // RJ45 / empalme / conector mal ponchado
+  EQUIPO_QUEMADO
+  EQUIPO_FIN_VIDA        // desgaste, ya no da más
+  PUERTO_SWITCH          // puerto del switch en falla
+  ENLACE_INALAMBRICO     // antena / enlace PMP degradado
+  SATURACION_NVR         // sesiones agotadas
+  DISCO_NVR
+  CONFIGURACION          // configuración incorrecta
+  FIRMWARE
+  AMBIENTAL              // polvo, calor, humedad, escoria, vibración
+  GOLPE_VANDALISMO
+  /// El técnico fue, revisó y NO encontró falla. Es un dato valioso, no un
+  /// fracaso: varias órdenes seguidas así sobre el mismo equipo apuntan a una
+  /// falla intermitente (cable largo, interferencia) que nadie está viendo.
+  SIN_FALLA_ENCONTRADA
+  OTRO
 }
 
 enum WorkOrderStatus {
@@ -476,8 +532,14 @@ enum WorkOrderStatus {
 model WorkOrder {
   id           String          @id @default(uuid())
   code         String          @unique // ej: OT-2026-0001
-  assetId      String
-  asset        Asset           @relation(fields: [assetId], references: [id])
+  /// OPCIONAL desde el Bloque 1. Una orden de MAPEO cubre una ZONA, no un
+  /// activo: el técnico va al lecho de enfriamiento y registra 12 cámaras.
+  /// Lo mismo con un corte de energía que deja media sala sin visión.
+  assetId      String?
+  asset        Asset?          @relation(fields: [assetId], references: [id])
+  /// Alcance por ubicación, para las órdenes que no son de un solo equipo.
+  locationId   String?
+  location     Location?       @relation(fields: [locationId], references: [id])
   type         WorkOrderType
   status       WorkOrderStatus @default(ABIERTA)
   technicianId String?
@@ -493,14 +555,50 @@ model WorkOrder {
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
 
-  zone         String?         // zona de intervención (Horno, Laminación, Tren, Púlpito...)
+  zone         String?         // zona de intervención en texto libre (previo al Bloque 1)
   incidentId   String?         // incidencia que originó la OM (opcional)
   incident     Incident?          @relation(fields: [incidentId], references: [id])
   evidences    WorkOrderEvidence[]
 
+  // ---- RECEPCIÓN (Bloque 1) ----
+  // Producción crea la orden en SAP y la manda por WhatsApp al ingeniero, que
+  // la pasa de boca. Aquí queda por escrito quién la pidió y por dónde entró.
+  requestedBy    String?          // nombre de quien la solicitó (Producción)
+  requestChannel RequestChannel?  // por dónde llegó
+  receivedAt     DateTime?        // cuándo se recibió
+  externalRef    String?          // número de la orden en SAP, si lo tiene
+
+  // ---- PARADA Y EJECUCIÓN (Bloque 1) ----
+  /// Hora de parada ESTIMADA por Producción al crear la orden. Es tentativa:
+  /// cambia según la producción del turno.
+  plannedStopAt DateTime?
+  /// Horas REALES. Las pone el técnico ya en campo, después de confirmar por
+  /// radio con Producción a qué hora se detiene de verdad.
+  startedAt     DateTime?
+  endedAt       DateTime?
+  /// Quién abrió y quién cerró la orden (firma electrónica verificada).
+  openedById    String?
+  openedBy      User?            @relation("WoOpenedBy", fields: [openedById], references: [id])
+  closedById    String?
+  closedBy      User?            @relation("WoClosedBy", fields: [closedById], references: [id])
+  /// Acompañante en campo. En planta van dos: el técnico de red registra y el
+  /// técnico eléctrico acompaña. Queda declarado para trazabilidad y SSOMA.
+  companionId   String?
+  companion     User?            @relation("WoCompanion", fields: [companionId], references: [id])
+
+  // ---- CIERRE (Bloque 1) ----
+  rootCause     RootCause?       // causa encontrada (lista)
+  rootCauseNote String?          // detalle opcional
+  isRecurrent   Boolean          @default(false) // el técnico marca si ya había pasado
+
+  /// Activos levantados durante esta orden (solo aplica a las de tipo MAPEO).
+  mappedAssets  Asset[]          @relation("AssetMappedInWo")
+
   @@index([assetId])
+  @@index([locationId])
   @@index([status])
   @@index([incidentId])
+  @@index([type, status])
   @@map("work_orders")
 }
 

@@ -10,6 +10,7 @@ import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 import { QueryWorkOrderDto } from './dto/query-work-order.dto';
 import { CloseWorkOrderDto } from './dto/close-work-order.dto';
+import { OpenWorkOrderDto } from './dto/open-work-order.dto';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 
 @ApiTags('maintenance')
@@ -50,6 +51,18 @@ export class MaintenanceController {
   @RequirePermissions('wo.update')
   update(@Param('id') id: string, @Body() dto: UpdateWorkOrderDto) {
     return this.wo.update(id, dto);
+  }
+
+  /**
+   * APERTURA en campo — firmada.
+   *
+   * Permiso wo.update (no wo.approve): el que abre y ejecuta es el técnico,
+   * no el Jefe. El cierre sí queda reservado al Jefe.
+   */
+  @Post(':id/open')
+  @RequirePermissions('wo.update')
+  open(@Param('id') id: string, @Body() dto: OpenWorkOrderDto, @Ip() ip: string) {
+    return this.wo.openSigned(id, dto, ip);
   }
 
   // Cierre firmado: SOLO Jefe de Mantenimiento (permiso wo.approve).
