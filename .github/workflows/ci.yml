@@ -171,6 +171,15 @@ jobs:
             exit 1
           fi
 
+      # `prisma db seed` ejecuta `node dist/seed.js` (asi esta configurado en
+      # package.json), de modo que la semilla hay que COMPILARLA antes. Sin este
+      # paso falla con "Cannot find module dist/seed.js".
+      # Solo se compila la semilla: no hace falta construir todo el backend,
+      # de eso ya se encarga el trabajo `backend`.
+      - name: Compilar la semilla
+        working-directory: backend
+        run: npx tsc prisma/seed.ts --outDir dist --rootDir prisma --module commonjs --target ES2021 --esModuleInterop --skipLibCheck
+
       # La semilla es el punto de partida de la planta. Si se rompe, el
       # despliegue queda sin roles, permisos ni jerarquia de Laminacion.
       - name: Verificar que la semilla funciona
