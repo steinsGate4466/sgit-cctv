@@ -42,7 +42,7 @@ export default function Preventive() {
     Promise.all([
       api.get('/preventive/plans').then((r) => r.data).catch(() => []),
       api.get('/preventive/summary').then((r) => r.data).catch(() => null),
-      api.get('/assets').then((r) => r.data).catch(() => []),
+      api.get('/assets/options').then((r) => r.data).catch(() => []),
       api.get('/work-orders?type=PREVENTIVO&pageSize=200').then((r) => r.data).catch(() => ({ data: [] })),
       api.get('/preventive/autogen-status').then((r) => r.data).catch(() => null),
     ]).then(([p, s, a, w, ag]) => {

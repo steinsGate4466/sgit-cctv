@@ -40,7 +40,7 @@ export default function Access() {
     Promise.all([
       api.get('/access-requests').then((r) => r.data).catch(() => []),
       api.get('/access-requests/summary').then((r) => r.data).catch(() => null),
-      api.get('/assets').then((r) => r.data).catch(() => []),
+      api.get('/assets/options').then((r) => r.data).catch(() => []),
     ]).then(([r, s, a]) => { setRows(r || []); setSummary(s); setAssets(a || []); setLoading(false); });
   }, []);
 

@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { StagesService } from './stages.service';
+import { CreateStageDto, UpdateStageDto } from './dto/stage.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
@@ -40,13 +41,13 @@ export class StagesController {
 
   @Post()
   @RequirePermissions('location.manage')
-  create(@Body() dto: any) {
+  create(@Body() dto: CreateStageDto) {
     return this.stages.create(dto);
   }
 
   @Patch(':id')
   @RequirePermissions('location.manage')
-  update(@Param('id') id: string, @Body() dto: any) {
+  update(@Param('id') id: string, @Body() dto: UpdateStageDto) {
     return this.stages.update(id, dto);
   }
 

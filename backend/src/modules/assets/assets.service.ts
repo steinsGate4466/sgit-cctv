@@ -5,6 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { StorageService } from '../storage/storage.service';
 import { computeEffectiveStatuses, computeEffectiveStatus } from '../../common/asset-status';
+import { resolverContextoDePlanta } from '../../common/plant-context';
 // PDF y QR: require para no depender de @types en el build.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PDFDocument = require('pdfkit');
@@ -17,7 +18,7 @@ const PHOTO_ES: Record<string, string> = { APUNTA: 'Imagen en pantalla (púlpito
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { SignedCreateAssetDto } from './dto/create-asset-signed.dto';
 import { SignedUpdateAssetDto } from './dto/update-asset-signed.dto';
-import { UpdateAssetDto } from './dto/update-asset.dto';
+import { UpdateAssetStatusDto } from './dto/update-asset-status.dto';
 import { UpdateNetworkDto } from './dto/update-network.dto';
 import { QueryAssetDto } from './dto/query-asset.dto';
 
@@ -64,42 +65,89 @@ export class AssetsService {
     return asset;
   }
 
+  /**
+   * Listado PAGINADO de activos.
+   *
+   * Antes traía la tabla completa sin límite. Con los 400+ activos del mapeo
+   * eso significa cargar todo el inventario —con sus relaciones— en cada
+   * apertura de pantalla. Ahora se pagina en el servidor, como ya hacían
+   * Incidencias y Órdenes.
+   *
+   * Devuelve { items, total, page, pageSize, pages } para que el frontend
+   * pueda dibujar el paginador sin adivinar cuántos hay.
+   */
   async findAll(q: QueryAssetDto, sensitive = false) {
-    const rows = await this.prisma.asset.findMany({
-      where: {
-        deletedAt: null,
-        type: q.type,
-        status: q.status,
-        train: q.train,
-        locationId: q.locationId,
-        cabinetId: q.cabinetId,
-        ...(q.search
-          ? {
-              OR: [
-                { assetCode: { contains: q.search, mode: 'insensitive' } },
-                { model: { contains: q.search, mode: 'insensitive' } },
-                { brand: { contains: q.search, mode: 'insensitive' } },
-                { serialNumber: { contains: q.search, mode: 'insensitive' } },
-                { referencePlace: { contains: q.search, mode: 'insensitive' } },
-              ],
-            }
-          : {}),
-      },
-      include: sensitive
+    const page = Math.max(1, Number(q.page) || 1);
+    // Tope de 200 por página: protege al servidor de una petición como
+    // ?pageSize=100000 que traería todo y anularía la paginación.
+    const pageSize = Math.min(200, Math.max(1, Number(q.pageSize) || 50));
+
+    const where = {
+      deletedAt: null,
+      type: q.type,
+      status: q.status,
+      locationId: q.locationId,
+      cabinetId: q.cabinetId,
+      ...(q.search
         ? {
-            location: true,
-            camera: { select: { ipAddress: true } },
-            switchDev: { select: { mgmtIp: true } },
-            nvr: { select: { nicPrimary: true } },
-            credentials: { take: 1, orderBy: { createdAt: 'desc' } },
+            OR: [
+              { assetCode: { contains: q.search, mode: 'insensitive' as const } },
+              { model: { contains: q.search, mode: 'insensitive' as const } },
+              { brand: { contains: q.search, mode: 'insensitive' as const } },
+              { serialNumber: { contains: q.search, mode: 'insensitive' as const } },
+              { referencePlace: { contains: q.search, mode: 'insensitive' as const } },
+            ],
           }
-        : { location: true },
-      orderBy: { assetCode: 'asc' },
+        : {}),
+    };
+
+    // Cuenta y página en paralelo: una sola ida a la base.
+    const [total, rows] = await Promise.all([
+      this.prisma.asset.count({ where }),
+      this.prisma.asset.findMany({
+        where,
+        include: sensitive
+          ? {
+              location: true,
+              camera: { select: { ipAddress: true } },
+              switchDev: { select: { mgmtIp: true } },
+              nvr: { select: { nicPrimary: true } },
+              credentials: { take: 1, orderBy: { createdAt: 'desc' } },
+            }
+          : { location: true },
+        orderBy: { assetCode: 'asc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
+
+    const meta = { total, page, pageSize, pages: Math.max(1, Math.ceil(total / pageSize)) };
+
+    // Estado operativo DERIVADO (F5) y contexto de planta DERIVADO (F8).
+    // Ambos por lote y solo sobre la página actual, no sobre todo el inventario.
+    //
+    // El tren ya NO viene de la columna Asset.train: se deduce subiendo el árbol
+    // de ubicaciones. Así desaparece la posibilidad de que un activo cuelgue del
+    // Tren 2 y diga TREN_1.
+    const [eff, ctx] = await Promise.all([
+      computeEffectiveStatuses(this.prisma, rows),
+      resolverContextoDePlanta(this.prisma, rows as any),
+    ]);
+
+    const enriquecer = (a: any) => ({
+      effectiveStatus: eff[a.id] || a.status,
+      trenNombre: ctx[a.id]?.trenNombre || null,
+      etapaNombre: ctx[a.id]?.etapaNombre || null,
+      // true = al activo le falta asignar etapa del proceso. Alimenta el
+      // panel de avance del mapeo.
+      etapaPendiente: ctx[a.id]?.requiereAsignarEtapa ?? true,
     });
-    // Estado operativo DERIVADO (F5): calculado desde OM/incidencias abiertas.
-    const eff = await computeEffectiveStatuses(this.prisma, rows);
+
     if (!sensitive) {
-      return rows.map((a: any) => ({ ...a, effectiveStatus: eff[a.id] || a.status }));
+      return {
+        ...meta,
+        items: rows.map((a: any) => ({ ...a, ...enriquecer(a) })),
+      };
     }
     // IP visible para roles con credential.read (Jefe, Supervisor TI, Técnico de Red).
     //
@@ -107,17 +155,52 @@ export class AssetsService {
     // enviaban todas las claves de los equipos con solo abrir la pantalla (y también
     // al pintar el dashboard). Ahora se indica si existe credencial y se revela una
     // sola, bajo demanda, por el endpoint /credentials/:id/reveal, que queda auditado.
-    return rows.map((a: any) => {
-      const { credentials, camera, switchDev, nvr, ...rest } = a;
-      const c = credentials?.[0];
-      return {
-        ...rest,
-        effectiveStatus: eff[a.id] || a.status,
-        ip: a.ipAddress || camera?.ipAddress || switchDev?.mgmtIp || nvr?.nicPrimary || null,
-        hasPassword: !!c,
-        credentialId: c?.id || null,
-      };
+    return {
+      ...meta,
+      items: rows.map((a: any) => {
+        const { credentials, camera, switchDev, nvr, ...rest } = a;
+        const c = credentials?.[0];
+        return {
+          ...rest,
+          ...enriquecer(a),
+          ip: a.ipAddress || camera?.ipAddress || switchDev?.mgmtIp || nvr?.nicPrimary || null,
+          hasPassword: !!c,
+          credentialId: c?.id || null,
+        };
+      }),
+    };
+  }
+
+  /**
+   * Lista LIGERA para desplegables de selección.
+   *
+   * Seis pantallas (Incidencias, Órdenes, Preventivo, Inventario, Accesibilidad
+   * y la propia de Activos) solo necesitan poder elegir un activo de una lista.
+   * Antes llamaban a findAll y recibían el inventario completo con ubicaciones,
+   * credenciales y estado derivado —cientos de kilobytes para pintar un <select>.
+   *
+   * Aquí van solo los campos necesarios para identificarlo. Sin paginar:
+   * un desplegable necesita la lista entera, pero pesa una fracción.
+   */
+  async options() {
+    const rows = await this.prisma.asset.findMany({
+      where: { deletedAt: null, status: { notIn: ['BAJA'] } },
+      select: {
+        id: true,
+        assetCode: true,
+        type: true,
+        status: true,
+        location: { select: { name: true } },
+      },
+      orderBy: { assetCode: 'asc' },
     });
+    return rows.map((a) => ({
+      id: a.id,
+      assetCode: a.assetCode,
+      type: a.type,
+      status: a.status,
+      locationName: a.location?.name || null,
+    }));
   }
 
   /**
@@ -150,13 +233,66 @@ export class AssetsService {
       if (asset.switchDev) { asset.switchDev.mgmtIp = null; }
       if (asset.nvr) { asset.nvr.nicPrimary = null; asset.nvr.nicSecondary = null; }
     }
-    // Estado operativo derivado (F5) para que el detalle sea coherente con OM/incidencias.
-    asset.effectiveStatus = await computeEffectiveStatus(this.prisma, asset);
+    // Estado operativo derivado (F5) y contexto de planta derivado (F8),
+    // para que la ficha sea coherente con las OM/incidencias y con el árbol.
+    const [effStatus, ctx] = await Promise.all([
+      computeEffectiveStatus(this.prisma, asset),
+      resolverContextoDePlanta(this.prisma, [asset]),
+    ]);
+    asset.effectiveStatus = effStatus;
+
+    const c = ctx[asset.id];
+    asset.planta = {
+      tren: c?.trenNombre || null,
+      etapa: c?.etapaNombre || null,
+      ambiente: c?.ambiente || null,
+      // Criticidad efectiva: la mayor entre la del activo y la mínima que
+      // impone su etapa del proceso.
+      criticidadEfectiva: c?.criticidad || asset.criticality,
+      intervaloPreventivoDias: c?.intervaloDias ?? null,
+      etapaPendiente: c?.requiereAsignarEtapa ?? true,
+    };
     return asset;
   }
 
-  update(id: string, dto: UpdateAssetDto) {
-    return this.prisma.asset.update({ where: { id }, data: dto });
+  /**
+   * Cambio de ESTADO del activo — única edición sin firma.
+   *
+   * ANTES: este método aceptaba el activo COMPLETO (UpdateAssetDto) con solo
+   * el permiso asset.update. Es decir, un Técnico podía cambiar la IP, el
+   * código o la ubicación sin dejar firma, rodeando por completo la protección
+   * de PATCH /assets/:id/edit, que sí la exige. Dos caminos para lo mismo con
+   * niveles de control distintos: el débil anulaba al fuerte.
+   *
+   * AHORA solo acepta el estado. Es lo que el técnico legítimamente cambia en
+   * campo ("lo dejé en mantenimiento"), es reversible, y queda auditado.
+   * Cualquier otro campo exige el camino firmado.
+   */
+  async updateStatus(
+    id: string,
+    dto: UpdateAssetStatusDto,
+    userId?: string | null,
+    ip?: string | null,
+  ) {
+    const asset = await this.prisma.asset.findUnique({ where: { id } });
+    if (!asset || asset.deletedAt) throw new NotFoundException('Activo no encontrado');
+
+    const updated = await this.prisma.asset.update({
+      where: { id },
+      data: { status: dto.status },
+    });
+
+    await this.audit.record({
+      userId: userId || null,
+      action: 'UPDATE_ASSET_STATUS',
+      entity: 'assets',
+      entityId: id,
+      ip,
+      before: { status: asset.status },
+      after: { assetCode: asset.assetCode, status: updated.status },
+    });
+
+    return { id: updated.id, status: updated.status };
   }
 
   /**

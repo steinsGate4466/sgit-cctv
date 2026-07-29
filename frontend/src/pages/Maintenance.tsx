@@ -75,7 +75,7 @@ export default function Maintenance() {
     if (to) params.set('to', new Date(to + 'T23:59:59.999').toISOString());
     const [wo, ast, inc] = await Promise.all([
       api.get('/work-orders?' + params.toString()).then((r) => r.data).catch(() => ({ data: [] })),
-      api.get('/assets').then((r) => r.data).catch(() => []),
+      api.get('/assets/options').then((r) => r.data).catch(() => []),
       api.get('/incidents').then((r) => r.data).catch(() => []),
     ]);
     setRows(wo.data || []);

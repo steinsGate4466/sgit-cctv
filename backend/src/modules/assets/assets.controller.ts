@@ -7,7 +7,7 @@ import type { Response } from 'express';
 import { AssetsService } from './assets.service';
 import { SignedCreateAssetDto } from './dto/create-asset-signed.dto';
 import { SignedUpdateAssetDto } from './dto/update-asset-signed.dto';
-import { UpdateAssetDto } from './dto/update-asset.dto';
+import { UpdateAssetStatusDto } from './dto/update-asset-status.dto';
 import { UpdateNetworkDto } from './dto/update-network.dto';
 import { QueryAssetDto } from './dto/query-asset.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -36,6 +36,16 @@ export class AssetsController {
     return this.assets.findAll(q, sensitive);
   }
 
+  /**
+   * Lista ligera para desplegables. DEBE declararse ANTES de @Get(':id'):
+   * NestJS resuelve por orden y ':id' capturaría la palabra "options".
+   */
+  @Get('options')
+  @RequirePermissions('asset.read')
+  options() {
+    return this.assets.options();
+  }
+
   @Get(':id')
   @RequirePermissions('asset.read')
   findOne(@Param('id') id: string, @CurrentUser() user: any) {
@@ -43,10 +53,23 @@ export class AssetsController {
     return this.assets.findOne(id, sensitive);
   }
 
-  @Patch(':id')
+  /**
+   * Cambio de ESTADO — la única edición sin firma.
+   *
+   * Antes esta ruta era PATCH /assets/:id y aceptaba el activo COMPLETO con
+   * solo asset.update: permitía cambiar IP, código o ubicación sin firma,
+   * rodeando la protección de PATCH /assets/:id/edit. Ahora es una ruta
+   * explícita que solo admite el estado.
+   */
+  @Patch(':id/status')
   @RequirePermissions('asset.update')
-  update(@Param('id') id: string, @Body() dto: UpdateAssetDto) {
-    return this.assets.update(id, dto);
+  updateStatus(
+    @Param('id') id: string,
+    @Body() dto: UpdateAssetStatusDto,
+    @CurrentUser() user: any,
+    @Ip() ip: string,
+  ) {
+    return this.assets.updateStatus(id, dto, user?.userId, ip);
   }
 
   // Edición FIRMADA (completa): solo Jefe, Supervisor TI y Técnico de Red (credential.read).

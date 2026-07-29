@@ -90,7 +90,7 @@ export default function Incidents() {
     if (to) params.set('to', new Date(to + 'T23:59:59.999').toISOString());
     const [inc, ast] = await Promise.all([
       api.get('/incidents?' + params.toString()).then((r) => r.data).catch(() => ({ data: [] })),
-      api.get('/assets').then((r) => r.data).catch(() => []),
+      api.get('/assets/options').then((r) => r.data).catch(() => []),
     ]);
     setRows(inc.data || []);
     setAssets(ast || []);

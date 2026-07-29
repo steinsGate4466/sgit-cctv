@@ -53,7 +53,7 @@ export default function Inventory() {
     const [list, sum, ast] = await Promise.all([
       api.get('/inventory?' + params.toString()).then((r) => r.data).catch(() => []),
       api.get('/inventory/summary').then((r) => r.data).catch(() => null),
-      api.get('/assets').then((r) => r.data).catch(() => []),
+      api.get('/assets/options').then((r) => r.data).catch(() => []),
     ]);
     setRows(list || []);
     setSummary(sum);

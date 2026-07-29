@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { INTERVALO_POR_AMBIENTE, Ambiente } from '../../common/plant-context';
+import { CreateStageDto, UpdateStageDto } from './dto/stage.dto';
 
 /**
  * ETAPAS DEL PROCESO — catálogo editable.
@@ -53,10 +54,10 @@ export class StagesService {
     ];
   }
 
-  async create(dto: any) {
-    const code = String(dto.code || '').trim().toUpperCase().replace(/\s+/g, '_');
-    if (!code) throw new BadRequestException('El código de la etapa es obligatorio');
-    if (!dto.name?.trim()) throw new BadRequestException('El nombre de la etapa es obligatorio');
+  async create(dto: CreateStageDto) {
+    // El DTO ya garantiza que code y name vienen y tienen longitud mínima.
+    // Aquí solo se normaliza el código: mayúsculas y sin espacios.
+    const code = dto.code.trim().toUpperCase().replace(/\s+/g, '_');
 
     const yaExiste = await this.prisma.processStage.findUnique({ where: { code } });
     if (yaExiste) throw new ConflictException(`Ya existe una etapa con el código ${code}`);
@@ -87,7 +88,7 @@ export class StagesService {
     });
   }
 
-  async update(id: string, dto: any) {
+  async update(id: string, dto: UpdateStageDto) {
     const etapa = await this.prisma.processStage.findUnique({ where: { id } });
     if (!etapa) throw new NotFoundException('Etapa no encontrada');
 

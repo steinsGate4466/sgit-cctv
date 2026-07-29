@@ -11,12 +11,15 @@ const CRITS = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
 const CABINET_REQUIRED = ['NVR', 'SWITCH', 'SERVER', 'DECODER', 'ROUTER', 'FIREWALL'];
 // Tipos de fotografía del activo.
 // Zona productiva de la planta a la que pertenece el activo.
-const TRAINS = ['TREN_1', 'TREN_2', 'TREN_3', 'PATIO', 'PLANTA_GENERAL'];
-const TRAIN_ES: Record<string, string> = {
-  TREN_1: 'Tren 1', TREN_2: 'Tren 2', TREN_3: 'Tren 3',
-  PATIO: 'Patio / exteriores', PLANTA_GENERAL: 'Planta general',
+// El tren ya no es un campo del activo: se deduce del árbol de ubicaciones.
+const AMBIENTE_ES: Record<string, string> = {
+  CALOR_RADIANTE: 'Calor radiante (horno)',
+  VAPOR_AGUA: 'Vapor y agua (tren)',
+  POLVO_METALICO: 'Polvo metálico / cascarilla',
+  INTEMPERIE_SALINA: 'Intemperie (patio, almacén)',
+  EMI_ALTA: 'Sala eléctrica / MCC',
+  CLIMATIZADO: 'Climatizado (púlpito)',
 };
-const trEs = (v?: string | null) => (v ? TRAIN_ES[v] || v : '—');
 
 const PHOTO_KINDS = ['APUNTA', 'REFERENCIA', 'PLANO', 'GENERAL'];
 const PHOTO_KIND_ES: Record<string, string> = { APUNTA: 'Imagen en pantalla (púlpito)', REFERENCIA: 'Ubicación de referencia', PLANO: 'Ubicación en plano', GENERAL: 'General' };
@@ -59,11 +62,15 @@ export default function Assets() {
   const [accessFor, setAccessFor] = useState<any>(null);
   // Contraseñas reveladas en la tabla (bajo demanda, auditado)
   const [rowPass, setRowPass] = useState<Record<string, string>>({});
-  // Filtros de la tabla (se aplican en el navegador: con cientos de activos es inmediato)
+  // Filtros y paginación — AHORA EN EL SERVIDOR.
+  // Antes se filtraba en el navegador sobre la lista completa. Con paginación
+  // eso sería un error silencioso: el filtro solo miraría la página visible y
+  // el usuario creería que no hay más coincidencias.
   const [fq, setFq] = useState('');
-  const [fTrain, setFTrain] = useState('');
   const [fType, setFType] = useState('');
   const [fStatus, setFStatus] = useState('');
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState<any>({ total: 0, page: 1, pageSize: 50, pages: 1 });
   // QR del activo
   const [qrFor, setQrFor] = useState<any>(null);
   const [qrUrl, setQrUrl] = useState('');
@@ -89,29 +96,47 @@ export default function Assets() {
   const [qPass, setQPass] = useState('');
   const [qSaving, setQSaving] = useState(false);
 
-  async function loadAssets() {
-    const r = await api.get('/assets').then((x) => x.data).catch(() => []);
-    setRows(r || []);
+  async function loadAssets(p = page) {
+    const params: any = { page: p, pageSize: 50 };
+    if (fq.trim()) params.search = fq.trim();
+    if (fType) params.type = fType;
+    if (fStatus) params.status = fStatus;
+    const r = await api.get('/assets', { params }).then((x) => x.data).catch(() => null);
+    if (!r) return;
+    setRows(r.items || []);
+    setMeta({ total: r.total, page: r.page, pageSize: r.pageSize, pages: r.pages });
   }
+
+  // Catálogos que no cambian con el filtro: se cargan una sola vez.
   useEffect(() => {
     Promise.all([
-      api.get('/assets').then((r) => r.data).catch(() => []),
       api.get('/locations').then((r) => r.data).catch(() => []),
       api.get('/cabinets').then((r) => r.data).catch(() => []),
-    ]).then(([a, l, c]) => { setRows(a || []); setLocations(l || []); setCabinets(c || []); setLoading(false); });
+    ]).then(([l, c]) => { setLocations(l || []); setCabinets(c || []); });
   }, []);
+
+  // Recarga al cambiar filtros o página. El retardo de 350 ms evita disparar
+  // una consulta por cada tecla que el usuario escribe en el buscador.
+  useEffect(() => {
+    const t = setTimeout(() => { loadAssets(page).finally(() => setLoading(false)); }, 350);
+    return () => clearTimeout(t);
+  }, [fq, fType, fStatus, page]);
+
+  // Cualquier cambio de filtro vuelve a la primera página: si estabas en la
+  // página 4 y filtras, la 4 puede no existir en el resultado nuevo.
+  useEffect(() => { setPage(1); }, [fq, fType, fStatus]);
 
   function openNew() {
     setFormErr('');
     setTries(5);
-    setForm({ assetCode: '', type: 'CAMERA', brand: '', model: '', serialNumber: '', ipAddress: '', devicePass: '', status: 'OPERATIVO', criticality: 'MEDIA', train: '', locationId: '', cabinetId: '', referencePlace: '', sapId: '', responsibleArea: '', email: user?.email || '', password: '' });
+    setForm({ assetCode: '', type: 'CAMERA', brand: '', model: '', serialNumber: '', ipAddress: '', devicePass: '', status: 'OPERATIVO', criticality: 'MEDIA', locationId: '', cabinetId: '', referencePlace: '', sapId: '', responsibleArea: '', email: user?.email || '', password: '' });
   }
   function openEdit(a: any) {
     setFormErr(''); setTries(5); setDetail(null);
     setForm({
       id: a.id, assetCode: a.assetCode || '', type: a.type || 'CAMERA', brand: a.brand || '', model: a.model || '',
       serialNumber: a.serialNumber || '', ipAddress: a.ipAddress || '', status: a.status || 'OPERATIVO',
-      criticality: a.criticality || 'MEDIA', train: a.train || '', locationId: a.locationId || '', cabinetId: a.cabinetId || '', referencePlace: a.referencePlace || '', sapId: a.sapId || '',
+      criticality: a.criticality || 'MEDIA', locationId: a.locationId || '', cabinetId: a.cabinetId || '', referencePlace: a.referencePlace || '', sapId: a.sapId || '',
       responsibleArea: a.responsibleArea || '', devicePass: '', email: user?.email || '', password: '',
     });
   }
@@ -124,7 +149,7 @@ export default function Assets() {
         assetCode: form.assetCode, type: form.type, status: form.status, criticality: form.criticality,
         brand: form.brand || undefined, model: form.model || undefined, serialNumber: form.serialNumber || undefined,
         ipAddress: form.ipAddress || undefined, referencePlace: form.referencePlace || undefined,
-        train: form.train || undefined, locationId: form.locationId || undefined, cabinetId: form.cabinetId || undefined, sapId: form.sapId || undefined, responsibleArea: form.responsibleArea || undefined,
+        locationId: form.locationId || undefined, cabinetId: form.cabinetId || undefined, sapId: form.sapId || undefined, responsibleArea: form.responsibleArea || undefined,
         email: form.email, password: form.password,
       };
       let assetId = form.id;
@@ -235,7 +260,7 @@ export default function Assets() {
     if (!detail || !newStatus || newStatus === detail.status) return;
     setSavingStatus(true);
     try {
-      await api.patch('/assets/' + detail.id, { status: newStatus });
+      await api.patch('/assets/' + detail.id + '/status', { status: newStatus });
       setDetail({ ...detail, status: newStatus });
       await loadAssets();
     } catch { window.alert('No se pudo actualizar el estado.'); }
@@ -333,16 +358,9 @@ export default function Assets() {
 
   if (loading) return <div className="loading">Cargando activos…</div>;
 
-  // Filtrado en el navegador: instantáneo y sin recargar desde el servidor.
-  const term = fq.trim().toLowerCase();
-  const visibles = rows.filter((a) => {
-    if (fTrain && (a.train || '') !== fTrain) return false;
-    if (fType && a.type !== fType) return false;
-    if (fStatus && (a.effectiveStatus || a.status) !== fStatus) return false;
-    if (!term) return true;
-    return [a.assetCode, a.brand, a.model, a.serialNumber, a.referencePlace, a.location?.name, a.ip]
-      .filter(Boolean).some((v: string) => String(v).toLowerCase().includes(term));
-  });
+  // El servidor ya devuelve la página filtrada: aquí solo se pinta.
+  const visibles = rows;
+  const hayFiltro = !!(fq.trim() || fType || fStatus);
 
   return (
     <div>
@@ -350,9 +368,10 @@ export default function Assets() {
         <div>
           <h1 className="page-title">Activos Tecnológicos</h1>
           <p className="page-sub">
-            {visibles.length === rows.length
-              ? `${rows.length} activos · haz clic en un activo para ver el detalle`
-              : `${visibles.length} de ${rows.length} activos (filtrados)`}
+            {hayFiltro
+              ? `${meta.total} activos encontrados`
+              : `${meta.total} activos · haz clic en uno para ver el detalle`}
+            {meta.pages > 1 && ` · página ${meta.page} de ${meta.pages}`}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -364,12 +383,6 @@ export default function Assets() {
         <div style={{ flex: 1, minWidth: 180 }}>
           <label>Buscar</label>
           <input value={fq} onChange={(e) => setFq(e.target.value)} placeholder="código, marca, modelo, serie, IP, referencia…" />
-        </div>
-        <div><label>Tren / zona</label>
-          <select value={fTrain} onChange={(e) => setFTrain(e.target.value)}>
-            <option value="">Todos</option>
-            {TRAINS.map((t) => <option key={t} value={t}>{TRAIN_ES[t]}</option>)}
-          </select>
         </div>
         <div><label>Tipo</label>
           <select value={fType} onChange={(e) => setFType(e.target.value)}>
@@ -385,20 +398,27 @@ export default function Assets() {
             ))}
           </select>
         </div>
-        <button className="btn-mini" onClick={() => { setFq(''); setFTrain(''); setFType(''); setFStatus(''); }}>Limpiar</button>
+        <button className="btn-mini" onClick={() => { setFq(''); setFType(''); setFStatus(''); }}>Limpiar</button>
       </div>
 
       <div className="card">
         <table>
           <thead>
-            <tr><th>Código</th><th>Tipo</th><th>Tren</th><th>Marca / Modelo</th>{can('credential.read') && <th>IP</th>}{can('credential.read') && <th>Contraseña</th>}<th>Estado</th><th>Criticidad</th><th>Ubicación</th>{can('credential.read') && <th></th>}</tr>
+            <tr><th>Código</th><th>Tipo</th><th>Tren / Etapa</th><th>Marca / Modelo</th>{can('credential.read') && <th>IP</th>}{can('credential.read') && <th>Contraseña</th>}<th>Estado</th><th>Criticidad</th><th>Ubicación</th>{can('credential.read') && <th></th>}</tr>
           </thead>
           <tbody>
             {visibles.map((a) => (
               <tr key={a.id} style={{ cursor: 'pointer' }} onClick={() => openDetail(a.id)}>
                 <td style={{ fontWeight: 600 }}>{a.assetCode}</td>
                 <td>{tEs(a.type)}</td>
-                <td>{a.train ? <span className="badge MEDIA">{trEs(a.train)}</span> : <span className="muted" style={{ fontSize: 11 }}>Sin asignar</span>}</td>
+                <td>
+                  {a.trenNombre
+                    ? <span className="badge MEDIA">{a.trenNombre}</span>
+                    : <span className="muted" style={{ fontSize: 11 }}>Sin tren</span>}
+                  {a.etapaNombre
+                    ? <div className="muted" style={{ fontSize: 11 }}>{a.etapaNombre}</div>
+                    : <div className="muted" style={{ fontSize: 11, fontStyle: 'italic' }}>falta etapa</div>}
+                </td>
                 <td>{[a.brand, a.model].filter(Boolean).join(' ') || '—'}</td>
                 {can('credential.read') && <td className="muted" style={{ fontFamily: 'monospace', fontSize: 12 }}>{a.ip || '—'}</td>}
                 {can('credential.read') && (
@@ -416,8 +436,41 @@ export default function Assets() {
                 {can('credential.read') && <td><button className="btn-mini" onClick={(e) => { e.stopPropagation(); openQuickEdit(a); }}>Editar</button></td>}
               </tr>
             ))}
+            {!visibles.length && (
+              <tr>
+                <td colSpan={12} className="muted" style={{ textAlign: 'center', padding: 30 }}>
+                  {hayFiltro
+                    ? 'Ningún activo coincide con el filtro.'
+                    : 'Todavía no hay activos registrados.'}
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
+
+        {/* Paginador — el filtrado y el corte los hace el servidor */}
+        {meta.pages > 1 && (
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            gap: 10, padding: '10px 12px', borderTop: '1px solid var(--line, #e5e7eb)', flexWrap: 'wrap',
+          }}>
+            <span className="muted" style={{ fontSize: 12 }}>
+              Mostrando {(meta.page - 1) * meta.pageSize + 1}–
+              {Math.min(meta.page * meta.pageSize, meta.total)} de {meta.total}
+            </span>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <button className="btn-mini" disabled={meta.page <= 1}
+                onClick={() => setPage(1)}>« Primera</button>
+              <button className="btn-mini" disabled={meta.page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}>‹ Anterior</button>
+              <span style={{ fontSize: 12, padding: '0 6px' }}>{meta.page} / {meta.pages}</span>
+              <button className="btn-mini" disabled={meta.page >= meta.pages}
+                onClick={() => setPage((p) => Math.min(meta.pages, p + 1))}>Siguiente ›</button>
+              <button className="btn-mini" disabled={meta.page >= meta.pages}
+                onClick={() => setPage(meta.pages)}>Última »</button>
+            </div>
+          </div>
+        )}
       </div>
 
       {detail && (
@@ -442,9 +495,20 @@ export default function Assets() {
               Estado calculado en vivo desde sus OM/incidencias abiertas. Estado base registrado: {sEs(detail.status)}.
             </div>
           )}
-          <Frow k="Criticidad" v={cEs(detail.criticality)} />
+          <Frow k="Criticidad" v={
+            detail.planta?.criticidadEfectiva && detail.planta.criticidadEfectiva !== detail.criticality
+              ? `${cEs(detail.planta.criticidadEfectiva)} (elevada por la etapa)`
+              : cEs(detail.criticality)
+          } />
           <Frow k="Firmware" v={detail.firmware} />
-          <Frow k="Tren / zona" v={trEs(detail.train)} />
+          <Frow k="Tren" v={detail.planta?.tren} />
+          <Frow k="Etapa del proceso" v={
+            detail.planta?.etapa || (detail.planta?.etapaPendiente ? 'Falta asignar' : null)
+          } />
+          <Frow k="Ambiente" v={AMBIENTE_ES[detail.planta?.ambiente] || null} />
+          <Frow k="Preventivo cada" v={
+            detail.planta?.intervaloPreventivoDias ? `${detail.planta.intervaloPreventivoDias} días` : null
+          } />
           <Frow k="Ubicación" v={detail.location?.name} />
           <Frow k="Gabinete" v={detail.cabinet ? `${detail.cabinet.code} — ${detail.cabinet.name}` : null} />
           <Frow k="Lugar de referencia" v={detail.referencePlace} />
@@ -617,13 +681,11 @@ export default function Assets() {
             <input value={form.ipAddress} onChange={(e) => setForm({ ...form, ipAddress: e.target.value })} placeholder="Ej: 172.16.10.21" />
             <label>Contraseña del equipo (opcional)</label>
             <input value={form.devicePass} onChange={(e) => setForm({ ...form, devicePass: e.target.value })} placeholder="clave de la cámara / NVR" />
-            <label>Tren / zona de planta</label>
-            <select value={form.train} onChange={(e) => setForm({ ...form, train: e.target.value })}>
-              <option value="">— sin asignar —</option>
-              {TRAINS.map((t) => <option key={t} value={t}>{TRAIN_ES[t]}</option>)}
-            </select>
-            <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>Define en qué tren aparece este activo dentro del tablero por Tren.</div>
             <label>Ubicación (obligatorio)</label>
+            <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>
+              De la ubicación se deducen el tren y la etapa del proceso. Elige el punto
+              más específico que exista.
+            </div>
             <select value={form.locationId} onChange={(e) => setForm({ ...form, locationId: e.target.value })} required>
               <option value="">— selecciona ubicación —</option>
               {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}

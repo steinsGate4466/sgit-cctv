@@ -1,5 +1,5 @@
 import { IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
-import { AssetType, AssetStatus, Criticality, PlantTrain } from '@prisma/client';
+import { AssetType, AssetStatus, Criticality } from '@prisma/client';
 
 export class CreateAssetDto {
   // Código / rótulo del activo. Formato LIBRE: el estándar de rotulamiento de Aceros
@@ -16,7 +16,10 @@ export class CreateAssetDto {
   @IsOptional() @IsString() referencePlace?: string;
   @IsOptional() @IsEnum(AssetStatus) status?: AssetStatus;
   @IsOptional() @IsEnum(Criticality) criticality?: Criticality;
-  @IsOptional() @IsEnum(PlantTrain) train?: PlantTrain; // Tren 1/2/3, patio o general
+  // NOTA: el campo `train` se retiró de la API a propósito.
+  // El tren se DEDUCE del árbol de ubicaciones (common/plant-context.ts).
+  // Aceptarlo aquí mantenía viva la doble jerarquía que se corrigió en F8:
+  // se podía crear un activo colgado del Tren 2 y declararlo como TREN_1.
   @IsOptional() @IsString() locationId?: string;
   @IsOptional() @IsString() cabinetId?: string;
   @IsOptional() @IsString() sapId?: string;
