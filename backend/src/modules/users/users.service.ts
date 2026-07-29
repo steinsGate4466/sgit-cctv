@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../../prisma/prisma.service';
+import { SetPinDto, VerifyPinDto } from './dto/pin.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
@@ -112,5 +113,63 @@ export class UsersService {
       },
       orderBy: { name: 'asc' },
     });
+  }
+
+  // ==========================================================================
+  //  PIN DE CAMPO
+  //
+  //  Reanudar una orden en campo con guantes puestos y una contraseña larga es
+  //  inviable: lo que ocurre en la práctica es que la gente comparte claves o
+  //  deja la sesión abierta. El PIN resuelve eso SIN debilitar la firma: la
+  //  apertura y el cierre de una orden siguen exigiendo contraseña completa.
+  // ==========================================================================
+
+  /**
+   * Define o cambia el PIN. Exige la contraseña actual: sin eso, cualquiera con
+   * una sesión abierta podría ponerle un PIN al usuario y usarlo después.
+   */
+  async setPin(userId: string, dto: SetPinDto) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.active) throw new NotFoundException('Usuario no encontrado');
+
+    const ok = await argon2.verify(user.passwordHash, dto.password).catch(() => false);
+    if (!ok) throw new BadRequestException('La contraseña actual no es correcta.');
+
+    // Un PIN de dígitos repetidos o consecutivos no protege nada.
+    if (/^(\d)\1+$/.test(dto.pin)) {
+      throw new BadRequestException('El PIN no puede ser el mismo dígito repetido.');
+    }
+    if ('0123456789'.includes(dto.pin) || '9876543210'.includes(dto.pin)) {
+      throw new BadRequestException('El PIN no puede ser una secuencia consecutiva.');
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { pinHash: await argon2.hash(dto.pin), pinUpdatedAt: new Date() },
+    });
+
+    // Se devuelve el correo para que la capa superior avise al dueño: si
+    // alguien le cambia el PIN, tiene que enterarse en el momento.
+    return { ok: true, email: user.email, actualizadoEn: new Date() };
+  }
+
+  /** Verifica el PIN para reanudar en campo. NO sustituye a la firma. */
+  async verifyPin(userId: string, dto: VerifyPinDto) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.active || !user.pinHash) {
+      throw new BadRequestException('No tienes un PIN configurado.');
+    }
+    const ok = await argon2.verify(user.pinHash, dto.pin).catch(() => false);
+    if (!ok) throw new BadRequestException('PIN incorrecto.');
+    return { ok: true };
+  }
+
+  /** Si el usuario ya tiene PIN, para que la interfaz sepa qué ofrecer. */
+  async pinStatus(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { pinHash: true, pinUpdatedAt: true },
+    });
+    return { tienePin: !!user?.pinHash, actualizadoEn: user?.pinUpdatedAt || null };
   }
 }

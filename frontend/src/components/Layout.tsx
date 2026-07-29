@@ -1,6 +1,7 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import MiPin from './MiPin';
 
 const TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard Ejecutivo',
@@ -26,6 +27,7 @@ const TITLES: Record<string, string> = {
  */
 export default function Layout() {
   const { user, logout, can } = useAuth();
+  const [verPin, setVerPin] = useState(false);
   const loc = useLocation();
   const title = TITLES[loc.pathname] || 'SGIT-CCTV';
   const initials = (user?.fullName || 'U')
@@ -113,12 +115,15 @@ export default function Layout() {
               <div>{user?.role}</div>
             </div>
             <div className="avatar">{initials}</div>
+            <button className="logout" onClick={() => setVerPin(true)}
+              title="PIN para reanudar órdenes en campo">Mi PIN</button>
             <button className="logout" onClick={() => logout()}>Salir</button>
           </div>
         </header>
         <main className="content">
           <Outlet />
         </main>
+        {verPin && <MiPin onClose={() => setVerPin(false)} />}
       </div>
     </div>
   );

@@ -2,8 +2,10 @@ import { useEffect, useState, FormEvent } from 'react';
 import { api } from '../api/client';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
+import OmCampo from '../components/OmCampo';
+import { WO_TYPES, WO_TYPE_ES, CANALES, CANAL_ES, CAUSA_ES } from './omCatalogos';
 
-const TYPES = ['PREVENTIVO', 'CORRECTIVO', 'MEJORA', 'PREDICTIVO'];
+const TYPES = WO_TYPES; // incluye MAPEO: el levantamiento también es una OM
 // Estados que el técnico puede fijar al registrar la intervención (el cierre lo hace el Jefe).
 const WORK_STATES = ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'];
 // Estado efectivo del activo (coherente con el módulo de Activos).
@@ -28,7 +30,7 @@ function isOverdue(w: any) {
 }
 
 export default function Maintenance() {
-  const { can, user } = useAuth();
+  const { can } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
   const [incidents, setIncidents] = useState<any[]>([]);
@@ -44,18 +46,23 @@ export default function Maintenance() {
   // Alta de OM (solo Jefe). El código es MANUAL (número que genera SAP).
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState<any>({ code: '', type: 'PREVENTIVO', assetId: '', activity: '', responsible: '', materials: '', zone: '', incidentId: '', scheduledDate: '' });
+  const FORM_VACIO = {
+    code: '', type: 'PREVENTIVO', assetId: '', locationId: '', activity: '', responsible: '',
+    materials: '', zone: '', incidentId: '', scheduledDate: '',
+    requestedBy: '', requestChannel: '', externalRef: '',
+    plannedStopAt: '', plannedDurationMin: '',
+  };
+  const [form, setForm] = useState<any>(FORM_VACIO);
 
   // Registro de intervención (técnico): qué se intervino en el equipo.
   const [intId, setIntId] = useState<string | null>(null);
   const [intForm, setIntForm] = useState<any>({ activity: '', diagnosis: '', materials: '', zone: '', status: 'EN_PROCESO' });
   const [intSaving, setIntSaving] = useState(false);
 
-  // Cierre firmado (solo Jefe de Mantenimiento).
-  const [closeId, setCloseId] = useState<string | null>(null);
-  const [sig, setSig] = useState<any>({ email: '', password: '', diagnosis: '' });
-  const [sigError, setSigError] = useState('');
-  const [signing, setSigning] = useState(false);
+  // Ejecución en campo: abrir, avance y cierre viven en OmCampo.
+  const [campo, setCampo] = useState<{ wo: any; accion: 'abrir' | 'avance' | 'cerrar' } | null>(null);
+  // Ubicaciones: una OM de mapeo cubre una zona, no un activo.
+  const [locations, setLocations] = useState<any[]>([]);
 
   // Fotografías / evidencias de la intervención.
   const [photoId, setPhotoId] = useState<string | null>(null);
@@ -73,14 +80,16 @@ export default function Maintenance() {
     // Fecha local → límites de día en ISO/UTC (respeta el día completo).
     if (from) params.set('from', new Date(from + 'T00:00:00').toISOString());
     if (to) params.set('to', new Date(to + 'T23:59:59.999').toISOString());
-    const [wo, ast, inc] = await Promise.all([
+    const [wo, ast, inc, loc] = await Promise.all([
       api.get('/work-orders?' + params.toString()).then((r) => r.data).catch(() => ({ data: [] })),
       api.get('/assets/options').then((r) => r.data).catch(() => []),
       api.get('/incidents').then((r) => r.data).catch(() => []),
+      api.get('/locations').then((r) => r.data).catch(() => []),
     ]);
     setRows(wo.data || []);
     setAssets(ast || []);
     setIncidents(Array.isArray(inc) ? inc : inc.data || []);
+    setLocations(loc || []);
     setLoading(false);
   }
   useEffect(() => { load(); }, []);
@@ -93,7 +102,16 @@ export default function Maintenance() {
     e.preventDefault();
     setSaving(true);
     try {
-      const body: any = { type: form.type, assetId: form.assetId, activity: form.activity };
+      const body: any = { type: form.type, activity: form.activity };
+      // Activo O ubicación: una orden de mapeo cubre una zona completa.
+      if (form.assetId) body.assetId = form.assetId;
+      if (form.locationId) body.locationId = form.locationId;
+      // Recepción del pedido de Producción
+      if (form.requestedBy) body.requestedBy = form.requestedBy.trim();
+      if (form.requestChannel) body.requestChannel = form.requestChannel;
+      if (form.externalRef) body.externalRef = form.externalRef.trim();
+      if (form.plannedStopAt) body.plannedStopAt = new Date(form.plannedStopAt).toISOString();
+      if (form.plannedDurationMin) body.plannedDurationMin = Number(form.plannedDurationMin);
       if (form.responsible) body.responsible = form.responsible.trim();
       if (form.materials) body.materials = form.materials;
       if (form.code) body.code = form.code.trim();
@@ -102,7 +120,7 @@ export default function Maintenance() {
       if (form.scheduledDate) body.scheduledDate = new Date(form.scheduledDate + 'T08:00:00').toISOString();
       await api.post('/work-orders', body);
       setShowForm(false);
-      setForm({ code: '', type: 'PREVENTIVO', assetId: '', activity: '', responsible: '', materials: '', zone: '', incidentId: '', scheduledDate: '' });
+      setForm(FORM_VACIO);
       await load();
     } catch (err: any) {
       const m = err?.response?.data?.message;
@@ -131,25 +149,6 @@ export default function Maintenance() {
     } catch {
       window.alert('No se pudo registrar la intervención.');
     } finally { setIntSaving(false); }
-  }
-
-  function openClose(id: string) {
-    setCloseId(id);
-    setSig({ email: user?.email || '', password: '', diagnosis: '' });
-    setSigError('');
-  }
-  async function submitClose(e: FormEvent) {
-    e.preventDefault();
-    setSigError('');
-    setSigning(true);
-    try {
-      await api.post('/work-orders/' + closeId + '/close', { email: sig.email, password: sig.password, diagnosis: sig.diagnosis || undefined });
-      setCloseId(null);
-      await load();
-    } catch (err: any) {
-      const m = err?.response?.data?.message;
-      setSigError(Array.isArray(m) ? m.join(', ') : m || 'Firma inválida.');
-    } finally { setSigning(false); }
   }
 
   async function openPhotos(id: string) {
@@ -214,7 +213,7 @@ export default function Maintenance() {
       <div className="card">
         <table>
           <thead>
-            <tr><th>Código</th><th>Tipo</th><th>Zona</th><th>Actividad</th><th>Estado</th><th>Activo</th><th>Programada</th><th></th></tr>
+            <tr><th>Código</th><th>Tipo</th><th>Zona</th><th>Actividad</th><th>Estado</th><th>Avance</th><th>Activo / Ubicación</th><th>Programada</th><th></th></tr>
           </thead>
           <tbody>
             {rows.map((w) => (
@@ -223,13 +222,33 @@ export default function Maintenance() {
                   {w.code}
                   {w.incident && <div className="muted" style={{ fontSize: 10 }}>◦ {w.incident.code}</div>}
                 </td>
-                <td className="muted" style={{ fontSize: 11 }}>{w.type}</td>
+                <td className="muted" style={{ fontSize: 11 }}>{WO_TYPE_ES[w.type] || w.type}</td>
                 <td className="muted" style={{ fontSize: 12 }}>{w.zone || '—'}</td>
                 <td style={{ fontSize: 12 }}>{w.activity || '—'}</td>
-                <td><span className={'badge ' + woBadge(w.status)}>{w.status}</span></td>
+                <td>
+                  <span className={'badge ' + woBadge(w.status)}>{w.status}</span>
+                  {w.isRecurrent && <div className="muted" style={{ fontSize: 10 }}>reincidente</div>}
+                </td>
+                <td style={{ minWidth: 90 }}>
+                  {w.status === 'CERRADA' ? (
+                    <span className="muted" style={{ fontSize: 12 }}>
+                      {w.rootCause ? CAUSA_ES[w.rootCause] || w.rootCause : '—'}
+                    </span>
+                  ) : (
+                    <div>
+                      <div style={{ background: '#e5e7eb', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+                        <div style={{
+                          width: `${w.progressPct || 0}%`, height: '100%',
+                          background: (w.progressPct || 0) >= 100 ? '#16a34a' : '#2563eb',
+                        }} />
+                      </div>
+                      <div className="muted" style={{ fontSize: 11 }}>{w.progressPct || 0}%</div>
+                    </div>
+                  )}
+                </td>
                 <td className="muted">
-                  {w.asset?.assetCode || '—'}
-                  {w.asset?.effectiveStatus && <div style={{ marginTop: 3 }}><span className={'badge ' + w.asset.effectiveStatus} style={{ fontSize: 10 }}>{aEs(w.asset.effectiveStatus)}</span></div>}
+                  {w.asset?.assetCode
+                    || (w.location?.name ? <span style={{ fontStyle: 'italic' }}>{w.location.name}</span> : '—')}
                 </td>
                 <td className="muted" style={{ fontSize: 12 }}>
                   {w.scheduledDate ? new Date(w.scheduledDate).toLocaleDateString() : '—'}
@@ -242,14 +261,23 @@ export default function Maintenance() {
                   {w.status !== 'CERRADA' && w.status !== 'CANCELADA' && can('wo.update') && (
                     <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => openPhotos(w.id)}>Fotos</button>
                   )}
+                  {w.status !== 'CERRADA' && w.status !== 'CANCELADA' && can('wo.update') && !w.startedAt && (
+                    <button className="btn-mini" style={{ marginLeft: 4 }}
+                      onClick={() => setCampo({ wo: w, accion: 'abrir' })}>Abrir</button>
+                  )}
+                  {w.status !== 'CERRADA' && w.status !== 'CANCELADA' && can('wo.update') && w.startedAt && (
+                    <button className="btn-mini" style={{ marginLeft: 4 }}
+                      onClick={() => setCampo({ wo: w, accion: 'avance' })}>Avance</button>
+                  )}
                   {w.status !== 'CERRADA' && w.status !== 'CANCELADA' && can('wo.approve') && (
-                    <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => openClose(w.id)}>Cerrar</button>
+                    <button className="btn-mini" style={{ marginLeft: 4 }}
+                      onClick={() => setCampo({ wo: w, accion: 'cerrar' })}>Cerrar</button>
                   )}
                   <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => downloadReport(w)}>Informe</button>
                 </td>
               </tr>
             ))}
-            {!rows.length && <tr><td colSpan={8} className="muted" style={{ textAlign: 'center', padding: 30 }}>Sin órdenes de mantenimiento</td></tr>}
+            {!rows.length && <tr><td colSpan={9} className="muted" style={{ textAlign: 'center', padding: 30 }}>Sin órdenes de mantenimiento</td></tr>}
           </tbody>
         </table>
       </div>
@@ -261,15 +289,40 @@ export default function Maintenance() {
             <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="N.º generado por SAP (si lo dejas vacío se asigna uno provisional)" />
             <label>Tipo</label>
             <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-              {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+              {TYPES.map((t) => <option key={t} value={t}>{WO_TYPE_ES[t] || t}</option>)}
             </select>
-            <label>Activo</label>
-            <select value={form.assetId} onChange={(e) => setForm({ ...form, assetId: e.target.value })} required>
-              <option value="">— selecciona —</option>
-              {assets.map((a) => <option key={a.id} value={a.id}>{a.assetCode}</option>)}
-            </select>
-            <label>Zona de intervención</label>
-            <input value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value })} placeholder="Ej: Horno, Laminación Tren 1, Púlpito…" />
+            {form.type === 'MAPEO' ? (
+              <>
+                <label>Zona a levantar (obligatorio)</label>
+                <select value={form.locationId} onChange={(e) => setForm({ ...form, locationId: e.target.value, assetId: '' })} required>
+                  <option value="">— selecciona la ubicación —</option>
+                  {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                </select>
+                <div className="muted" style={{ fontSize: 11, marginTop: -6, marginBottom: 10 }}>
+                  Una orden de mapeo cubre una zona: el técnico levantará todos los
+                  equipos que encuentre allí.
+                </div>
+              </>
+            ) : (
+              <>
+                <label>Activo</label>
+                <select value={form.assetId} onChange={(e) => setForm({ ...form, assetId: e.target.value })} required>
+                  <option value="">— selecciona —</option>
+                  {assets.map((a) => <option key={a.id} value={a.id}>{a.assetCode}</option>)}
+                </select>
+                <label>O bien una zona completa (si afecta a varios equipos)</label>
+                <select value={form.locationId} onChange={(e) => setForm({ ...form, locationId: e.target.value })}>
+                  <option value="">— ninguna —</option>
+                  {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                </select>
+              </>
+            )}
+            <label>Referencia del sitio</label>
+            <input value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value })}
+              placeholder="Ej: columna 14, junto a la escalera norte, poste de la izquierda" />
+            <div className="muted" style={{ fontSize: 11, marginTop: -6, marginBottom: 10 }}>
+              El detalle que ayuda a encontrar el punto exacto en planta.
+            </div>
             <label>Incidencia relacionada (opcional)</label>
             <select value={form.incidentId} onChange={(e) => setForm({ ...form, incidentId: e.target.value })}>
               <option value="">— ninguna —</option>
@@ -281,7 +334,40 @@ export default function Maintenance() {
             <input value={form.responsible} onChange={(e) => setForm({ ...form, responsible: e.target.value })} placeholder="Nombre del responsable de la OM" />
             <label>Materiales (uno por línea)</label>
             <textarea value={form.materials} onChange={(e) => setForm({ ...form, materials: e.target.value })} rows={3} style={{ width: '100%', resize: 'vertical' }} placeholder="Ej: 2x Conector RJ45 / 1x Fuente PoE 48V" />
-            <label>Fecha programada</label>
+            <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #e5e7eb' }}>
+              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Recepción del pedido</div>
+              <div className="muted" style={{ fontSize: 11, marginBottom: 8 }}>
+                Producción crea la orden en SAP y la manda por WhatsApp. Registrarlo
+                aquí es lo que evita que se pierda de boca en boca.
+              </div>
+              <label>¿Quién la pidió?</label>
+              <input value={form.requestedBy} onChange={(e) => setForm({ ...form, requestedBy: e.target.value })}
+                placeholder="Nombre de quien la solicitó en Producción" />
+              <label>¿Por dónde llegó?</label>
+              <select value={form.requestChannel} onChange={(e) => setForm({ ...form, requestChannel: e.target.value })}>
+                <option value="">— sin especificar —</option>
+                {CANALES.map((c) => <option key={c} value={c}>{CANAL_ES[c]}</option>)}
+              </select>
+              <label>N.º de orden en SAP</label>
+              <input value={form.externalRef} onChange={(e) => setForm({ ...form, externalRef: e.target.value })}
+                placeholder="Si Producción ya la creó en SAP" />
+            </div>
+
+            <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #e5e7eb' }}>
+              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Parada estimada</div>
+              <div className="muted" style={{ fontSize: 11, marginBottom: 8 }}>
+                Es tentativa. El técnico confirmará por radio la hora real cuando esté en campo.
+              </div>
+              <label>Hora estimada de parada</label>
+              <input type="datetime-local" value={form.plannedStopAt}
+                onChange={(e) => setForm({ ...form, plannedStopAt: e.target.value })} />
+              <label>Duración estimada (minutos)</label>
+              <input type="number" min={1} value={form.plannedDurationMin}
+                onChange={(e) => setForm({ ...form, plannedDurationMin: e.target.value })}
+                placeholder="Ej: 120" />
+            </div>
+
+            <label style={{ marginTop: 14 }}>Fecha programada</label>
             <input type="date" value={form.scheduledDate} onChange={(e) => setForm({ ...form, scheduledDate: e.target.value })} />
             <button className="btn" disabled={saving}>{saving ? 'Guardando…' : 'Crear OM'}</button>
           </form>
@@ -325,20 +411,14 @@ export default function Maintenance() {
         </Modal>
       )}
 
-      {closeId && (
-        <Modal title="Cerrar OM (firma del Jefe)" onClose={() => setCloseId(null)}>
-          <form onSubmit={submitClose}>
-            <div className="sign-note">Solo el Jefe de Mantenimiento puede cerrar la OM. Confirma tu identidad: quedará registrado en auditoría quién la cerró.</div>
-            <label>Diagnóstico / cierre (opcional)</label>
-            <input value={sig.diagnosis} onChange={(e) => setSig({ ...sig, diagnosis: e.target.value })} />
-            <label>Correo</label>
-            <input type="email" value={sig.email} onChange={(e) => setSig({ ...sig, email: e.target.value })} required />
-            <label>Contraseña</label>
-            <input type="password" value={sig.password} onChange={(e) => setSig({ ...sig, password: e.target.value })} required />
-            {sigError && <div className="error">{sigError}</div>}
-            <button className="btn" disabled={signing}>{signing ? 'Firmando…' : 'Firmar y cerrar'}</button>
-          </form>
-        </Modal>
+
+      {campo && (
+        <OmCampo
+          wo={campo.wo}
+          accion={campo.accion}
+          onClose={() => setCampo(null)}
+          onHecho={load}
+        />
       )}
 
       {photoId && (
