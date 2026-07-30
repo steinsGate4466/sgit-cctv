@@ -387,6 +387,8 @@ model Asset {
   linksA        NetworkLink[] @relation("LinkEndpointA")
   linksB        NetworkLink[] @relation("LinkEndpointB")
   spareLinks    SparePartAsset[]
+  swapsRemoved   WorkOrderSwap[] @relation("SwapRemoved")
+  swapsInstalled WorkOrderSwap[] @relation("SwapInstalled")
   preventivePlan PreventivePlan?
   photos        AssetPhoto[]
   // ---- Fichas por tipo (Bloque 2) ----
@@ -885,6 +887,10 @@ model WorkOrder {
 
   /// Activos levantados durante esta orden (solo aplica a las de tipo MAPEO).
   mappedAssets  Asset[]          @relation("AssetMappedInWo")
+  // ---- Preparación y consumo (Bloque 2f) ----
+  tools         WorkOrderTool[]
+  materialItems WorkOrderMaterial[]
+  swaps         WorkOrderSwap[]
 
   @@index([assetId])
   @@index([locationId])
@@ -1057,6 +1063,118 @@ model Document {
 
 // =====================================================================
 //  AUDITORÍA E HISTORIAL (transversal)
+
+// =====================================================================
+//  HERRAMIENTAS (Bloque 2f)
+//
+//  UNA HERRAMIENTA NO ES UN REPUESTO.
+//  El engrimpador no se consume: se lleva y se devuelve. Modelarlo como stock
+//  sería un error porque el stock nunca bajaría y el dato no diría nada.
+//
+//  Se modela como VERIFICACIÓN al abrir la orden: el sistema sugiere las
+//  herramientas según el tipo de trabajo y el técnico confirma cuáles lleva.
+//  Queda registrado y el Jefe de Mantenimiento lo ve: si el técnico salió sin
+//  el engrimpador y la orden se cerró sin resolver, ahí está la explicación.
+// =====================================================================
+model Tool {
+  id           String          @id @default(uuid())
+  code         String?         @unique
+  name         String
+  /// Familia: Red, Eléctrica, Medición, Altura, Seguridad.
+  category     String?
+  /// Tipos de orden donde se SUGIERE llevarla. Vacío = se sugiere en todas.
+  /// Una orden de mapeo necesita metrajo y etiquetas; una correctiva de red,
+  /// engrimpador y probador. Sugerir todo en todas haría que nadie lea la lista.
+  suggestedFor WorkOrderType[]
+  active       Boolean         @default(true)
+  notes        String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  checks       WorkOrderTool[]
+
+  @@map("tools")
+}
+
+/// Qué herramientas declaró llevar el técnico al abrir la orden.
+model WorkOrderTool {
+  id          String    @id @default(uuid())
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  toolId      String
+  tool        Tool      @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  /// true = la lleva · false = declaró que NO la tiene.
+  /// Se guarda el "no" a propósito: es el dato que explica un viaje perdido.
+  carried     Boolean   @default(false)
+  note        String?
+
+  @@unique([workOrderId, toolId])
+  @@index([workOrderId])
+  @@map("work_order_tools")
+}
+
+// =====================================================================
+//  MATERIALES DE LA ORDEN (Bloque 2f)
+//
+//  POR QUÉ NO SE DESCUENTA STOCK AUTOMÁTICAMENTE
+//  El almacén de verdad está en SAP. Si este sistema descontara por su cuenta
+//  y SAP también, ninguno de los dos cuadraría nunca. Aquí se registra qué se
+//  PREVIÓ y qué se USÓ en cada orden; el catálogo local se actualiza subiendo
+//  la exportación de SAP y sirve para comparar, no para reemplazarlo.
+// =====================================================================
+model WorkOrderMaterial {
+  id          String     @id @default(uuid())
+  workOrderId String
+  workOrder   WorkOrder  @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  /// Repuesto del catálogo, si está catalogado.
+  sparePartId String?
+  sparePart   SparePart? @relation(fields: [sparePartId], references: [id])
+  /// Código SAP copiado al momento del registro. Se guarda aquí a propósito:
+  /// si el catálogo cambia después, el histórico de la orden no se altera.
+  sapCode     String?
+  /// Descripción libre, para lo que no esté catalogado. Siempre se llena.
+  description String
+  unit        String?
+  /// Cantidad PREVISTA al preparar el trabajo.
+  plannedQty  Float?
+  /// Cantidad REALMENTE usada, al cerrar. La diferencia entre las dos es lo
+  /// que dice si se está estimando bien.
+  usedQty     Float?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([workOrderId])
+  @@index([sparePartId])
+  @@map("work_order_materials")
+}
+
+// =====================================================================
+//  REEMPLAZO DE EQUIPO (Bloque 2f)
+//
+//  Cuando se cambia una cámara o una antena, lo que ocurre es un intercambio:
+//  sale una y entra otra que estaba en almacén. Registrarlo permite saber a
+//  dónde fue cada equipo de repuesto, algo que hoy se pierde por completo.
+//
+//  El sistema ya tiene el estado STOCK para activos: esta tabla cierra la
+//  cadena  STOCK -> asignado a la orden -> instalado -> OPERATIVO.
+// =====================================================================
+model WorkOrderSwap {
+  id               String    @id @default(uuid())
+  workOrderId      String
+  workOrder        WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  /// Equipo retirado. Pasa a BAJA o a STOCK según su estado.
+  removedAssetId   String?
+  removedAsset     Asset?    @relation("SwapRemoved", fields: [removedAssetId], references: [id])
+  /// Equipo instalado. Venía de STOCK y pasa a OPERATIVO en la ubicación.
+  installedAssetId String?
+  installedAsset   Asset?    @relation("SwapInstalled", fields: [installedAssetId], references: [id])
+  note             String?
+  createdAt        DateTime  @default(now())
+
+  @@index([workOrderId])
+  @@map("work_order_swaps")
+}
+
 // =====================================================================
 
 model AuditLog {
@@ -1118,6 +1236,7 @@ model SparePart {
 
   assets        SparePartAsset[]
   movements     StockMovement[]
+  woMaterials   WorkOrderMaterial[]
   checks        StockCheck[]
 
   @@index([sapCode])

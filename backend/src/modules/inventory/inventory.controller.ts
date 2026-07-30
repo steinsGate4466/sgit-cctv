@@ -1,4 +1,8 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body, Controller, Delete, Get, Param, Patch, Post, Query,
+  UploadedFile, UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { InventoryService } from './inventory.service';
 import { CreateSpareDto } from './dto/create-spare.dto';
@@ -17,6 +21,75 @@ export class InventoryController {
   constructor(private readonly inv: InventoryService) {}
 
   // Panel de inventario (campo vs repuestos, faltantes, sin comprobar).
+  // ==========================================================================
+  //  IMPORTACIÓN DEL CATÁLOGO DESDE SAP  (formato CSV)
+  //
+  //  Se acepta CSV y no .xlsx a propósito: leer Excel exige una librería, y las
+  //  de Excel han acumulado vulnerabilidades. En Excel "Guardar como CSV" es un
+  //  clic; a cambio, cero dependencias nuevas en el servidor.
+  //
+  //  Las rutas van ANTES de @Get(':id') para que ':id' no capture la palabra.
+  // ==========================================================================
+
+  /** Muestra QUÉ HARÍA la importación, sin escribir nada. */
+  @Post('catalogo/previsualizar')
+  @RequirePermissions('inventory.manage')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 8 * 1024 * 1024 } }))
+  previsualizarCatalogo(@UploadedFile() file: any) {
+    return this.inv.previsualizarCatalogo(file?.buffer?.toString('utf8') || '');
+  }
+
+  /** Aplica la importación. El código SAP es la identidad del repuesto. */
+  @Post('catalogo/importar')
+  @RequirePermissions('inventory.manage')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 8 * 1024 * 1024 } }))
+  importarCatalogo(@UploadedFile() file: any, @CurrentUser() user: any) {
+    return this.inv.importarCatalogo(file?.buffer?.toString('utf8') || '', user?.userId);
+  }
+
+  /** ¿Alcanza el almacén para una campaña de reemplazo? */
+  @Post('cobertura')
+  @RequirePermissions('inventory.read')
+  cobertura(@Body() body: { items: { sapCode: string; cantidad: number }[] }) {
+    return this.inv.coberturaCampana(body?.items || []);
+  }
+
+  // ==========================================================================
+  //  CATÁLOGO DE HERRAMIENTAS
+  //  Antes de @Get(':id') para que ':id' no capture la palabra "tools".
+  // ==========================================================================
+
+  @Get('tools')
+  @RequirePermissions('inventory.read')
+  herramientas(@Query('todas') todas?: string) {
+    return this.inv.herramientas(todas !== 'true');
+  }
+
+  /** Herramientas que más faltan: convierte la encuesta en decisión de compra. */
+  @Get('tools/faltantes')
+  @RequirePermissions('inventory.read')
+  herramientasQueFaltan() {
+    return this.inv.herramientasQueFaltan();
+  }
+
+  @Post('tools')
+  @RequirePermissions('inventory.manage')
+  crearHerramienta(@Body() dto: any) {
+    return this.inv.crearHerramienta(dto);
+  }
+
+  @Patch('tools/:toolId')
+  @RequirePermissions('inventory.manage')
+  actualizarHerramienta(@Param('toolId') toolId: string, @Body() dto: any) {
+    return this.inv.actualizarHerramienta(toolId, dto);
+  }
+
+  @Delete('tools/:toolId')
+  @RequirePermissions('inventory.manage')
+  desactivarHerramienta(@Param('toolId') toolId: string) {
+    return this.inv.desactivarHerramienta(toolId);
+  }
+
   @Get('summary')
   @RequirePermissions('inventory.read')
   summary() { return this.inv.summary(); }
