@@ -1,4 +1,4 @@
-import { useEffect, useState, FormEvent } from 'react';
+import { useEffect, useState, useCallback, FormEvent } from 'react';
 import { api } from '../api/client';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
@@ -54,7 +54,9 @@ export default function Cableado() {
   const [soloFuera, setSoloFuera] = useState(false);
   const [fEstado, setFEstado] = useState('');
 
-  async function load() {
+  // Igual que en Activos: depende de los filtros, así que va en useCallback
+  // para poder declararla como dependencia sin provocar un bucle de recargas.
+  const load = useCallback(async () => {
     const params: any = {};
     if (soloFuera) params.fueraNorma = 'true';
     if (fEstado) params.status = fEstado;
@@ -64,12 +66,12 @@ export default function Cableado() {
     ]);
     setRows(c || []);
     setResumen(r);
-  }
+  }, [soloFuera, fEstado]);
 
   useEffect(() => {
     api.get('/assets/options').then((r) => setOpciones(r.data || [])).catch(() => setOpciones([]));
   }, []);
-  useEffect(() => { load().finally(() => setLoading(false)); }, [soloFuera, fEstado]);
+  useEffect(() => { load().finally(() => setLoading(false)); }, [load]);
 
   function nuevo() { setForm({ ...VACIO }); }
   function editar(c: any) {

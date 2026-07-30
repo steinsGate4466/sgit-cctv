@@ -421,3 +421,17 @@ select optgroup { font-weight: 700; color: var(--navy); }
 .frow { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
 .frow .k { color: var(--muted); font-size: 12px; }
 .frow .v { font-size: 13px; font-weight: 500; }
+
+/* ---------------------------------------------------------------- PESTAÑAS
+   Se usaban en Ubicaciones y ahora en Inventario y en Materiales de OM, pero
+   nunca se les dio estilo: salían como botones sueltos, que era parte de lo
+   que hacía ver la pantalla "simplona". */
+.tabs { display: flex; gap: 2px; border-bottom: 2px solid var(--border); }
+.tabs .tab {
+  background: transparent; border: none; border-bottom: 2px solid transparent;
+  margin-bottom: -2px; padding: 8px 16px; cursor: pointer;
+  font-size: 13px; font-weight: 500; color: var(--muted);
+  font-family: inherit; transition: color .12s, border-color .12s;
+}
+.tabs .tab:hover { color: var(--navy); background: #f6f8fb; }
+.tabs .tab.active { color: var(--navy); font-weight: 700; border-bottom-color: var(--red); }

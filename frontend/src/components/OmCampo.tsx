@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import Modal from './Modal';
 import { useAuth } from '../auth/AuthContext';
 import { CAUSAS, CAUSA_ES, fh, duracion } from '../pages/omCatalogos';
+import OmHerramientas, { HerramientaMarcada } from './OmHerramientas';
 
 /**
  * Pantallas de EJECUCIÓN EN CAMPO de una orden de mantenimiento.
@@ -40,6 +41,9 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
   const [causa, setCausa] = useState('');
   const [causaNota, setCausaNota] = useState('');
   const [reincidente, setReincidente] = useState(false);
+
+  // ---- herramientas (solo al abrir) ----
+  const [herramientas, setHerramientas] = useState<HerramientaMarcada[]>([]);
 
   // ---- firma (abrir y cerrar) ----
   const [email, setEmail] = useState(user?.email || '');
@@ -79,6 +83,18 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
           startedAt: iso(inicio),
           companionId: acompanante || undefined,
         });
+        // La encuesta se guarda DESPUÉS de la apertura firmada. Al revés, si la
+        // firma falla quedarían herramientas registradas para una orden que
+        // nunca se abrió.
+        if (herramientas.length) {
+          await api.post('/work-orders/' + wo.id + '/tools', { items: herramientas })
+            .catch(() => {
+              window.alert(
+                'La orden se abrió, pero la lista de herramientas no se pudo guardar. '
+                + 'Puedes registrarla de nuevo desde la orden.',
+              );
+            });
+        }
       } else if (accion === 'avance') {
         await api.post('/work-orders/' + wo.id + '/progress', {
           pct: Number(pct),
@@ -148,6 +164,8 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
             <div className="muted" style={{ fontSize: 11, marginTop: -6, marginBottom: 10 }}>
               Queda registrado para trazabilidad y seguridad.
             </div>
+
+            <OmHerramientas workOrderId={wo.id} onChange={setHerramientas} />
           </>
         )}
 
@@ -236,6 +254,10 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
               <input type="checkbox" checked={reincidente} onChange={(e) => setReincidente(e.target.checked)} />
               <span>Este problema ya se había presentado antes</span>
             </label>
+
+            {/* El Jefe ve qué declaró el técnico al salir. Si faltó una
+                herramienta y la orden quedó sin resolver, ahí está el motivo. */}
+            <OmHerramientas workOrderId={wo.id} onChange={() => {}} soloLectura />
           </>
         )}
 

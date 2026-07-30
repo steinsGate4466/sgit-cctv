@@ -96,6 +96,11 @@ export default function Incidents() {
     setAssets(ast || []);
     setLoading(false);
   }
+  // La carga es intencionalmente ÚNICA al montar: los filtros de esta pantalla
+  // se aplican en memoria, no en el servidor. Declarar `load` como dependencia
+  // obligaría a envolverla en useCallback y volvería a consultar el servidor en
+  // cada tecla, que es exactamente lo que no queremos aquí.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, []);
 
   async function create(e: FormEvent) {

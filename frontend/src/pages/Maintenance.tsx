@@ -5,6 +5,7 @@ import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
 import OmCampo from '../components/OmCampo';
 import HistorialActivo from '../components/HistorialActivo';
+import OmMateriales from '../components/OmMateriales';
 import { WO_TYPES, WO_TYPE_ES, CANALES, CANAL_ES, CAUSA_ES } from './omCatalogos';
 
 const TYPES = WO_TYPES; // incluye MAPEO: el levantamiento también es una OM
@@ -66,6 +67,8 @@ export default function Maintenance() {
   const [campo, setCampo] = useState<{ wo: any; accion: 'abrir' | 'avance' | 'cerrar' } | null>(null);
   // Ubicaciones: una OM de mapeo cubre una zona, no un activo.
   const [locations, setLocations] = useState<any[]>([]);
+  // Materiales y reemplazo de equipo de la orden.
+  const [matsFor, setMatsFor] = useState<any>(null);
 
   // Fotografías / evidencias de la intervención.
   const [photoId, setPhotoId] = useState<string | null>(null);
@@ -95,6 +98,11 @@ export default function Maintenance() {
     setLocations(loc || []);
     setLoading(false);
   }
+  // La carga es intencionalmente ÚNICA al montar: los filtros de esta pantalla
+  // se aplican en memoria, no en el servidor. Declarar `load` como dependencia
+  // obligaría a envolverla en useCallback y volvería a consultar el servidor en
+  // cada tecla, que es exactamente lo que no queremos aquí.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, []);
 
   function clearFilters() {
@@ -288,6 +296,9 @@ export default function Maintenance() {
                     <button className="btn-mini" style={{ marginLeft: 4 }}
                       onClick={() => setCampo({ wo: w, accion: 'cerrar' })}>Cerrar</button>
                   )}
+                  <button className="btn-mini" style={{ marginLeft: 4 }}
+                    title="Materiales previstos/usados y reemplazo de equipo"
+                    onClick={() => setMatsFor(w)}>📦 Materiales</button>
                   <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => downloadReport(w)}>Informe</button>
                 </td>
               </tr>
@@ -430,6 +441,10 @@ export default function Maintenance() {
         </Modal>
       )}
 
+
+      {matsFor && (
+        <OmMateriales wo={matsFor} onClose={() => { setMatsFor(null); load(); }} />
+      )}
 
       {campo && (
         <OmCampo

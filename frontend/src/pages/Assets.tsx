@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import Modal from '../components/Modal';
@@ -117,8 +117,12 @@ export default function Assets() {
   // puede subir a un activo que todavía no tiene identificador.
   const [fotosNuevas, setFotosNuevas] = useState<FotoPendiente[]>([]);
 
-  async function loadAssets(p = page) {
-    const params: any = { page: p, pageSize: 50 };
+  // useCallback y NO una función suelta: esta consulta SÍ depende de los
+  // filtros, así que tiene que entrar en las dependencias del efecto. Sin
+  // useCallback la función se recrea en cada render y el efecto se dispararía
+  // en bucle. Con él, solo cambia cuando cambia un filtro de verdad.
+  const loadAssets = useCallback(async (p?: number) => {
+    const params: any = { page: p ?? page, pageSize: 50 };
     if (fq.trim()) params.search = fq.trim();
     if (fType) params.type = fType;
     if (fStatus) params.status = fStatus;
@@ -126,7 +130,7 @@ export default function Assets() {
     if (!r) return;
     setRows(r.items || []);
     setMeta({ total: r.total, page: r.page, pageSize: r.pageSize, pages: r.pages });
-  }
+  }, [page, fq, fType, fStatus]);
 
   // Catálogos que no cambian con el filtro: se cargan una sola vez.
   useEffect(() => {
@@ -142,7 +146,7 @@ export default function Assets() {
   useEffect(() => {
     const t = setTimeout(() => { loadAssets(page).finally(() => setLoading(false)); }, 350);
     return () => clearTimeout(t);
-  }, [fq, fType, fStatus, page]);
+  }, [loadAssets, page]);
 
   // Cualquier cambio de filtro vuelve a la primera página: si estabas en la
   // página 4 y filtras, la 4 puede no existir en el resultado nuevo.

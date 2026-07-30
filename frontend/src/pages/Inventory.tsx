@@ -2,6 +2,8 @@ import { useEffect, useState, FormEvent, ReactNode } from 'react';
 import { api } from '../api/client';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
+import InventarioHerramientas from '../components/InventarioHerramientas';
+import InventarioImportar from '../components/InventarioImportar';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend, ResponsiveContainer,
 } from 'recharts';
@@ -30,6 +32,10 @@ export default function Inventory() {
   const [summary, setSummary] = useState<any>(null);
   const [assets, setAssets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  // Tres cosas distintas conviven aquí: repuestos que se consumen, herramientas
+  // que se prestan, y la carga del catálogo desde SAP. Se separan en pestañas
+  // porque mezclarlas en una sola pantalla las hace ilegibles.
+  const [tab, setTab] = useState<'repuestos' | 'herramientas' | 'importar'>('repuestos');
 
   const [fq, setFq] = useState('');
   const [fCat, setFCat] = useState('');
@@ -60,6 +66,11 @@ export default function Inventory() {
     setAssets(ast || []);
     setLoading(false);
   }
+  // La carga es intencionalmente ÚNICA al montar: los filtros de esta pantalla
+  // se aplican en memoria, no en el servidor. Declarar `load` como dependencia
+  // obligaría a envolverla en useCallback y volvería a consultar el servidor en
+  // cada tecla, que es exactamente lo que no queremos aquí.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, []);
 
   const categories = Array.from(new Set(rows.map((r) => r.category).filter(Boolean)));
@@ -131,11 +142,39 @@ export default function Inventory() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 className="page-title">Inventario de Repuestos</h1>
-          <p className="page-sub">Almacén de repuestos · control diario y disponibilidad frente al parque en campo</p>
+          <h1 className="page-title">Inventario</h1>
+          <p className="page-sub">
+            {tab === 'repuestos'
+              ? 'Repuestos que se consumen · disponibilidad frente al parque en campo'
+              : tab === 'herramientas'
+              ? 'Herramientas que se llevan y se devuelven'
+              : 'Carga del catálogo desde la exportación de SAP'}
+          </p>
         </div>
-        {can('inventory.manage') && <button className="btn-primary" onClick={openNew}>+ Nuevo repuesto</button>}
+        {tab === 'repuestos' && can('inventory.manage') && (
+          <button className="btn-primary" onClick={openNew}>+ Nuevo repuesto</button>
+        )}
       </div>
+
+      <div className="tabs" style={{ margin: '14px 0' }}>
+        <button className={tab === 'repuestos' ? 'tab active' : 'tab'}
+          onClick={() => setTab('repuestos')}>Repuestos</button>
+        <button className={tab === 'herramientas' ? 'tab active' : 'tab'}
+          onClick={() => setTab('herramientas')}>Herramientas</button>
+        {can('inventory.manage') && (
+          <button className={tab === 'importar' ? 'tab active' : 'tab'}
+            onClick={() => setTab('importar')}>Cargar de SAP</button>
+        )}
+      </div>
+
+      {tab === 'herramientas' && <InventarioHerramientas />}
+      {tab === 'importar' && <InventarioImportar onImportado={load} />}
+
+      {/* Todo lo de abajo es la pestaña de REPUESTOS. Va envuelto en el
+          condicional: sin esto, la tabla de repuestos seguiría apareciendo
+          debajo de las herramientas y de la carga de SAP. */}
+      {tab === 'repuestos' && (
+      <>
 
       {/* Panel resumen */}
       {summary && (
@@ -202,6 +241,14 @@ export default function Inventory() {
           </tbody>
         </table>
       </div>
+
+      </>
+      )}
+
+      {/* Los modales quedan FUERA del condicional a propósito: solo se abren
+          desde la pestaña de repuestos, y si el usuario cambia de pestaña con
+          uno abierto es mejor que se cierre por su propio botón que desaparecer
+          de golpe con los datos a medio escribir. */}
 
       {/* Crear / editar */}
       {form && (
