@@ -43,14 +43,31 @@ jobs:
             echo "listo=si" >> "$GITHUB_OUTPUT"
           fi
 
+      # pg_dump SE NIEGA a volcar un servidor mas nuevo que el. Este trabajo
+      # estuvo ROTO por eso: tenia fijado postgres:16-alpine y Railway ya corria
+      # PostgreSQL 18.4. Ahora se PREGUNTA la version al servidor y se usa la
+      # imagen que coincide, para que la proxima actualizacion de Railway no
+      # vuelva a dejar la planta sin respaldos.
+      - name: Averiguar la version del servidor
+        if: steps.chequeo.outputs.listo == 'si'
+        run: |
+          # psql si tolera hablar con un servidor mas nuevo; pg_dump no.
+          CRUDA=$(docker run --rm postgres:16-alpine \
+            psql "${{ secrets.DATABASE_PUBLIC_URL }}" -tAc "SHOW server_version" 2>/dev/null || true)
+          MAYOR=$(echo "$CRUDA" | grep -oE '^[0-9]+' | head -1)
+          if [ -z "$MAYOR" ]; then
+            echo "::error::No se pudo leer la version del servidor. Revisa la cadena de conexion."
+            exit 1
+          fi
+          echo "Servidor PostgreSQL $MAYOR"
+          echo "IMAGEN=postgres:${MAYOR}-alpine" >> "$GITHUB_ENV"
+
       - name: Generar el respaldo
         if: steps.chequeo.outputs.listo == 'si'
         run: |
           mkdir -p respaldo
           FECHA=$(date +%Y-%m-%d_%H%M)
-          # La misma imagen de PostgreSQL 16 que usa produccion: asi la version
-          # de pg_dump coincide con la del servidor y no hay error de version.
-          docker run --rm postgres:16-alpine \
+          docker run --rm "$IMAGEN" \
             pg_dump "${{ secrets.DATABASE_PUBLIC_URL }}" \
             --no-owner --no-privileges --clean --if-exists \
             > "respaldo/sgit-cctv_${FECHA}.sql"

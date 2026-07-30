@@ -6,7 +6,9 @@ name: sgit-cctv
 
 services:
   db:
-    image: postgres:16-alpine
+    # PostgreSQL 18: la misma version mayor que produccion en Railway.
+    # Desarrollar en 16 mientras la planta corre 18 es probar otra cosa.
+    image: postgres:18-alpine
     container_name: sgit_db
     restart: unless-stopped
     environment:

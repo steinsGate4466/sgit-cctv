@@ -1,0 +1,95 @@
+# =============================================================================
+#  SGIT-CCTV - Comprobar que la base de PRODUCCION coincide con el esquema
+#  Aceros Arequipa - Planta Pisco
+#
+#  POR QUE EXISTE ESTE TRABAJO
+#  El CI ya aplicaba todas las migraciones sobre una base LIMPIA y verificaba
+#  que no hubiera desfase. Ese control es necesario pero NO suficiente: dice que
+#  las migraciones son correctas, no que produccion las haya recibido todas.
+#
+#  El 30/07/2026 salio la prueba: faltaban en produccion la tabla
+#  work_order_progress y las columnas work_orders.progressPct y
+#  plannedDurationMin, aunque su migracion figuraba como aplicada. Causa: el
+#  archivo de esa migracion se edito DESPUES de haberse aplicado, asi que las
+#  sentencias nuevas nunca se ejecutaron. El CI en base limpia lo daba por
+#  bueno porque ahi la migracion se ejecuta entera.
+#
+#  Con esto, un desfase de produccion se detecta al dia siguiente como maximo,
+#  en vez de aparecer cuando un usuario abre una pantalla y le sale un 400.
+#
+#  REQUISITO (una sola vez, el MISMO secreto que el respaldo)
+#  Repositorio > Settings > Secrets and variables > Actions
+#     Nombre : DATABASE_PUBLIC_URL
+#
+#  ES DE SOLO LECTURA: consulta information_schema y pg_type. No escribe nada.
+# =============================================================================
+name: Verificar base de produccion
+
+on:
+  schedule:
+    # 07:00 UTC = 02:00 en Peru, una hora despues del respaldo: si el desfase
+    # obliga a restaurar, el respaldo de esa noche ya existe.
+    - cron: '0 7 * * *'
+  workflow_dispatch: # a mano, sobre todo DESPUES de aplicar una migracion
+
+jobs:
+  verificar:
+    name: Comparar esquema contra base real
+    runs-on: ubuntu-latest
+
+    steps:
+      # Igual que en el respaldo: sin el secreto el trabajo TERMINA BIEN con un
+      # aviso, para no mandar un correo de error cada dia.
+      - name: Comprobar que el secreto existe
+        id: chequeo
+        run: |
+          if [ -z "${{ secrets.DATABASE_PUBLIC_URL }}" ]; then
+            echo "::warning::Falta el secreto DATABASE_PUBLIC_URL. No se comprobo la base."
+            echo "listo=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "listo=si" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.chequeo.outputs.listo == 'si'
+
+      - uses: actions/setup-node@v4
+        if: steps.chequeo.outputs.listo == 'si'
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependencias
+        if: steps.chequeo.outputs.listo == 'si'
+        working-directory: backend
+        run: npm ci
+
+      # El cliente hace falta porque el diagnostico usa $queryRawUnsafe.
+      - name: Generar cliente de Prisma
+        if: steps.chequeo.outputs.listo == 'si'
+        working-directory: backend
+        run: npx prisma generate
+
+      # El script sale con codigo 1 si falta cualquier tabla, columna o enum.
+      # Ese fallo ES el aviso: no se puede ignorar como un warning.
+      - name: Comparar esquema contra la base
+        if: steps.chequeo.outputs.listo == 'si'
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_PUBLIC_URL }}
+        run: npm run verificar:bd
+
+      - name: Que hacer si esto falla
+        if: failure() && steps.chequeo.outputs.listo == 'si'
+        run: |
+          echo "::error::La base de produccion NO coincide con el esquema."
+          echo "Mira el informe del paso anterior: dice exactamente que falta."
+          echo ""
+          echo "NO se arregla relanzando las migraciones: las que ya figuran"
+          echo "aplicadas no se vuelven a ejecutar. Hace falta una migracion de"
+          echo "reparacion idempotente (ADD COLUMN IF NOT EXISTS), como"
+          echo "20260801000000_reparar_desfase_om."
+          echo ""
+          echo "Y la regla que evita que vuelva a pasar: una migracion ya"
+          echo "aplicada es INMUTABLE. Lo que falto va en una migracion NUEVA."

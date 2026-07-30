@@ -10,3 +10,7 @@ coverage/
 .vscode/
 prisma/*.db
 uploads/
+
+# Respaldos de base de datos: NUNCA al repositorio
+respaldos/
+*.sql.gz

@@ -17,7 +17,8 @@
     "prisma:seed": "prisma db seed",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:cov": "jest --coverage"
+    "test:cov": "jest --coverage",
+    "verificar:bd": "node scripts/diagnostico-bd.js"
   },
   "prisma": {
     "seed": "node dist/seed.js"

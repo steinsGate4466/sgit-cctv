@@ -125,7 +125,10 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16-alpine
+        # PostgreSQL 18: la MISMA version mayor que produccion en Railway.
+        # Estuvo en 16 mientras produccion ya corria 18.4: probar en una version
+        # distinta a la que atiende la planta es pedir una sorpresa.
+        image: postgres:18-alpine
         env:
           POSTGRES_USER: ci
           POSTGRES_PASSWORD: ci

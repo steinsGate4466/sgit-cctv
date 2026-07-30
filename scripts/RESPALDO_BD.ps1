@@ -1,4 +1,4 @@
-# =============================================================================
+﻿# =============================================================================
 #  SGIT-CCTV - Respaldo de la base de datos de produccion (Railway)
 #  Aceros Arequipa - Planta Pisco - Laminacion
 #
@@ -90,13 +90,32 @@ Escribe "Destino: $archivo" "Gray"
 Escribe "Descargando respaldo... (puede tardar segun el tamano de la base)" "Yellow"
 Escribe ""
 
-# --- 4) pg_dump via contenedor ---------------------------------------------
+# --- 4) Averiguar la version del SERVIDOR ----------------------------------
+#  pg_dump SE NIEGA a volcar un servidor mas nuevo que el:
+#     pg_dump: error: aborting because of server version mismatch
+#     server version: 18.4 · pg_dump version: 16.14
+#  Esto rompio el respaldo el 30/07/2026, cuando Railway ya corria PostgreSQL 18
+#  y aqui seguia fijado postgres:16-alpine. El respaldo llevaba tiempo sin
+#  funcionar y nadie se habia dado cuenta.
+#
+#  Se DETECTA la version en vez de fijarla, para que la proxima actualizacion de
+#  Railway no vuelva a dejarnos sin respaldos.
+#  psql SI tolera hablar con un servidor mas nuevo, asi que sirve para preguntar.
+Escribe "Averiguando la version del servidor..." "Gray"
+$versionCruda = docker run --rm postgres:16-alpine psql "$Url" -tAc "SHOW server_version" 2>$null
+$mayor = 16
+if ($versionCruda -match '^\s*(\d+)') { $mayor = [int]$Matches[1] }
+$imagen = "postgres:$mayor-alpine"
+Escribe ("  servidor PostgreSQL " + $mayor + " -> usando " + $imagen) "Gray"
+Escribe ""
+
+# --- 5) pg_dump via contenedor de la MISMA version -------------------------
 #  --no-owner / --no-privileges: el respaldo se puede restaurar en CUALQUIER
 #  base (local, otra cuenta de Railway) sin depender del usuario original.
 #  --clean --if-exists: al restaurar, borra y recrea cada objeto.
-docker run --rm postgres:16-alpine `
+docker run --rm $imagen `
     pg_dump "$Url" --no-owner --no-privileges --clean --if-exists `
-    2>$null | Out-File -FilePath $archivo -Encoding utf8
+    | Out-File -FilePath $archivo -Encoding utf8
 
 if ($LASTEXITCODE -ne 0) {
     Escribe "[ERROR] pg_dump fallo. Revisa que la URL sea correcta y la base este activa." "Red"
@@ -145,7 +164,7 @@ Escribe "===============================================================" "Cyan"
 Escribe " COMO RESTAURAR (solo si algo sale mal)" "Cyan"
 Escribe "===============================================================" "Cyan"
 Escribe ""
-Escribe " docker run --rm -i postgres:16-alpine psql `"<URL>`" < `"$archivo`"" "White"
+Escribe " docker run --rm -i $imagen psql `"<URL>`" < `"$archivo`"" "White"
 Escribe ""
 Escribe " El respaldo deja la base exactamente como estaba al generarlo." "DarkGray"
 Escribe ""
