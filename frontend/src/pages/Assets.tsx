@@ -5,6 +5,7 @@ import AccessRequestForm, { MEANS_ES, STATUS_ES as ACC_STATUS_ES, STATUS_BADGE a
 import { useAuth } from '../auth/AuthContext';
 import { useAutoOcultar } from '../auth/useInactivity';
 import AssetSpecFields, { FICHA_DE } from '../components/AssetSpecFields';
+import AssetPhotoPicker, { FotoPendiente } from '../components/AssetPhotoPicker';
 
 const TYPES = ['CAMERA', 'NVR', 'SWITCH', 'WIRELESS', 'DECODER', 'PANTALLA', 'PC', 'ROUTER', 'FIREWALL', 'SERVER', 'UPS', 'FIBER', 'CABINET', 'OTHER'];
 const STATES = ['OPERATIVO', 'FUERA_SERVICIO', 'MANTENIMIENTO', 'BAJA', 'STOCK'];
@@ -104,6 +105,9 @@ export default function Assets() {
   // Lista ligera de activos, para los desplegables de dependencia:
   // "esta cámara entra al grabador X", "esta antena cuelga del AP Y".
   const [opciones, setOpciones] = useState<any[]>([]);
+  // Fotos elegidas DURANTE el alta. Se suben cuando el activo ya existe: no se
+  // puede subir a un activo que todavía no tiene identificador.
+  const [fotosNuevas, setFotosNuevas] = useState<FotoPendiente[]>([]);
 
   async function loadAssets(p = page) {
     const params: any = { page: p, pageSize: 50 };
@@ -152,10 +156,11 @@ export default function Assets() {
     setFormErr('');
     setTries(5);
     setSpec({});
+    setFotosNuevas([]);
     setForm({ assetCode: '', type: 'CAMERA', brand: '', model: '', serialNumber: '', ipAddress: '', devicePass: '', status: 'OPERATIVO', criticality: 'MEDIA', locationId: '', cabinetId: '', referencePlace: '', sapId: '', responsibleArea: '', email: user?.email || '', password: '' });
   }
   function openEdit(a: any) {
-    setFormErr(''); setTries(5); setDetail(null);
+    setFormErr(''); setTries(5); setDetail(null); setFotosNuevas([]);
     // Precarga la ficha del tipo que ya tenga guardada. Se copian solo los
     // campos editables: el identificador y las relaciones no se envían de vuelta.
     const bloque = FICHA_DE[a.type];
@@ -202,8 +207,32 @@ export default function Assets() {
       if (form.devicePass && assetId) {
         await api.post('/credentials', { assetId, username: 'admin', secret: form.devicePass, type: 'equipo' }).catch(() => {});
       }
+
+      // Fotos tomadas durante el alta. Se suben una por una: si alguna falla no
+      // se pierden las demás y al final se avisa cuáles quedaron sin subir.
+      if (fotosNuevas.length && assetId) {
+        const fallidas: string[] = [];
+        for (const f of fotosNuevas) {
+          const fd = new FormData();
+          fd.append('file', f.file);
+          fd.append('kind', f.kind);
+          if (f.caption) fd.append('caption', f.caption);
+          const ok = await api.post('/assets/' + assetId + '/photos', fd)
+            .then(() => true).catch(() => false);
+          if (!ok) fallidas.push(f.file.name);
+          URL.revokeObjectURL(f.url);
+        }
+        if (fallidas.length) {
+          window.alert(
+            'El activo se guardó, pero estas fotos no se pudieron subir:\n' +
+            fallidas.join('\n') +
+            '\n\nPuedes volver a subirlas desde la ficha del activo.',
+          );
+        }
+      }
       setForm(null);
       setSpec({});
+      setFotosNuevas([]);
       await loadAssets();
       // Si la ficha quedó incompleta se avisa, pero NO se bloquea: el técnico
       // registra en campo con lo que tiene y completa después.
@@ -304,11 +333,21 @@ export default function Assets() {
     const list = await api.get('/assets/' + detail.id + '/photos').then((r) => r.data).catch(() => []);
     setPhotos(list || []);
   }
-  async function downloadReport() {
+  /**
+   * Informe del equipo en PDF.
+   *
+   * Recibe el activo como parámetro para poder llamarlo TAMBIÉN desde la tabla.
+   * Antes leía `detail`, así que solo funcionaba con la ficha abierta: desde el
+   * listado el informe era invisible y nadie sabía que existía.
+   */
+  async function descargarInforme(activo: any) {
+    if (!activo?.id) return;
     try {
-      const res = await api.get('/assets/' + detail.id + '/report', { responseType: 'blob' });
+      const res = await api.get('/assets/' + activo.id + '/report', { responseType: 'blob' });
       const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
-      const a = document.createElement('a'); a.href = url; a.download = (detail.assetCode || 'informe') + '.pdf';
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = (activo.assetCode || 'informe') + '.pdf';
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
     } catch { window.alert('No se pudo generar el informe.'); }
   }
@@ -461,7 +500,7 @@ export default function Assets() {
       <div className="card">
         <table>
           <thead>
-            <tr><th>Código</th><th>Tipo</th><th>Ficha</th><th>Tren / Etapa</th><th>Marca / Modelo</th>{can('credential.read') && <th>IP</th>}{can('credential.read') && <th>Contraseña</th>}<th>Estado</th><th>Criticidad</th><th>Ubicación</th>{can('credential.read') && <th></th>}</tr>
+            <tr><th>Código</th><th>Tipo</th><th>Ficha</th><th>Tren / Etapa</th><th>Marca / Modelo</th>{can('credential.read') && <th>IP</th>}{can('credential.read') && <th>Contraseña</th>}<th>Estado</th><th>Criticidad</th><th>Ubicación</th><th></th></tr>
           </thead>
           <tbody>
             {visibles.map((a) => (
@@ -504,7 +543,16 @@ export default function Assets() {
                 <td><span className={'badge ' + (a.effectiveStatus || a.status)}>{sEs(a.effectiveStatus || a.status)}</span></td>
                 <td><span className={'badge ' + a.criticality}>{cEs(a.criticality)}</span></td>
                 <td className="muted">{a.location?.name || '—'}</td>
-                {can('credential.read') && <td><button className="btn-mini" onClick={(e) => { e.stopPropagation(); openQuickEdit(a); }}>Editar</button></td>}
+                <td style={{ whiteSpace: 'nowrap' }}>
+                  {/* El informe se ofrece desde la tabla: antes solo existía
+                      dentro de la ficha y nadie sabía que estaba. */}
+                  <button className="btn-mini" title="Informe del equipo en PDF"
+                    onClick={(e) => { e.stopPropagation(); descargarInforme(a); }}>📄 PDF</button>
+                  {can('credential.read') && (
+                    <button className="btn-mini" style={{ marginLeft: 4 }}
+                      onClick={(e) => { e.stopPropagation(); openQuickEdit(a); }}>Editar</button>
+                  )}
+                </td>
               </tr>
             ))}
             {!visibles.length && (
@@ -548,7 +596,7 @@ export default function Assets() {
         <Modal title={detail.assetCode} onClose={() => setDetail(null)}>
           <div style={{ marginBottom: 10, textAlign: 'right', display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
             <button className="btn-mini" onClick={() => openQr(detail)}>🏷️ QR</button>
-            <button className="btn-mini" onClick={downloadReport}>📄 Informe del equipo (PDF)</button>
+            <button className="btn-mini" onClick={() => descargarInforme(detail)}>📄 Informe del equipo (PDF)</button>
             {can('credential.read') && <button className="btn-mini" onClick={() => openEdit(detail)}>✏️ Editar activo (firmado)</button>}
             {can('asset.delete') && (
               <button className="btn-mini btn-danger" onClick={() => removeAsset(detail)}>🗑️ Dar de baja</button>
@@ -802,6 +850,8 @@ export default function Assets() {
               onChange={setSpec}
               opciones={opciones}
             />
+
+            <AssetPhotoPicker fotos={fotosNuevas} onChange={setFotosNuevas} />
 
             <h4 style={{ marginTop: 14, marginBottom: 4 }}>🔏 Firma electrónica</h4>
             <label>Correo</label>
