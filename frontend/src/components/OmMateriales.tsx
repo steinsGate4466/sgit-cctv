@@ -1,4 +1,4 @@
-import { useEffect, useState, FormEvent } from 'react';
+import { useEffect, useState, useCallback, FormEvent } from 'react';
 import { api } from '../api/client';
 import Modal from './Modal';
 import { useAuth } from '../auth/AuthContext';
@@ -37,7 +37,10 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
 
   const editable = wo.status !== 'CERRADA' && wo.status !== 'CANCELADA' && can('wo.update');
 
-  async function cargar() {
+  // useCallback: todas las consultas cuelgan del id de la orden. Con la orden
+  // como dependencia, abrir otra OM recarga sus propios materiales en vez de
+  // mostrar los de la anterior.
+  const cargar = useCallback(async () => {
     const [m, r, s, st] = await Promise.all([
       api.get(`/work-orders/${wo.id}/materials`).then((x) => x.data).catch(() => []),
       api.get('/inventory?pageSize=500').then((x) => x.data).catch(() => null),
@@ -48,8 +51,8 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
     setRepuestos(Array.isArray(r) ? r : r?.data || r?.items || []);
     setSwaps(s || []);
     setStock(st || []);
-  }
-  useEffect(() => { cargar().finally(() => setCargando(false)); }, [wo.id]);
+  }, [wo.id]);
+  useEffect(() => { cargar().finally(() => setCargando(false)); }, [cargar]);
 
   function error(err: any) {
     const m = err?.response?.data?.message;

@@ -1,4 +1,4 @@
-import { useEffect, useState, FormEvent } from 'react';
+import { useEffect, useState, useCallback, FormEvent } from 'react';
 import { api } from '../api/client';
 import Modal from './Modal';
 import { useAuth } from '../auth/AuthContext';
@@ -30,15 +30,18 @@ export default function InventarioHerramientas() {
   const [guardando, setGuardando] = useState(false);
   const [verTodas, setVerTodas] = useState(false);
 
-  async function cargar() {
+  // useCallback porque la consulta SÍ cambia con "ver también las inactivas".
+  // Así entra como dependencia del efecto sin recrearse en cada render, que es
+  // lo que provocaría un bucle de recargas.
+  const cargar = useCallback(async () => {
     const [t, f] = await Promise.all([
       api.get('/inventory/tools' + (verTodas ? '?todas=true' : '')).then((r) => r.data).catch(() => []),
       api.get('/inventory/tools/faltantes').then((r) => r.data).catch(() => []),
     ]);
     setRows(t || []);
     setFaltantes(f || []);
-  }
-  useEffect(() => { cargar().finally(() => setCargando(false)); }, [verTodas]);
+  }, [verTodas]);
+  useEffect(() => { cargar().finally(() => setCargando(false)); }, [cargar]);
 
   function nueva() { setForm({ ...VACIO }); }
   function editar(t: any) {
