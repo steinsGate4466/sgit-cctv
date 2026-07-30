@@ -4,8 +4,9 @@ import Modal from '../components/Modal';
 import AccessRequestForm, { MEANS_ES, STATUS_ES as ACC_STATUS_ES, STATUS_BADGE as ACC_BADGE } from '../components/AccessRequestForm';
 import { useAuth } from '../auth/AuthContext';
 import { useAutoOcultar } from '../auth/useInactivity';
+import AssetSpecFields, { FICHA_DE } from '../components/AssetSpecFields';
 
-const TYPES = ['CAMERA', 'NVR', 'SWITCH', 'WIRELESS', 'ROUTER', 'FIREWALL', 'SERVER', 'UPS', 'FIBER', 'CABINET', 'DECODER', 'PC', 'OTHER'];
+const TYPES = ['CAMERA', 'NVR', 'SWITCH', 'WIRELESS', 'DECODER', 'PANTALLA', 'PC', 'ROUTER', 'FIREWALL', 'SERVER', 'UPS', 'FIBER', 'CABINET', 'OTHER'];
 const STATES = ['OPERATIVO', 'FUERA_SERVICIO', 'MANTENIMIENTO', 'BAJA', 'STOCK'];
 const CRITS = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
 // Tipos montados en rack: es obligatorio indicar en qué gabinete están.
@@ -26,7 +27,7 @@ const PHOTO_KINDS = ['APUNTA', 'REFERENCIA', 'PLANO', 'GENERAL'];
 const PHOTO_KIND_ES: Record<string, string> = { APUNTA: 'Imagen en pantalla (púlpito)', REFERENCIA: 'Ubicación de referencia', PLANO: 'Ubicación en plano', GENERAL: 'General' };
 
 // Etiquetas en español (los valores internos siguen en inglés para no romper datos)
-const TYPE_ES: Record<string, string> = { CAMERA: 'Cámara', NVR: 'NVR', SWITCH: 'Switch', WIRELESS: 'Enlace inalámbrico', ROUTER: 'Router', FIREWALL: 'Firewall', SERVER: 'Servidor', UPS: 'UPS', FIBER: 'Fibra', CABINET: 'Gabinete', DECODER: 'Decodificador', PC: 'PC / iVMS-4200', OTHER: 'Otro' };
+const TYPE_ES: Record<string, string> = { CAMERA: 'Cámara', NVR: 'NVR', SWITCH: 'Switch', WIRELESS: 'Enlace inalámbrico', ROUTER: 'Router', FIREWALL: 'Firewall', SERVER: 'Servidor', UPS: 'UPS', FIBER: 'Fibra', CABINET: 'Gabinete', DECODER: 'Decodificador', PC: 'PC / iVMS-4200', PANTALLA: 'Pantalla de púlpito', OTHER: 'Otro' };
 const STATUS_ES: Record<string, string> = { OPERATIVO: 'Operativo', FUERA_SERVICIO: 'Fuera de servicio', MANTENIMIENTO: 'En mantenimiento', CON_INCIDENCIA: 'Con incidencia', BAJA: 'Baja', STOCK: 'En stock' };
 const CRIT_ES: Record<string, string> = { BAJA: 'Baja', MEDIA: 'Media', ALTA: 'Alta', CRITICA: 'Crítica' };
 const tEs = (v: string) => TYPE_ES[v] || v;
@@ -97,6 +98,13 @@ export default function Assets() {
   const [qPass, setQPass] = useState('');
   const [qSaving, setQSaving] = useState(false);
 
+  // Ficha propia del tipo (cámara, grabador, switch, antena, decodificador,
+  // pantalla, PC). Se envía en su propio bloque dentro del cuerpo del alta.
+  const [spec, setSpec] = useState<any>({});
+  // Lista ligera de activos, para los desplegables de dependencia:
+  // "esta cámara entra al grabador X", "esta antena cuelga del AP Y".
+  const [opciones, setOpciones] = useState<any[]>([]);
+
   async function loadAssets(p = page) {
     const params: any = { page: p, pageSize: 50 };
     if (fq.trim()) params.search = fq.trim();
@@ -113,7 +121,8 @@ export default function Assets() {
     Promise.all([
       api.get('/locations').then((r) => r.data).catch(() => []),
       api.get('/cabinets').then((r) => r.data).catch(() => []),
-    ]).then(([l, c]) => { setLocations(l || []); setCabinets(c || []); });
+      api.get('/assets/options').then((r) => r.data).catch(() => []),
+    ]).then(([l, c, o]) => { setLocations(l || []); setCabinets(c || []); setOpciones(o || []); });
   }, []);
 
   // Recarga al cambiar filtros o página. El retardo de 350 ms evita disparar
@@ -142,10 +151,21 @@ export default function Assets() {
   function openNew() {
     setFormErr('');
     setTries(5);
+    setSpec({});
     setForm({ assetCode: '', type: 'CAMERA', brand: '', model: '', serialNumber: '', ipAddress: '', devicePass: '', status: 'OPERATIVO', criticality: 'MEDIA', locationId: '', cabinetId: '', referencePlace: '', sapId: '', responsibleArea: '', email: user?.email || '', password: '' });
   }
   function openEdit(a: any) {
     setFormErr(''); setTries(5); setDetail(null);
+    // Precarga la ficha del tipo que ya tenga guardada. Se copian solo los
+    // campos editables: el identificador y las relaciones no se envían de vuelta.
+    const bloque = FICHA_DE[a.type];
+    const guardada = bloque ? (a as any)[bloque] : null;
+    if (guardada) {
+      const { assetId, asset, vlan, switchPort, poeSourcePort, outputs, cells, fedByOutputs, ...campos } = guardada;
+      setSpec(campos);
+    } else {
+      setSpec({});
+    }
     setForm({
       id: a.id, assetCode: a.assetCode || '', type: a.type || 'CAMERA', brand: a.brand || '', model: a.model || '',
       serialNumber: a.serialNumber || '', ipAddress: a.ipAddress || '', status: a.status || 'OPERATIVO',
@@ -165,6 +185,17 @@ export default function Assets() {
         locationId: form.locationId || undefined, cabinetId: form.cabinetId || undefined, sapId: form.sapId || undefined, responsibleArea: form.responsibleArea || undefined,
         email: form.email, password: form.password,
       };
+      // La ficha del tipo va en su propio bloque, con el nombre que espera el
+      // servidor. Solo se envía si tiene algún dato: un bloque vacío haría
+      // creer que la ficha ya está hecha y falsearía el avance del mapeo.
+      const bloqueFicha = FICHA_DE[form.type];
+      if (bloqueFicha) {
+        const limpia: any = {};
+        for (const [k, val] of Object.entries(spec || {})) {
+          if (val !== undefined && val !== null && val !== '') limpia[k] = val;
+        }
+        if (Object.keys(limpia).length) body[bloqueFicha] = limpia;
+      }
       let assetId = form.id;
       if (form.id) { await api.patch('/assets/' + form.id + '/edit', body); }
       else { const res = await api.post('/assets', body); assetId = res.data?.id; }
@@ -172,7 +203,20 @@ export default function Assets() {
         await api.post('/credentials', { assetId, username: 'admin', secret: form.devicePass, type: 'equipo' }).catch(() => {});
       }
       setForm(null);
+      setSpec({});
       await loadAssets();
+      // Si la ficha quedó incompleta se avisa, pero NO se bloquea: el técnico
+      // registra en campo con lo que tiene y completa después.
+      if (assetId) {
+        const d = await api.get('/assets/' + assetId).then((r) => r.data).catch(() => null);
+        if (d?.pendiente) {
+          window.alert(
+            `Activo guardado.\n\n${d.pendiente}\n\n` +
+            'Queda marcado como ficha incompleta: puedes completarlo después, ' +
+            'incluso escaneando su QR desde el celular en planta.',
+          );
+        }
+      }
     } catch (err: any) {
       const m = err?.response?.data?.message;
       const msg = Array.isArray(m) ? m.join(', ') : m || 'No se pudo registrar el activo.';
@@ -417,13 +461,27 @@ export default function Assets() {
       <div className="card">
         <table>
           <thead>
-            <tr><th>Código</th><th>Tipo</th><th>Tren / Etapa</th><th>Marca / Modelo</th>{can('credential.read') && <th>IP</th>}{can('credential.read') && <th>Contraseña</th>}<th>Estado</th><th>Criticidad</th><th>Ubicación</th>{can('credential.read') && <th></th>}</tr>
+            <tr><th>Código</th><th>Tipo</th><th>Ficha</th><th>Tren / Etapa</th><th>Marca / Modelo</th>{can('credential.read') && <th>IP</th>}{can('credential.read') && <th>Contraseña</th>}<th>Estado</th><th>Criticidad</th><th>Ubicación</th>{can('credential.read') && <th></th>}</tr>
           </thead>
           <tbody>
             {visibles.map((a) => (
               <tr key={a.id} style={{ cursor: 'pointer' }} onClick={() => openDetail(a.id)}>
                 <td style={{ fontWeight: 600 }}>{a.assetCode}</td>
                 <td>{tEs(a.type)}</td>
+                <td style={{ minWidth: 74 }}>
+                  {/* Avance de la ficha. Es lo que permite repartir el trabajo
+                      de mapeo y saber cuánto falta de los 400 activos. */}
+                  <div style={{ background: '#e5e7eb', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+                    <div style={{
+                      width: `${a.fichaPct ?? 0}%`, height: '100%',
+                      background: (a.fichaPct ?? 0) >= 80 ? '#16a34a'
+                        : (a.fichaPct ?? 0) >= 40 ? '#f59e0b' : '#dc2626',
+                    }} />
+                  </div>
+                  <div className="muted" style={{ fontSize: 10 }}>
+                    {a.fichaPct ?? 0}%{a.isDraft ? ' · incompleta' : ''}
+                  </div>
+                </td>
                 <td>
                   {a.trenNombre
                     ? <span className="badge MEDIA">{a.trenNombre}</span>
@@ -451,7 +509,7 @@ export default function Assets() {
             ))}
             {!visibles.length && (
               <tr>
-                <td colSpan={12} className="muted" style={{ textAlign: 'center', padding: 30 }}>
+                <td colSpan={13} className="muted" style={{ textAlign: 'center', padding: 30 }}>
                   {hayFiltro
                     ? 'Ningún activo coincide con el filtro.'
                     : 'Todavía no hay activos registrados.'}
@@ -508,6 +566,28 @@ export default function Assets() {
               Estado calculado en vivo desde sus OM/incidencias abiertas. Estado base registrado: {sEs(detail.status)}.
             </div>
           )}
+          {detail.completitud && detail.completitud.faltanClave?.length > 0 && (
+            <div style={{
+              background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 8,
+              padding: '10px 12px', marginBottom: 12, fontSize: 13,
+            }}>
+              <div style={{ fontWeight: 700, color: '#92400e', marginBottom: 4 }}>
+                Ficha incompleta — {detail.completitud.porcentaje}%
+              </div>
+              <div style={{ color: '#92400e' }}>Falta registrar:</div>
+              <ul style={{ margin: '4px 0 0 18px', color: '#92400e' }}>
+                {detail.completitud.faltanClave.map((f: any) => (
+                  <li key={f.campo}>{f.etiqueta}</li>
+                ))}
+              </ul>
+              {detail.completitud.faltanOtros?.length > 0 && (
+                <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>
+                  Además, sería útil: {detail.completitud.faltanOtros.map((f: any) => f.etiqueta).join(', ')}.
+                </div>
+              )}
+            </div>
+          )}
+
           <Frow k="Criticidad" v={
             detail.planta?.criticidadEfectiva && detail.planta.criticidadEfectiva !== detail.criticality
               ? `${cEs(detail.planta.criticidadEfectiva)} (elevada por la etapa)`
@@ -679,7 +759,7 @@ export default function Assets() {
             <label>Código / rótulo del activo</label>
             <input value={form.assetCode} onChange={(e) => setForm({ ...form, assetCode: e.target.value })} required />
             <div style={{ display: 'flex', gap: 10 }}>
-              <div style={{ flex: 1 }}><label>Tipo</label><select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>{TYPES.map((t) => <option key={t} value={t}>{tEs(t)}</option>)}</select></div>
+              <div style={{ flex: 1 }}><label>Tipo</label><select value={form.type} onChange={(e) => { setForm({ ...form, type: e.target.value }); setSpec({}); }}>{TYPES.map((t) => <option key={t} value={t}>{tEs(t)}</option>)}</select></div>
               <div style={{ flex: 1 }}><label>Criticidad</label><select value={form.criticality} onChange={(e) => setForm({ ...form, criticality: e.target.value })}>{CRITS.map((t) => <option key={t} value={t}>{cEs(t)}</option>)}</select></div>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
@@ -716,6 +796,13 @@ export default function Assets() {
               <div style={{ flex: 1 }}><label>Código SAP (activo)</label><input value={form.sapId} onChange={(e) => setForm({ ...form, sapId: e.target.value })} /></div>
               <div style={{ flex: 1 }}><label>Área responsable</label><input value={form.responsibleArea} onChange={(e) => setForm({ ...form, responsibleArea: e.target.value })} /></div>
             </div>
+            <AssetSpecFields
+              tipo={form.type}
+              spec={spec}
+              onChange={setSpec}
+              opciones={opciones}
+            />
+
             <h4 style={{ marginTop: 14, marginBottom: 4 }}>🔏 Firma electrónica</h4>
             <label>Correo</label>
             <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
