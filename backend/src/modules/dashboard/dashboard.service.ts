@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { computeEffectiveStatuses } from '../../common/asset-status';
+import { resolverContextoDePlanta } from '../../common/plant-context';
+import { contarPorTren } from './infra-agregados';
 
 /**
  * Indicadores del tablero ejecutivo.
@@ -97,9 +99,12 @@ export class DashboardService {
   async overview() {
     const assets = await this.prisma.asset.findMany({
       where: { deletedAt: null },
-      select: { id: true, type: true, status: true, criticality: true, train: true },
+      // locationId en vez de train: el tren se DERIVA del árbol. Ver la nota
+      // larga en agruparPorTren, más abajo.
+      select: { id: true, type: true, status: true, criticality: true, locationId: true },
     });
     const eff = await computeEffectiveStatuses(this.prisma, assets);
+    const ctx = await resolverContextoDePlanta(this.prisma, assets as any);
 
     const count = (arr: string[]) => {
       const m: Record<string, number> = {};
@@ -111,63 +116,89 @@ export class DashboardService {
       byType: count(assets.map((a) => a.type)),
       byStatus: count(assets.map((a) => eff[a.id] || a.status)),
       byCriticality: count(assets.map((a) => a.criticality)),
-      byTrain: this.agruparPorTren(assets, eff),
+      byTrain: await this.agruparPorTren(assets, eff, ctx),
     };
   }
 
   /**
-   * Estado de la infraestructura POR TREN. Es la vista que le importa a Producción:
-   * "¿cómo está la visión del Tren 2 ahora mismo?".
-   * Usa el campo `train` del activo (dato explícito), no el texto de la ubicación.
+   * Estado de la infraestructura POR TREN, para el gráfico del tablero.
+   *
+   * CAMBIO DE FUENTE DE VERDAD (esto era un bug de datos, no de código)
+   * Antes agrupaba por la columna `Asset.train`, escrita a mano en el alta.
+   * El avance del mapeo, la criticidad y los intervalos preventivos, en
+   * cambio, ya derivaban del árbol de ubicaciones. Resultado: el mismo activo
+   * podía contar en el Tren 2 en una pantalla y en "SIN_ASIGNAR" en la otra,
+   * y aparecía un cuarto tren fantasma que en Laminación no existe.
+   *
+   * Ahora agrupa por el tren DERIVADO del árbol, igual que el resto del
+   * sistema. La columna `Asset.train` se conserva en la base —no se borra
+   * nada— pero ya no se lee en ningún sitio.
+   *
+   * Los activos que no cuelgan de ningún tren NO se disfrazan de tren: salen
+   * con clave `SIN_UBICAR` y el tablero los muestra como aviso accionable
+   * ("hay N activos fuera del árbol"), que es lo que realmente son.
    */
-  private agruparPorTren(assets: any[], eff: Record<string, string>) {
-    const ORDEN = ['TREN_1', 'TREN_2', 'TREN_3', 'PATIO', 'PLANTA_GENERAL', 'SIN_ASIGNAR'];
-    const acc: Record<string, any> = {};
+  private async agruparPorTren(
+    assets: any[],
+    eff: Record<string, string>,
+    ctx: Record<string, any>,
+  ) {
+    const agregables = assets.map((a) => ({
+      id: a.id,
+      type: a.type,
+      estado: eff[a.id] || a.status,
+      criticidad: ctx[a.id]?.criticidad || a.criticality,
+      trenCode: ctx[a.id]?.trenCode ?? null,
+      // El gráfico del tablero ejecutivo no mide mapeo; estos tres campos son
+      // obligatorios en el tipo y aquí no aportan, así que van neutros.
+      fichaIncompleta: false,
+      sinFoto: false,
+      sinEtapa: false,
+    }));
 
-    for (const a of assets) {
-      const t = a.train || 'SIN_ASIGNAR';
-      if (!acc[t]) {
-        acc[t] = {
-          train: t, total: 0, camaras: 0,
-          operativos: 0, enMantenimiento: 0, conIncidencia: 0, fueraServicio: 0,
-          camarasCaidas: 0, criticos: 0,
-        };
-      }
-      const g = acc[t];
-      g.total++;
-      if (a.type === 'CAMERA') g.camaras++;
-      if (a.criticality === 'CRITICA') g.criticos++;
+    const porTren = contarPorTren(agregables);
 
-      const e = eff[a.id] || a.status;
-      if (e === 'OPERATIVO') g.operativos++;
-      else if (e === 'MANTENIMIENTO') g.enMantenimiento++;
-      else if (e === 'CON_INCIDENCIA') g.conIncidencia++;
-      else if (e === 'FUERA_SERVICIO') g.fueraServicio++;
+    // Nombre legible del tren a partir del árbol, para no rotular con el código.
+    const trenes = await this.prisma.location.findMany({
+      where: { type: 'TREN' },
+      select: { code: true, name: true },
+      orderBy: { code: 'asc' },
+    });
+    const nombre = new Map(trenes.map((t) => [t.code, t.name] as const));
+    const orden = trenes.map((t) => t.code);
 
-      if (a.type === 'CAMERA' && (e === 'FUERA_SERVICIO' || e === 'CON_INCIDENCIA')) g.camarasCaidas++;
-    }
-
-    return Object.values(acc)
-      .map((g: any) => {
-        // Base de cálculo: activos en operación (excluye baja y stock).
-        const enOperacion = g.operativos + g.enMantenimiento + g.conIncidencia + g.fueraServicio;
-        const afectados = g.conIncidencia + g.fueraServicio;
-        return {
-          ...g,
-          disponibilidad: enOperacion > 0
-            ? Number((((enOperacion - afectados) / enOperacion) * 100).toFixed(1))
-            : 100,
-          disponibilidadCamaras: g.camaras > 0
-            ? Number((((g.camaras - g.camarasCaidas) / g.camaras) * 100).toFixed(1))
-            : 100,
-        };
-      })
-      .sort((a: any, b: any) => ORDEN.indexOf(a.train) - ORDEN.indexOf(b.train));
+    return [...porTren.entries()]
+      .map(([code, g]) => ({
+        train: code ?? 'SIN_UBICAR',
+        nombre: code ? nombre.get(code) || code : 'Sin ubicación en el árbol',
+        total: g.total,
+        camaras: g.camaras,
+        operativos: g.operativos,
+        enMantenimiento: g.enMantenimiento,
+        conIncidencia: g.conIncidencia,
+        fueraServicio: g.fueraServicio,
+        camarasCaidas: g.camarasCaidas,
+        criticos: g.criticos,
+        disponibilidad: g.disponibilidad,
+        disponibilidadCamaras: g.disponibilidadCamaras,
+      }))
+      // Los trenes en el orden del árbol; lo no ubicado, siempre al final.
+      .sort((a, b) => {
+        const ia = a.train === 'SIN_UBICAR' ? 999 : orden.indexOf(a.train);
+        const ib = b.train === 'SIN_UBICAR' ? 999 : orden.indexOf(b.train);
+        return ia - ib;
+      });
   }
 
   /**
-   * Tablero completo de un Tren: todo lo que su responsable necesita ver en una
-   * sola pantalla, sin mezclarse con el resto de la planta.
+   * LEGADO — tablero de un Tren agrupado por la columna `Asset.train`.
+   *
+   * Se conserva porque sigue publicado en /dashboard/train/:train y borrarlo
+   * rompería cualquier enlace guardado. La interfaz YA NO lo usa: el tablero
+   * por tren se sirve desde InfraService, que deriva el tren del árbol.
+   *
+   * DEUDA DECLARADA: se retira cuando se confirme que nadie lo llama. Mientras
+   * exista, no añadir indicadores nuevos aquí —van en InfraService—.
    */
   async trainDetail(train: string) {
     const where: any = train === 'SIN_ASIGNAR'
