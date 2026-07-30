@@ -7,6 +7,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useAutoOcultar } from '../auth/useInactivity';
 import AssetSpecFields, { FICHA_DE } from '../components/AssetSpecFields';
 import AssetPhotoPicker, { FotoPendiente } from '../components/AssetPhotoPicker';
+import HistorialActivo from '../components/HistorialActivo';
 
 const TYPES = ['CAMERA', 'NVR', 'SWITCH', 'WIRELESS', 'DECODER', 'PANTALLA', 'PC', 'ROUTER', 'FIREWALL', 'SERVER', 'UPS', 'FIBER', 'CABINET', 'OTHER'];
 const STATES = ['OPERATIVO', 'FUERA_SERVICIO', 'MANTENIMIENTO', 'BAJA', 'STOCK'];
@@ -633,6 +634,10 @@ export default function Assets() {
               Estado calculado en vivo desde sus OM/incidencias abiertas. Estado base registrado: {sEs(detail.status)}.
             </div>
           )}
+          {/* Retroalimentación: qué le ha pasado antes a este equipo.
+              Va ARRIBA porque es lo que hay que leer antes de decidir algo. */}
+          <HistorialActivo assetId={detail.id} />
+
           {detail.completitud && detail.completitud.faltanClave?.length > 0 && (
             <div style={{
               background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 8,

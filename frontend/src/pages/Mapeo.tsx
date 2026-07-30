@@ -38,11 +38,15 @@ export default function Mapeo() {
   const [fTipo, setFTipo] = useState('');
   const [fCrit, setFCrit] = useState('');
 
+  const [rein, setRein] = useState<any>(null);
+
   useEffect(() => {
-    api.get('/assets/avance-mapeo')
-      .then((r) => setD(r.data))
-      .catch(() => setD(null))
-      .finally(() => setLoading(false));
+    Promise.all([
+      api.get('/assets/avance-mapeo').then((r) => r.data).catch(() => null),
+      // Reincidencia: aparece sola. Si hubiera que ir a buscarla activo por
+      // activo, nadie la miraría y el problema seguiría invisible.
+      api.get('/assets/reincidentes').then((r) => r.data).catch(() => null),
+    ]).then(([a, r]) => { setD(a); setRein(r); }).finally(() => setLoading(false));
   }, []);
 
   if (loading) return <div className="loading">Calculando el avance…</div>;
@@ -58,6 +62,50 @@ export default function Mapeo() {
         Estado del levantamiento de activos en planta. La lista de pendientes está
         ordenada por criticidad: es el orden en que conviene mandar a los técnicos.
       </p>
+
+      {/* --------------------------------------------------- reincidencia */}
+      {rein && rein.total > 0 && (
+        <div style={{
+          background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 8,
+          padding: '12px 14px', margin: '16px 0', color: '#991b1b',
+        }}>
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>
+            {rein.confirmadas > 0
+              ? `${rein.confirmadas} equipo(s) con reincidencia CONFIRMADA`
+              : `${rein.total} equipo(s) con posible reincidencia`}
+            <span style={{ fontWeight: 400, fontSize: 12 }}> · últimos {rein.ventanaDias} días</span>
+          </div>
+          <div style={{ fontSize: 12, marginBottom: 8 }}>
+            Son los que se arreglan y vuelven a fallar. Revisar la causa de fondo
+            antes de volver a intervenir.
+          </div>
+          <table style={{ fontSize: 12 }}>
+            <thead><tr><th>Equipo</th><th>Nombre en grabador</th><th>Ubicación</th><th>Qué se detectó</th></tr></thead>
+            <tbody>
+              {rein.items.slice(0, 10).map((r: any) => (
+                <tr key={r.assetId}>
+                  <td style={{ fontWeight: 600 }}>
+                    {r.assetCode}
+                    {r.severidad === 'CONFIRMADA' && (
+                      <div style={{ fontSize: 10 }}>confirmada</div>
+                    )}
+                  </td>
+                  <td>{r.nombreEnGrabador || '—'}</td>
+                  <td>{r.ubicacion || '—'}</td>
+                  <td>
+                    {r.senales.map((sn: any, i: number) => (
+                      <div key={i}>· {sn.mensaje}</div>
+                    ))}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {rein.total > 10 && (
+            <div style={{ fontSize: 11, marginTop: 6 }}>y {rein.total - 10} más.</div>
+          )}
+        </div>
+      )}
 
       {/* ---------------------------------------------------------- resumen */}
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', margin: '16px 0' }}>

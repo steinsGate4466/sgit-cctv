@@ -5,6 +5,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { AssetsService } from './assets.service';
+import { HistoryService } from './history.service';
 import { SignedCreateAssetDto } from './dto/create-asset-signed.dto';
 import { SignedUpdateAssetDto } from './dto/update-asset-signed.dto';
 import { UpdateAssetStatusDto } from './dto/update-asset-status.dto';
@@ -20,7 +21,10 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('assets')
 export class AssetsController {
-  constructor(private readonly assets: AssetsService) {}
+  constructor(
+    private readonly assets: AssetsService,
+    private readonly history: HistoryService,
+  ) {}
 
   // Alta FIRMADA: exige re-autenticación (firma) y queda auditada (CREATE_ASSET).
   @Post()
@@ -44,6 +48,18 @@ export class AssetsController {
    * Avance del mapeo: cuánto se ha levantado y qué falta, ordenado por
    * criticidad. Va ANTES de @Get(':id') para que ':id' no capture la palabra.
    */
+  /**
+   * Activos con reincidencia detectada. Va ANTES de @Get(':id').
+   *
+   * PARA QUÉ: que la señal aparezca sola en el tablero. Si hay que buscarla
+   * activo por activo, nadie la mira y el problema sigue invisible.
+   */
+  @Get('reincidentes')
+  @RequirePermissions('asset.read')
+  reincidentes() {
+    return this.history.reincidentes();
+  }
+
   @Get('avance-mapeo')
   @RequirePermissions('asset.read')
   avanceMapeo() {
@@ -140,6 +156,19 @@ export class AssetsController {
 
   // Informe del equipo (PDF). Disponible para quien pueda ver activos (técnico incluido);
   // el informe NO contiene contraseñas, solo ficha, fotos e historial.
+  /**
+   * HISTORIAL del activo: órdenes con sus causas, incidencias, tramos de cable,
+   * accesos en altura, infraestructura compartida y señales de reincidencia.
+   *
+   * Es la retroalimentación que faltaba: hasta ahora todo esto se guardaba y
+   * nadie lo volvía a mirar antes de intervenir.
+   */
+  @Get(':id/historial')
+  @RequirePermissions('asset.read')
+  historial(@Param('id') id: string) {
+    return this.history.delActivo(id);
+  }
+
   @Get(':id/report')
   @RequirePermissions('asset.read')
   async report(@Param('id') id: string, @Res() res: Response) {

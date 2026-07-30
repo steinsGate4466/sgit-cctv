@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
 import OmCampo from '../components/OmCampo';
+import HistorialActivo from '../components/HistorialActivo';
 import { WO_TYPES, WO_TYPE_ES, CANALES, CANAL_ES, CAUSA_ES } from './omCatalogos';
 
 const TYPES = WO_TYPES; // incluye MAPEO: el levantamiento también es una OM
@@ -331,6 +332,10 @@ export default function Maintenance() {
                 </select>
               </>
             )}
+            {/* En cuanto se elige el activo aparece su historial: el ingeniero
+                decide con datos en vez de crear la orden a ciegas. */}
+            {form.assetId && <HistorialActivo assetId={form.assetId} compacto />}
+
             <label>Referencia del sitio</label>
             <input value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value })}
               placeholder="Ej: columna 14, junto a la escalera norte, poste de la izquierda" />

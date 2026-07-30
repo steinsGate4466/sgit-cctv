@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import HistorialActivo from '../components/HistorialActivo';
 
 /**
  * Ficha rápida del activo — destino del código QR pegado en el equipo.
@@ -81,19 +82,14 @@ export default function AssetScan() {
         )}
       </div>
 
-      {a.workOrders?.length > 0 && (
-        <>
-          <div className="section-title" style={{ marginTop: 22 }}>Últimas intervenciones</div>
-          <div className="card scan-card">
-            {a.workOrders.slice(0, 5).map((w: any) => (
-              <div key={w.code} className="frow">
-                <span className="v" style={{ fontSize: 13 }}>{w.code} <span className="muted" style={{ fontWeight: 400, fontSize: 11 }}>({w.type})</span></span>
-                <span className={'badge ' + (w.status === 'CERRADA' ? 'OPERATIVO' : 'MANTENIMIENTO')} style={{ fontSize: 10 }}>{w.status}</span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
+      {/* HISTORIAL — el técnico lo lee parado frente al equipo, ANTES de tocar
+          nada. Sustituye a la lista simple de intervenciones: dice lo mismo y
+          además explica el patrón (tramo largo, vecinos caídos, sin falla
+          hallada), que es lo que evita volver a arreglar solo el síntoma. */}
+      <div className="section-title" style={{ marginTop: 22 }}>Historial y reincidencia</div>
+      <div className="card scan-card">
+        <HistorialActivo assetId={a.id} compacto />
+      </div>
     </div>
   );
 }

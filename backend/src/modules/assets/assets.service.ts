@@ -8,6 +8,7 @@ import { computeEffectiveStatuses, computeEffectiveStatus } from '../../common/a
 import { resolverContextoDePlanta } from '../../common/plant-context';
 import { evaluarFicha, resumenPendiente } from '../../common/asset-completeness';
 import { fichaParaCrear, fichaParaActualizar, sinFichas } from './asset-spec.util';
+import { evaluarReincidencia, severidadGlobal } from '../../common/reincidencia';
 // PDF y QR: require para no depender de @types en el build.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PDFDocument = require('pdfkit');
@@ -31,6 +32,28 @@ export class AssetsService {
     private audit: AuditService,
     private storage: StorageService,
   ) {}
+
+  /**
+   * Señales de reincidencia del activo, para el informe PDF.
+   *
+   * Se calcula aquí y no se inyecta HistoryService para evitar una dependencia
+   * circular: HistoryService ya usa constantes de este módulo.
+   */
+  private async senalesParaInforme(assetId: string) {
+    const [ordenes, tramos] = await Promise.all([
+      this.prisma.workOrder.findMany({
+        where: { assetId },
+        orderBy: [{ endedAt: 'desc' }],
+        take: 20,
+        select: { type: true, status: true, rootCause: true, isRecurrent: true, endedAt: true, executedDate: true },
+      }),
+      this.prisma.assetCable.findMany({
+        where: { status: { not: 'RETIRADO' }, OR: [{ fromAssetId: assetId }, { toAssetId: assetId }] },
+        select: { meters: true, metersEstimated: true, shielded: true, route: true },
+      }),
+    ]);
+    return evaluarReincidencia({ ordenes: ordenes as any, tramos: tramos as any });
+  }
 
   /**
    * Alta FIRMADA de activo: re-verifica las credenciales del firmante (argon2) y deja
@@ -641,7 +664,7 @@ export class AssetsService {
         preventivePlan: true,
         workOrders: {
           orderBy: { createdAt: 'desc' }, take: 10,
-          select: { code: true, type: true, status: true, scheduledDate: true, executedDate: true, activity: true },
+          select: { code: true, type: true, status: true, scheduledDate: true, executedDate: true, activity: true, rootCause: true, isRecurrent: true },
         },
       },
     });
@@ -702,10 +725,35 @@ export class AssetsService {
     }
 
     y += 6;
+    // ANÁLISIS DE REINCIDENCIA.
+    // Va antes del historial a propósito: el informe deja de ser una lista de
+    // lo que se hizo y pasa a decir QUÉ ESTÁ PASANDO con el equipo. Es lo que
+    // convierte el documento en algo útil para decidir un reemplazo.
+    const senales = await this.senalesParaInforme(id).catch(() => []);
+    if (senales.length) {
+      const grave = severidadGlobal(senales) === 'CONFIRMADA';
+      heading(grave ? 'Reincidencia CONFIRMADA' : 'Posible reincidencia');
+      for (const sn of senales) {
+        doc.fontSize(10).fillColor(grave ? RED : '#92400e')
+          .text(`• ${sn.mensaje}`, 55, y, { width: pageW - 110 });
+        y = doc.y + 2;
+        if (sn.sugerencia) {
+          doc.fontSize(9).fillColor(GREY).text(`   → ${sn.sugerencia}`, 60, y, { width: pageW - 120 });
+          y = doc.y + 4;
+        }
+        if (y > doc.page.height - 140) { doc.addPage(); y = 50; }
+      }
+      y += 6;
+    }
+
     heading('Historial de mantenimiento (últimas 10)');
     if (asset.workOrders.length) {
       for (const w of asset.workOrders) {
-        doc.fontSize(10).fillColor('#000000').text(`• ${w.code} · ${w.type} · ${w.status} · ${fmt(w.executedDate || w.scheduledDate)}`, 55, y, { width: pageW - 110 });
+        doc.fontSize(10).fillColor('#000000').text(
+          `• ${w.code} · ${w.type} · ${w.status} · ${fmt(w.executedDate || w.scheduledDate)}`
+          + (w.rootCause ? ` · causa: ${w.rootCause}` : '')
+          + (w.isRecurrent ? ' · REINCIDENTE' : ''),
+          55, y, { width: pageW - 110 });
         y = doc.y + 2;
         if (w.activity) { doc.fontSize(9).fillColor(GREY).text(`   ${w.activity}`, 60, y, { width: pageW - 120 }); y = doc.y + 3; }
         if (y > doc.page.height - 120) { doc.addPage(); y = 50; }
