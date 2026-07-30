@@ -2,6 +2,8 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Assets from './pages/Assets';
+import Mapeo from './pages/Mapeo';
+import Cableado from './pages/Cableado';
 import Audit from './pages/Audit';
 import Incidents from './pages/Incidents';
 import Users from './pages/Users';
@@ -34,6 +36,8 @@ export default function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/trains" element={<TrainBoard />} />
         <Route path="/assets" element={<Assets />} />
+        <Route path="/mapeo" element={<Mapeo />} />
+        <Route path="/cableado" element={<Cableado />} />
         <Route path="/incidents" element={<Incidents />} />
         <Route path="/maintenance" element={<Maintenance />} />
         <Route path="/preventive" element={<Preventive />} />

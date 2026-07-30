@@ -52,6 +52,8 @@ export default function Layout() {
         can('asset.read') && <NavLink key="a" to="/assets"><span className="ico">▤</span> Activos</NavLink>,
         can('asset.read') && <NavLink key="g" to="/cabinets"><span className="ico">🗄️</span> Gabinetes</NavLink>,
         can('asset.read') && <NavLink key="u" to="/locations"><span className="ico">📍</span> Ubicaciones</NavLink>,
+        can('asset.read') && <NavLink key="cb" to="/cableado"><span className="ico">🔌</span> Cableado</NavLink>,
+        can('asset.read') && <NavLink key="mp" to="/mapeo"><span className="ico">📋</span> Avance del mapeo</NavLink>,
         can('access.read') && <NavLink key="ac" to="/access"><span className="ico">🦺</span> Accesibilidad</NavLink>,
       ].filter(Boolean) as ReactNode[],
     },

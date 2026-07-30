@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import Modal from '../components/Modal';
 import AccessRequestForm, { MEANS_ES, STATUS_ES as ACC_STATUS_ES, STATUS_BADGE as ACC_BADGE } from '../components/AccessRequestForm';
@@ -46,6 +47,12 @@ function Frow({ k, v }: { k: string; v: any }) {
 
 export default function Assets() {
   const { can, user } = useAuth();
+  // Si se llega desde una OM de mapeo (/assets?om=...), los activos que se
+  // registren quedan ligados a esa orden: así se puede reconstruir después
+  // quién los levantó, cuándo y con quién iba.
+  const [params] = useSearchParams();
+  const omMapeo = params.get('om');
+  const omCodigo = params.get('codigo');
   const [rows, setRows] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
   const [cabinets, setCabinets] = useState<any[]>([]);
@@ -190,6 +197,8 @@ export default function Assets() {
         locationId: form.locationId || undefined, cabinetId: form.cabinetId || undefined, sapId: form.sapId || undefined, responsibleArea: form.responsibleArea || undefined,
         email: form.email, password: form.password,
       };
+      // Vínculo con la orden de mapeo, si se llegó desde ella.
+      if (omMapeo && !form.id) body.mappedInWorkOrderId = omMapeo;
       // La ficha del tipo va en su propio bloque, con el nombre que espera el
       // servidor. Solo se envía si tiene algún dato: un bloque vacío haría
       // creer que la ficha ya está hecha y falsearía el avance del mapeo.
@@ -475,6 +484,16 @@ export default function Assets() {
           {can('asset.create') && <button className="btn-primary" onClick={openNew}>+ Nuevo activo</button>}
         </div>
       </div>
+      {omMapeo && (
+        <div style={{
+          background: '#dbeafe', border: '1px solid #93c5fd', borderRadius: 8,
+          padding: '10px 14px', margin: '12px 0', fontSize: 13, color: '#1e40af',
+        }}>
+          Estás registrando dentro de la orden de mapeo <strong>{omCodigo || omMapeo}</strong>.
+          Cada activo que crees quedará ligado a ella.
+        </div>
+      )}
+
       <div className="filters">
         <div style={{ flex: 1, minWidth: 180 }}>
           <label>Buscar</label>

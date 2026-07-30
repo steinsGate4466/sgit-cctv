@@ -25,4 +25,11 @@ export class CreateAssetDto {
   @IsOptional() @IsString() sapId?: string;
   @IsOptional() @IsString() costCenter?: string;
   @IsOptional() @IsString() responsibleArea?: string;
+
+  /**
+   * Orden de MAPEO en la que se está levantando este activo.
+   * Permite reconstruir después quién lo registró, cuándo y con quién iba.
+   * La columna ya existe desde el Bloque 1: aquí solo se abre a la API.
+   */
+  @IsOptional() @IsString() mappedInWorkOrderId?: string;
 }

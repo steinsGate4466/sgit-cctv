@@ -40,6 +40,16 @@ export class AssetsController {
    * Lista ligera para desplegables. DEBE declararse ANTES de @Get(':id'):
    * NestJS resuelve por orden y ':id' capturaría la palabra "options".
    */
+  /**
+   * Avance del mapeo: cuánto se ha levantado y qué falta, ordenado por
+   * criticidad. Va ANTES de @Get(':id') para que ':id' no capture la palabra.
+   */
+  @Get('avance-mapeo')
+  @RequirePermissions('asset.read')
+  avanceMapeo() {
+    return this.assets.avanceMapeo();
+  }
+
   @Get('options')
   @RequirePermissions('asset.read')
   options() {

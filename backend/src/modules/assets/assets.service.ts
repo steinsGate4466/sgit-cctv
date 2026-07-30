@@ -201,6 +201,85 @@ export class AssetsService {
   }
 
   /**
+   * AVANCE DEL MAPEO.
+   *
+   * PARA QUÉ SIRVE
+   * El levantamiento de 400 activos no se hace de una sentada ni por una sola
+   * persona. Este resumen convierte el avance en algo medible y repartible:
+   * cuántos faltan, cuáles son los más urgentes y qué le falta a cada uno.
+   *
+   * Sin esto el mapeo es una sensación ("vamos como por la mitad") y nadie
+   * puede decir qué zona ya está cubierta.
+   */
+  async avanceMapeo() {
+    // El árbol de planta es pequeño; traer los activos con sus fichas permite
+    // evaluar la completitud sin una consulta por activo.
+    const activos = await this.prisma.asset.findMany({
+      where: { deletedAt: null, status: { notIn: ['BAJA'] } },
+      include: {
+        location: { select: { id: true, name: true } },
+        camera: true, nvr: true, switchDev: true, wireless: true,
+        decoder: true, screen: true, pc: true,
+        photos: { select: { id: true, kind: true } },
+      },
+      orderBy: { assetCode: 'asc' },
+    });
+
+    const ctx = await resolverContextoDePlanta(this.prisma, activos as any);
+
+    let completos = 0;
+    let sinFoto = 0;
+    let sinEtapa = 0;
+    const porTipo: Record<string, { total: number; completos: number }> = {};
+    const pendientes: any[] = [];
+
+    for (const a of activos as any[]) {
+      const c = evaluarFicha(a);
+      const t = a.type;
+      porTipo[t] = porTipo[t] || { total: 0, completos: 0 };
+      porTipo[t].total++;
+
+      if (!c.incompleta) { completos++; porTipo[t].completos++; }
+      if (!a.photos?.length) sinFoto++;
+      if (ctx[a.id]?.requiereAsignarEtapa) sinEtapa++;
+
+      if (c.incompleta) {
+        pendientes.push({
+          id: a.id,
+          assetCode: a.assetCode,
+          type: a.type,
+          // Criticidad EFECTIVA: la que impone la etapa del proceso. Es la que
+          // debe ordenar el trabajo, no la que alguien marcó a mano.
+          criticidad: ctx[a.id]?.criticidad || a.criticality,
+          tren: ctx[a.id]?.trenNombre || null,
+          etapa: ctx[a.id]?.etapaNombre || null,
+          ubicacion: a.location?.name || null,
+          porcentaje: c.porcentaje,
+          faltan: c.faltanClave.map((f) => f.etiqueta),
+        });
+      }
+    }
+
+    // Lo más crítico primero, y dentro de eso lo menos avanzado: es el orden
+    // en que conviene mandar a los técnicos.
+    const peso: Record<string, number> = { CRITICA: 0, ALTA: 1, MEDIA: 2, BAJA: 3 };
+    pendientes.sort((x, y) =>
+      (peso[x.criticidad] ?? 9) - (peso[y.criticidad] ?? 9) || x.porcentaje - y.porcentaje);
+
+    const total = activos.length;
+    return {
+      total,
+      completos,
+      incompletos: total - completos,
+      porcentaje: total ? Math.round((completos / total) * 100) : 0,
+      sinFoto,
+      sinEtapa,
+      porTipo,
+      pendientes,
+    };
+  }
+
+  /**
    * Lista LIGERA para desplegables de selección.
    *
    * Seis pantallas (Incidencias, Órdenes, Preventivo, Inventario, Accesibilidad

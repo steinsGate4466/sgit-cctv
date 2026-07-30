@@ -1,4 +1,5 @@
 import { useEffect, useState, FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
@@ -31,6 +32,7 @@ function isOverdue(w: any) {
 
 export default function Maintenance() {
   const { can } = useAuth();
+  const navegar = useNavigate();
   const [rows, setRows] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
   const [incidents, setIncidents] = useState<any[]>([]);
@@ -268,6 +270,18 @@ export default function Maintenance() {
                   {w.status !== 'CERRADA' && w.status !== 'CANCELADA' && can('wo.update') && w.startedAt && (
                     <button className="btn-mini" style={{ marginLeft: 4 }}
                       onClick={() => setCampo({ wo: w, accion: 'avance' })}>Avance</button>
+                  )}
+                  {/* En una orden de MAPEO ya abierta, el técnico entra a
+                      registrar equipos sin tener que navegar a otra parte:
+                      es el flujo natural estando en campo. Los activos que
+                      registre quedan ligados a esta orden. */}
+                  {w.type === 'MAPEO' && w.startedAt && w.status !== 'CERRADA'
+                    && w.status !== 'CANCELADA' && can('asset.create') && (
+                    <button className="btn-mini" style={{ marginLeft: 4, fontWeight: 600 }}
+                      title="Registrar un activo dentro de esta orden de mapeo"
+                      onClick={() => navegar(`/assets?om=${w.id}&codigo=${encodeURIComponent(w.code)}`)}>
+                      + Registrar activo
+                    </button>
                   )}
                   {w.status !== 'CERRADA' && w.status !== 'CANCELADA' && can('wo.approve') && (
                     <button className="btn-mini" style={{ marginLeft: 4 }}
