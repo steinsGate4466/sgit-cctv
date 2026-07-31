@@ -9,6 +9,12 @@ export class QueryAssetDto {
   @IsOptional() @IsString() cabinetId?: string;
   @IsOptional() @IsString() search?: string;
 
+  // ---- Ámbito de planta (3B-2) ----
+  // Código de la ubicación de tipo TREN y código de la etapa del proceso.
+  // No son columnas del activo: se resuelven contra el árbol.
+  @IsOptional() @IsString() tren?: string;
+  @IsOptional() @IsString() etapa?: string;
+
   // ---- Paginación (F9) ----
   // Sin esto el listado traía el inventario completo en cada apertura.
   // @Type convierte el texto de la URL a número; sin él la validación falla

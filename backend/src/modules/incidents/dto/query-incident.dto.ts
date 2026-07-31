@@ -10,6 +10,9 @@ export class QueryIncidentDto {
   @IsOptional() @IsString() q?: string;    // código, título, zona
   @IsOptional() @IsString() from?: string;  // ISO (fecha de reporte)
   @IsOptional() @IsString() to?: string;
+  // ---- Ámbito de planta (3B-2) ----
+  @IsOptional() @IsString() tren?: string;
+  @IsOptional() @IsString() etapa?: string;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) pageSize?: number;
 }

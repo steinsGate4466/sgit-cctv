@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { DashboardService } from './dashboard.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -25,12 +25,19 @@ export class DashboardController {
     return this.dashboard.overview();
   }
 
-  // Detalle de un Tren: activos con problema y trabajos pendientes.
-  @Get('train/:train')
-  @RequirePermissions('dashboard.read')
-  trainDetail(@Param('train') train: string) {
-    return this.dashboard.trainDetail(train);
-  }
+  // RETIRADO en 3B-2: GET /dashboard/train/:train
+  //
+  // Agrupaba por la columna Asset.train, la fuente de verdad vieja. Se retira
+  // porque era código VIVO leyendo la columna obsoleta: mientras existiera,
+  // cualquiera podía construir encima y reintroducir la contradicción que
+  // costó el cuarto tren fantasma. Se verificó antes de quitarlo: ninguna de
+  // las 160 llamadas del frontend apuntaba aquí.
+  //
+  // El tablero por tren se sirve desde InfraService, que deriva el tren del
+  // árbol de ubicaciones: GET /dashboard/infra/tren/:idOrCode
+  //
+  // La columna Asset.train SE CONSERVA en la base: no se lee, pero tampoco se
+  // pierde el dato.
 
   // Causas raíz reales de las incidencias (no la categoría).
   @Get('root-causes')

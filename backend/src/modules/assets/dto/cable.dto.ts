@@ -53,4 +53,8 @@ export class QueryCableDto {
   @IsOptional() @IsString() assetId?: string;
   /** true = solo tramos por encima del límite de norma. */
   @IsOptional() @IsString() fueraNorma?: string;
+
+  // ---- Ámbito de planta (3B-2) ----
+  @IsOptional() @IsString() tren?: string;
+  @IsOptional() @IsString() etapa?: string;
 }

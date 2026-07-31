@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import * as argon2 from 'argon2';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
+import { filtroDeUbicaciones } from '../../common/ambito-planta';
 import { AuditService } from '../audit/audit.service';
 import { StorageService } from '../storage/storage.service';
 import { CreateIncidentDto } from './dto/create-incident.dto';
@@ -51,6 +52,10 @@ export class IncidentsService {
     const page = q.page && q.page > 0 ? q.page : 1;
     const pageSize = q.pageSize && q.pageSize > 0 && q.pageSize <= 200 ? q.pageSize : 50;
     const where: any = { status: q.status, category: q.category, priority: q.priority, assetId: q.assetId };
+
+    // Ámbito de planta: la incidencia hereda el tren de su activo.
+    const ambito = await filtroDeUbicaciones(this.prisma, { tren: q.tren, etapa: q.etapa });
+    if (ambito) where.asset = { locationId: ambito };
     if (q.q && q.q.trim()) {
       const t = q.q.trim();
       where.OR = [

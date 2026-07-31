@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import * as argon2 from 'argon2';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
+import { filtroDeUbicaciones } from '../../common/ambito-planta';
 import { AuditService } from '../audit/audit.service';
 import { StorageService } from '../storage/storage.service';
 import { PreventiveService } from '../preventive/preventive.service';
@@ -181,6 +182,17 @@ export class MaintenanceService {
     const page = q.page && q.page > 0 ? q.page : 1;
     const pageSize = q.pageSize && q.pageSize > 0 && q.pageSize <= 200 ? q.pageSize : 50;
     const where: any = { status: q.status, type: q.type, assetId: q.assetId };
+
+    // Ámbito de planta. Una OM puede colgar de un ACTIVO o solo de una
+    // UBICACIÓN (una campaña de barrido, por ejemplo), así que se aceptan las
+    // dos vías. Si no, las campañas desaparecerían al filtrar por tren.
+    const ambito = await filtroDeUbicaciones(this.prisma, { tren: q.tren, etapa: q.etapa });
+    if (ambito) {
+      where.AND = [
+        ...(where.AND || []),
+        { OR: [{ asset: { locationId: ambito } }, { locationId: ambito }] },
+      ];
+    }
     // Búsqueda documental: código de OM, código de incidencia, actividad o zona.
     if (q.q && q.q.trim()) {
       const term = q.q.trim();

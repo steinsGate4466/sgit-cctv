@@ -9,6 +9,9 @@ export class QueryWorkOrderDto {
   @IsOptional() @IsString() q?: string;    // texto: código OM, código incidencia, actividad, zona
   @IsOptional() @IsString() from?: string; // ISO (desde) sobre fecha programada
   @IsOptional() @IsString() to?: string;   // ISO (hasta) sobre fecha programada
+  // ---- Ámbito de planta (3B-2) ----
+  @IsOptional() @IsString() tren?: string;
+  @IsOptional() @IsString() etapa?: string;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) pageSize?: number;
 }

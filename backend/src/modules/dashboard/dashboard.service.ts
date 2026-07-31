@@ -190,103 +190,16 @@ export class DashboardService {
       });
   }
 
-  /**
-   * LEGADO — tablero de un Tren agrupado por la columna `Asset.train`.
-   *
-   * Se conserva porque sigue publicado en /dashboard/train/:train y borrarlo
-   * rompería cualquier enlace guardado. La interfaz YA NO lo usa: el tablero
-   * por tren se sirve desde InfraService, que deriva el tren del árbol.
-   *
-   * DEUDA DECLARADA: se retira cuando se confirme que nadie lo llama. Mientras
-   * exista, no añadir indicadores nuevos aquí —van en InfraService—.
-   */
-  async trainDetail(train: string) {
-    const where: any = train === 'SIN_ASIGNAR'
-      ? { deletedAt: null, train: null }
-      : { deletedAt: null, train: train as any };
-
-    const assets = await this.prisma.asset.findMany({
-      where,
-      select: {
-        id: true, assetCode: true, type: true, status: true, criticality: true,
-        location: { select: { name: true } }, cabinet: { select: { code: true } },
-        preventivePlan: { select: { nextDueAt: true, intervalDays: true, active: true } },
-      },
-      orderBy: [{ criticality: 'desc' }, { assetCode: 'asc' }],
-    });
-    const eff = await computeEffectiveStatuses(this.prisma, assets);
-    const ids = assets.map((a) => a.id);
-    const now = new Date();
-
-    // Nota: no se usa un ternario con [] porque TypeScript infiere `never` al unir
-    // el array vacío con el tipo de Prisma. Con `in: []` la consulta ya devuelve vacío.
-    const omsAbiertas = await this.prisma.workOrder.findMany({
-      where: { assetId: { in: ids }, status: { in: ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'] as any } },
-      select: {
-        id: true, code: true, type: true, status: true, scheduledDate: true, activity: true,
-        asset: { select: { assetCode: true } },
-      },
-      orderBy: { scheduledDate: 'asc' }, take: 50,
-    });
-    const incidencias = await this.prisma.incident.findMany({
-      where: { assetId: { in: ids }, status: { in: ['ABIERTA', 'EN_DIAGNOSTICO', 'EN_PROCESO', 'EN_ESPERA'] as any } },
-      select: {
-        id: true, code: true, title: true, category: true, priority: true, status: true,
-        reportedAt: true, asset: { select: { assetCode: true } },
-      },
-      orderBy: { reportedAt: 'desc' }, take: 50,
-    });
-
-    const conEstado = assets.map((a) => ({ ...a, effectiveStatus: eff[a.id] || a.status }));
-    const enOperacion = conEstado.filter((a) => !['BAJA', 'STOCK'].includes(a.effectiveStatus));
-    const afectados = enOperacion.filter((a) => ['FUERA_SERVICIO', 'CON_INCIDENCIA'].includes(a.effectiveStatus));
-    const camaras = enOperacion.filter((a) => a.type === 'CAMERA');
-    const camarasCaidas = camaras.filter((a) => ['FUERA_SERVICIO', 'CON_INCIDENCIA'].includes(a.effectiveStatus));
-    const preventivosVencidos = assets.filter(
-      (a) => !!a.preventivePlan?.active
-        && !!a.preventivePlan?.nextDueAt
-        && new Date(a.preventivePlan.nextDueAt as any) < now,
-    );
-    const omVencidas = omsAbiertas.filter((w) => w.scheduledDate && new Date(w.scheduledDate) < now);
-
-    const pct = (ok: number, total: number) => (total > 0 ? Number(((ok / total) * 100).toFixed(1)) : 100);
-
-    return {
-      train,
-      resumen: {
-        totalActivos: assets.length,
-        enOperacion: enOperacion.length,
-        camaras: camaras.length,
-        camarasOperativas: camaras.length - camarasCaidas.length,
-        camarasCaidas: camarasCaidas.length,
-        criticos: assets.filter((a) => a.criticality === 'CRITICA').length,
-        disponibilidad: pct(enOperacion.length - afectados.length, enOperacion.length),
-        disponibilidadCamaras: pct(camaras.length - camarasCaidas.length, camaras.length),
-        operativos: enOperacion.filter((a) => a.effectiveStatus === 'OPERATIVO').length,
-        enMantenimiento: enOperacion.filter((a) => a.effectiveStatus === 'MANTENIMIENTO').length,
-        conIncidencia: enOperacion.filter((a) => a.effectiveStatus === 'CON_INCIDENCIA').length,
-        fueraServicio: enOperacion.filter((a) => a.effectiveStatus === 'FUERA_SERVICIO').length,
-        omAbiertas: omsAbiertas.length,
-        omVencidas: omVencidas.length,
-        incidenciasAbiertas: incidencias.length,
-        incidenciasCriticas: incidencias.filter((i) => ['ALTA', 'CRITICA'].includes(i.priority as any)).length,
-        preventivosVencidos: preventivosVencidos.length,
-      },
-      requierenAtencion: afectados,
-      activos: conEstado,
-      ordenes: omsAbiertas.map((w) => ({
-        ...w, vencida: !!(w.scheduledDate && new Date(w.scheduledDate) < now),
-      })),
-      incidencias,
-      preventivosVencidos: preventivosVencidos.map((a) => ({
-        id: a.id, assetCode: a.assetCode,
-        nextDueAt: a.preventivePlan?.nextDueAt,
-        diasAtraso: a.preventivePlan?.nextDueAt
-          ? Math.floor((now.getTime() - new Date(a.preventivePlan.nextDueAt).getTime()) / 86400000)
-          : 0,
-      })),
-    };
-  }
+  // trainDetail() RETIRADO en 3B-2.
+  //
+  // Era el último consumidor de la columna Asset.train. Su sustituto es
+  // InfraService.detalleTren(), que deriva el tren del árbol de ubicaciones y
+  // además devuelve la infraestructura completa: gabinetes, cableado, canales
+  // de grabador, avance del mapeo y accesos.
+  //
+  // Se comprobó que nadie lo llamaba antes de quitarlo. Con esto, NINGUNA
+  // consulta del backend lee ya Asset.train, y la contradicción de las dos
+  // fuentes de verdad queda cerrada de raíz, no solo tapada.
 
   /**
    * Causas raíz REALES de los últimos N días (campo rootCause de las incidencias

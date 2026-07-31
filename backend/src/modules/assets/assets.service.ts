@@ -7,6 +7,7 @@ import { StorageService } from '../storage/storage.service';
 import { computeEffectiveStatuses, computeEffectiveStatus } from '../../common/asset-status';
 import { resolverContextoDePlanta } from '../../common/plant-context';
 import { evaluarFicha, resumenPendiente } from '../../common/asset-completeness';
+import { filtroDeUbicaciones } from '../../common/ambito-planta';
 import { fichaParaCrear, fichaParaActualizar, sinFichas } from './asset-spec.util';
 import { evaluarReincidencia, severidadGlobal } from '../../common/reincidencia';
 // PDF y QR: require para no depender de @types en el build.
@@ -125,7 +126,13 @@ export class AssetsService {
    * Devuelve { items, total, page, pageSize, pages } para que el frontend
    * pueda dibujar el paginador sin adivinar cuántos hay.
    */
+  /**
+   * Tren y etapa NO son columnas: se derivan del árbol de ubicaciones. Por eso
+   * el filtro se traduce a un conjunto de ubicaciones y se aplica sobre
+   * locationId, que sí está indexado. Ver src/common/ambito-planta.ts.
+   */
   async findAll(q: QueryAssetDto, sensitive = false) {
+    const ambito = await filtroDeUbicaciones(this.prisma, { tren: q.tren, etapa: q.etapa });
     const page = Math.max(1, Number(q.page) || 1);
     // Tope de 200 por página: protege al servidor de una petición como
     // ?pageSize=100000 que traería todo y anularía la paginación.
@@ -135,7 +142,9 @@ export class AssetsService {
       deletedAt: null,
       type: q.type,
       status: q.status,
-      locationId: q.locationId,
+      // Si vienen los dos, manda el más específico: una ubicación concreta
+      // elegida a mano gana sobre el ámbito del tren.
+      locationId: q.locationId ?? (ambito ?? undefined),
       cabinetId: q.cabinetId,
       ...(q.search
         ? {

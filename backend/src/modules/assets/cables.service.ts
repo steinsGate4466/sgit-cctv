@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { filtroDeUbicaciones } from '../../common/ambito-planta';
 import { AuditService } from '../audit/audit.service';
 import { CreateCableDto, UpdateCableDto, QueryCableDto } from './dto/cable.dto';
 
@@ -73,13 +74,30 @@ export class CablesService {
   }
 
   async findAll(q: QueryCableDto) {
+    // Ámbito de planta. Un tramo pertenece al tren de CUALQUIERA de sus dos
+    // extremos: un enlace entre trenes tiene que salir en los dos, no
+    // desaparecer de ambos.
+    const ambito = await filtroDeUbicaciones(this.prisma, { tren: q.tren, etapa: q.etapa });
+
+    // Los dos filtros por extremo (ámbito y activo concreto) son sendos OR.
+    // Puestos como dos claves OR en el mismo objeto, la segunda ANULA a la
+    // primera en silencio: filtrar por tren y por activo a la vez perdería el
+    // tren sin avisar. Por eso van dentro de un AND, que sí los acumula.
+    const condiciones: any[] = [];
+    if (ambito) {
+      condiciones.push({
+        OR: [{ fromAsset: { locationId: ambito } }, { toAsset: { locationId: ambito } }],
+      });
+    }
+    if (q.assetId) {
+      condiciones.push({ OR: [{ fromAssetId: q.assetId }, { toAssetId: q.assetId }] });
+    }
+
     const rows = await this.prisma.assetCable.findMany({
       where: {
         status: q.status,
         category: q.category,
-        ...(q.assetId
-          ? { OR: [{ fromAssetId: q.assetId }, { toAssetId: q.assetId }] }
-          : {}),
+        ...(condiciones.length ? { AND: condiciones } : {}),
         // Filtro directo para el listado de "tramos fuera de norma".
         ...(q.fueraNorma === 'true' ? { meters: { gt: LIMITE_TRAMO_M } } : {}),
       },
