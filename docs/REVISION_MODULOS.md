@@ -162,5 +162,5 @@ Completos para su alcance. Sin observaciones de infraestructura.
 | `GET /dashboard/train/:train` legado | Se retira cuando se confirme que nadie lo llama |
 | Columna `Asset.train` | Conservada, ya no se lee |
 | `importarCatalogo` recibe `userId` y no lo usa | La auditoría la hace el interceptor global; el parámetro muerto confunde |
-| TypeScript 5.9.3 vs parser de ESLint `<5.6` | Aviso, no error |
+| ~~TypeScript 5.9.3 vs parser de ESLint `<5.6`~~ | **Resuelto**: parser a 8.65, verificado que la regla de hooks sigue detectando el fallo |
 | MinIO como servicio aparte | Decisión de despliegue, no deuda de código |
