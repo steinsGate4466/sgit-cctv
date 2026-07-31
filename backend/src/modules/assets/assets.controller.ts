@@ -62,8 +62,8 @@ export class AssetsController {
 
   @Get('avance-mapeo')
   @RequirePermissions('asset.read')
-  avanceMapeo() {
-    return this.assets.avanceMapeo();
+  avanceMapeo(@Query('tren') tren?: string, @Query('etapa') etapa?: string) {
+    return this.assets.avanceMapeo({ tren, etapa });
   }
 
   @Get('options')

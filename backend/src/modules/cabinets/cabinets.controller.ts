@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Delete, Get, Ip, Param, Patch, Post, Res, UploadedFile, UseGuards, UseInterceptors,
+  Body, Controller, Delete, Get, Ip, Param, Patch, Post, Query, Res, UploadedFile, UseGuards, UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -20,8 +20,8 @@ export class CabinetsController {
 
   @Get()
   @RequirePermissions('asset.read')
-  list() {
-    return this.cabinets.list();
+  list(@Query('tren') tren?: string, @Query('etapa') etapa?: string) {
+    return this.cabinets.list({ tren, etapa });
   }
 
   // Foto del gabinete (previsualización).

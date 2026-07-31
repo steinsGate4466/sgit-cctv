@@ -1,5 +1,6 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { api } from '../api/client';
+import FiltroAmbito, { Ambito, AMBITO_VACIO, AvisoAmbito } from '../components/FiltroAmbito';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
 
@@ -53,6 +54,7 @@ export default function Incidents() {
   const [fq, setFq] = useState('');
   const [fCat, setFCat] = useState('');
   const [fStatus, setFStatus] = useState('');
+  const [ambito, setAmbito] = useState<Ambito>(AMBITO_VACIO);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
 
@@ -88,6 +90,8 @@ export default function Incidents() {
     if (fStatus) params.set('status', fStatus);
     if (from) params.set('from', new Date(from + 'T00:00:00').toISOString());
     if (to) params.set('to', new Date(to + 'T23:59:59.999').toISOString());
+    if (ambito.tren) params.set('tren', ambito.tren);
+    if (ambito.etapa) params.set('etapa', ambito.etapa);
     const [inc, ast] = await Promise.all([
       api.get('/incidents?' + params.toString()).then((r) => r.data).catch(() => ({ data: [] })),
       api.get('/assets/options').then((r) => r.data).catch(() => []),
@@ -100,8 +104,11 @@ export default function Incidents() {
   // se aplican en memoria, no en el servidor. Declarar `load` como dependencia
   // obligaría a envolverla en useCallback y volvería a consultar el servidor en
   // cada tecla, que es exactamente lo que no queremos aquí.
+  // El ámbito SÍ va en las dependencias: al cambiar de tren hay que volver a
+  // preguntar al servidor. Los demás filtros no, porque se aplican al pulsar
+  // Buscar; si estuvieran aquí, se consultaría en cada tecla escrita.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [ambito]);
 
   async function create(e: FormEvent) {
     e.preventDefault();
@@ -228,7 +235,10 @@ export default function Incidents() {
         {can('incident.create') && <button className="btn-primary" onClick={() => setShowForm(true)}>+ Nueva incidencia</button>}
       </div>
 
+      <AvisoAmbito valor={ambito} total={rows.length} />
+
       <div className="filters">
+        <FiltroAmbito valor={ambito} onChange={setAmbito} />
         <div style={{ flex: 1, minWidth: 160 }}><label>Buscar</label><input placeholder="código, título, zona…" value={fq} onChange={(e) => setFq(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} /></div>
         <div><label>Categoría</label><select value={fCat} onChange={(e) => setFCat(e.target.value)}><option value="">Todas</option>{CATEGORY_GROUPS.map((g) => <optgroup key={g.label} label={g.label}>{g.items.map((c) => <option key={c} value={c}>{catEs(c)}</option>)}</optgroup>)}</select></div>
         <div><label>Estado</label><select value={fStatus} onChange={(e) => setFStatus(e.target.value)}><option value="">Todos</option>{STATUSES.map((s) => <option key={s} value={s}>{stEs(s)}</option>)}</select></div>

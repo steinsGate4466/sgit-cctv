@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, FormEvent } from 'react';
 import { api } from '../api/client';
+import FiltroAmbito, { Ambito, AMBITO_VACIO, conAmbito, AvisoAmbito } from '../components/FiltroAmbito';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
 
@@ -53,11 +54,12 @@ export default function Cableado() {
   const [saving, setSaving] = useState(false);
   const [soloFuera, setSoloFuera] = useState(false);
   const [fEstado, setFEstado] = useState('');
+  const [ambito, setAmbito] = useState<Ambito>(AMBITO_VACIO);
 
   // Igual que en Activos: depende de los filtros, así que va en useCallback
   // para poder declararla como dependencia sin provocar un bucle de recargas.
   const load = useCallback(async () => {
-    const params: any = {};
+    const params: any = conAmbito({}, ambito);
     if (soloFuera) params.fueraNorma = 'true';
     if (fEstado) params.status = fEstado;
     const [c, r] = await Promise.all([
@@ -66,7 +68,7 @@ export default function Cableado() {
     ]);
     setRows(c || []);
     setResumen(r);
-  }, [soloFuera, fEstado]);
+  }, [soloFuera, fEstado, ambito]);
 
   useEffect(() => {
     api.get('/assets/options').then((r) => setOpciones(r.data || [])).catch(() => setOpciones([]));
@@ -160,7 +162,10 @@ export default function Cableado() {
         </div>
       )}
 
+      <AvisoAmbito valor={ambito} total={rows.length} />
+
       <div className="filters">
+        <FiltroAmbito valor={ambito} onChange={setAmbito} />
         <div><label>Estado</label>
           <select value={fEstado} onChange={(e) => setFEstado(e.target.value)}>
             <option value="">Todos</option>

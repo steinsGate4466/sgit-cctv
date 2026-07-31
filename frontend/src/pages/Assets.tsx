@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
+import FiltroAmbito, { Ambito, AMBITO_VACIO, conAmbito, AvisoAmbito } from '../components/FiltroAmbito';
 import Modal from '../components/Modal';
 import AccessRequestForm, { MEANS_ES, STATUS_ES as ACC_STATUS_ES, STATUS_BADGE as ACC_BADGE } from '../components/AccessRequestForm';
 import { useAuth } from '../auth/AuthContext';
@@ -80,6 +81,7 @@ export default function Assets() {
   const [fq, setFq] = useState('');
   const [fType, setFType] = useState('');
   const [fStatus, setFStatus] = useState('');
+  const [ambito, setAmbito] = useState<Ambito>(AMBITO_VACIO);
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState<any>({ total: 0, page: 1, pageSize: 50, pages: 1 });
   // QR del activo
@@ -122,7 +124,7 @@ export default function Assets() {
   // useCallback la función se recrea en cada render y el efecto se dispararía
   // en bucle. Con él, solo cambia cuando cambia un filtro de verdad.
   const loadAssets = useCallback(async (p?: number) => {
-    const params: any = { page: p ?? page, pageSize: 50 };
+    const params: any = conAmbito({ page: p ?? page, pageSize: 50 }, ambito);
     if (fq.trim()) params.search = fq.trim();
     if (fType) params.type = fType;
     if (fStatus) params.status = fStatus;
@@ -130,7 +132,7 @@ export default function Assets() {
     if (!r) return;
     setRows(r.items || []);
     setMeta({ total: r.total, page: r.page, pageSize: r.pageSize, pages: r.pages });
-  }, [page, fq, fType, fStatus]);
+  }, [page, fq, fType, fStatus, ambito]);
 
   // Catálogos que no cambian con el filtro: se cargan una sola vez.
   useEffect(() => {
@@ -150,7 +152,7 @@ export default function Assets() {
 
   // Cualquier cambio de filtro vuelve a la primera página: si estabas en la
   // página 4 y filtras, la 4 puede no existir en el resultado nuevo.
-  useEffect(() => { setPage(1); }, [fq, fType, fStatus]);
+  useEffect(() => { setPage(1); }, [fq, fType, fStatus, ambito]);
 
   // Las contraseñas reveladas se borran solas al minuto: aunque el usuario siga
   // trabajando, una clave no debe quedarse escrita en pantalla —basta que
@@ -499,7 +501,10 @@ export default function Assets() {
         </div>
       )}
 
+      <AvisoAmbito valor={ambito} total={meta?.total} />
+
       <div className="filters">
+        <FiltroAmbito valor={ambito} onChange={setAmbito} />
         <div style={{ flex: 1, minWidth: 180 }}>
           <label>Buscar</label>
           <input value={fq} onChange={(e) => setFq(e.target.value)} placeholder="código, marca, modelo, serie, IP, referencia…" />

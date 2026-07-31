@@ -243,11 +243,22 @@ export class AssetsService {
    * Sin esto el mapeo es una sensación ("vamos como por la mitad") y nadie
    * puede decir qué zona ya está cubierta.
    */
-  async avanceMapeo() {
+  /**
+   * Ámbito de planta: el avance se puede pedir de un tren o de una etapa
+   * concreta. Se filtra por ubicación en la CONSULTA, no después: si se
+   * filtrara al final, los porcentajes saldrían sobre el total de la planta
+   * y no sobre el del tren, que es justo el número que se quiere.
+   */
+  async avanceMapeo(q?: { tren?: string; etapa?: string }) {
+    const ambito = await filtroDeUbicaciones(this.prisma, { tren: q?.tren, etapa: q?.etapa });
     // El árbol de planta es pequeño; traer los activos con sus fichas permite
     // evaluar la completitud sin una consulta por activo.
     const activos = await this.prisma.asset.findMany({
-      where: { deletedAt: null, status: { notIn: ['BAJA'] } },
+      where: {
+        deletedAt: null,
+        status: { notIn: ['BAJA'] },
+        ...(ambito ? { locationId: ambito } : {}),
+      },
       include: {
         location: { select: { id: true, name: true } },
         camera: true, nvr: true, switchDev: true, wireless: true,

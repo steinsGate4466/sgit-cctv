@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
+import { filtroDeUbicaciones } from '../../common/ambito-planta';
 import { AuditService } from '../audit/audit.service';
 import { StorageService } from '../storage/storage.service';
 import { CreateCabinetDto, UpdateCabinetDto } from './dto/cabinet.dto';
@@ -13,8 +14,15 @@ export class CabinetsService {
     private storage: StorageService,
   ) {}
 
-  async list() {
+  /**
+   * Ámbito de planta: un gabinete pertenece al tren de SU ubicación. Los que
+   * no tienen ubicación no salen al filtrar, y es correcto: si no está en el
+   * árbol, no está en ningún tren.
+   */
+  async list(q?: { tren?: string; etapa?: string }) {
+    const ambito = await filtroDeUbicaciones(this.prisma, { tren: q?.tren, etapa: q?.etapa });
     const cabs = await this.prisma.cabinet.findMany({
+      where: ambito ? { locationId: ambito } : {},
       include: { location: { select: { name: true } }, _count: { select: { assets: true } } },
       orderBy: { code: 'asc' },
     });

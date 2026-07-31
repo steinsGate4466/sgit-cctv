@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { api } from '../api/client';
+import FiltroAmbito, { Ambito, AMBITO_VACIO, AvisoAmbito } from '../components/FiltroAmbito';
 
 /**
  * AVANCE DEL MAPEO.
@@ -37,17 +38,28 @@ export default function Mapeo() {
   const [loading, setLoading] = useState(true);
   const [fTipo, setFTipo] = useState('');
   const [fCrit, setFCrit] = useState('');
+  const [ambito, setAmbito] = useState<Ambito>(AMBITO_VACIO);
 
   const [rein, setRein] = useState<any>(null);
 
-  useEffect(() => {
-    Promise.all([
-      api.get('/assets/avance-mapeo').then((r) => r.data).catch(() => null),
+  // El avance se recalcula al cambiar el ámbito: filtrar en el navegador daría
+  // porcentajes sobre el total de la PLANTA, no sobre el del tren, que es
+  // justo el número que se quiere ver.
+  const cargar = useCallback(async () => {
+    const params: any = {};
+    if (ambito.tren) params.tren = ambito.tren;
+    if (ambito.etapa) params.etapa = ambito.etapa;
+    const [a, r] = await Promise.all([
+      api.get('/assets/avance-mapeo', { params }).then((x) => x.data).catch(() => null),
       // Reincidencia: aparece sola. Si hubiera que ir a buscarla activo por
       // activo, nadie la miraría y el problema seguiría invisible.
-      api.get('/assets/reincidentes').then((r) => r.data).catch(() => null),
-    ]).then(([a, r]) => { setD(a); setRein(r); }).finally(() => setLoading(false));
-  }, []);
+      api.get('/assets/reincidentes').then((x) => x.data).catch(() => null),
+    ]);
+    setD(a);
+    setRein(r);
+  }, [ambito]);
+
+  useEffect(() => { cargar().finally(() => setLoading(false)); }, [cargar]);
 
   if (loading) return <div className="loading">Calculando el avance…</div>;
   if (!d) return <div className="loading">No se pudo obtener el avance del mapeo.</div>;
@@ -177,6 +189,7 @@ export default function Mapeo() {
       </h2>
 
       <div className="filters">
+        <FiltroAmbito valor={ambito} onChange={setAmbito} />
         <div><label>Tipo</label>
           <select value={fTipo} onChange={(e) => setFTipo(e.target.value)}>
             <option value="">Todos</option>

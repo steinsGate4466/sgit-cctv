@@ -1,5 +1,6 @@
-import { useEffect, useState, FormEvent } from 'react';
+import { useEffect, useState, useCallback, FormEvent } from 'react';
 import { api } from '../api/client';
+import FiltroAmbito, { Ambito, AMBITO_VACIO, AvisoAmbito } from '../components/FiltroAmbito';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
 
@@ -14,18 +15,25 @@ export default function Cabinets() {
 
   const [photoFor, setPhotoFor] = useState<any>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [ambito, setAmbito] = useState<Ambito>(AMBITO_VACIO);
   const [uploading, setUploading] = useState(false);
 
-  async function load() {
-    const c = await api.get('/cabinets').then((r) => r.data).catch(() => []);
+  // useCallback porque depende del ámbito: así puede entrar como dependencia
+  // del efecto sin recrearse en cada render.
+  const load = useCallback(async () => {
+    const params: any = {};
+    if (ambito.tren) params.tren = ambito.tren;
+    if (ambito.etapa) params.etapa = ambito.etapa;
+    const c = await api.get('/cabinets', { params }).then((r) => r.data).catch(() => []);
     setRows(c || []);
-  }
+  }, [ambito]);
+  // Las ubicaciones son catálogo: se piden una sola vez.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    Promise.all([
-      api.get('/cabinets').then((r) => r.data).catch(() => []),
-      api.get('/locations').then((r) => r.data).catch(() => []),
-    ]).then(([c, l]) => { setRows(c || []); setLocations(l || []); setLoading(false); });
+    api.get('/locations').then((r) => setLocations(r.data || [])).catch(() => setLocations([]));
   }, []);
+
+  useEffect(() => { load().finally(() => setLoading(false)); }, [load]);
 
   function openNew() { setForm({ code: '', name: '', locationId: '', referencePlace: '', notes: '' }); }
   function openEdit(g: any) {
@@ -78,6 +86,12 @@ export default function Cabinets() {
           <p className="page-sub">{rows.length} gabinetes · rótulo, ubicación, foto y equipos montados</p>
         </div>
         {can('asset.update') && <button className="btn-primary" onClick={openNew}>+ Nuevo gabinete</button>}
+      </div>
+
+      <AvisoAmbito valor={ambito} total={rows.length} />
+
+      <div className="filters">
+        <FiltroAmbito valor={ambito} onChange={setAmbito} />
       </div>
 
       <div className="card">

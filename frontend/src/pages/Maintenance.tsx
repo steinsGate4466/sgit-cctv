@@ -1,6 +1,7 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
+import FiltroAmbito, { Ambito, AMBITO_VACIO, AvisoAmbito } from '../components/FiltroAmbito';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
 import OmCampo from '../components/OmCampo';
@@ -46,6 +47,7 @@ export default function Maintenance() {
   const [to, setTo] = useState('');
   const [fType, setFType] = useState('');
   const [fStatus, setFStatus] = useState('');
+  const [ambito, setAmbito] = useState<Ambito>(AMBITO_VACIO);
 
   // Alta de OM (solo Jefe). El código es MANUAL (número que genera SAP).
   const [showForm, setShowForm] = useState(false);
@@ -86,6 +88,9 @@ export default function Maintenance() {
     // Fecha local → límites de día en ISO/UTC (respeta el día completo).
     if (from) params.set('from', new Date(from + 'T00:00:00').toISOString());
     if (to) params.set('to', new Date(to + 'T23:59:59.999').toISOString());
+    // Ámbito de planta: lo resuelve el servidor contra el árbol de ubicaciones.
+    if (ambito.tren) params.set('tren', ambito.tren);
+    if (ambito.etapa) params.set('etapa', ambito.etapa);
     const [wo, ast, inc, loc] = await Promise.all([
       api.get('/work-orders?' + params.toString()).then((r) => r.data).catch(() => ({ data: [] })),
       api.get('/assets/options').then((r) => r.data).catch(() => []),
@@ -102,8 +107,11 @@ export default function Maintenance() {
   // se aplican en memoria, no en el servidor. Declarar `load` como dependencia
   // obligaría a envolverla en useCallback y volvería a consultar el servidor en
   // cada tecla, que es exactamente lo que no queremos aquí.
+  // El ámbito SÍ va en las dependencias: al cambiar de tren hay que volver a
+  // preguntar al servidor. Los demás filtros no, porque se aplican al pulsar
+  // Buscar; si estuvieran aquí, se consultaría en cada tecla escrita.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [ambito]);
 
   function clearFilters() {
     setFq(''); setFrom(''); setTo(''); setFType(''); setFStatus('');
@@ -211,7 +219,10 @@ export default function Maintenance() {
         {can('wo.create') && <button className="btn-primary" onClick={() => setShowForm(true)}>+ Nueva OM</button>}
       </div>
 
+      <AvisoAmbito valor={ambito} total={rows.length} />
+
       <div className="filters">
+        <FiltroAmbito valor={ambito} onChange={setAmbito} />
         <div style={{ flex: 1, minWidth: 180 }}><label>Buscar</label><input placeholder="código OM, incidencia, actividad, zona…" value={fq} onChange={(e) => setFq(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} /></div>
         <div><label>Tipo</label><select value={fType} onChange={(e) => setFType(e.target.value)}><option value="">Todos</option>{TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select></div>
         <div><label>Estado</label><select value={fStatus} onChange={(e) => setFStatus(e.target.value)}><option value="">Todos</option>{['ABIERTA', 'EN_PROCESO', 'EN_ESPERA', 'CERRADA', 'CANCELADA'].map((s) => <option key={s} value={s}>{s}</option>)}</select></div>
