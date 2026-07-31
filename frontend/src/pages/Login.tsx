@@ -7,7 +7,19 @@ export default function Login() {
   const nav = useNavigate();
   const location = useLocation();
   // Ruta a la que el usuario quería llegar (ej.: la ficha del activo del QR).
-  const destino = (location.state as any)?.from as string | undefined;
+  // DESTINO TRAS INICIAR SESIÓN — validado a propósito.
+  //
+  // Viene del estado del router: ProtectedRoute guarda aquí a dónde iba el
+  // usuario, para devolverlo ahí (el técnico que escanea un QR no debe acabar
+  // en el tablero). Pero es un valor que llega desde fuera de este componente,
+  // y react-router 6 tiene un aviso de REDIRECCIÓN ABIERTA: una ruta que
+  // empieza por barra invertida o por doble barra puede interpretarse como una
+  // dirección EXTERNA. Un enlace preparado llevaría al usuario a una copia del
+  // login en otro sitio, y ahí entregaría su contraseña.
+  //
+  // Se valida aquí y no solo actualizando la librería porque esto lo cierra
+  // pase lo que pase con la versión: solo se acepta una ruta interna.
+  const destino = rutaInternaSegura((location.state as any)?.from);
   const vieneDeQr = !!destino && destino.startsWith('/a/');
   // El correo NO viene precargado: revelar el usuario administrador en la pantalla
   // de acceso es una fuga de información innecesaria.
@@ -153,4 +165,21 @@ export default function Login() {
       </div>
     </div>
   );
+}
+
+/**
+ * Solo deja pasar rutas de ESTA aplicación.
+ *
+ * Acepta:  /assets   ·  /a/123?x=1
+ * Rechaza: //evil.com  ·  /\evil.com  ·  https://evil.com  ·  javascript:...
+ *
+ * La comprobación es por lista blanca (tiene que empezar por una sola barra
+ * seguida de algo que no sea barra ni barra invertida), no por lista negra:
+ * enumerar lo prohibido siempre deja un hueco.
+ */
+export function rutaInternaSegura(valor: unknown): string | undefined {
+  if (typeof valor !== 'string') return undefined;
+  const v = valor.trim();
+  if (!/^\/[^/\\]/.test(v)) return undefined;
+  return v;
 }
