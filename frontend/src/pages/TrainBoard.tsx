@@ -1,95 +1,222 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { api } from '../api/client';
 
 /**
- * Tablero POR TREN. Cada zona productiva tiene su propia pantalla, sin mezclarse
- * con el resto de la planta. Pensado para que lo entienda cualquiera: un semáforo
- * grande, texto en lenguaje claro y solo lo que requiere acción.
+ * ESTADO POR TREN — tablero de INFRAESTRUCTURA.
+ *
+ * QUÉ CAMBIÓ RESPECTO A LA VERSIÓN ANTERIOR
+ *
+ * 1) LOS TRENES YA NO ESTÁN ESCRITOS EN EL CÓDIGO.
+ *    Antes había una lista fija con TREN_1, TREN_2, TREN_3, PATIO,
+ *    PLANTA_GENERAL y SIN_ASIGNAR. Ahora se piden al servidor, que los saca del
+ *    árbol de ubicaciones. Si mañana existe un Tren 4, aparece solo.
+ *
+ * 2) "SIN_ASIGNAR" DEJA DE SER UN TREN.
+ *    Era un cuarto tren fantasma que en Laminación no existe. Los activos que
+ *    no cuelgan del árbol son TRABAJO PENDIENTE, y salen como un aviso arriba
+ *    con su lista y el motivo de cada fila.
+ *
+ * 3) ES DE INFRAESTRUCTURA, NO SOLO DE MANTENIMIENTO.
+ *    Antes mostraba cámaras, incidencias y OM. Ahora también gabinetes,
+ *    cableado con sus metros y tramos fuera de norma, canales de grabador
+ *    libres, avance del mapeo y accesos pendientes.
+ *
+ * 4) LOS NÚMEROS SE PUEDEN ABRIR.
+ *    Un indicador que no lleva a ningún sitio no sirve para trabajar: ves
+ *    "3 tramos fuera de norma" y no puedes saber cuáles. Cada tarjeta abre su
+ *    lista.
  */
-const TRAINS = [
-  { id: 'TREN_1', label: 'Tren 1' },
-  { id: 'TREN_2', label: 'Tren 2' },
-  { id: 'TREN_3', label: 'Tren 3' },
-  { id: 'PATIO', label: 'Patio' },
-  { id: 'PLANTA_GENERAL', label: 'Planta general' },
-  { id: 'SIN_ASIGNAR', label: 'Sin asignar' },
-];
+
+const TYPE_ES: Record<string, string> = {
+  CAMERA: 'Cámara', NVR: 'Grabador', SWITCH: 'Switch', WIRELESS: 'Enlace', ROUTER: 'Router',
+  FIREWALL: 'Firewall', SERVER: 'Servidor', UPS: 'UPS', FIBER: 'Fibra', CABINET: 'Gabinete',
+  DECODER: 'Decodificador', SCREEN: 'Pantalla', PC: 'PC / iVMS', OTHER: 'Otro',
+};
 const STATUS_ES: Record<string, string> = {
   OPERATIVO: 'Operativo', FUERA_SERVICIO: 'Fuera de servicio', MANTENIMIENTO: 'En mantenimiento',
   CON_INCIDENCIA: 'Con incidencia', BAJA: 'Baja', STOCK: 'En stock',
 };
-const TYPE_ES: Record<string, string> = {
-  CAMERA: 'Cámara', NVR: 'NVR', SWITCH: 'Switch', WIRELESS: 'Enlace', ROUTER: 'Router',
-  FIREWALL: 'Firewall', SERVER: 'Servidor', UPS: 'UPS', FIBER: 'Fibra', CABINET: 'Gabinete',
-  DECODER: 'Decoder', PC: 'PC / iVMS', OTHER: 'Otro',
-};
 const fmt = (d: any) => (d ? new Date(d).toLocaleDateString() : '—');
 
-/** Semáforo: traduce el porcentaje a un mensaje que cualquiera entiende. */
+/** Traduce el porcentaje a una frase que entiende cualquiera. */
 function semaforo(pct: number) {
   if (pct >= 95) return { cls: 'ok', txt: 'Operación normal', icon: '●' };
   if (pct >= 80) return { cls: 'warn', txt: 'Requiere atención', icon: '●' };
   return { cls: 'crit', txt: 'Situación crítica', icon: '●' };
 }
 
-export default function TrainBoard() {
-  const [train, setTrain] = useState('TREN_1');
-  const [d, setD] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'atencion' | 'activos' | 'trabajos'>('atencion');
+type Vista =
+  | 'atencion' | 'etapas' | 'cableado' | 'grabadores'
+  | 'gabinetes' | 'trabajos' | 'incidencias' | 'accesos';
 
+export default function TrainBoard() {
+  const [trenes, setTrenes] = useState<any[]>([]);
+  const [sinUbicar, setSinUbicar] = useState<any>(null);
+  const [code, setCode] = useState<string>('');
+  const [d, setD] = useState<any>(null);
+  const [cargandoLista, setCargandoLista] = useState(true);
+  const [cargandoDetalle, setCargandoDetalle] = useState(false);
+  const [vista, setVista] = useState<Vista>('atencion');
+  const [verSinUbicar, setVerSinUbicar] = useState(false);
+  const [listaSinUbicar, setListaSinUbicar] = useState<any>(null);
+
+  // Los trenes se piden UNA vez: el árbol no cambia mientras miras el tablero.
   useEffect(() => {
-    setLoading(true);
-    api.get('/dashboard/train/' + train)
-      .then((r) => setD(r.data))
-      .catch(() => setD(null))
-      .finally(() => setLoading(false));
-  }, [train]);
+    api.get('/dashboard/infra/trenes')
+      .then((r) => {
+        setTrenes(r.data?.trenes || []);
+        setSinUbicar(r.data?.sinUbicar || null);
+        if (r.data?.trenes?.length) setCode(r.data.trenes[0].code);
+      })
+      .catch(() => setTrenes([]))
+      .finally(() => setCargandoLista(false));
+  }, []);
+
+  const cargarDetalle = useCallback(async () => {
+    if (!code) return;
+    setCargandoDetalle(true);
+    try {
+      const r = await api.get('/dashboard/infra/tren/' + encodeURIComponent(code));
+      setD(r.data);
+    } catch {
+      setD(null);
+    } finally {
+      setCargandoDetalle(false);
+    }
+  }, [code]);
+
+  useEffect(() => { cargarDetalle(); }, [cargarDetalle]);
+
+  async function abrirSinUbicar() {
+    setVerSinUbicar(true);
+    if (!listaSinUbicar) {
+      const r = await api.get('/dashboard/infra/sin-ubicar').then((x) => x.data).catch(() => null);
+      setListaSinUbicar(r);
+    }
+  }
+
+  if (cargandoLista) return <div className="loading">Cargando los trenes…</div>;
+
+  if (!trenes.length) {
+    return (
+      <div>
+        <h1 className="page-title">Estado por Tren</h1>
+        <div className="card" style={{ padding: 40, textAlign: 'center' }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--navy)' }}>
+            No hay trenes en el árbol de ubicaciones
+          </div>
+          <div className="muted" style={{ fontSize: 13, marginTop: 8, lineHeight: 1.6 }}>
+            Los trenes ya no están escritos en el código: son las ubicaciones de
+            tipo <b>TREN</b>. Créalos en <b>Ubicaciones</b> y aparecerán aquí solos.
+            <br />Se hizo así a propósito: tú decides cómo se llaman.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const r = d?.resumen;
   const sem = semaforo(r?.disponibilidad ?? 100);
+  const cab = r?.cableado;
+  const can = r?.canales;
 
   return (
     <div>
       <h1 className="page-title">Estado por Tren</h1>
-      <p className="page-sub">Situación de la videovigilancia y la red de cada zona productiva</p>
+      <p className="page-sub">
+        Infraestructura de videovigilancia y red de cada tren de Laminación
+      </p>
 
-      {/* Selector de tren */}
+      {/* ------------------------------------------------ aviso fuera del árbol */}
+      {!!sinUbicar?.activos && (
+        <div
+          onClick={abrirSinUbicar}
+          style={{
+            background: '#fff4e5', border: '1px solid #f5dcb0', borderLeft: '4px solid var(--warn)',
+            borderRadius: 8, padding: '10px 14px', marginTop: 14, cursor: 'pointer',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+          }}
+        >
+          <div style={{ fontSize: 13 }}>
+            <b>{sinUbicar.activos} activo(s) fuera del árbol.</b>{' '}
+            <span className="muted">
+              No cuelgan de ningún tren, así que no cuentan en ninguna pestaña.
+              No es un cuarto tren: es mapeo pendiente.
+            </span>
+          </div>
+          <button className="btn-mini">Ver cuáles</button>
+        </div>
+      )}
+
+      {/* --------------------------------------------------- selector de trenes */}
       <div className="train-tabs">
-        {TRAINS.map((t) => (
+        {trenes.map((t) => (
           <button
-            key={t.id}
-            className={'train-tab' + (train === t.id ? ' active' : '')}
-            onClick={() => setTrain(t.id)}
+            key={t.code}
+            className={'train-tab' + (code === t.code && !verSinUbicar ? ' active' : '')}
+            onClick={() => { setCode(t.code); setVerSinUbicar(false); }}
           >
-            {t.label}
+            {t.nombre}
+            <span style={{ opacity: 0.6, marginLeft: 6, fontSize: 11 }}>
+              {t.activos.total}
+            </span>
           </button>
         ))}
       </div>
 
-      {loading ? (
-        <div className="loading">Cargando estado del tren…</div>
-      ) : !d ? (
-        <div className="card" style={{ padding: 30, textAlign: 'center' }} >
-          <div className="muted">No se pudo cargar la información de esta zona.</div>
-        </div>
-      ) : r.totalActivos === 0 ? (
-        <div className="card" style={{ padding: 40, textAlign: 'center' }}>
-          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--navy)' }}>Sin activos registrados en esta zona</div>
-          <div className="muted" style={{ fontSize: 13, marginTop: 6 }}>
-            Asigna el Tren a los equipos desde el módulo <b>Activos</b> para verlos aquí.
+      {/* ------------------------------------------------ lista de sin ubicar */}
+      {verSinUbicar ? (
+        <div className="panel">
+          <h3>Activos que no cuelgan de ningún tren</h3>
+          <div className="sign-note" style={{ marginBottom: 12 }}>
+            Son dos problemas distintos y se arreglan distinto: los que no tienen
+            ubicación hay que ubicarlos; los que sí la tienen, lo que falta es
+            colgar esa ubicación del tren que le toca en el árbol.
           </div>
+          {!listaSinUbicar ? (
+            <div className="loading">Cargando…</div>
+          ) : (
+            <table>
+              <thead><tr><th>Código</th><th>Tipo</th><th>Ubicación</th><th>Qué falta</th></tr></thead>
+              <tbody>
+                {listaSinUbicar.filas?.map((f: any) => (
+                  <tr key={f.id}>
+                    <td style={{ fontWeight: 600 }}>{f.assetCode}</td>
+                    <td className="muted">{TYPE_ES[f.type] || f.type}</td>
+                    <td className="muted" style={{ fontSize: 12 }}>{f.ubicacion || '—'}</td>
+                    <td style={{ fontSize: 12 }}>{f.motivo}</td>
+                  </tr>
+                ))}
+                {!listaSinUbicar.filas?.length && (
+                  <tr><td colSpan={4} className="muted" style={{ textAlign: 'center', padding: 24 }}>
+                    Ninguno. Todo está colgado del árbol.
+                  </td></tr>
+                )}
+              </tbody>
+            </table>
+          )}
+          <button className="btn" style={{ marginTop: 12 }} onClick={() => setVerSinUbicar(false)}>
+            Volver al tren
+          </button>
+        </div>
+      ) : cargandoDetalle ? (
+        <div className="loading">Cargando el tren…</div>
+      ) : !d ? (
+        <div className="card" style={{ padding: 30, textAlign: 'center' }}>
+          <div className="muted">No se pudo cargar este tren.</div>
         </div>
       ) : (
         <>
-          {/* Estado general — grande y claro */}
+          {/* ------------------------------------------------------- semáforo */}
           <div className={'status-hero ' + sem.cls}>
             <div className="sh-left">
               <div className="sh-dot">{sem.icon}</div>
               <div>
                 <div className="sh-title">{sem.txt}</div>
                 <div className="sh-sub">
-                  {r.operativos} de {r.enOperacion} equipos funcionando con normalidad
+                  {r.total === 0
+                    ? 'Este tren todavía no tiene activos colgados en el árbol'
+                    : `${r.operativos} de ${r.enOperacion} equipos funcionando con normalidad`}
                 </div>
               </div>
             </div>
@@ -99,141 +226,224 @@ export default function TrainBoard() {
             </div>
           </div>
 
-          {/* Lo esencial en 4 números */}
+          {/* ------------------------------------------------- los indicadores */}
           <div className="kpi-grid" style={{ marginTop: 16 }}>
-            <Kpi label="Cámaras funcionando" value={`${r.camarasOperativas}/${r.camaras}`}
+            <Kpi label="Cámaras funcionando" value={`${r.camaras - r.camarasCaidas}/${r.camaras}`}
                  cls={r.camarasCaidas ? 'warn' : 'ok'}
-                 hint={r.camarasCaidas ? `${r.camarasCaidas} sin imagen o con falla` : 'Todas operativas'} />
+                 hint={r.camarasCaidas ? `${r.camarasCaidas} sin imagen o con falla` : 'Todas operativas'}
+                 onClick={() => setVista('atencion')} />
+
+            <Kpi label="Avance del mapeo" value={`${r.avanceMapeoPct}%`}
+                 cls={r.avanceMapeoPct >= 90 ? 'ok' : r.avanceMapeoPct >= 40 ? 'warn' : 'crit'}
+                 hint={`${r.fichasCompletas} de ${r.total} fichas completas`}
+                 onClick={() => setVista('etapas')} />
+
+            <Kpi label={`Tramos sobre ${d.limiteTramoM} m`} value={cab?.fueraNorma ?? 0}
+                 cls={cab?.fueraNorma ? 'crit' : 'ok'}
+                 hint={cab?.fueraNorma
+                   ? `${cab.fueraNormaMedidos} medidos de verdad`
+                   : `${cab?.tramos ?? 0} tramos, ${cab?.metros ?? 0} m`}
+                 onClick={() => setVista('cableado')} />
+
+            <Kpi label="Canales libres" value={can?.canalesLibres ?? 0}
+                 cls={can?.sobreasignados ? 'crit' : 'ok'}
+                 hint={can?.sinCapacidadDeclarada
+                   ? `${can.sinCapacidadDeclarada} grabador(es) sin capacidad declarada`
+                   : `${can?.canalesOcupados ?? 0} ocupados de ${can?.canalesTotales ?? 0}`}
+                 onClick={() => setVista('grabadores')} />
+
+            <Kpi label="Gabinetes" value={r.gabinetes?.total ?? 0}
+                 cls={r.gabinetes?.sinFoto ? 'warn' : 'ok'}
+                 hint={r.gabinetes?.sinFoto ? `${r.gabinetes.sinFoto} sin foto` : 'Todos con foto'}
+                 onClick={() => setVista('gabinetes')} />
+
+            <Kpi label="Trabajos pendientes" value={r.omAbiertas}
+                 cls={r.omVencidas ? 'crit' : r.omAbiertas ? 'warn' : 'ok'}
+                 hint={r.omVencidas ? `${r.omVencidas} fuera de plazo` : 'Dentro de plazo'}
+                 onClick={() => setVista('trabajos')} />
+
             <Kpi label="Incidencias abiertas" value={r.incidenciasAbiertas}
                  cls={r.incidenciasCriticas ? 'crit' : r.incidenciasAbiertas ? 'warn' : 'ok'}
-                 hint={r.incidenciasCriticas ? `${r.incidenciasCriticas} de prioridad alta` : 'Sin urgencias'} />
-            <Kpi label="Trabajos pendientes" value={r.omAbiertas}
-                 cls={r.omVencidas ? 'crit' : 'warn'}
-                 hint={r.omVencidas ? `${r.omVencidas} fuera de plazo` : 'Dentro de plazo'} />
-            <Kpi label="Preventivos vencidos" value={r.preventivosVencidos}
-                 cls={r.preventivosVencidos ? 'crit' : 'ok'}
-                 hint={r.preventivosVencidos ? 'Reprogramar limpieza/revisión' : 'Plan al día'} />
+                 hint={r.incidenciasCriticas ? `${r.incidenciasCriticas} de prioridad alta` : 'Sin urgencias'}
+                 onClick={() => setVista('incidencias')} />
+
+            <Kpi label="Accesos por aprobar" value={r.accesosPendientes}
+                 cls={r.accesosPendientes ? 'warn' : 'ok'}
+                 hint={r.accesosPendientes ? 'Sin esto no se sube al tren' : 'Nada pendiente'}
+                 onClick={() => setVista('accesos')} />
           </div>
 
-          {/* Desglose visual del estado */}
-          <div className="panel" style={{ marginTop: 16 }}>
-            <h3>Cómo están los {r.enOperacion} equipos de esta zona</h3>
-            <div className="stack-bar">
-              <Seg n={r.operativos} tot={r.enOperacion} cls="ok" />
-              <Seg n={r.enMantenimiento} tot={r.enOperacion} cls="info" />
-              <Seg n={r.conIncidencia} tot={r.enOperacion} cls="warn" />
-              <Seg n={r.fueraServicio} tot={r.enOperacion} cls="crit" />
-            </div>
-            <div className="stack-legend">
-              <Leg cls="ok" n={r.operativos} t="Operativos" />
-              <Leg cls="info" n={r.enMantenimiento} t="En mantenimiento" />
-              <Leg cls="warn" n={r.conIncidencia} t="Con incidencia" />
-              <Leg cls="crit" n={r.fueraServicio} t="Fuera de servicio" />
-            </div>
-          </div>
-
-          {/* Pestañas de detalle */}
-          <div className="subtabs">
-            <button className={'subtab' + (tab === 'atencion' ? ' active' : '')} onClick={() => setTab('atencion')}>
-              Requieren atención ({d.requierenAtencion?.length ?? 0})
-            </button>
-            <button className={'subtab' + (tab === 'trabajos' ? ' active' : '')} onClick={() => setTab('trabajos')}>
-              Trabajos e incidencias ({(d.ordenes?.length ?? 0) + (d.incidencias?.length ?? 0)})
-            </button>
-            <button className={'subtab' + (tab === 'activos' ? ' active' : '')} onClick={() => setTab('activos')}>
-              Todos los equipos ({r.totalActivos})
-            </button>
-          </div>
-
-          {tab === 'atencion' && (
-            <div className="card">
-              <table>
-                <thead><tr><th>Equipo</th><th>Tipo</th><th>Ubicación</th><th>Criticidad</th><th>Estado</th></tr></thead>
-                <tbody>
-                  {d.requierenAtencion?.map((a: any) => (
-                    <tr key={a.id}>
-                      <td style={{ fontWeight: 600 }}>{a.assetCode}</td>
-                      <td className="muted">{TYPE_ES[a.type] || a.type}</td>
-                      <td className="muted" style={{ fontSize: 12 }}>
-                        {a.location?.name || '—'}{a.cabinet?.code ? ` · ${a.cabinet.code}` : ''}
-                      </td>
-                      <td><span className={'badge ' + a.criticality}>{a.criticality}</span></td>
-                      <td><span className={'badge ' + a.effectiveStatus}>{STATUS_ES[a.effectiveStatus]}</span></td>
-                    </tr>
-                  ))}
-                  {!d.requierenAtencion?.length && (
-                    <tr><td colSpan={5} style={{ textAlign: 'center', padding: 34 }}>
-                      <div style={{ fontSize: 15, color: 'var(--ok)', fontWeight: 600 }}>✓ Todo en orden</div>
-                      <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>Ningún equipo de esta zona requiere atención.</div>
-                    </td></tr>
-                  )}
-                </tbody>
-              </table>
+          {/* --------------------------------------------------- barra de estado */}
+          {r.enOperacion > 0 && (
+            <div className="panel" style={{ marginTop: 16 }}>
+              <h3>Cómo están los {r.enOperacion} equipos de este tren</h3>
+              <div className="stack-bar">
+                <Seg n={r.operativos} tot={r.enOperacion} cls="ok" />
+                <Seg n={r.enMantenimiento} tot={r.enOperacion} cls="info" />
+                <Seg n={r.conIncidencia} tot={r.enOperacion} cls="warn" />
+                <Seg n={r.fueraServicio} tot={r.enOperacion} cls="crit" />
+              </div>
+              <div className="stack-legend">
+                <Leg cls="ok" n={r.operativos} t="Operativos" />
+                <Leg cls="info" n={r.enMantenimiento} t="En mantenimiento" />
+                <Leg cls="warn" n={r.conIncidencia} t="Con incidencia" />
+                <Leg cls="crit" n={r.fueraServicio} t="Fuera de servicio" />
+              </div>
+              {(r.sinFoto > 0 || r.sinEtapa > 0) && (
+                <div className="muted" style={{ fontSize: 12, marginTop: 12 }}>
+                  {r.sinFoto > 0 && <>· {r.sinFoto} sin ninguna foto cargada </>}
+                  {r.sinEtapa > 0 && <>· {r.sinEtapa} sin etapa del proceso asignada</>}
+                </div>
+              )}
             </div>
           )}
 
-          {tab === 'trabajos' && (
-            <>
-              <div className="section-title">Órdenes de mantenimiento abiertas</div>
-              <div className="card">
-                <table>
-                  <thead><tr><th>Código</th><th>Equipo</th><th>Tipo</th><th>Trabajo</th><th>Programada</th></tr></thead>
-                  <tbody>
-                    {d.ordenes?.map((w: any) => (
-                      <tr key={w.id}>
-                        <td style={{ fontWeight: 600 }}>{w.code}</td>
-                        <td className="muted">{w.asset?.assetCode}</td>
-                        <td className="muted" style={{ fontSize: 11 }}>{w.type}</td>
-                        <td style={{ fontSize: 12 }}>{w.activity || '—'}</td>
-                        <td className="muted" style={{ fontSize: 12 }}>
-                          {fmt(w.scheduledDate)}
-                          {w.vencida && <div><span className="badge FUERA_SERVICIO" style={{ fontSize: 10 }}>Vencida</span></div>}
-                        </td>
-                      </tr>
-                    ))}
-                    {!d.ordenes?.length && <tr><td colSpan={5} className="muted" style={{ textAlign: 'center', padding: 24 }}>Sin trabajos pendientes.</td></tr>}
-                  </tbody>
-                </table>
-              </div>
+          {/* ------------------------------------------------------- pestañas */}
+          <div className="tabs" style={{ margin: '18px 0 14px' }}>
+            <Tab v="atencion" a={vista} s={setVista} n={d.requierenAtencion?.length} t="Requieren atención" />
+            <Tab v="etapas" a={vista} s={setVista} n={d.etapas?.length} t="Etapas" />
+            <Tab v="cableado" a={vista} s={setVista} n={d.tramosFueraNorma?.length} t="Cableado" />
+            <Tab v="grabadores" a={vista} s={setVista} n={d.grabadores?.length} t="Grabadores" />
+            <Tab v="gabinetes" a={vista} s={setVista} n={d.gabinetes?.length} t="Gabinetes" />
+            <Tab v="trabajos" a={vista} s={setVista} n={d.ordenes?.length} t="Trabajos" />
+            <Tab v="incidencias" a={vista} s={setVista} n={d.incidencias?.length} t="Incidencias" />
+            <Tab v="accesos" a={vista} s={setVista} n={d.accesos?.length} t="Accesos" />
+          </div>
 
-              <div className="section-title">Incidencias abiertas</div>
-              <div className="card">
-                <table>
-                  <thead><tr><th>Código</th><th>Equipo</th><th>Problema</th><th>Prioridad</th><th>Reportada</th></tr></thead>
-                  <tbody>
-                    {d.incidencias?.map((i: any) => (
-                      <tr key={i.id}>
-                        <td style={{ fontWeight: 600 }}>{i.code}</td>
-                        <td className="muted">{i.asset?.assetCode || '—'}</td>
-                        <td style={{ fontSize: 12 }}>{i.title}</td>
-                        <td><span className={'badge ' + i.priority}>{i.priority}</span></td>
-                        <td className="muted" style={{ fontSize: 12 }}>{fmt(i.reportedAt)}</td>
-                      </tr>
-                    ))}
-                    {!d.incidencias?.length && <tr><td colSpan={5} className="muted" style={{ textAlign: 'center', padding: 24 }}>Sin incidencias abiertas.</td></tr>}
-                  </tbody>
-                </table>
+          {vista === 'atencion' && (
+            <Tabla vacia="Nada requiere atención en este tren." filas={d.requierenAtencion}
+                   cabecera={['Equipo', 'Tipo', 'Etapa', 'Ubicación', 'Criticidad', 'Estado']}
+                   fila={(a: any) => [
+                     <b>{a.assetCode}</b>,
+                     TYPE_ES[a.type] || a.type,
+                     a.etapa || '—',
+                     a.ubicacion || '—',
+                     <span className={'badge ' + a.criticidad}>{a.criticidad}</span>,
+                     <span className={'badge ' + a.estado}>{STATUS_ES[a.estado] || a.estado}</span>,
+                   ]} />
+          )}
+
+          {vista === 'etapas' && (
+            <div className="panel">
+              <h3>Avance del mapeo por etapa del proceso</h3>
+              <div className="sign-note" style={{ marginBottom: 12 }}>
+                En orden del proceso, de la entrada del horno a la salida del
+                producto. Una etapa al 0 % no es un error: es mapeo sin empezar.
               </div>
+              {d.etapas?.map((e: any) => (
+                <div key={e.code} style={{ marginBottom: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+                    <span style={{ fontWeight: 600 }}>
+                      {e.nombre}
+                      {e.code === 'SIN_ETAPA' && (
+                        <span className="muted" style={{ fontWeight: 400 }}> · hay que asignarles etapa</span>
+                      )}
+                    </span>
+                    <span className="muted">{e.completos}/{e.total} fichas · {e.avancePct}%</span>
+                  </div>
+                  <div className="stack-bar" style={{ height: 12 }}>
+                    <Seg n={e.completos} tot={e.total} cls="ok" />
+                    <Seg n={e.total - e.completos} tot={e.total} cls="warn" />
+                  </div>
+                </div>
+              ))}
+              {!d.etapas?.length && <div className="empty">Este tren no tiene activos todavía.</div>}
+            </div>
+          )}
+
+          {vista === 'cableado' && (
+            <>
+              <div className="panel" style={{ marginBottom: 12 }}>
+                <h3>Cableado de este tren</h3>
+                <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap', fontSize: 13 }}>
+                  <Dato t="Tramos" v={cab?.tramos ?? 0} />
+                  <Dato t="Metros totales" v={(cab?.metros ?? 0) + ' m'} />
+                  <Dato t="Medidos" v={(cab?.metrosMedidos ?? 0) + ' m'} />
+                  <Dato t="Estimados a ojo" v={(cab?.metrosEstimados ?? 0) + ' m'} />
+                  <Dato t="Sin medir" v={cab?.sinMedir ?? 0} />
+                  <Dato t="Sin blindaje" v={cab?.sinBlindaje ?? 0} />
+                  <Dato t="Dañados" v={cab?.danados ?? 0} />
+                </div>
+              </div>
+              <Tabla vacia={`Ningún tramo pasa de ${d.limiteTramoM} m.`} filas={d.tramosFueraNorma}
+                     cabecera={['Tramo', 'Metros', 'Dato', 'Desde', 'Hasta', 'Categoría', 'Blindado']}
+                     fila={(c: any) => [
+                       <b>{c.code || '—'}</b>,
+                       <b style={{ color: 'var(--crit)' }}>{c.metros} m</b>,
+                       c.estimado
+                         ? <span className="muted">estimado</span>
+                         : <b>MEDIDO</b>,
+                       c.desde || '—',
+                       c.hasta || '—',
+                       c.categoria || '—',
+                       c.blindado ? 'sí' : 'no',
+                     ]}
+                     nota="Solo sobre un tramo MEDIDO se puede justificar un recableado: sobre un metraje estimado a ojo, lo primero es ir a medirlo." />
             </>
           )}
 
-          {tab === 'activos' && (
-            <div className="card">
-              <table>
-                <thead><tr><th>Equipo</th><th>Tipo</th><th>Ubicación</th><th>Estado</th><th>Próx. preventivo</th></tr></thead>
-                <tbody>
-                  {d.activos?.map((a: any) => (
-                    <tr key={a.id}>
-                      <td style={{ fontWeight: 600 }}>{a.assetCode}</td>
-                      <td className="muted">{TYPE_ES[a.type] || a.type}</td>
-                      <td className="muted" style={{ fontSize: 12 }}>{a.location?.name || '—'}</td>
-                      <td><span className={'badge ' + a.effectiveStatus}>{STATUS_ES[a.effectiveStatus]}</span></td>
-                      <td className="muted" style={{ fontSize: 12 }}>{fmt(a.preventivePlan?.nextDueAt)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          {vista === 'grabadores' && (
+            <Tabla vacia="Este tren no tiene grabadores registrados." filas={d.grabadores}
+                   cabecera={['Grabador', 'Ubicación', 'Gabinete', 'Canales', 'Ocupados', 'Libres', 'Estado']}
+                   fila={(g: any) => [
+                     <b>{g.assetCode}</b>,
+                     g.ubicacion || g.referencia || '—',
+                     g.gabinete || '—',
+                     g.canales ?? <span className="muted">sin declarar</span>,
+                     g.ocupados,
+                     g.sobreasignado
+                       ? <b style={{ color: 'var(--crit)' }}>dato mal puesto</b>
+                       : g.libres == null ? <span className="muted">—</span> : <b>{g.libres}</b>,
+                     <span className={'badge ' + g.estado}>{STATUS_ES[g.estado] || g.estado}</span>,
+                   ]}
+                   nota="Un grabador sin capacidad declarada no dice cuántos canales quedan: no se inventa. Si sale 'dato mal puesto', tiene más cámaras asignadas que canales." />
+          )}
+
+          {vista === 'gabinetes' && (
+            <Tabla vacia="Ningún gabinete alberga equipos de este tren." filas={d.gabinetes}
+                   cabecera={['Gabinete', 'Nombre', 'Ubicación', 'Equipos dentro', 'Foto']}
+                   fila={(g: any) => [
+                     <b>{g.code}</b>,
+                     g.name || '—',
+                     g.location?.name || '—',
+                     g._count?.assets ?? 0,
+                     g.photoFileId ? 'sí' : <span style={{ color: 'var(--warn)' }}>falta</span>,
+                   ]} />
+          )}
+
+          {vista === 'trabajos' && (
+            <Tabla vacia="Sin trabajos pendientes en este tren." filas={d.ordenes}
+                   cabecera={['Orden', 'Tipo', 'Equipo', 'Actividad', 'Avance', 'Programada', 'Estado']}
+                   fila={(o: any) => [
+                     <b>{o.code}</b>,
+                     o.type,
+                     o.asset?.assetCode || '—',
+                     <span style={{ fontSize: 12 }}>{o.activity || '—'}</span>,
+                     (o.progressPct ?? 0) + '%',
+                     fmt(o.scheduledDate),
+                     o.vencida
+                       ? <b style={{ color: 'var(--crit)' }}>vencida</b>
+                       : <span className="muted">{o.status}</span>,
+                   ]} />
+          )}
+
+          {vista === 'incidencias' && (
+            <Tabla vacia="Sin incidencias abiertas en este tren." filas={d.incidencias}
+                   cabecera={['Código', 'Equipo', 'Problema', 'Prioridad', 'Reportada']}
+                   fila={(i: any) => [
+                     <b>{i.code}</b>,
+                     i.asset?.assetCode || '—',
+                     <span style={{ fontSize: 12 }}>{i.title}</span>,
+                     <span className={'badge ' + i.priority}>{i.priority}</span>,
+                     fmt(i.reportedAt),
+                   ]} />
+          )}
+
+          {vista === 'accesos' && (
+            <Tabla vacia="Ningún permiso de acceso pendiente." filas={d.accesos}
+                   cabecera={['Equipo', 'Estado de la solicitud']}
+                   fila={(a: any) => [a.asset?.assetCode || '—', a.status]}
+                   nota="Si un trabajo de este tren necesita altura o manlift y el permiso no está aprobado, el técnico se entera arriba del tren." />
           )}
         </>
       )}
@@ -241,15 +451,73 @@ export default function TrainBoard() {
   );
 }
 
-function Kpi({ label, value, cls, hint }: { label: string; value: any; cls?: string; hint?: string }) {
+/* ------------------------------------------------------------------ piezas */
+
+function Kpi({ label, value, cls, hint, onClick }: {
+  label: string; value: any; cls?: string; hint?: string; onClick?: () => void;
+}) {
   return (
-    <div className={'kpi ' + (cls || '')}>
+    <div
+      className={'kpi ' + (cls || '') + (onClick ? ' clicable' : '')}
+      onClick={onClick}
+      title={onClick ? 'Ver el detalle' : undefined}
+    >
       <div className="label">{label}</div>
       <div className="value">{value}</div>
       {hint && <div className="hint">{hint}</div>}
     </div>
   );
 }
+
+function Tab({ v, a, s, n, t }: { v: Vista; a: Vista; s: (x: Vista) => void; n?: number; t: string }) {
+  return (
+    <button className={a === v ? 'tab active' : 'tab'} onClick={() => s(v)}>
+      {t}{typeof n === 'number' ? ` (${n})` : ''}
+    </button>
+  );
+}
+
+function Dato({ t, v }: { t: string; v: any }) {
+  return (
+    <div>
+      <div className="muted" style={{ fontSize: 11 }}>{t}</div>
+      <div style={{ fontWeight: 700, fontSize: 16 }}>{v}</div>
+    </div>
+  );
+}
+
+/** Tabla genérica: evita repetir ocho veces la misma estructura. */
+function Tabla({ cabecera, filas, fila, vacia, nota }: {
+  cabecera: string[];
+  filas?: any[];
+  fila: (x: any) => any[];
+  vacia: string;
+  nota?: string;
+}) {
+  return (
+    <>
+      {nota && <div className="sign-note" style={{ marginBottom: 10 }}>{nota}</div>}
+      <div className="card">
+        <table>
+          <thead><tr>{cabecera.map((c) => <th key={c}>{c}</th>)}</tr></thead>
+          <tbody>
+            {filas?.map((x: any, i: number) => (
+              <tr key={x.id || i}>
+                {fila(x).map((celda, j) => <td key={j}>{celda}</td>)}
+              </tr>
+            ))}
+            {!filas?.length && (
+              <tr><td colSpan={cabecera.length} className="muted" style={{ textAlign: 'center', padding: 26 }}>
+                {vacia}
+              </td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
 function Seg({ n, tot, cls }: { n: number; tot: number; cls: string }) {
   if (!n || !tot) return null;
   return <span className={'seg ' + cls} style={{ width: `${(n / tot) * 100}%` }} title={`${n}`} />;

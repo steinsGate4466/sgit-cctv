@@ -435,3 +435,14 @@ select optgroup { font-weight: 700; color: var(--navy); }
 }
 .tabs .tab:hover { color: var(--navy); background: #f6f8fb; }
 .tabs .tab.active { color: var(--navy); font-weight: 700; border-bottom-color: var(--red); }
+
+/* --------------------------------------------------- INDICADORES QUE SE ABREN
+   Un numero que no lleva a ningun sitio no sirve para trabajar: ves
+   "3 tramos fuera de norma" y no puedes saber cuales. Los que se pueden abrir
+   lo dicen con el cursor y un leve levantamiento al pasar por encima. */
+.kpi.clicable { cursor: pointer; transition: transform .12s, box-shadow .12s; }
+.kpi.clicable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(16,24,40,.10), 0 2px 4px rgba(16,24,40,.06);
+}
+.kpi.clicable:active { transform: translateY(0); }
