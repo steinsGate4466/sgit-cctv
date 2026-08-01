@@ -6,7 +6,7 @@ import { QuerySpareDto } from './dto/query-spare.dto';
 import { MovementDto } from './dto/movement.dto';
 import { CheckDto } from './dto/check.dto';
 import { LinkAssetDto } from './dto/link-asset.dto';
-import { leerCatalogo, ResultadoLectura } from './catalogo-csv.util';
+import { leerCatalogo, ResultadoLectura, leerGrilla } from './catalogo-csv.util';
 
 const STALE_DAYS = 2; // repuesto "sin comprobar" si pasan más de N días
 
@@ -185,8 +185,25 @@ export class InventoryService {
    * después de haber sobrescrito 300 repuestos sería un desastre difícil de
    * revertir. Primero se ve, después se aplica.
    */
+  /**
+   * Vía EXCEL (3G): el navegador ya leyó el .xlsx y manda la rejilla con los
+   * valores tipados. No hay texto que interpretar, así que no hay nada que
+   * adivinar: 0,125 es 0,125 y no 125.
+   */
+  async previsualizarGrilla(encabezados: any[], filas: any[][]) {
+    return this.previsualizarLectura(leerGrilla(encabezados, filas));
+  }
+
+  async importarGrilla(encabezados: any[], filas: any[][], userId?: string | null) {
+    return this.aplicarLectura(leerGrilla(encabezados, filas), userId);
+  }
+
   async previsualizarCatalogo(contenido: string) {
-    const lectura = leerCatalogo(contenido);
+    return this.previsualizarLectura(leerCatalogo(contenido));
+  }
+
+  /** Cuerpo común de la previsualización, venga de CSV o de Excel. */
+  private async previsualizarLectura(lectura: ResultadoLectura) {
     if (!lectura.filas.length) {
       return { ...lectura, nuevos: 0, actualizados: 0, cambios: [] as any[] };
     }
@@ -228,7 +245,11 @@ export class InventoryService {
    * hacer desaparecer el resto del catálogo.
    */
   async importarCatalogo(contenido: string, userId?: string | null) {
-    const lectura = leerCatalogo(contenido);
+    return this.aplicarLectura(leerCatalogo(contenido), userId);
+  }
+
+  /** Cuerpo común de la importación, venga de CSV o de Excel. */
+  private async aplicarLectura(lectura: ResultadoLectura, userId?: string | null) {
     if (!lectura.filas.length) {
       throw new BadRequestException(
         lectura.rechazadas[0]?.motivo || 'El archivo no contiene filas válidas.',
@@ -272,6 +293,11 @@ export class InventoryService {
       rechazadas: lectura.rechazadas,
       columnasDetectadas: lectura.columnasDetectadas,
       total: lectura.filas.length,
+      // Se devuelve quién la aplicó. El registro de auditoría lo escribe el
+      // interceptor global; este dato es para que la pantalla pueda decir
+      // "aplicada por ti" sin una consulta más. El parámetro estaba muerto y
+      // eso hacía creer que la auditoría se hacía aquí.
+      aplicadaPor: userId || null,
     };
   }
 

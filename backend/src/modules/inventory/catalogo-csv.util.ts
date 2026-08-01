@@ -247,3 +247,104 @@ export function leerCatalogo(contenido: string): ResultadoLectura {
 
   return { filas, rechazadas, columnasDetectadas };
 }
+
+// ============================================================================
+//  LECTURA DE UNA REJILLA YA TIPADA  (bloque 3G — Excel)
+//
+//  POR QUÉ EXISTE, SI YA HAY UN LECTOR DE CSV
+//  Porque el CSV es TEXTO y hay que ADIVINAR. El lector de arriba tiene que
+//  decidir si "1.250" son mil doscientos cincuenta o uno con veinticinco, y
+//  aplica la regla de los tres dígitos. Es la mejor regla posible sobre texto,
+//  pero es una regla: con "0.125" acertaría lo contrario de lo que se quiere.
+//
+//  Desde una hoja de cálculo NO hay nada que adivinar: la celda YA es un
+//  número. El navegador lee el .xlsx, manda la rejilla con los valores tal
+//  cual, y aquí se usan directamente. Cero ambigüedad, cero pérdida.
+//
+//  Se reutiliza mapearColumnas() para que el reconocimiento de encabezados sea
+//  EXACTAMENTE el mismo en las dos vías: si el CSV entiende "Libre
+//  utilización", el Excel también, sin mantener dos listas que se desviarían.
+// ============================================================================
+
+/** Convierte una celda ya tipada a número, sin adivinar si ya lo es. */
+function celdaANumero(v: any): number | null {
+  if (v === null || v === undefined || v === '') return null;
+  // Una hoja de cálculo entrega números como números. Ese es todo el punto.
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  if (typeof v === 'boolean') return null;
+  // Si viniera como texto (celda con formato de texto), se cae al lector de
+  // siempre: peor que un número real, pero mejor que descartarlo.
+  return aNumero(String(v));
+}
+
+/** Celda a texto recortado, o undefined si no aporta nada. */
+function celdaATexto(v: any): string | undefined {
+  if (v === null || v === undefined) return undefined;
+  const t = String(v).trim();
+  return t.length ? t : undefined;
+}
+
+export function leerGrilla(encabezados: any[], filasCrudas: any[][]): ResultadoLectura {
+  const cabeceras = (encabezados || []).map((h) => String(h ?? ''));
+  const mapa = mapearColumnas(cabeceras);
+
+  const columnasDetectadas: Record<string, string> = {};
+  for (const [campo, i] of Object.entries(mapa)) columnasDetectadas[campo] = cabeceras[i];
+
+  if (mapa.sapCode === undefined || mapa.name === undefined) {
+    return {
+      filas: [],
+      rechazadas: [{
+        linea: 1,
+        motivo: 'No se encontraron las columnas de código SAP y descripción. '
+          + `Encabezados leídos: ${cabeceras.join(' | ')}`,
+        contenido: cabeceras.join(' | '),
+      }],
+      columnasDetectadas,
+    };
+  }
+
+  const filas: FilaCatalogo[] = [];
+  const rechazadas: FilaRechazada[] = [];
+  const vistos = new Set<string>();
+
+  for (let i = 0; i < (filasCrudas || []).length; i++) {
+    const celdas = filasCrudas[i] || [];
+    // +2: la fila 1 es el encabezado y las hojas de cálculo cuentan desde 1.
+    // Así el número que se muestra es el mismo que ve el usuario en Excel.
+    const nLinea = i + 2;
+    const contenido = celdas.map((c) => (c === null || c === undefined ? '' : String(c))).join(' | ');
+
+    const sapCode = celdaATexto(celdas[mapa.sapCode]);
+    const name = celdaATexto(celdas[mapa.name]);
+
+    if (!sapCode) { rechazadas.push({ linea: nLinea, motivo: 'Sin código SAP.', contenido }); continue; }
+    if (!name) { rechazadas.push({ linea: nLinea, motivo: 'Sin descripción.', contenido }); continue; }
+    if (vistos.has(sapCode)) {
+      rechazadas.push({ linea: nLinea, motivo: `Código SAP repetido (${sapCode}).`, contenido });
+      continue;
+    }
+    vistos.add(sapCode);
+
+    const dato = (campo: keyof FilaCatalogo) =>
+      mapa[campo] !== undefined ? celdaATexto(celdas[mapa[campo]]) : undefined;
+
+    const stock = mapa.currentStock !== undefined ? celdaANumero(celdas[mapa.currentStock]) : null;
+    const minimo = mapa.minStock !== undefined ? celdaANumero(celdas[mapa.minStock]) : null;
+
+    filas.push({
+      sapCode,
+      name,
+      category: dato('category'),
+      brand: dato('brand'),
+      model: dato('model'),
+      unit: dato('unit'),
+      warehouse: dato('warehouse'),
+      // Sin redondear y sin negativos, igual que en la vía del CSV.
+      currentStock: stock === null ? undefined : Math.max(0, stock),
+      minStock: minimo === null ? undefined : Math.max(0, minimo),
+    });
+  }
+
+  return { filas, rechazadas, columnasDetectadas };
+}

@@ -1,8 +1,7 @@
 jest.mock('@prisma/client', () => ({ PrismaClient: class {}, Prisma: {} }));
 
 import {
-  leerCatalogo, aNumero, detectarSeparador, partirLinea, normalizar, mapearColumnas,
-} from '../src/modules/inventory/catalogo-csv.util';
+  leerCatalogo, aNumero, detectarSeparador, partirLinea, normalizar, mapearColumnas, leerGrilla } from '../src/modules/inventory/catalogo-csv.util';
 
 /**
  * Camino crítico: la lectura del catálogo exportado de SAP.
@@ -224,5 +223,84 @@ describe('catálogo CSV — lectura del archivo de SAP', () => {
       const r = leerCatalogo('Material;Texto breve;Stock\nSAP-1;Cable;-5\n');
       expect(r.filas[0].currentStock).toBe(0);
     });
+  });
+});
+
+// ============================================================================
+//  LECTURA DE REJILLA (Excel) — bloque 3G
+//
+//  La diferencia con el CSV no es cosmética: el CSV es texto y hay que
+//  ADIVINAR si "0.125" son 125 o 0,125. Una celda de hoja de cálculo YA es un
+//  número. Estas pruebas fijan justo eso, para que nadie "unifique" las dos
+//  vías más adelante creyendo que hacen lo mismo.
+// ============================================================================
+describe('leerGrilla — la vía del Excel', () => {
+  const CAB = ['Material', 'Texto breve', 'Libre utilizacion', 'Punto pedido', 'Unidad'];
+
+  it('lee una fila con decimales sin tocarlos', () => {
+    const r = leerGrilla(CAB, [['SAP-1', 'Cable UTP', 250.5, 50, 'M']]);
+    expect(r.filas).toHaveLength(1);
+    expect(r.filas[0].currentStock).toBe(250.5);
+    expect(r.filas[0].minStock).toBe(50);
+    expect(r.filas[0].unit).toBe('M');
+  });
+
+  it('EL CASO QUE JUSTIFICA ESTA VÍA: 0.125 no se convierte en 125', () => {
+    const r = leerGrilla(CAB, [['SAP-1', 'Conector', 0.125, 0]]);
+    expect(r.filas[0].currentStock).toBe(0.125);
+
+    // Y por la vía del CSV, el MISMO valor sí se malinterpreta, porque sobre
+    // texto la regla de los tres dígitos es lo mejor que se puede hacer.
+    const c = leerCatalogo('Material;Texto breve;Libre utilizacion\nSAP-1;Conector;0.125\n');
+    expect(c.filas[0].currentStock).toBe(125);
+  });
+
+  it('si el número viene como texto, cae al lector de siempre', () => {
+    const r = leerGrilla(CAB, [['SAP-1', 'Cable', '1.250', 0]]);
+    expect(r.filas[0].currentStock).toBe(1250);
+  });
+
+  it('numera las filas como Excel: la primera de datos es la 2', () => {
+    // El usuario ve "fila 2" en su pantalla; el mensaje tiene que coincidir.
+    const r = leerGrilla(CAB, [['', 'Cable', 10, 1]]);
+    expect(r.filas).toHaveLength(0);
+    expect(r.rechazadas[0].linea).toBe(2);
+  });
+
+  it('rechaza el código repetido y se queda con el primero', () => {
+    const r = leerGrilla(CAB, [['SAP-1', 'A', 1, 0], ['SAP-1', 'B', 2, 0]]);
+    expect(r.filas).toHaveLength(1);
+    expect(r.filas[0].name).toBe('A');
+    expect(r.rechazadas[0].motivo).toMatch(/repetido/);
+  });
+
+  it('sin columnas obligatorias lo dice y no importa nada', () => {
+    const r = leerGrilla(['Cosa', 'Otra'], [['a', 'b']]);
+    expect(r.filas).toHaveLength(0);
+    expect(r.rechazadas[0].motivo).toMatch(/SAP/);
+  });
+
+  it('una celda vacía no inventa un cero', () => {
+    // "no vino el dato" y "hay cero" son cosas distintas.
+    const r = leerGrilla(CAB, [['SAP-1', 'Cable', null, undefined]]);
+    expect(r.filas[0].currentStock).toBeUndefined();
+    expect(r.filas[0].minStock).toBeUndefined();
+  });
+
+  it('nunca deja un stock negativo', () => {
+    const r = leerGrilla(CAB, [['SAP-1', 'Cable', -5, 0]]);
+    expect(r.filas[0].currentStock).toBe(0);
+  });
+
+  it('reconoce las columnas igual que la vía del CSV', () => {
+    // Se reutiliza mapearColumnas a propósito: dos listas de alias acabarían
+    // desviándose y el Excel entendería cosas que el CSV no.
+    const r = leerGrilla(CAB, [['SAP-1', 'Cable', 1, 2]]);
+    expect(r.columnasDetectadas.currentStock).toBe('Libre utilizacion');
+    expect(r.columnasDetectadas.minStock).toBe('Punto pedido');
+  });
+
+  it('una rejilla vacía no revienta', () => {
+    expect(leerGrilla(CAB, []).filas).toHaveLength(0);
   });
 });

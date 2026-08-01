@@ -47,6 +47,30 @@ export class InventoryController {
     return this.inv.importarCatalogo(file?.buffer?.toString('utf8') || '', user?.userId);
   }
 
+  // ---- Vía EXCEL (3G) ----
+  //
+  //  El .xlsx lo lee el NAVEGADOR y aquí llega la rejilla ya tipada. Dos
+  //  motivos, los dos importantes:
+  //
+  //  1. SEGURIDAD. Las librerías de Excel han acumulado vulnerabilidades. En
+  //     el navegador, un archivo preparado solo afecta a la pestaña de quien
+  //     lo abrió; en el servidor afectaría a la planta entera. El servidor no
+  //     ve un archivo de Excel en ningún momento.
+  //  2. PRECISIÓN. Un CSV es texto y hay que adivinar si "0.125" son 125 o
+  //     0,125. Una celda de hoja de cálculo YA es un número. No se adivina.
+
+  @Post('catalogo/previsualizar-grilla')
+  @RequirePermissions('inventory.manage')
+  previsualizarGrilla(@Body() body: { encabezados?: any[]; filas?: any[][] }) {
+    return this.inv.previsualizarGrilla(body?.encabezados || [], body?.filas || []);
+  }
+
+  @Post('catalogo/importar-grilla')
+  @RequirePermissions('inventory.manage')
+  importarGrilla(@Body() body: { encabezados?: any[]; filas?: any[][] }, @CurrentUser() user: any) {
+    return this.inv.importarGrilla(body?.encabezados || [], body?.filas || [], user?.userId);
+  }
+
   /** ¿Alcanza el almacén para una campaña de reemplazo? */
   @Post('cobertura')
   @RequirePermissions('inventory.read')
