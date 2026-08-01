@@ -26,6 +26,19 @@ const CAMPO = { aviso: 25 * MIN, cierre: 30 * MIN };
 /** Eventos que cuentan como "el usuario sigue ahí". */
 const SENALES = ['mousedown', 'keydown', 'touchstart', 'scroll', 'wheel'];
 
+export type Decision = 'ok' | 'avisar' | 'cerrar';
+
+/**
+ * Qué hacer según el tiempo inactivo. Función PURA para poder probarla: la
+ * lógica de un temporizador dentro de un hook es de las que fallan en el
+ * límite exacto y nadie se entera hasta que echa a alguien de campo.
+ */
+export function decidir(inactivoMs: number, limites: { aviso: number; cierre: number }): Decision {
+  if (inactivoMs >= limites.cierre) return 'cerrar';
+  if (inactivoMs >= limites.aviso) return 'avisar';
+  return 'ok';
+}
+
 export function useInactivity(activo: boolean, alCerrar: () => void) {
   // Segundos restantes cuando el aviso está en pantalla; null = sin aviso.
   const [restante, setRestante] = useState<number | null>(null);
@@ -37,6 +50,25 @@ export function useInactivity(activo: boolean, alCerrar: () => void) {
 
   useEffect(() => {
     if (!activo) return;
+
+    // EL RELOJ EMPIEZA AQUÍ, AL ACTIVARSE LA SESIÓN. No al cargar la página.
+    //
+    // BUG QUE ESTO ARREGLA (reportado desde planta)
+    // `ultimo` se inicializaba al montar el proveedor, o sea cuando se carga
+    // la página. Si el sistema te expulsaba por inactividad, la app iba a
+    // /login; si te levantabas y volvías veinte minutos después a iniciar
+    // sesión, el reloj YA traía esos veinte minutos acumulados y te expulsaba
+    // en el primer tic. Parecía que el sistema estaba roto.
+    //
+    // Y peor: `avisando` tampoco se reiniciaba, y mientras vale true el
+    // registrador IGNORA el ratón y el teclado. Así que ni moviéndote se
+    // arreglaba: la sesión nueva nacía condenada.
+    //
+    // Lo que se mide es la inactividad DENTRO de la sesión, no el tiempo
+    // desde que se abrió el navegador.
+    ultimo.current = Date.now();
+    avisando.current = false;
+    setRestante(null);
 
     const registrar = () => {
       // Mientras el aviso está en pantalla NO se reinicia solo con mover el
@@ -51,18 +83,21 @@ export function useInactivity(activo: boolean, alCerrar: () => void) {
     const reloj = setInterval(() => {
       const inactivo = Date.now() - ultimo.current;
 
-      if (inactivo >= limites.cierre) {
-        avisando.current = false;
-        setRestante(null);
-        alCerrar();
-        return;
-      }
-      if (inactivo >= limites.aviso) {
-        avisando.current = true;
-        setRestante(Math.ceil((limites.cierre - inactivo) / 1000));
-      } else if (avisando.current) {
-        avisando.current = false;
-        setRestante(null);
+      switch (decidir(inactivo, limites)) {
+        case 'cerrar':
+          avisando.current = false;
+          setRestante(null);
+          alCerrar();
+          return;
+        case 'avisar':
+          avisando.current = true;
+          setRestante(Math.ceil((limites.cierre - inactivo) / 1000));
+          return;
+        default:
+          if (avisando.current) {
+            avisando.current = false;
+            setRestante(null);
+          }
       }
     }, 1000);
 
