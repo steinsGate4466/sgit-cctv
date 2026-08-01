@@ -21,141 +21,59 @@ body {
 }
 a { color: inherit; text-decoration: none; }
 
-/* =========================================================================
-   ACCESO — identidad industrial Aceros Arequipa
-   -------------------------------------------------------------------------
-   ESCRITO PENSANDO PRIMERO EN EL CELULAR.
-   Antes, por debajo de 900 px el panel de marca se ocultaba ENTERO. Justo en
-   el aparato donde de verdad se entra al sistema —el celular, en planta—
-   quedaba una tarjeta blanca sin nombre, sin planta y sin color: idéntica a
-   cualquier formulario de internet. Quien entra a firmar una orden tiene que
-   reconocer el sistema de un vistazo.
-   Ahora la marca NO desaparece: se convierte en una franja superior compacta
-   y la tarjeta de acceso se monta encima de ella.
-   ========================================================================= */
-.login-wrap {
-  min-height: 100vh;   /* respaldo para navegadores viejos */
-  min-height: 100dvh;  /* dvh: la barra de direcciones del celular ya no empuja
-                          el contenido fuera de la pantalla ni deja un salto */
-  display: grid;
-  grid-template-columns: 1fr;
-  grid-template-rows: auto 1fr;
-  background: var(--bg);
-}
+/* ---------- Login (identidad industrial Aceros Arequipa) ---------- */
+.login-wrap { min-height: 100vh; display: grid; grid-template-columns: 1.05fr .95fr; }
 
-/* ---- Franja / panel de marca ---- */
+/* Panel izquierdo: marca */
 .login-brandside {
-  position: relative; display: flex; align-items: center;
-  padding: clamp(16px, 4.5vw, 48px) clamp(14px, 5vw, 56px);
-  padding-top: calc(clamp(16px, 4.5vw, 48px) + env(safe-area-inset-top));
-  background: linear-gradient(150deg, #0d1729 0%, var(--navy) 45%, var(--navy-2) 100%);
+  position: relative; display: flex; align-items: center; padding: 48px 56px;
+  background: linear-gradient(150deg, #101c31 0%, var(--navy) 45%, var(--navy-2) 100%);
   overflow: hidden;
 }
-/* Textura de acero laminado, sin imágenes externas.
-   El paso de la diagonal se estrecha en pantallas chicas: a 22 px en un
-   celular de 320 px se ven cuatro rayas gordas y parece un defecto. */
+/* Textura sutil de acero (diagonales), sin imágenes externas */
 .login-brandside::before {
   content: ''; position: absolute; inset: 0; opacity: .06;
-  background: repeating-linear-gradient(115deg, #fff 0 1.5px, transparent 1.5px 13px);
+  background: repeating-linear-gradient(115deg, #fff 0 2px, transparent 2px 22px);
 }
 /* Colada de acero: acento rojo corporativo */
 .login-brandside::after {
-  content: ''; position: absolute; right: -22%; top: -55%;
-  width: 320px; height: 320px; pointer-events: none;
-  background: radial-gradient(circle, rgba(192,18,31,.5) 0%, rgba(192,18,31,0) 68%);
+  content: ''; position: absolute; right: -120px; top: -80px; width: 420px; height: 420px;
+  background: radial-gradient(circle, rgba(192,18,31,.55) 0%, rgba(192,18,31,0) 65%);
 }
-.lb-content { position: relative; z-index: 1; color: #dbe4f3; width: 100%; max-width: 460px;
-  display: flex; flex-direction: column; }
-
-/* En celular el orden se invierte a propósito: primero la EMPRESA (quién),
-   luego el sistema (qué). En el escritorio manda el sistema. */
-.lb-company { order: 1; padding-bottom: 0; border-bottom: none; }
-.lb-logo    { order: 2; display: flex; align-items: center; gap: 11px; margin: 6px 0 0; }
-.lb-features, .lb-foot { display: none; }  /* en celular no caben y no aportan */
-
-.lb-company-name { font-size: 11px; font-weight: 700; color: #93a7c8; letter-spacing: 2.4px; line-height: 1; }
-.lb-plant { display: none; }
-.lb-logo-mark { width: 5px; height: 34px; background: var(--red); border-radius: 3px; flex: none; }
-.lb-title { font-size: clamp(21px, 6.2vw, 30px); font-weight: 800; color: #fff; letter-spacing: 1px; line-height: 1; }
+.lb-content { position: relative; z-index: 1; color: #dbe4f3; max-width: 460px; }
+.lb-logo { display: flex; align-items: center; gap: 14px; margin-bottom: 40px; }
+.lb-logo-mark { width: 6px; height: 52px; background: var(--red); border-radius: 3px; flex: none; }
+.lb-title { font-size: 30px; font-weight: 800; color: #fff; letter-spacing: 1px; line-height: 1; }
 .lb-title span { color: var(--red); }
-.lb-sub { font-size: 10.5px; color: #8fa3c4; margin-top: 4px; line-height: 1.35; }
+.lb-sub { font-size: 11.5px; color: #92a5c6; margin-top: 5px; }
+.lb-company-name { font-size: 34px; font-weight: 800; color: #fff; letter-spacing: 2.5px; line-height: 1.1; }
+.lb-plant { font-size: 13px; color: #9fb2d1; margin-top: 8px; }
+.lb-company { padding-bottom: 26px; border-bottom: 1px solid rgba(255,255,255,.12); }
+.lb-features { list-style: none; padding: 0; margin: 26px 0 0; }
+.lb-features li { font-size: 13px; color: #b9c8e2; padding: 7px 0 7px 22px; position: relative; }
+.lb-features li::before { content: '▪'; position: absolute; left: 0; color: var(--red); font-size: 15px; }
+.lb-foot { position: absolute; bottom: -70px; font-size: 11px; color: #6e819f; }
 
-/* ---- Tarjeta de acceso ---- */
-.login-formside {
-  display: grid; justify-items: center; align-items: start;
-  padding: 0 clamp(12px, 4vw, 30px) calc(24px + env(safe-area-inset-bottom));
-}
-.login-card {
-  background: var(--card); width: 100%; max-width: 400px;
-  margin-top: -20px;   /* monta la tarjeta sobre la franja: une las dos piezas */
-  padding: clamp(22px, 6vw, 38px) clamp(18px, 5.5vw, 34px);
-  border-radius: 16px; border: 1px solid var(--border);
-  box-shadow: 0 12px 32px rgba(16,24,40,.13);
-}
-.login-head { margin-bottom: 20px; }
-.login-head h1 { font-size: clamp(19px, 5.4vw, 22px); color: var(--navy); margin: 0 0 4px; font-weight: 700; }
+/* Panel derecho: formulario */
+.login-formside { display: grid; place-items: center; background: var(--bg); padding: 30px; }
+.login-card { background: var(--card); width: 100%; max-width: 380px; padding: 38px 34px;
+  border-radius: 14px; box-shadow: 0 10px 40px rgba(16,24,40,.10); border: 1px solid var(--border); }
+.login-head { margin-bottom: 22px; }
+.login-head h1 { font-size: 22px; color: var(--navy); margin: 0 0 4px; font-weight: 700; }
 .login-head p { font-size: 13px; color: var(--muted); margin: 0; }
-
-/* 16 px exactos: por debajo de eso iOS hace zoom solo al tocar el campo y
-   descuadra la pantalla; el usuario cree que la aplicación se rompió. */
-.login-card input { font-size: 16px; padding: 12px 13px; }
 .input-pass { position: relative; }
-.input-pass input { padding-right: 50px; }
-/* 44x44: es el mínimo para acertar con el dedo, y aquí además con guante. */
-.pass-toggle {
-  position: absolute; right: 3px; top: 50%; transform: translateY(-50%);
-  background: none; border: none; cursor: pointer; font-size: 17px;
-  width: 44px; height: 44px; display: grid; place-items: center;
-  border-radius: 8px; opacity: .6; padding: 0;
-}
-.pass-toggle:hover { opacity: 1; background: #f2f5fa; }
-.pass-toggle:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(46,84,150,.18); opacity: 1; }
-.login-card .btn { padding: 14px; font-size: 15px; border-radius: 10px; }
+.input-pass input { padding-right: 42px; }
+.pass-toggle { position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer; font-size: 15px; padding: 4px 8px; opacity: .65; }
+.pass-toggle:hover { opacity: 1; }
 .error.blocked { background: #fff4e5; color: #b45309; border: 1px solid #f5dcb0; }
-.login-note { margin-top: 18px; font-size: 11px; color: var(--muted); text-align: center; line-height: 1.5; }
-/* Aviso de sesión cerrada: no se superpone al contenido, empuja hacia abajo */
-.login-aviso {
-  grid-column: 1 / -1; background: #fef3c7; color: #92400e;
-  border-bottom: 1px solid #fcd34d; padding: 11px 16px;
-  padding-top: calc(11px + env(safe-area-inset-top));
-  font-size: 13px; text-align: center; line-height: 1.4;
-}
-.login-aviso + .login-brandside { padding-top: clamp(16px, 4.5vw, 48px); }
+.login-note { margin-top: 18px; font-size: 11px; color: var(--muted); text-align: center; }
 
-/* ---- Escritorio: dos columnas, la marca recupera todo su peso ---- */
-@media (min-width: 901px) {
-  .login-wrap { grid-template-columns: 1.05fr .95fr; grid-template-rows: 1fr; }
-  .login-aviso { grid-column: 1 / -1; }
-  .login-brandside::before { background: repeating-linear-gradient(115deg, #fff 0 2px, transparent 2px 22px); }
-  .login-brandside::after { right: -120px; top: -80px; width: 420px; height: 420px; }
-  .lb-content { display: block; }
-  .lb-logo { margin: 0 0 40px; gap: 14px; }
-  .lb-logo-mark { height: 52px; width: 6px; }
-  .lb-sub { font-size: 11.5px; margin-top: 5px; }
-  .lb-company { padding-bottom: 26px; border-bottom: 1px solid rgba(255,255,255,.12); }
-  .lb-company-name { font-size: 34px; font-weight: 800; color: #fff; letter-spacing: 2.5px; line-height: 1.1; }
-  .lb-plant { display: block; font-size: 13px; color: #9fb2d1; margin-top: 8px; }
-  .lb-features { display: block; list-style: none; padding: 0; margin: 26px 0 0; }
-  .lb-features li { font-size: 13px; color: #b9c8e2; padding: 7px 0 7px 22px; position: relative; }
-  .lb-features li::before { content: '▪'; position: absolute; left: 0; color: var(--red); font-size: 15px; }
-  .lb-foot { display: block; margin-top: 34px; font-size: 11px; color: #6e819f; }
-  .login-formside { align-items: center; padding: 30px; background: var(--bg); }
-  .login-card { margin-top: 0; border-radius: 14px; box-shadow: 0 10px 40px rgba(16,24,40,.10); }
-  .login-card input { font-size: 14px; padding: 10px 12px; }
+/* En pantallas chicas, el panel de marca se oculta */
+@media (max-width: 900px) {
+  .login-wrap { grid-template-columns: 1fr; }
+  .login-brandside { display: none; }
 }
-
-/* ---- Celular acostado o pantalla muy baja: la franja se reduce al mínimo ----
-   En horizontal quedan ~360 px de alto: si la marca ocupa 120, el botón de
-   ingresar se va por debajo del pliegue y hay que hacer scroll para entrar. */
-@media (max-height: 560px) and (max-width: 900px) {
-  .login-brandside { padding-top: calc(10px + env(safe-area-inset-top)); padding-bottom: 10px; }
-  .lb-logo-mark { height: 26px; }
-  .lb-sub { display: none; }
-  .login-card { margin-top: -14px; padding: 18px; }
-  .login-head { margin-bottom: 14px; }
-  .login-note { margin-top: 12px; }
-}
-
 label { display: block; font-size: 12px; color: var(--muted); margin: 14px 0 6px; }
 input, select {
   width: 100%; padding: 10px 12px; border: 1px solid var(--border);
@@ -528,136 +446,3 @@ select optgroup { font-weight: 700; color: var(--navy); }
   box-shadow: 0 4px 10px rgba(16,24,40,.10), 0 2px 4px rgba(16,24,40,.06);
 }
 .kpi.clicable:active { transform: translateY(0); }
-
-/* =========================================================================
-   4D-1 · AJUSTE FINO A CELULAR
-   -------------------------------------------------------------------------
-   Buena parte de los informes se llenan en el CELULAR, en planta, de pie y
-   con guantes. Hasta ahora el escalón más chico contemplado eran 400 px;
-   por debajo de eso —iPhone SE, Android de entrada, que es lo que de verdad
-   lleva la gente— la pantalla se salía de lado y había que hacer zoom.
-   Este bloque baja el suelo hasta 320 px y, por debajo, hasta 280 px.
-   ========================================================================= */
-
-/* ------------------------------------------------------------------ RAÍZ
-   La causa nº1 de que una pantalla se salga de lado no es el ancho de una
-   tabla: es que un hijo de grid/flex tiene min-width:auto por defecto y se
-   niega a encogerse por debajo de su contenido. Se corrige una vez, aquí,
-   en lugar de ir apagando incendios pantalla por pantalla. */
-.app > *, .content > *, .panel-grid > *, .kpi-grid > * { min-width: 0; }
-.app { max-width: 100%; }
-/* Palabras que no rompen (códigos SAP, correos, rutas) no desbordan */
-.page-sub, .kpi .hint, .frow .v, td, .train-detail { overflow-wrap: anywhere; }
-
-/* Altura real de pantalla en el celular: 100vh incluye la barra del
-   navegador, así que dejaba una franja muerta abajo. */
-.app { min-height: 100vh; min-height: 100dvh; }
-
-/* Quien pidió menos movimiento en su teléfono, lo recibe. */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
-  .kpi:hover, .train-card:hover, .kpi.clicable:hover { transform: none; }
-}
-
-/* ------------------------------------------------- TABLAS QUE SE DESPLAZAN
-   Las tablas de planta tienen 8-10 columnas y en un celular no caben: se
-   desplazan de lado. El problema no era el desplazamiento, era que NO SE
-   VEÍA que hubiera más columnas y el técnico daba por hecho que faltaban
-   datos. Estas sombras aparecen solas en el borde por el que queda tabla
-   por ver, y desaparecen al llegar al final. Sin JavaScript. */
-.card {
-  background-image:
-    linear-gradient(to right, var(--card) 30%, rgba(255,255,255,0)),
-    linear-gradient(to left,  var(--card) 30%, rgba(255,255,255,0)),
-    linear-gradient(to right, rgba(16,24,40,.13), rgba(16,24,40,0)),
-    linear-gradient(to left,  rgba(16,24,40,.13), rgba(16,24,40,0));
-  background-position: 0 0, 100% 0, 0 0, 100% 0;
-  background-repeat: no-repeat;
-  background-size: 36px 100%, 36px 100%, 15px 100%, 15px 100%;
-  background-attachment: local, local, scroll, scroll;
-}
-
-@media (max-width: 780px) {
-  /* La primera columna (el código del equipo) queda fija: si se va al
-     desplazar, el técnico ve una fila de datos sin saber de qué equipo son. */
-  .card table th:first-child, .card table td:first-child {
-    position: sticky; left: 0; z-index: 2; background: var(--card);
-    box-shadow: 1px 0 0 var(--border);
-  }
-  .card table thead th:first-child { z-index: 3; background: #fafbfc; }
-  tbody tr:hover td:first-child { background: #f2f6fd; }
-  table { min-width: 560px; }
-
-  /* Objetivos táctiles: 44 px es el mínimo para acertar con guante puesto. */
-  .btn-mini, .subtab, .train-tab, .tabs .tab, .logout { min-height: 44px; }
-  .nav a { min-height: 42px; }
-  .modal-x { width: 44px; height: 44px; font-size: 26px; }
-
-  /* Pestañas: se desplazan en una sola línea en vez de partirse en tres
-     renglones y comerse media pantalla. */
-  .subtabs, .train-tabs, .tabs {
-    flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
-    scrollbar-width: none; padding-bottom: 2px;
-  }
-  .subtabs::-webkit-scrollbar, .train-tabs::-webkit-scrollbar, .tabs::-webkit-scrollbar { display: none; }
-  .subtab, .train-tab, .tabs .tab { white-space: nowrap; flex: none; }
-
-  /* Estado general: apilado y alineado a la izquierda; el porcentaje
-     enorme a la derecha dejaba el texto en dos letras por línea. */
-  .status-hero { flex-direction: column; align-items: flex-start; gap: 10px; padding: 16px; }
-  .sh-right { text-align: left; }
-  .sh-pct { font-size: 34px; }
-  .sh-title { font-size: 17px; }
-
-  /* Hoja inferior: es como se comportan los cuadros en el celular. */
-  .modal { border-radius: 16px 16px 0 0; }
-  .modal-body { max-height: 82dvh; }
-  .stack-legend { gap: 10px 14px; }
-}
-
-/* ---------------------------------------------- 360 px · Android habitual */
-@media (max-width: 380px) {
-  .kpi-grid, .train-grid { grid-template-columns: 1fr; }
-  .content { padding: 12px 10px calc(20px + env(safe-area-inset-bottom)); }
-  .page-title { font-size: 17px; padding-left: 10px; }
-  .kpi { padding: 12px 14px; }
-  .kpi .value { font-size: 25px; }
-  .panel { padding: 14px; }
-  .section-title { margin: 20px 0 10px; }
-  .sidebar .brand { padding: 10px 12px; }
-  .sidebar .brand .sub { display: none; }  /* el nombre largo parte en dos */
-  .topbar { padding: 9px 12px; }
-  .modal-head { padding: 14px 14px; }
-  .modal-body { padding: 14px 14px calc(18px + env(safe-area-inset-bottom)); }
-  th, td { padding: 9px 10px; font-size: 12.5px; }
-}
-
-/* ------------------------------- 320 px · iPhone SE y Android de entrada */
-@media (max-width: 340px) {
-  body { font-size: 13px; }
-  .content { padding: 10px 8px calc(18px + env(safe-area-inset-bottom)); }
-  .page-title { font-size: 16px; }
-  .kpi .value { font-size: 23px; }
-  .kpi .label { font-size: 10px; letter-spacing: 0; }
-  .nav a { padding: 8px 11px; font-size: 12.5px; }
-  .sidebar .brand .logo { font-size: 16px; }
-  .topbar .title { font-size: 14px; }
-  .topbar .user .avatar { width: 30px; height: 30px; font-size: 12px; }
-  .filters { padding: 10px; }
-  .train-tab, .subtab, .tabs .tab { padding: 10px 12px; font-size: 12.5px; }
-  .scan-code { font-size: 17px; }
-  /* La tabla no se estrecha más: por debajo de esto las columnas se
-     solapan y se lee peor que desplazándose. */
-  table { min-width: 500px; }
-}
-
-/* ------------------------------ 280 px · Galaxy Fold cerrado, relojes web
-   No es un tamaño que se busque, pero si alguien abre ahí una orden tiene
-   que poder leerla, no encontrarse la pantalla partida. */
-@media (max-width: 300px) {
-  .content { padding: 8px 6px calc(16px + env(safe-area-inset-bottom)); }
-  .kpi .value { font-size: 21px; }
-  .page-title { font-size: 15px; }
-  .login-card { padding: 16px 13px; }
-  .btn, .btn-primary { padding: 12px; font-size: 13.5px; }
-}

@@ -70,12 +70,13 @@ export default function Login() {
 
   return (
     <div className="login-wrap">
-      {/* El aviso EMPUJA el contenido, no flota encima.
-          Flotando y fijo, en un celular acostado tapaba el campo de correo
-          justo cuando el usuario iba a escribir: el sistema parecía roto dos
-          veces seguidas. */}
       {porInactividad && (
-        <div className="login-aviso">
+        <div style={{
+          position: 'fixed', top: 12, left: '50%', transform: 'translateX(-50%)',
+          background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d',
+          borderRadius: 8, padding: '10px 16px', fontSize: 13, zIndex: 50,
+          maxWidth: 'calc(100% - 24px)', textAlign: 'center',
+        }}>
           Tu sesión se cerró por inactividad. Vuelve a ingresar.
         </div>
       )}
