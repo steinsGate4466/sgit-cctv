@@ -42,6 +42,10 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
   const [causaNota, setCausaNota] = useState('');
   const [reincidente, setReincidente] = useState(false);
 
+  // ---- material retirado y no usado (solo al cerrar) ----
+  const [sobrante, setSobrante] = useState<any[]>([]);
+  const [devolviendo, setDevolviendo] = useState(false);
+
   // ---- herramientas (solo al abrir) ----
   const [herramientas, setHerramientas] = useState<HerramientaMarcada[]>([]);
 
@@ -62,7 +66,25 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
       api.get('/work-orders/' + wo.id + '/progress')
         .then((r) => setHistorial(r.data || [])).catch(() => setHistorial([]));
     }
+    if (accion === 'cerrar') {
+      // Al cerrar se mira qué material salió de almacén y no se consumió.
+      // Es el momento en que se sabe: antes no, después ya no se acuerda nadie.
+      api.get('/work-orders/' + wo.id + '/materials')
+        .then((r) => setSobrante((r.data?.items || []).filter((m: any) => m.porDevolver > 0)))
+        .catch(() => setSobrante([]));
+    }
   }, [accion, wo?.id, user?.id]);
+
+  /** Devuelve al almacén lo que sobró, desde la propia pantalla de cierre. */
+  async function devolverSobrante() {
+    setDevolviendo(true);
+    try {
+      await api.post('/work-orders/' + wo.id + '/materials/devolucion', {});
+      setSobrante([]);
+    } catch (err: any) {
+      setError(mensajeError(err));
+    } finally { setDevolviendo(false); }
+  }
 
   function mensajeError(err: any) {
     const m = err?.response?.data?.message;
@@ -110,6 +132,27 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
           );
           if (!ok) { setGuardando(false); return; }
         }
+        // MATERIAL SIN DEVOLVER
+        // El cable UTP es el caso normal, no la excepción: se retira un rollo
+        // o un tramo largo y se usa lo que hace falta. Si esto no se pregunta
+        // AQUÍ, no se pregunta nunca, y el stock del sistema queda por debajo
+        // del real para siempre.
+        // No se bloquea el cierre: a veces el material se queda en el gabinete
+        // a propósito para el trabajo del día siguiente. Pero tiene que ser una
+        // decisión consciente, no un olvido.
+        if (sobrante.length > 0) {
+          const detalle = sobrante
+            .map((m: any) => `  · ${m.description}: retirado ${m.withdrawnQty}, usado ${m.usedQty ?? 0} → sobran ${m.porDevolver} ${m.unit || ''}`)
+            .join('\n');
+          const ok = window.confirm(
+            'Hay material retirado que no se declaró como usado:\n\n' + detalle +
+            '\n\nSi NO vuelve al almacén, el stock del sistema quedará por debajo del real.\n\n' +
+            'Aceptar = cerrar sin devolver (se queda contigo).\n' +
+            'Cancelar = volver y devolverlo primero.',
+          );
+          if (!ok) { setGuardando(false); return; }
+        }
+
         await api.post('/work-orders/' + wo.id + '/close', {
           email, password,
           endedAt: iso(fin),
@@ -222,6 +265,33 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
                 Trabajo iniciado: <strong>{fh(wo.startedAt)}</strong>
                 {wo.openedBy?.fullName ? ` por ${wo.openedBy.fullName}` : ''}
                 {wo.companion?.fullName ? ` · acompañó ${wo.companion.fullName}` : ''}
+              </div>
+            )}
+
+            {sobrante.length > 0 && (
+              <div style={{
+                background: '#fff4e5', border: '1px solid #f5dcb0',
+                borderLeft: '4px solid var(--warn)', borderRadius: 8,
+                padding: '10px 12px', marginBottom: 12,
+              }}>
+                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>
+                  Material retirado que no se usó
+                </div>
+                {sobrante.map((m: any) => (
+                  <div key={m.id} style={{ fontSize: 12 }}>
+                    {m.description}: retirado <b>{m.withdrawnQty}</b>, usado{' '}
+                    <b>{m.usedQty ?? 0}</b> → sobran{' '}
+                    <b style={{ color: '#b45309' }}>{m.porDevolver} {m.unit || ''}</b>
+                  </div>
+                ))}
+                <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>
+                  Con el cable esto es lo normal: se retira un tramo y se usa lo
+                  que hace falta. Si no vuelve, el stock queda por debajo del real.
+                </div>
+                <button type="button" className="btn-mini" style={{ marginTop: 8 }}
+                  disabled={devolviendo} onClick={devolverSobrante}>
+                  {devolviendo ? 'Devolviendo…' : 'Devolver al almacén ahora'}
+                </button>
               </div>
             )}
 

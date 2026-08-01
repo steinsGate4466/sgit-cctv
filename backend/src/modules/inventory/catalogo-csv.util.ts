@@ -236,10 +236,12 @@ export function leerCatalogo(contenido: string): ResultadoLectura {
       model: dato('model'),
       unit: dato('unit'),
       warehouse: dato('warehouse'),
-      // El stock se redondea porque la columna de la base es entera y el
-      // almacén entrega el cable por rollo, no por metro.
-      currentStock: stock === null ? undefined : Math.max(0, Math.round(stock)),
-      minStock: minimo === null ? undefined : Math.max(0, Math.round(minimo)),
+      // SIN redondear. Si SAP exporta 125,5 m de cable, son 125,5. Redondear
+      // aquí metía el error por la puerta de la importación, que es por donde
+      // entra la mayor parte del catálogo.
+      // Se sigue impidiendo el negativo: un stock bajo cero no existe.
+      currentStock: stock === null ? undefined : Math.max(0, stock),
+      minStock: minimo === null ? undefined : Math.max(0, minimo),
     });
   }
 

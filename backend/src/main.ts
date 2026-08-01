@@ -39,13 +39,33 @@ async function bootstrap() {
   // Traduce errores técnicos a mensajes claros (no más "Internal server error").
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  // CORS con lista blanca por variable de entorno (coma-separada). Si no se define,
-  // se permite cualquier origen (modo desarrollo).
+  // ---------------------------------------------------------------- CORS
+  //  ANTES: si CORS_ORIGIN no estaba definida se llamaba a enableCors() sin
+  //  argumentos, que permite CUALQUIER origen. Ese era el valor por DEFECTO, y
+  //  en producción significa que cualquier web que visite un usuario con la
+  //  sesión abierta puede llamar a esta API con su token.
+  //
+  //  AHORA falla en cerrado: en producción, sin lista blanca, el servidor NO
+  //  arranca. Un servidor que no levanta se arregla en dos minutos; uno que
+  //  levanta abierto no se nota nunca.
   const corsEnv = process.env.CORS_ORIGIN;
+  const enProduccion = process.env.NODE_ENV === 'production';
+
   if (corsEnv && corsEnv.trim()) {
     const origins = corsEnv.split(',').map((o) => o.trim()).filter(Boolean);
     app.enableCors({ origin: origins, credentials: true });
+  } else if (enProduccion) {
+    // eslint-disable-next-line no-console
+    console.error(
+      '\n[ARRANQUE ABORTADO] Falta la variable CORS_ORIGIN.\n' +
+      'En produccion hay que declarar desde que direcciones se acepta la API.\n' +
+      'Railway -> servicio backend -> Variables:\n' +
+      '  CORS_ORIGIN = https://tu-frontend.up.railway.app\n' +
+      'Se pueden poner varias separadas por coma.\n',
+    );
+    process.exit(1);
   } else {
+    // Solo en desarrollo local: cualquier origen, para no estorbar.
     app.enableCors();
   }
 
@@ -56,12 +76,22 @@ async function bootstrap() {
     .setVersion('1.0')
     .addBearerAuth()
     .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('docs', app, document);
+  //  La documentación enseña TODAS las rutas, campos y formatos. No es una
+  //  brecha, pero es un plano gratis del sistema para cualquiera que pase.
+  //  Se publica solo fuera de producción, o si se activa a propósito con
+  //  SWAGGER_PUBLIC=true (útil el día que haya que integrar SAP o Zabbix).
+  const docsVisibles = !enProduccion || process.env.SWAGGER_PUBLIC === 'true';
+  if (docsVisibles) {
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('docs', app, document);
+  }
 
   const port = process.env.PORT || 3000;
   await app.listen(port);
   // eslint-disable-next-line no-console
-  console.log(`SGIT-CCTV API escuchando en :${port} (docs en /docs)`);
+  console.log(
+    `SGIT-CCTV API escuchando en :${port}` +
+    (docsVisibles ? ' (docs en /docs)' : ' (docs cerrados en produccion)'),
+  );
 }
 bootstrap();

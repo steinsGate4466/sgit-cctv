@@ -198,9 +198,26 @@ describe('catálogo CSV — lectura del archivo de SAP', () => {
       expect(r.filas[0].currentStock).toBeUndefined();
     });
 
-    it('redondea el stock porque el cable se entrega por rollo', () => {
+    // CAMBIO DE COMPORTAMIENTO DELIBERADO (3D-bis).
+    //
+    // Esta prueba afirmaba lo contrario: que el stock se REDONDEABA, "porque el
+    // cable se entrega por rollo". Esa justificación era mía y era falsa: el
+    // cable se entrega y se consume POR METRO. Se retira un tramo y se usa lo
+    // que hace falta, así que casi siempre sobra un resto con decimales.
+    //
+    // Redondeando, cada importación desde SAP metía un error de hasta medio
+    // metro por línea, y por ahí entra la mayor parte del catálogo.
+    it('NO redondea el stock: el cable se mide en metros, no en rollos', () => {
       const r = leerCatalogo('Material;Texto breve;Stock\nSAP-1;Cable;12,7\n');
-      expect(r.filas[0].currentStock).toBe(13);
+      expect(r.filas[0].currentStock).toBe(12.7);
+    });
+
+    it('conserva los decimales también en el mínimo', () => {
+      // El umbral de alerta también es una medida: avisar a los 50,5 m es
+      // distinto de avisar a los 51.
+      const r = leerCatalogo('Material;Texto breve;Stock;Punto pedido\nSAP-1;Cable;120,25;50,5\n');
+      expect(r.filas[0].currentStock).toBe(120.25);
+      expect(r.filas[0].minStock).toBe(50.5);
     });
 
     it('nunca deja un stock negativo', () => {

@@ -426,8 +426,9 @@ export class PreparacionService {
             data: {
               sparePartId: l.sparePartId,
               type: 'RETIRO',
-              // La cantidad va en positivo; el signo lo da el tipo.
-              quantity: Math.round(cantidad),
+              // Positivo; el signo lo da el tipo. SIN redondear: el cable UTP
+              // se mide en metros y 12,5 m son 12,5, no 13.
+              quantity: cantidad,
               sapCode: l.sapCode,
               reason: `OM ${wo.code}${dto.nota ? ' · ' + dto.nota.trim() : ''}`,
               userId,
@@ -437,7 +438,7 @@ export class PreparacionService {
 
           await tx.sparePart.update({
             where: { id: l.sparePartId },
-            data: { currentStock: { decrement: Math.round(cantidad) } },
+            data: { currentStock: { decrement: cantidad } },
           });
         }
 
@@ -546,7 +547,7 @@ export class PreparacionService {
           data: {
             sparePartId: l.sparePartId!,
             type: 'INGRESO',
-            quantity: Math.round(sobra),
+            quantity: sobra,
             sapCode: l.sapCode,
             reason: `Devolución de OM ${wo.code}`,
             userId,
@@ -554,7 +555,7 @@ export class PreparacionService {
         });
         await tx.sparePart.update({
           where: { id: l.sparePartId! },
-          data: { currentStock: { increment: Math.round(sobra) } },
+          data: { currentStock: { increment: sobra } },
         });
         await tx.workOrderMaterial.update({
           where: { id: l.id },

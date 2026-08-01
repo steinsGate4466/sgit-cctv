@@ -1,6 +1,7 @@
-import { IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsNumber, IsOptional, IsString, Min } from 'class-validator';
 
 export class CheckDto {
-  @IsInt() @Min(0) countedQty: number;   // cantidad física comprobada
+  // Decimal: contar cable es medirlo. 12,5 m es una cantidad válida.
+  @IsNumber() @Min(0) countedQty: number;   // cantidad física comprobada
   @IsOptional() @IsString() note?: string;
 }

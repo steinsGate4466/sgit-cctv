@@ -1263,8 +1263,12 @@ model SparePart {
   model         String?  // modelo compatible (compatibilidad por modelo)
   unit          String?  @default("unidad")
   warehouse     String?  // ubicación/almacén
-  currentStock  Int      @default(0)
-  minStock      Int      @default(0)  // umbral mínimo (alerta)
+  /// DECIMAL a propósito. El almacén no solo guarda unidades: el cable UTP se
+  /// mide en METROS y se consume por tramos. Con enteros, retirar 12,5 m
+  /// registraba 13 y devolver 5,2 acreditaba 5. Cada operación perdía décimas
+  /// y en pocos meses el stock dejaba de parecerse al estante.
+  currentStock  Float    @default(0)
+  minStock      Float    @default(0)  // umbral mínimo (alerta)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   lastCheckedAt DateTime?             // última comprobación física
@@ -1298,7 +1302,9 @@ model StockMovement {
   sparePartId String
   sparePart   SparePart    @relation(fields: [sparePartId], references: [id], onDelete: Cascade)
   type        MovementType
-  quantity    Int          // positivo; el signo lo da el tipo
+  /// DECIMAL: ver la nota en SparePart.currentStock. Positivo siempre; el
+  /// signo lo da el tipo de movimiento.
+  quantity    Float
   sapCode     String?      // código SAP del retiro/ingreso
   reason      String?
   userId      String?
