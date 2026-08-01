@@ -65,6 +65,13 @@ jobs:
         working-directory: backend
         run: npm run build
 
+      # Comprueba que cada dependencia inyectada por constructor esté
+      # declarada en su modulo. El 01/08 esto tumbo el arranque en produccion
+      # y ni build ni test lo vieron: es un dato de tiempo de ejecucion.
+      - name: Verificar inyeccion de dependencias
+        working-directory: backend
+        run: npm run verificar:inyeccion
+
       - name: Pruebas unitarias
         working-directory: backend
         run: npm test -- --ci --runInBand
