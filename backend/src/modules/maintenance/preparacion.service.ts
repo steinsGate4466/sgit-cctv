@@ -586,4 +586,73 @@ export class PreparacionService {
     return { devueltos: conSobrante.length, unidades: total };
   }
 
+
+  // ==========================================================================
+  //  PERMISO DE ACCESO ANTES DE SUBIR  (bloque 3C)
+  //
+  //  El permiso de altura y la orden de trabajo vivían separados: se pedía el
+  //  manlift por un lado y se abría la orden por otro. Si el permiso no estaba
+  //  aprobado, el técnico se enteraba ARRIBA DEL TREN, con el equipo en la
+  //  mano y la parada corriendo.
+  //
+  //  Esto no BLOQUEA la apertura: hay trabajos del mismo activo que no exigen
+  //  altura, y el sistema no puede saberlo por él. Pero lo pone delante, en el
+  //  único momento en que sirve de algo: antes de salir.
+  // ==========================================================================
+
+  async accesoDelActivo(workOrderId: string) {
+    const wo = await this.prisma.workOrder.findUnique({
+      where: { id: workOrderId },
+      select: { id: true, assetId: true, asset: { select: { assetCode: true } } },
+    });
+    if (!wo) throw new NotFoundException('Orden de mantenimiento no encontrada');
+    if (!wo.assetId) return { aplica: false, motivo: 'La orden no cuelga de un activo concreto.' };
+
+    // La MÁS RECIENTE. Un permiso rechazado hace tres meses no descalifica uno
+    // aprobado ayer, y al revés tampoco.
+    const solicitud = await this.prisma.accessRequest.findFirst({
+      where: { assetId: wo.assetId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true, code: true, status: true, means: true, heightMeters: true,
+        requiresPetar: true, hasIperc: true, hasAts: true, personnelCount: true,
+        reviewedAt: true, decisionNotes: true,
+      },
+    });
+
+    if (!solicitud) {
+      return {
+        aplica: false,
+        assetCode: wo.asset?.assetCode || null,
+        motivo: 'Este equipo no tiene ninguna solicitud de acceso registrada.',
+      };
+    }
+
+    const aprobado = solicitud.status === 'APROBADO';
+
+    // Aprobado el permiso, faltan los papeles del día: el IPERC se hace una
+    // vez, pero el ATS es del DÍA de trabajo. Un permiso aprobado sin ATS no
+    // habilita a nadie a subir.
+    const faltan: string[] = [];
+    if (aprobado) {
+      if (solicitud.requiresPetar && !solicitud.hasIperc) faltan.push('IPERC');
+      if (solicitud.requiresPetar && !solicitud.hasAts) faltan.push('ATS del día');
+      if ((solicitud.personnelCount ?? 0) < 2) faltan.push('segunda persona (mínimo 2 en altura)');
+    }
+
+    return {
+      aplica: true,
+      assetCode: wo.asset?.assetCode || null,
+      solicitud,
+      aprobado,
+      faltan,
+      // Lo que el técnico tiene que leer, en una frase.
+      resumen: !aprobado
+        ? `El permiso de acceso ${solicitud.code} está ${solicitud.status.toLowerCase()}. NO subas hasta que esté aprobado.`
+        : faltan.length
+        ? `Permiso aprobado, pero falta: ${faltan.join(', ')}.`
+        : `Permiso ${solicitud.code} aprobado y con la documentación completa.`,
+    };
+  }
+
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, FormEvent } from 'react';
 import { api } from '../api/client';
+import { useNavigate } from 'react-router-dom';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, conAmbito, AvisoAmbito } from '../components/FiltroAmbito';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
@@ -55,6 +56,7 @@ export default function Cableado() {
   const [soloFuera, setSoloFuera] = useState(false);
   const [fEstado, setFEstado] = useState('');
   const [ambito, setAmbito] = useState<Ambito>(AMBITO_VACIO);
+  const navegar = useNavigate();
 
   // Igual que en Activos: depende de los filtros, así que va en useCallback
   // para poder declararla como dependencia sin provocar un bucle de recargas.
@@ -220,6 +222,29 @@ export default function Cableado() {
                 {can('asset.update') && (
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <button className="btn-mini" onClick={() => editar(c)}>Editar</button>
+                    {/* ABRIR ORDEN DESDE EL TRAMO.
+                        El hallazgo más caro que produce este sistema —un tramo
+                        por encima de la norma— moría en esta tabla. Ahora sale
+                        de aquí convertido en trabajo, con la actividad y el
+                        equipo ya escritos: el técnico no redacta nada. */}
+                    {c.status !== 'RETIRADO' && c.meters != null && c.meters > (resumen?.limiteM ?? 90) && (
+                      <button
+                        className="btn-mini"
+                        style={{ marginLeft: 4, borderColor: '#f6c9c9', color: 'var(--crit)' }}
+                        title="Crear una orden de trabajo para este tramo"
+                        onClick={() => navegar('/maintenance?' + new URLSearchParams({
+                          nueva: '1',
+                          tipo: 'MEJORA',
+                          activo: c.fromAsset?.id || c.toAsset?.id || '',
+                          actividad:
+                            `Recablear tramo ${c.code || 's/rótulo'} de ${c.meters} m `
+                            + `(${c.fromAsset?.assetCode || '?'} → ${c.toAsset?.assetCode || '?'}). `
+                            + `Supera el límite de ${resumen?.limiteM ?? 90} m: el enlace falla de forma intermitente.`,
+                        }).toString())}
+                      >
+                        Abrir OM
+                      </button>
+                    )}
                     {c.status !== 'RETIRADO' && (
                       <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => retirar(c)}>Retirar</button>
                     )}

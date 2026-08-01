@@ -71,6 +71,19 @@ export class PreparacionController {
     return this.prep.quitarMaterial(materialId);
   }
 
+  // ---- Permiso de acceso (3C) ----
+
+  /**
+   * Estado del permiso de altura del activo de esta orden.
+   * Se consulta al ABRIR en campo: es el único momento en que sirve, porque
+   * después el técnico ya está subido.
+   */
+  @Get('acceso')
+  @RequirePermissions('wo.read')
+  acceso(@Param('id') id: string) {
+    return this.prep.accesoDelActivo(id);
+  }
+
   // ---- Retiro de almacén (3D) ----
 
   /**

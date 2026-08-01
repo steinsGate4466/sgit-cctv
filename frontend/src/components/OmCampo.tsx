@@ -42,6 +42,9 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
   const [causaNota, setCausaNota] = useState('');
   const [reincidente, setReincidente] = useState(false);
 
+  // ---- permiso de acceso (solo al abrir) ----
+  const [acceso, setAcceso] = useState<any>(null);
+
   // ---- material retirado y no usado (solo al cerrar) ----
   const [sobrante, setSobrante] = useState<any[]>([]);
   const [devolviendo, setDevolviendo] = useState(false);
@@ -61,6 +64,11 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
         const lista = Array.isArray(r.data) ? r.data : r.data?.data || [];
         setTecnicos(lista.filter((u: any) => u.active !== false && u.id !== user?.id));
       }).catch(() => setTecnicos([]));
+
+      // Permiso de altura. Se pregunta AQUÍ y no en otro sitio porque este es
+      // el único momento en que sirve: después el técnico ya está subido.
+      api.get('/work-orders/' + wo.id + '/acceso')
+        .then((r) => setAcceso(r.data)).catch(() => setAcceso(null));
     }
     if (accion === 'avance') {
       api.get('/work-orders/' + wo.id + '/progress')
@@ -177,6 +185,28 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
       <form onSubmit={enviar}>
 
         {/* ---------------------------------------------------------- ABRIR */}
+        {accion === 'abrir' && acceso?.aplica && (
+          <div style={{
+            background: acceso.aprobado && !acceso.faltan?.length ? '#e7f7ee' : '#fdecec',
+            border: '1px solid ' + (acceso.aprobado && !acceso.faltan?.length ? '#bfe9cf' : '#f6c9c9'),
+            borderLeft: '4px solid ' + (acceso.aprobado && !acceso.faltan?.length ? 'var(--ok)' : 'var(--crit)'),
+            borderRadius: 8, padding: '10px 12px', marginBottom: 12,
+          }}>
+            <div style={{
+              fontWeight: 700, fontSize: 13,
+              color: acceso.aprobado && !acceso.faltan?.length ? '#166534' : '#991b1b',
+            }}>
+              {acceso.aprobado && !acceso.faltan?.length ? 'Permiso de acceso en regla' : 'ATENCIÓN — permiso de acceso'}
+            </div>
+            <div style={{ fontSize: 12, marginTop: 4 }}>{acceso.resumen}</div>
+            {acceso.solicitud?.heightMeters != null && (
+              <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+                Trabajo a {acceso.solicitud.heightMeters} m · medio: {acceso.solicitud.means}
+              </div>
+            )}
+          </div>
+        )}
+
         {accion === 'abrir' && (
           <>
             <div className="sign-note">

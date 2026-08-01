@@ -1,5 +1,5 @@
 import { useEffect, useState, FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, AvisoAmbito } from '../components/FiltroAmbito';
 import Modal from '../components/Modal';
@@ -48,6 +48,7 @@ export default function Maintenance() {
   const [fType, setFType] = useState('');
   const [fStatus, setFStatus] = useState('');
   const [ambito, setAmbito] = useState<Ambito>(AMBITO_VACIO);
+  const [parametros, setParametros] = useSearchParams();
 
   // Alta de OM (solo Jefe). El código es MANUAL (número que genera SAP).
   const [showForm, setShowForm] = useState(false);
@@ -112,6 +113,24 @@ export default function Maintenance() {
   // Buscar; si estuvieran aquí, se consultaría en cada tecla escrita.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [ambito]);
+
+  // ALTA PRELLENADA DESDE OTRA PANTALLA (3C).
+  // Cableado manda aquí un tramo fuera de norma con la actividad ya redactada.
+  // Se abre el formulario con todo puesto y el usuario solo revisa y guarda:
+  // es la diferencia entre "hay que abrir una OM" y que la OM esté abierta.
+  // Los parámetros se LIMPIAN de la URL después, para que recargar la página
+  // no vuelva a abrir el formulario una y otra vez.
+  useEffect(() => {
+    if (parametros.get('nueva') !== '1') return;
+    setForm({
+      ...FORM_VACIO,
+      type: parametros.get('tipo') || 'MEJORA',
+      assetId: parametros.get('activo') || '',
+      activity: parametros.get('actividad') || '',
+    });
+    setParametros({}, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parametros]);
 
   function clearFilters() {
     setFq(''); setFrom(''); setTo(''); setFType(''); setFStatus('');
