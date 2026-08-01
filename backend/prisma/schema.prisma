@@ -1134,6 +1134,50 @@ enum MaterialStatus {
   RECHAZADO   // el ingeniero no lo autoriza, con motivo
 }
 
+/// Tipo de catálogo editable (bloque 3E).
+///
+/// POR QUÉ ESTO NO ES UN ENUM MÁS
+/// Las causas de cierre vivían en el enum RootCause, con 17 valores fijos en
+/// el código. Añadir una exigía migración y despliegue, y en PostgreSQL los
+/// valores de un enum solo se pueden añadir al final. Eso significa que la
+/// gente de planta no podía nombrar lo que ve sin pedírselo a un programador.
+///
+/// Es el mismo error que cometí inventando las etapas del proceso. Aquí no se
+/// repite: son filas, y las edita quien sabe cómo se llaman las cosas.
+enum CatalogKind {
+  CAUSA          // por qué falló — sustituye al enum RootCause
+  SINTOMA        // qué vio el técnico antes de intervenir
+  ACCION         // qué hizo
+  MOTIVO_AVANCE  // por qué no se avanzó más de lo declarado
+}
+
+/// Una entrada de catálogo. Cuatro listas distintas en una sola tabla porque
+/// se comportan igual: código, nombre, grupo y orden. Cuatro tablas iguales
+/// serían cuatro CRUD iguales que se desviarían con el tiempo.
+model CatalogItem {
+  id        String      @id @default(uuid())
+  kind      CatalogKind
+  /// Código estable. Es lo que se guarda en la orden: si mañana se corrige la
+  /// redacción del nombre, el histórico no cambia de significado.
+  code      String
+  name      String
+  /// Familia para agrupar el desplegable. Con 17 opciones en una lista plana,
+  /// dentro de un teléfono y con la parada corriendo, el técnico elige la
+  /// primera que ve. Agrupadas se encuentran.
+  group     String?
+  sequence  Int         @default(0)
+  /// Se desactiva en vez de borrarse: las órdenes viejas que la usaron tienen
+  /// que seguir mostrando qué se eligió.
+  active    Boolean     @default(true)
+  notes     String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@unique([kind, code])
+  @@index([kind, active])
+  @@map("catalog_items")
+}
+
 model WorkOrderMaterial {
   id          String     @id @default(uuid())
   workOrderId String

@@ -1,5 +1,6 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { api } from '../api/client';
+import CatalogosEditables from '../components/CatalogosEditables';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
 
@@ -14,7 +15,7 @@ const CRIT_ES: Record<string, string> = {
 
 export default function Locations() {
   const { can } = useAuth();
-  const [tab, setTab] = useState<'ubic' | 'etapas'>('ubic');
+  const [tab, setTab] = useState<'ubic' | 'etapas' | 'catalogos'>('ubic');
 
   // ---- Ubicaciones ----
   const [rows, setRows] = useState<any[]>([]);
@@ -164,7 +165,14 @@ export default function Locations() {
       <div className="tabs" style={{ margin: '14px 0' }}>
         <button className={tab === 'ubic' ? 'tab active' : 'tab'} onClick={() => setTab('ubic')}>Ubicaciones</button>
         <button className={tab === 'etapas' ? 'tab active' : 'tab'} onClick={() => setTab('etapas')}>Etapas del proceso</button>
+        {/* Los catálogos viven aquí, junto a las etapas: son la misma clase de
+            decisión —cómo se llaman las cosas en esta planta— y la toma la
+            misma gente. */}
+        <button className={tab === 'catalogos' ? 'tab active' : 'tab'} onClick={() => setTab('catalogos')}>Catálogos</button>
       </div>
+
+      {/* --------------------------------------------------------- CATÁLOGOS */}
+      {tab === 'catalogos' && <CatalogosEditables />}
 
       {/* ------------------------------------------------------- UBICACIONES */}
       {tab === 'ubic' && (
