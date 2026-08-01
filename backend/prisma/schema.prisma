@@ -873,8 +873,25 @@ model WorkOrder {
   companion     User?            @relation("WoCompanion", fields: [companionId], references: [id])
 
   // ---- CIERRE (Bloque 1) ----
-  rootCause     RootCause?       // causa encontrada (lista)
-  rootCauseNote String?          // detalle opcional
+  rootCause     RootCause?       // causa encontrada — enum LEGADO, ver nota
+  /// CÓDIGO de causa del catálogo editable (3E). Es la fuente de verdad de
+  /// aquí en adelante.
+  ///
+  /// POR QUÉ CONVIVEN LOS DOS
+  /// Las órdenes cerradas antes de 3E guardaron el valor en el enum. Borrarlo
+  /// las dejaría sin causa. Las 17 opciones del catálogo tienen exactamente
+  /// los mismos códigos, así que al cerrar se escriben AMBOS cuando el código
+  /// elegido existe en el enum; una causa nueva creada por el usuario solo
+  /// puede ir aquí. Al leer: rootCauseCode ?? rootCause.
+  rootCauseCode String?
+  rootCauseNote String?          // observación libre, ahora OPCIONAL y corta
+  /// Qué vio el técnico ANTES de intervenir. Del catálogo SINTOMA.
+  /// Separado de la causa a propósito: el síntoma es lo que se observa y la
+  /// causa lo que se descubre. Confundirlos es lo que hace que "no hay imagen"
+  /// figure como causa de 40 órdenes sin que nadie sepa por qué.
+  symptomCode   String?
+  /// Qué hizo. Del catálogo ACCION.
+  actionCode    String?
   isRecurrent   Boolean          @default(false) // el técnico marca si ya había pasado
 
   // ---- AVANCE (Bloque 1) ----
@@ -917,7 +934,12 @@ model WorkOrderProgress {
   workOrder    WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
   /// Avance acumulado declarado en este reporte (0-100).
   pct          Int
-  /// Por qué no se avanzó más. Es el dato que justifica ante el Jefe.
+  /// Por qué no se avanzó más, ELEGIDO de la lista (catálogo MOTIVO_AVANCE).
+  /// Escrito a mano no se podía contar: ahora se puede saber cuántas paradas
+  /// se pierden por falta de repuesto y cuántas por falta de manlift.
+  reasonCode   String?
+  /// Detalle libre, opcional. La válvula de escape para lo que la lista no
+  /// prevé — y la señal de que a la lista le falta una opción.
   note         String?
   reportedById String?
   reportedBy   User?     @relation("WoProgressBy", fields: [reportedById], references: [id])

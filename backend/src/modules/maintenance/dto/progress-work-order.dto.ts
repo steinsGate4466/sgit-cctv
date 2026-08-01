@@ -16,5 +16,14 @@ export class ProgressWorkOrderDto {
    * Por qué no se avanzó más. Es el dato que justifica ante el Jefe de
    * Mantenimiento por qué un trabajo tomó tres paradas.
    */
+  /**
+   * Motivo ELEGIDO de la lista (catálogo MOTIVO_AVANCE). Escrito a mano no se
+   * podía contar; ahora se puede saber cuántas paradas se pierden por falta de
+   * repuesto y cuántas por falta de manlift, que son dos problemas distintos
+   * con dos soluciones distintas.
+   */
+  @IsOptional() @IsString() @MaxLength(60) reasonCode?: string;
+
+  /** Detalle libre, opcional. Lo que la lista no prevé. */
   @IsOptional() @IsString() @MaxLength(500) note?: string;
 }

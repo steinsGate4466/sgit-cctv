@@ -194,10 +194,23 @@ describe('MaintenanceService — ejecución de OM en campo', () => {
       // eso hay que poder justificarlo ante el Jefe.
       const { svc } = build({ wo: { ...enCurso, progressPct: 60 } });
       await expect(svc.addProgress('w1', { pct: 40 } as any, 'u1'))
-        .rejects.toThrow(/explica el motivo/i);
+        .rejects.toThrow(/elige el motivo/i);
     });
 
-    it('sí deja bajarlo si se explica', async () => {
+    // CAMBIO DELIBERADO (3F-1): antes SOLO valía escribir. Exigir texto hacía
+    // que se pusiera un punto para poder continuar, y ahí se perdía el dato.
+    // Ahora basta con elegir el motivo de la lista: cero escritura y encima
+    // contable.
+    it('deja bajarlo eligiendo el motivo de la lista, sin escribir nada', async () => {
+      const { svc, prisma } = build({ wo: { ...enCurso, progressPct: 60 } });
+      await svc.addProgress('w1', { pct: 40, reasonCode: 'FALTA_REPUESTO' } as any, 'u1');
+      expect(prisma.workOrder.update).toHaveBeenCalled();
+      expect(prisma.workOrderProgress.create.mock.calls[0][0].data.reasonCode)
+        .toBe('FALTA_REPUESTO');
+    });
+
+    it('sí deja bajarlo si se explica por escrito', async () => {
+      // La válvula de escape sigue existiendo para lo que la lista no prevé.
       const { svc, prisma } = build({ wo: { ...enCurso, progressPct: 60 } });
       await svc.addProgress('w1', { pct: 40, note: 'se encontró otro tramo dañado' } as any, 'u1');
       expect(prisma.workOrder.update).toHaveBeenCalled();

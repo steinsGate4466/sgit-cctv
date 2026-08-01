@@ -299,6 +299,12 @@ export class MaintenanceService {
         endedAt: fin,
         closedById: signer!.id,
         rootCause: dto.rootCause ?? undefined,
+        // Se escriben LAS DOS cuando el código elegido existe también en el
+        // enum: así los informes viejos siguen funcionando y los nuevos leen
+        // una sola columna. Una causa creada por el usuario solo cabe aquí.
+        rootCauseCode: dto.rootCauseCode ?? dto.rootCause ?? undefined,
+        symptomCode: dto.symptomCode ?? undefined,
+        actionCode: dto.actionCode ?? undefined,
         rootCauseNote: dto.rootCauseNote ?? undefined,
         isRecurrent: dto.isRecurrent ?? undefined,
         // Si el técnico cerró sin haber abierto formalmente, se deja constancia
@@ -323,7 +329,9 @@ export class MaintenanceService {
       after: {
         firmadoPor: signer!.email,
         om: wo.code,
-        causa: dto.rootCause || null,
+        causa: dto.rootCauseCode || dto.rootCause || null,
+        sintoma: dto.symptomCode || null,
+        accion: dto.actionCode || null,
         reincidente: dto.isRecurrent ?? false,
         duracionMinutos: minutos,
       },
@@ -363,15 +371,24 @@ export class MaintenanceService {
     const pct = Math.max(0, Math.min(100, Number(dto.pct)));
     // El avance no retrocede sin explicación: si alguien baja el porcentaje,
     // tiene que decir por qué (se encontró más trabajo del previsto, por ejemplo).
-    if (pct < wo.progressPct && !dto.note?.trim()) {
+    // El avance no retrocede sin explicación. Vale con elegir un motivo de la
+    // lista: no hay que escribir. Antes se exigía texto, y eso hacía que se
+    // pusiera un punto para poder seguir.
+    if (pct < wo.progressPct && !dto.reasonCode && !dto.note?.trim()) {
       throw new BadRequestException(
-        `El avance baja de ${wo.progressPct}% a ${pct}%. Explica el motivo.`,
+        `El avance baja de ${wo.progressPct}% a ${pct}%. Elige el motivo o explícalo.`,
       );
     }
 
     const [, updated] = await this.prisma.$transaction([
       this.prisma.workOrderProgress.create({
-        data: { workOrderId: id, pct, note: dto.note?.trim() || null, reportedById: userId || null },
+        data: {
+          workOrderId: id,
+          pct,
+          reasonCode: dto.reasonCode || null,
+          note: dto.note?.trim() || null,
+          reportedById: userId || null,
+        },
       }),
       this.prisma.workOrder.update({
         where: { id },

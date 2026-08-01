@@ -2,7 +2,10 @@ import { useEffect, useState, FormEvent } from 'react';
 import { api } from '../api/client';
 import Modal from './Modal';
 import { useAuth } from '../auth/AuthContext';
-import { CAUSAS, CAUSA_ES, fh, duracion } from '../pages/omCatalogos';
+// CAUSAS y CAUSA_ES ya no se importan: las listas vienen del servidor (3E).
+// El archivo omCatalogos sigue existiendo porque otras pantallas usan fh y
+// duracion, y porque CAUSA_ES aun traduce las causas de ordenes ANTIGUAS.
+import { fh, duracion } from '../pages/omCatalogos';
 import OmHerramientas, { HerramientaMarcada } from './OmHerramientas';
 
 /**
@@ -39,7 +42,15 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
   // ---- cerrar ----
   const [fin, setFin] = useState('');
   const [causa, setCausa] = useState('');
+  const [sintoma, setSintoma] = useState('');
+  // OJO con el nombre: la propiedad `accion` ya es el modo de la pantalla
+  // (abrir / avance / cerrar). Esta es la ACCIÓN REALIZADA del catálogo, y si
+  // se llamara igual la taparía sin que TypeScript dijera nada.
+  const [accionRealizada, setAccionRealizada] = useState('');
   const [causaNota, setCausaNota] = useState('');
+  const [motivoAvance, setMotivoAvance] = useState('');
+  // Catálogos editables (3E). Se piden al servidor: no están en el código.
+  const [catalogos, setCatalogos] = useState<any>(null);
   const [reincidente, setReincidente] = useState(false);
 
   // ---- permiso de acceso (solo al abrir) ----
@@ -73,6 +84,11 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
     if (accion === 'avance') {
       api.get('/work-orders/' + wo.id + '/progress')
         .then((r) => setHistorial(r.data || [])).catch(() => setHistorial([]));
+    }
+    if (accion === 'cerrar' || accion === 'avance') {
+      // Las cuatro listas de una vez: una sola ida al servidor.
+      api.get('/catalogos/todos')
+        .then((r) => setCatalogos(r.data)).catch(() => setCatalogos(null));
     }
     if (accion === 'cerrar') {
       // Al cerrar se mira qué material salió de almacén y no se consumió.
@@ -127,6 +143,7 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
         }
       } else if (accion === 'avance') {
         await api.post('/work-orders/' + wo.id + '/progress', {
+          reasonCode: motivoAvance || undefined,
           pct: Number(pct),
           note: nota.trim() || undefined,
         });
@@ -164,7 +181,12 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
         await api.post('/work-orders/' + wo.id + '/close', {
           email, password,
           endedAt: iso(fin),
+          // Se manda el CÓDIGO del catálogo. El servidor escribe también el
+          // enum cuando coincide, para que los informes viejos sigan leyendo.
+          rootCauseCode: causa || undefined,
           rootCause: causa || undefined,
+          symptomCode: sintoma || undefined,
+          actionCode: accionRealizada || undefined,
           rootCauseNote: causaNota.trim() || undefined,
           isRecurrent: reincidente,
         });
@@ -243,6 +265,16 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
         )}
 
         {/* --------------------------------------------------------- AVANCE */}
+        {accion === 'avance' && (
+          <ListaCatalogo
+            etiqueta="¿Por qué no se avanzó más?"
+            valor={motivoAvance}
+            onChange={setMotivoAvance}
+            items={catalogos?.MOTIVO_AVANCE}
+            vacio="Todavía no hay motivos configurados. Se crean en Ubicaciones → Catálogos."
+          />
+        )}
+
         {accion === 'avance' && (
           <>
             <div className="sign-note">
@@ -328,15 +360,33 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
             <label>Hora real de cierre</label>
             <input type="datetime-local" value={fin} onChange={(e) => setFin(e.target.value)} />
 
-            <label>Causa encontrada</label>
-            <select value={causa} onChange={(e) => setCausa(e.target.value)}>
-              <option value="">— sin especificar —</option>
-              {CAUSAS.map((g) => (
-                <optgroup key={g.grupo} label={g.grupo}>
-                  {g.opciones.map((o) => <option key={o.v} value={o.v}>{o.t}</option>)}
-                </optgroup>
-              ))}
-            </select>
+            {/* SÍNTOMA -> CAUSA -> ACCIÓN, en ese orden y separados.
+                El síntoma es lo que se VE; la causa lo que se DESCUBRE.
+                Mezclarlos es lo que hace que "no hay imagen" figure como causa
+                de 40 órdenes sin que nadie sepa por qué. */}
+            <ListaCatalogo
+              etiqueta="¿Qué viste? (síntoma)"
+              valor={sintoma}
+              onChange={setSintoma}
+              items={catalogos?.SINTOMA}
+              vacio="Todavía no hay síntomas configurados. Se crean en Ubicaciones → Catálogos."
+            />
+
+            <ListaCatalogo
+              etiqueta="Causa encontrada"
+              valor={causa}
+              onChange={setCausa}
+              items={catalogos?.CAUSA}
+              vacio="No hay causas configuradas."
+            />
+
+            <ListaCatalogo
+              etiqueta="¿Qué hiciste? (acción)"
+              valor={accionRealizada}
+              onChange={setAccionRealizada}
+              items={catalogos?.ACCION}
+              vacio="Todavía no hay acciones configuradas. Se crean en Ubicaciones → Catálogos."
+            />
 
             {causa === 'SIN_FALLA_ENCONTRADA' && (
               <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
@@ -415,5 +465,58 @@ export function OmDesviacion({ d }: { d: any }) {
               (d.desviacionPct !== null ? ` (${d.desviacionPct > 0 ? '+' : ''}${d.desviacionPct}%)` : '')}
         </span></div>
     </div>
+  );
+}
+
+/**
+ * Desplegable alimentado por un catálogo editable (3E).
+ *
+ * Agrupa por familia porque con muchas opciones en una lista plana, dentro de
+ * un teléfono y con la parada corriendo, se elige la primera que se ve.
+ *
+ * Y si el catálogo está VACÍO no pinta un desplegable inútil: dice dónde se
+ * llena. Un control vacío sin explicación hace que el técnico crea que el
+ * sistema está roto.
+ */
+function ListaCatalogo({ etiqueta, valor, onChange, items, vacio }: {
+  etiqueta: string;
+  valor: string;
+  onChange: (v: string) => void;
+  items?: any[];
+  vacio: string;
+}) {
+  if (!items || !items.length) {
+    return (
+      <>
+        <label>{etiqueta}</label>
+        <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>{vacio}</div>
+      </>
+    );
+  }
+
+  const grupos = new Map<string, any[]>();
+  for (const i of items) {
+    const g = (i.group || '').trim() || 'Otros';
+    if (!grupos.has(g)) grupos.set(g, []);
+    grupos.get(g)!.push(i);
+  }
+  const orden = [...grupos.entries()].sort((a, b) => {
+    if (a[0] === 'Otros') return 1;
+    if (b[0] === 'Otros') return -1;
+    return a[0].localeCompare(b[0]);
+  });
+
+  return (
+    <>
+      <label>{etiqueta}</label>
+      <select value={valor} onChange={(e) => onChange(e.target.value)}>
+        <option value="">— sin especificar —</option>
+        {orden.map(([grupo, opciones]) => (
+          <optgroup key={grupo} label={grupo}>
+            {opciones.map((o: any) => <option key={o.code} value={o.code}>{o.name}</option>)}
+          </optgroup>
+        ))}
+      </select>
+    </>
   );
 }

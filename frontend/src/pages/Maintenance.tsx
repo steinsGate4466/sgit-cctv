@@ -49,6 +49,9 @@ export default function Maintenance() {
   const [fStatus, setFStatus] = useState('');
   const [ambito, setAmbito] = useState<Ambito>(AMBITO_VACIO);
   const [parametros, setParametros] = useSearchParams();
+  // Nombres de las causas del catálogo editable (3E). Sin esto, una causa
+  // creada por el usuario saldría en crudo: PRENSAESTOPA_SUELTO.
+  const [nombreCausa, setNombreCausa] = useState<Record<string, string>>({});
 
   // Alta de OM (solo Jefe). El código es MANUAL (número que genera SAP).
   const [showForm, setShowForm] = useState(false);
@@ -113,6 +116,18 @@ export default function Maintenance() {
   // Buscar; si estuvieran aquí, se consultaría en cada tecla escrita.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [ambito]);
+
+  // Catálogo de causas: se pide una vez y se guarda como diccionario
+  // código -> nombre, para traducir lo que muestran las tablas.
+  useEffect(() => {
+    api.get('/catalogos/CAUSA?todas=true')
+      .then((r) => {
+        const m: Record<string, string> = {};
+        for (const i of r.data?.items || []) m[i.code] = i.name;
+        setNombreCausa(m);
+      })
+      .catch(() => setNombreCausa({}));
+  }, []);
 
   // ALTA PRELLENADA DESDE OTRA PANTALLA (3C).
   // Cableado manda aquí un tramo fuera de norma con la actividad ya redactada.
@@ -273,7 +288,14 @@ export default function Maintenance() {
                 <td style={{ minWidth: 90 }}>
                   {w.status === 'CERRADA' ? (
                     <span className="muted" style={{ fontSize: 12 }}>
-                      {w.rootCause ? CAUSA_ES[w.rootCause] || w.rootCause : '—'}
+                      {/* Se lee el código nuevo primero y el enum después, que
+                          es lo que guardan las órdenes cerradas antes de 3E.
+                          El nombre sale del catálogo; si no está, de la tabla
+                          de siempre; y en último caso, el código en crudo. */}
+                      {(() => {
+                        const c = w.rootCauseCode || w.rootCause;
+                        return c ? (nombreCausa[c] || CAUSA_ES[c] || c) : '—';
+                      })()}
                     </span>
                   ) : (
                     <div>
