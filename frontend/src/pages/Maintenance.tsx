@@ -6,6 +6,8 @@ import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
 import OmCampo from '../components/OmCampo';
 import HistorialActivo from '../components/HistorialActivo';
+import AsignarOm from '../components/AsignarOm';
+import DetallarOm from '../components/DetallarOm';
 import OmMateriales from '../components/OmMateriales';
 import { WO_TYPES, WO_TYPE_ES, CANALES, CANAL_ES, CAUSA_ES } from './omCatalogos';
 
@@ -52,6 +54,10 @@ export default function Maintenance() {
   // Nombres de las causas del catálogo editable (3E). Sin esto, una causa
   // creada por el usuario saldría en crudo: PRENSAESTOPA_SUELTO.
   const [nombreCausa, setNombreCausa] = useState<Record<string, string>>({});
+  // 4A: asignar (ingeniero) y detallar (técnico de red) son dos actos distintos.
+  const [asignando, setAsignando] = useState(false);
+  const [detallando, setDetallando] = useState<any>(null);
+  const [soloSinDetallar, setSoloSinDetallar] = useState(false);
 
   // Alta de OM (solo Jefe). El código es MANUAL (número que genera SAP).
   const [showForm, setShowForm] = useState(false);
@@ -250,7 +256,17 @@ export default function Maintenance() {
           <h1 className="page-title">Órdenes de Mantenimiento</h1>
           <p className="page-sub">{rows.length} órdenes · preventivo, correctivo y mejora</p>
         </div>
-        {can('wo.create') && <button className="btn-primary" onClick={() => setShowForm(true)}>+ Nueva OM</button>}
+        {/* ASIGNAR es lo que hará el ingeniero el 95 % de las veces: cuatro
+            campos. El alta completa se queda para los casos en que de verdad
+            se conoce todo de antemano. */}
+        {can('wo.create') && (
+          <button className="btn-primary" onClick={() => setAsignando(true)}>+ Asignar trabajo</button>
+        )}
+        {can('wo.create') && (
+          <button className="btn-mini" style={{ marginLeft: 8 }} onClick={() => setShowForm(true)}>
+            Alta completa
+          </button>
+        )}
       </div>
 
       <AvisoAmbito valor={ambito} total={rows.length} />
@@ -263,6 +279,11 @@ export default function Maintenance() {
         <div><label>Desde</label><input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
         <div><label>Hasta</label><input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
         <button className="btn-primary" onClick={load}>Buscar</button>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, alignSelf: 'flex-end', paddingBottom: 6 }}>
+          <input type="checkbox" checked={soloSinDetallar} style={{ width: 'auto' }}
+            onChange={(e) => setSoloSinDetallar(e.target.checked)} />
+          Solo sin detallar
+        </label>
         <button className="btn-mini" onClick={clearFilters}>Limpiar</button>
       </div>
 
@@ -272,7 +293,9 @@ export default function Maintenance() {
             <tr><th>Código</th><th>Tipo</th><th>Zona</th><th>Actividad</th><th>Estado</th><th>Avance</th><th>Activo / Ubicación</th><th>Programada</th><th></th></tr>
           </thead>
           <tbody>
-            {rows.map((w) => (
+            {rows
+              .filter((w: any) => !soloSinDetallar || !w.detailedAt)
+              .map((w: any) => (
               <tr key={w.id}>
                 <td style={{ fontWeight: 600 }}>
                   {w.code}
@@ -310,6 +333,17 @@ export default function Maintenance() {
                   )}
                 </td>
                 <td className="muted">
+                  {/* Que se vea SIN tener que mirar la columna de acciones: una
+                      orden sin detallar no es trabajo listo, y mezclarla con el
+                      resto es como el tablero deja de ser creíble. */}
+                  {!w.detailedAt && (
+                    <div style={{ fontSize: 10, color: '#b45309', fontWeight: 700 }}>SIN DETALLAR</div>
+                  )}
+                  {w.scopeChanged && (
+                    <div style={{ fontSize: 10, color: 'var(--steel)' }} title={w.scopeNote || ''}>
+                      alcance cambiado
+                    </div>
+                  )}
                   {w.asset?.assetCode
                     || (w.location?.name ? <span style={{ fontStyle: 'italic' }}>{w.location.name}</span> : '—')}
                 </td>
@@ -318,6 +352,19 @@ export default function Maintenance() {
                   {isOverdue(w) && <span className="badge FUERA_SERVICIO" style={{ marginLeft: 6 }}>Vencida</span>}
                 </td>
                 <td style={{ whiteSpace: 'nowrap' }}>
+                  {/* SIN DETALLAR: es lo primero que hay que hacer con esta
+                      orden, así que su botón va delante de todo lo demás.
+                      Va FUERA del condicional de abajo, no dentro: meterlo
+                      dentro rompía el JSX porque una llave de comentario no
+                      puede abrir donde ya se está evaluando una expresión. */}
+                  {!w.detailedAt && w.status !== 'CERRADA' && w.status !== 'CANCELADA'
+                    && can('wo.update') && (
+                    <button className="btn-mini"
+                      style={{ borderColor: 'var(--warn)', color: '#b45309', fontWeight: 600, marginRight: 4 }}
+                      onClick={() => setDetallando(w)}>
+                      Detallar
+                    </button>
+                  )}
                   {w.status !== 'CERRADA' && w.status !== 'CANCELADA' && can('wo.update') && (
                     <button className="btn-mini" onClick={() => openIntervention(w)}>Registrar</button>
                   )}
@@ -493,6 +540,14 @@ export default function Maintenance() {
         </Modal>
       )}
 
+
+      {asignando && (
+        <AsignarOm onHecho={load} onClose={() => setAsignando(false)} />
+      )}
+
+      {detallando && (
+        <DetallarOm wo={detallando} onHecho={load} onClose={() => setDetallando(null)} />
+      )}
 
       {matsFor && (
         <OmMateriales wo={matsFor} onClose={() => { setMatsFor(null); load(); }} />

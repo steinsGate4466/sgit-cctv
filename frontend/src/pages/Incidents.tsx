@@ -1,5 +1,6 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { api } from '../api/client';
+import AsignarOm from '../components/AsignarOm';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, AvisoAmbito } from '../components/FiltroAmbito';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
@@ -55,6 +56,9 @@ export default function Incidents() {
   const [fCat, setFCat] = useState('');
   const [fStatus, setFStatus] = useState('');
   const [ambito, setAmbito] = useState<Ambito>(AMBITO_VACIO);
+  // Convertir la incidencia en orden sin reescribir a mano lo que ya está
+  // escrito justo al lado: equipo, zona y descripción.
+  const [convirtiendo, setConvirtiendo] = useState<any>(null);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
 
@@ -284,6 +288,13 @@ export default function Incidents() {
                     </button>
                   )}
                   {can('incident.close') && openIssue(i) && <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => openResolve(i.id)}>Resolver</button>}
+                  {can('wo.create') && openIssue(i) && (
+                    <button className="btn-mini" style={{ marginLeft: 4, fontWeight: 600 }}
+                      title="Crear la orden de trabajo con los datos de esta incidencia"
+                      onClick={() => setConvirtiendo(i)}>
+                      → OM
+                    </button>
+                  )}
                   <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => downloadReport(i)}>Informe</button>
                 </td>
               </tr>
@@ -404,6 +415,10 @@ export default function Incidents() {
           </form>
         </Modal>
       )}
+      {convirtiendo && (
+        <AsignarOm incidente={convirtiendo} onHecho={load} onClose={() => setConvirtiendo(null)} />
+      )}
+
     </div>
   );
 }

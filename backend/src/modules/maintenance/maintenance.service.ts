@@ -3,6 +3,8 @@ import * as argon2 from 'argon2';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { filtroDeUbicaciones } from '../../common/ambito-planta';
+import { fechaLimite, estadoDetalle, actividadDesdeIncidencia } from './asignacion.util';
+import { resolverContexto } from '../../common/plant-context';
 import { AuditService } from '../audit/audit.service';
 import { StorageService } from '../storage/storage.service';
 import { PreventiveService } from '../preventive/preventive.service';
@@ -627,4 +629,217 @@ export class MaintenanceService {
     const buffer = await done;
     return { buffer, filename: `informe-${wo.code}.pdf` };
   }
+
+  // ==========================================================================
+  //  ASIGNAR Y DETALLAR  (bloque 4A)
+  // ==========================================================================
+
+  /**
+   * ASIGNACIÓN — lo que hace el ingeniero. Cuatro cosas.
+   *
+   * No se le piden materiales, ni herramientas, ni duración: no los sabe, y
+   * pedírselos le hace inventarlos. El técnico de red los pone al detallar.
+   *
+   * SI NO PONE FECHA, se calcula por la criticidad del equipo. Sin plazo, el
+   * indicador de vencidas deja de funcionar y las órdenes se quedan ahí para
+   * siempre sin que nadie las eche de menos.
+   */
+  async asignar(dto: any, userId?: string | null, ip?: string | null) {
+    const actividad = (dto?.activity || '').trim();
+    if (!actividad) throw new BadRequestException('Escribe qué hay que hacer.');
+    if (!dto?.assetId && !dto?.locationId) {
+      throw new BadRequestException('Indica el equipo, o al menos la zona.');
+    }
+
+    // Criticidad EFECTIVA del equipo: la que impone la etapa del proceso, no
+    // la que alguien marcó a mano.
+    let criticidad: string | null = null;
+    if (dto.assetId) {
+      const activo = await this.prisma.asset.findUnique({
+        where: { id: dto.assetId },
+        select: { id: true, locationId: true, criticality: true },
+      });
+      if (activo) {
+        const ctx = await resolverContexto(this.prisma, activo as any);
+        criticidad = ctx?.criticidad || activo.criticality;
+      }
+    }
+
+    const programada = dto.scheduledDate
+      ? new Date(dto.scheduledDate)
+      : fechaLimite(criticidad, new Date());
+
+    // AVISO DE DUPLICADO: no se impide, porque a veces hacen falta dos
+    // trabajos distintos sobre el mismo equipo. Pero abrir la segunda sin
+    // saber que existe la primera es como se duplica el trabajo en campo.
+    let avisoDuplicado: string | null = null;
+    if (dto.assetId) {
+      const abierta = await this.prisma.workOrder.findFirst({
+        where: {
+          assetId: dto.assetId,
+          status: { in: ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'] as any },
+        },
+        select: { code: true, activity: true },
+      });
+      if (abierta) {
+        avisoDuplicado = `Este equipo ya tiene la orden ${abierta.code} abierta`
+          + (abierta.activity ? `: "${abierta.activity}"` : '') + '.';
+      }
+    }
+
+    const wo = await this.prisma.workOrder.create({
+      data: {
+        code: await this.nextCode(),
+        type: dto.type || 'CORRECTIVO',
+        activity: actividad,
+        assetId: dto.assetId || null,
+        // Se guarda aparte para poder comparar después qué se pidió y qué se hizo.
+        assignedAssetId: dto.assetId || null,
+        locationId: dto.locationId || null,
+        incidentId: dto.incidentId || null,
+        technicianId: dto.technicianId || null,
+        scheduledDate: programada,
+        assignedById: userId || null,
+        // Nace SIN detallar: eso es lo que la distingue del trabajo listo.
+        detailedAt: null,
+      },
+      include: inc,
+    });
+
+    await this.audit.record({
+      userId: userId || null,
+      action: 'WO_ASIGNAR',
+      entity: 'work_orders',
+      entityId: wo.id,
+      ip,
+      after: {
+        om: wo.code, actividad, activo: dto.assetId || null,
+        para: programada.toISOString(), plazoAutomatico: !dto.scheduledDate,
+      },
+    });
+
+    return { ...wo, avisoDuplicado };
+  }
+
+  /**
+   * DETALLADO — lo que hace el técnico de red, que es quien tiene el contexto.
+   *
+   * Puede cambiar el equipo: si llega y ve que el problema es el switch,
+   * arreglar la cámara no sirve de nada. No se le impide, pero queda MARCADO
+   * y se le pide el motivo, para que el ingeniero vea qué se pidió frente a
+   * qué se hizo.
+   */
+  async detallar(id: string, dto: any, userId?: string | null, ip?: string | null) {
+    const wo = await this.prisma.workOrder.findUnique({ where: { id } });
+    if (!wo) throw new NotFoundException('Orden de mantenimiento no encontrada');
+    if (wo.status === 'CERRADA' || wo.status === 'CANCELADA') {
+      throw new BadRequestException('Esta orden ya está cerrada.');
+    }
+
+    const assetId = dto.assetId !== undefined ? (dto.assetId || null) : wo.assetId;
+    const cambiaAlcance = !!wo.assignedAssetId && !!assetId && wo.assignedAssetId !== assetId;
+
+    if (cambiaAlcance && !dto.scopeNote?.trim()) {
+      throw new BadRequestException(
+        'Estás cambiando el equipo respecto a lo asignado. Explica por qué: el '
+        + 'ingeniero tiene que poder ver qué se pidió y qué se hizo.',
+      );
+    }
+
+    const estado = estadoDetalle({
+      assetId,
+      locationId: dto.locationId !== undefined ? dto.locationId : wo.locationId,
+      activity: dto.activity !== undefined ? dto.activity : wo.activity,
+      assignedAssetId: wo.assignedAssetId,
+      detailedAt: new Date(),
+    });
+    if (estado.faltan.length) {
+      throw new BadRequestException(`Falta ${estado.faltan.join(' y ')}.`);
+    }
+
+    const actualizada = await this.prisma.workOrder.update({
+      where: { id },
+      data: {
+        assetId,
+        locationId: dto.locationId !== undefined ? (dto.locationId || null) : undefined,
+        activity: dto.activity?.trim() || undefined,
+        plannedDurationMin: dto.plannedDurationMin !== undefined
+          ? Number(dto.plannedDurationMin) || null : undefined,
+        plannedStopAt: dto.plannedStopAt ? new Date(dto.plannedStopAt) : undefined,
+        technicianId: dto.technicianId !== undefined ? (dto.technicianId || null) : undefined,
+        detailedAt: new Date(),
+        detailedById: userId || null,
+        scopeChanged: cambiaAlcance || wo.scopeChanged,
+        scopeNote: cambiaAlcance ? dto.scopeNote.trim() : undefined,
+      },
+      include: inc,
+    });
+
+    await this.audit.record({
+      userId: userId || null,
+      action: cambiaAlcance ? 'WO_DETALLAR_CAMBIO_ALCANCE' : 'WO_DETALLAR',
+      entity: 'work_orders',
+      entityId: id,
+      ip,
+      before: { activoAsignado: wo.assignedAssetId },
+      after: {
+        om: wo.code, activoFinal: assetId,
+        motivo: cambiaAlcance ? dto.scopeNote.trim() : null,
+      },
+    });
+
+    return actualizada;
+  }
+
+  /**
+   * Duración típica de este tipo de trabajo sobre este equipo, sacada de lo ya
+   * ejecutado. Es la información que el técnico necesita para estimar sin
+   * adivinar, y el dato ya estaba guardado sin que nadie lo mirara.
+   */
+  async duracionTipica(assetId: string | null, tipo: string) {
+    if (!assetId) return null;
+    const cerradas = await this.prisma.workOrder.findMany({
+      where: {
+        assetId, type: tipo as any, status: 'CERRADA',
+        startedAt: { not: null }, endedAt: { not: null },
+      },
+      select: { startedAt: true, endedAt: true },
+      orderBy: { endedAt: 'desc' },
+      take: 5,
+    });
+    if (!cerradas.length) return null;
+
+    const minutos = cerradas.map(
+      (o) => Math.round((new Date(o.endedAt!).getTime() - new Date(o.startedAt!).getTime()) / 60000),
+    );
+    const media = Math.round(minutos.reduce((a, b) => a + b, 0) / minutos.length);
+    return { muestras: minutos.length, mediaMin: media, minutos };
+  }
+
+  /**
+   * Convierte una incidencia en orden asignada, con todo lo que la incidencia
+   * ya sabe. El ingeniero deja de reescribir a mano el equipo, la zona y la
+   * descripción que están escritos justo al lado.
+   */
+  async desdeIncidencia(incidentId: string, dto: any, userId?: string | null, ip?: string | null) {
+    // OJO con el nombre: en este archivo `inc` ya es el objeto de inclusión de
+    // Prisma que usan todas las consultas. Llamar `inc` a la incidencia lo
+    // taparía dentro de esta función, y el día que alguien añada aquí un
+    // include se encontraría con un error incomprensible.
+    const incidencia = await this.prisma.incident.findUnique({
+      where: { id: incidentId },
+      select: { id: true, code: true, title: true, description: true, assetId: true, priority: true },
+    });
+    if (!incidencia) throw new NotFoundException('Incidencia no encontrada');
+
+    return this.asignar({
+      type: dto?.type || 'CORRECTIVO',
+      activity: dto?.activity?.trim() || actividadDesdeIncidencia(incidencia),
+      assetId: dto?.assetId ?? incidencia.assetId,
+      technicianId: dto?.technicianId,
+      scheduledDate: dto?.scheduledDate,
+      incidentId: incidencia.id,
+    }, userId, ip);
+  }
+
 }

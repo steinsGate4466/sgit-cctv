@@ -35,6 +35,49 @@ export class MaintenanceController {
   }
 
   // Descargar imagen de evidencia (para previsualización).
+  // ---- Asignar y detallar (4A) ----
+
+  /**
+   * ASIGNAR. Cuatro campos y fuera.
+   * Pide 'wo.create' como el alta de siempre: es el mismo acto, más corto.
+   */
+  @Post('asignar')
+  @RequirePermissions('wo.create')
+  asignar(@Body() body: any, @CurrentUser() user: any, @Ip() ip: string) {
+    return this.wo.asignar(body, user?.userId, ip);
+  }
+
+  /** Convertir una incidencia en orden, con lo que la incidencia ya sabe. */
+  @Post('desde-incidencia/:incidentId')
+  @RequirePermissions('wo.create')
+  desdeIncidencia(
+    @Param('incidentId') incidentId: string,
+    @Body() body: any,
+    @CurrentUser() user: any,
+    @Ip() ip: string,
+  ) {
+    return this.wo.desdeIncidencia(incidentId, body, user?.userId, ip);
+  }
+
+  /**
+   * DETALLAR. Lo hace el técnico de red, que es quien tiene el contexto.
+   * Pide 'wo.update' y no 'wo.create': no está creando trabajo, lo está
+   * completando.
+   */
+  @Patch(':id/detallar')
+  @RequirePermissions('wo.update')
+  detallar(@Param('id') id: string, @Body() body: any, @CurrentUser() user: any, @Ip() ip: string) {
+    return this.wo.detallar(id, body, user?.userId, ip);
+  }
+
+  /** Cuánto suele tardar este trabajo en este equipo, según lo ya ejecutado. */
+  @Get(':id/duracion-tipica')
+  @RequirePermissions('wo.read')
+  async duracionTipica(@Param('id') id: string) {
+    const wo = await this.wo.findOne(id);
+    return this.wo.duracionTipica(wo.assetId, wo.type);
+  }
+
   @Get('evidence/:evidenceId/file')
   @RequirePermissions('wo.read')
   async evidenceFile(@Param('evidenceId') evidenceId: string, @Res() res: Response) {

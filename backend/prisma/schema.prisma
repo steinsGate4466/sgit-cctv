@@ -41,6 +41,8 @@ model User {
   stockMovements StockMovement[]
   stockChecks    StockCheck[]
   materialesRetirados WorkOrderMaterial[] @relation("MaterialRetiradoPor")
+  woAsignadas         WorkOrder[]         @relation("WoAssignedBy")
+  woDetalladas        WorkOrder[]         @relation("WoDetailedBy")
   accessRequested AccessRequest[] @relation("AccessRequester")
   accessReviewed  AccessRequest[] @relation("AccessReviewer")
   woOpened        WorkOrder[]     @relation("WoOpenedBy")
@@ -901,6 +903,34 @@ model WorkOrder {
   /// queda EN PROCESO con su avance a la vista del Jefe de Mantenimiento.
   /// Se guarda aquí, además del historial, para poder listar sin consultas extra.
   progressPct   Int              @default(0)
+
+  // ---- Asignar y detallar (4A) ----
+  //
+  //  EL MODELO: el ingeniero ASIGNA (qué, sobre qué, a quién, para cuándo) y
+  //  el técnico de red DETALLA (equipo exacto, materiales, herramientas). El
+  //  ingeniero no sabe cuál cámara ni qué tramo; obligarle a rellenarlo le
+  //  hace inventar datos que después alguien corrige.
+  //
+  //  NO se añade un estado nuevo al enum: en PostgreSQL los valores solo se
+  //  pueden añadir AL FINAL, y meter ASIGNADA antes de ABIERTA obligaría a
+  //  recrear el tipo con todo lo que cuelga. Con la marca de detallado el
+  //  flujo se lee igual y la migración es aditiva.
+  /// Quién asignó el trabajo. Es OTRA persona que quien lo detalla y otra que
+  /// quien lo ejecuta: separarlos es lo que permite saber quién pidió qué.
+  assignedById  String?
+  assignedBy    User?            @relation("WoAssignedBy", fields: [assignedById], references: [id])
+  /// Equipo que el ingeniero indicó al asignar. Se guarda aparte de assetId
+  /// para poder ver QUÉ SE PIDIÓ frente a QUÉ SE HIZO.
+  assignedAssetId String?
+  /// Cuándo y quién la dejó lista para trabajar.
+  detailedAt    DateTime?
+  detailedById  String?
+  detailedBy    User?            @relation("WoDetailedBy", fields: [detailedById], references: [id])
+  /// El técnico cambió el equipo respecto a lo asignado. No se impide: si
+  /// llega y ve que el problema es el switch, arreglar la cámara no sirve.
+  /// Pero queda marcado para que el ingeniero lo vea.
+  scopeChanged  Boolean          @default(false)
+  scopeNote     String?
   progress      WorkOrderProgress[]
 
   /// Activos levantados durante esta orden (solo aplica a las de tipo MAPEO).
