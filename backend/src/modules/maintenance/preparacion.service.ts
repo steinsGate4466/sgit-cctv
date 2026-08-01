@@ -132,16 +132,37 @@ export class PreparacionService {
 
     // Se avisa si lo previsto no alcanza con el stock que refleja SAP. No se
     // bloquea nada: el catálogo local es un espejo, y puede estar desactualizado.
-    return items.map((m) => {
+    const filas = items.map((m) => {
       const stock = m.sparePart?.currentStock ?? null;
       const previsto = m.plannedQty ?? 0;
+      const retirado = m.withdrawnQty ?? 0;
+      const usado = m.usedQty ?? 0;
       return {
         ...m,
-        alerta: stock !== null && previsto > stock
+        alerta: m.status === 'SOLICITADO' && stock !== null && previsto > stock
           ? `Se prevén ${previsto} y el catálogo refleja ${stock}. Revisar en SAP antes de salir.`
           : null,
+        // Lo que sobró y todavía no ha vuelto al almacén. Mientras esto sea
+        // mayor que cero, el stock del sistema está por debajo del real.
+        porDevolver: m.status === 'RETIRADO' ? Math.max(0, retirado - usado) : 0,
       };
     });
+
+    const pendientes = filas.filter((f) => f.status === 'SOLICITADO');
+    return {
+      items: filas,
+      resumen: {
+        solicitados: pendientes.length,
+        retirados: filas.filter((f) => f.status === 'RETIRADO').length,
+        devueltos: filas.filter((f) => f.status === 'DEVUELTO').length,
+        rechazados: filas.filter((f) => f.status === 'RECHAZADO').length,
+        // Lo que el ingeniero necesita saber de un vistazo: ¿hay algo que
+        // firmar, y hay algo que no alcanza?
+        hayQueRetirar: pendientes.length > 0,
+        sinStock: pendientes.filter((f) => f.alerta).length,
+        porDevolver: filas.reduce((t, f) => t + f.porDevolver, 0),
+      },
+    };
   }
 
   /**
@@ -330,4 +351,238 @@ export class PreparacionService {
       },
     });
   }
+
+  // ==========================================================================
+  //  RETIRO DE ALMACÉN  (bloque 3D)
+  //
+  //  El flujo que describió el ingeniero: el técnico lista lo que necesita con
+  //  su código SAP, y el ingeniero genera la salida de inventario de una vez.
+  //  Un clic y una firma, no una línea por una.
+  // ==========================================================================
+
+  /**
+   * Firma el retiro de TODAS las líneas solicitadas de la orden.
+   *
+   * POR QUÉ TODO O NADA
+   * Va en una sola transacción: o salen todas las líneas con sus movimientos y
+   * su descuento de stock, o no sale ninguna. Un retiro a medias dejaría el
+   * almacén descontado para material que nadie sacó del estante.
+   *
+   * POR QUÉ NO SE BLOQUEA POR FALTA DE STOCK
+   * El catálogo local es un ESPEJO de SAP y puede estar desactualizado. Si el
+   * ingeniero tiene el repuesto en la mano, el sistema no es quién para decirle
+   * que no existe. Se avisa, se registra el desvío, y se deja pasar.
+   */
+  async generarRetiro(
+    workOrderId: string,
+    dto: { itemIds?: string[]; nota?: string },
+    userId: string,
+    ip?: string | null,
+  ) {
+    const wo = await this.prisma.workOrder.findUnique({ where: { id: workOrderId } });
+    if (!wo) throw new NotFoundException('Orden de mantenimiento no encontrada');
+
+    const donde: any = { workOrderId, status: 'SOLICITADO' };
+    // Si vienen ids, solo esas líneas: el ingeniero puede autorizar una parte.
+    if (dto.itemIds?.length) donde.id = { in: dto.itemIds };
+
+    const lineas = await this.prisma.workOrderMaterial.findMany({
+      where: donde,
+      include: { sparePart: { select: { id: true, name: true, currentStock: true } } },
+    });
+
+    if (!lineas.length) {
+      throw new BadRequestException('No hay materiales pendientes de retirar en esta orden.');
+    }
+
+    const avisos: string[] = [];
+
+    const resultado = await this.prisma.$transaction(async (tx) => {
+      const hechas: any[] = [];
+
+      for (const l of lineas) {
+        // Lo que sale es lo previsto. Si no se previó cantidad, no se puede
+        // retirar: sin número no hay movimiento de almacén posible.
+        const cantidad = l.plannedQty ?? 0;
+        if (cantidad <= 0) {
+          throw new BadRequestException(
+            `"${l.description}" no tiene cantidad prevista. Ponla antes de generar el retiro.`,
+          );
+        }
+
+        let movimientoId: string | null = null;
+
+        // Solo hay movimiento de stock si la línea está ligada al catálogo.
+        // Un material escrito a mano (no catalogado) se registra igual en la
+        // orden, pero no puede descontar de un repuesto que no existe.
+        if (l.sparePartId && l.sparePart) {
+          if (l.sparePart.currentStock < cantidad) {
+            avisos.push(
+              `${l.description}: se retiran ${cantidad} y el catálogo reflejaba ${l.sparePart.currentStock}. Regularizar en SAP.`,
+            );
+          }
+
+          const mov = await tx.stockMovement.create({
+            data: {
+              sparePartId: l.sparePartId,
+              type: 'RETIRO',
+              // La cantidad va en positivo; el signo lo da el tipo.
+              quantity: Math.round(cantidad),
+              sapCode: l.sapCode,
+              reason: `OM ${wo.code}${dto.nota ? ' · ' + dto.nota.trim() : ''}`,
+              userId,
+            },
+          });
+          movimientoId = mov.id;
+
+          await tx.sparePart.update({
+            where: { id: l.sparePartId },
+            data: { currentStock: { decrement: Math.round(cantidad) } },
+          });
+        }
+
+        const act = await tx.workOrderMaterial.update({
+          where: { id: l.id },
+          data: {
+            status: 'RETIRADO',
+            withdrawnQty: cantidad,
+            movementId: movimientoId,
+            withdrawnById: userId,
+            withdrawnAt: new Date(),
+          },
+        });
+        hechas.push(act);
+      }
+
+      return hechas;
+    });
+
+    await this.audit.record({
+      userId,
+      action: 'WO_MATERIAL_RETIRO',
+      entity: 'work_orders',
+      entityId: workOrderId,
+      ip,
+      after: {
+        om: wo.code,
+        lineas: resultado.length,
+        materiales: resultado.map((r: any) => `${r.description} x${r.withdrawnQty}`),
+        avisos,
+      },
+    });
+
+    return { retirados: resultado.length, avisos };
+  }
+
+  /** El ingeniero no autoriza una línea. El motivo es obligatorio. */
+  async rechazarMaterial(id: string, motivo: string, userId: string, ip?: string | null) {
+    const l = await this.prisma.workOrderMaterial.findUnique({
+      where: { id },
+      include: { workOrder: { select: { code: true, id: true } } },
+    });
+    if (!l) throw new NotFoundException('Material no encontrado');
+    if (l.status !== 'SOLICITADO') {
+      throw new BadRequestException('Solo se puede rechazar un material que todavía no se retiró.');
+    }
+    // Un "no" sin explicación hace que el técnico vuelva a pedir lo mismo la
+    // semana siguiente, y nadie aprende nada.
+    if (!motivo?.trim()) {
+      throw new BadRequestException('Explica por qué no se autoriza. Es obligatorio.');
+    }
+
+    const act = await this.prisma.workOrderMaterial.update({
+      where: { id },
+      data: { status: 'RECHAZADO', rejectedReason: motivo.trim() },
+    });
+
+    await this.audit.record({
+      userId,
+      action: 'WO_MATERIAL_RECHAZO',
+      entity: 'work_orders',
+      entityId: l.workOrder.id,
+      ip,
+      after: { om: l.workOrder.code, material: l.description, motivo: motivo.trim() },
+    });
+    return act;
+  }
+
+  /**
+   * Devuelve al almacén lo que se retiró y no se usó.
+   *
+   * POR QUÉ ESTO NO ES OPCIONAL
+   * Sin devolución, el sistema descuenta lo que salió y nunca acredita lo que
+   * volvió. En tres meses el stock del sistema no se parece al del estante, la
+   * alerta de mínimos deja de avisar cuando toca, y el almacén se vuelve un
+   * número en el que nadie confía.
+   *
+   * Se llama al cerrar la orden, cuando ya se sabe lo REALMENTE usado.
+   */
+  async devolverSobrante(workOrderId: string, userId: string, ip?: string | null) {
+    const wo = await this.prisma.workOrder.findUnique({ where: { id: workOrderId } });
+    if (!wo) throw new NotFoundException('Orden de mantenimiento no encontrada');
+
+    const lineas = await this.prisma.workOrderMaterial.findMany({
+      where: { workOrderId, status: 'RETIRADO' },
+    });
+
+    const conSobrante = lineas.filter(
+      (l) => (l.withdrawnQty ?? 0) - (l.usedQty ?? 0) > 0 && !!l.sparePartId,
+    );
+
+    // Las líneas retiradas y consumidas por completo también cierran su ciclo:
+    // pasan a DEVUELTO con cero, para que ninguna quede eternamente "retirada".
+    const sinSobrante = lineas.filter(
+      (l) => (l.withdrawnQty ?? 0) - (l.usedQty ?? 0) <= 0 || !l.sparePartId,
+    );
+
+    if (!lineas.length) return { devueltos: 0, unidades: 0 };
+
+    const total = await this.prisma.$transaction(async (tx) => {
+      let unidades = 0;
+
+      for (const l of conSobrante) {
+        const sobra = (l.withdrawnQty ?? 0) - (l.usedQty ?? 0);
+        const mov = await tx.stockMovement.create({
+          data: {
+            sparePartId: l.sparePartId!,
+            type: 'INGRESO',
+            quantity: Math.round(sobra),
+            sapCode: l.sapCode,
+            reason: `Devolución de OM ${wo.code}`,
+            userId,
+          },
+        });
+        await tx.sparePart.update({
+          where: { id: l.sparePartId! },
+          data: { currentStock: { increment: Math.round(sobra) } },
+        });
+        await tx.workOrderMaterial.update({
+          where: { id: l.id },
+          data: { status: 'DEVUELTO', returnedQty: sobra, returnMovementId: mov.id },
+        });
+        unidades += sobra;
+      }
+
+      for (const l of sinSobrante) {
+        await tx.workOrderMaterial.update({
+          where: { id: l.id },
+          data: { status: 'DEVUELTO', returnedQty: 0 },
+        });
+      }
+
+      return unidades;
+    });
+
+    await this.audit.record({
+      userId,
+      action: 'WO_MATERIAL_DEVOLUCION',
+      entity: 'work_orders',
+      entityId: workOrderId,
+      ip,
+      after: { om: wo.code, lineas: conSobrante.length, unidades: total },
+    });
+
+    return { devueltos: conSobrante.length, unidades: total };
+  }
+
 }

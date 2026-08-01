@@ -34,6 +34,8 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
   const [swaps, setSwaps] = useState<any[]>([]);
   const [stock, setStock] = useState<any[]>([]);
   const [swap, setSwap] = useState<any>({ removedAssetId: '', installedAssetId: '', note: '' });
+  const [resumen, setResumen] = useState<any>(null);
+  const [firmando, setFirmando] = useState(false);
 
   const editable = wo.status !== 'CERRADA' && wo.status !== 'CANCELADA' && can('wo.update');
 
@@ -47,12 +49,63 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
       api.get(`/work-orders/${wo.id}/swaps`).then((x) => x.data).catch(() => []),
       api.get(`/work-orders/${wo.id}/stock-assets`).then((x) => x.data).catch(() => []),
     ]);
-    setItems(m || []);
+    // La respuesta trae ahora { items, resumen }: el resumen es lo que el
+    // ingeniero mira de un vistazo (¿hay algo que firmar? ¿algo por devolver?).
+    setItems(m?.items || []);
+    setResumen(m?.resumen || null);
     setRepuestos(Array.isArray(r) ? r : r?.data || r?.items || []);
     setSwaps(s || []);
     setStock(st || []);
   }, [wo.id]);
   useEffect(() => { cargar().finally(() => setCargando(false)); }, [cargar]);
+
+  // ---- retiro de almacén (3D) -------------------------------------------
+
+  /**
+   * Un clic y una firma: sale TODO lo solicitado de una vez.
+   * El servidor lo hace en una sola transacción, así que o salen todas las
+   * líneas con su descuento de stock, o no sale ninguna.
+   */
+  async function generarRetiro() {
+    if (!window.confirm(
+      `Se va a generar la salida de almacén de ${resumen?.solicitados} material(es) ` +
+      `de la orden ${wo.code}.\n\n` +
+      `El stock se descontará y quedará registrado a tu nombre.\n\n¿Confirmas?`)) return;
+    setFirmando(true);
+    try {
+      const r = await api.post(`/work-orders/${wo.id}/materials/retiro`, {});
+      if (r.data?.avisos?.length) {
+        // No se bloquea por falta de stock: el catálogo es un espejo de SAP y
+        // puede estar desactualizado. Se avisa y se deja constancia.
+        window.alert(
+          'Retiro generado, con avisos:\n\n' + r.data.avisos.join('\n') +
+          '\n\nRegulariza esas cantidades en SAP.');
+      }
+      await cargar();
+    } catch (err) { error(err); } finally { setFirmando(false); }
+  }
+
+  async function rechazar(item: any) {
+    const motivo = window.prompt(
+      `¿Por qué no se autoriza "${item.description}"?\n\n` +
+      'Es obligatorio: sin motivo, el técnico volverá a pedir lo mismo la semana que viene.');
+    if (motivo === null) return;
+    try {
+      await api.post(`/work-orders/${wo.id}/materials/${item.id}/rechazar`, { motivo });
+      await cargar();
+    } catch (err) { error(err); }
+  }
+
+  async function devolver() {
+    if (!window.confirm(
+      `Se devolverán al almacén ${resumen?.porDevolver} unidad(es) que se retiraron y no se usaron.\n\n` +
+      'Sin esto, el stock del sistema queda por debajo del real.\n\n¿Confirmas?')) return;
+    try {
+      const r = await api.post(`/work-orders/${wo.id}/materials/devolucion`, {});
+      window.alert(`Devuelto: ${r.data?.unidades ?? 0} unidad(es) en ${r.data?.devueltos ?? 0} línea(s).`);
+      await cargar();
+    } catch (err) { error(err); }
+  }
 
   function error(err: any) {
     const m = err?.response?.data?.message;
@@ -129,9 +182,56 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
             y este catálogo sirve para avisar si algo no alcanza.
           </div>
 
+          {/* --------------------------------------------- barra del ingeniero */}
+          {resumen && (resumen.hayQueRetirar || resumen.porDevolver > 0) && (
+            <div style={{
+              background: '#eef4ff', border: '1px solid #dbe6fb', borderLeft: '4px solid var(--steel)',
+              borderRadius: 8, padding: '10px 12px', marginTop: 10,
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+            }}>
+              <div style={{ fontSize: 12 }}>
+                {resumen.hayQueRetirar && (
+                  <div>
+                    <b>{resumen.solicitados} material(es) esperando salida de almacén.</b>
+                    {resumen.sinStock > 0 && (
+                      <span style={{ color: '#b45309' }}>
+                        {' '}· {resumen.sinStock} sin stock suficiente en el catálogo
+                      </span>
+                    )}
+                  </div>
+                )}
+                {resumen.porDevolver > 0 && (
+                  <div style={{ color: '#b45309' }}>
+                    {resumen.porDevolver} unidad(es) retiradas y no usadas, sin devolver.
+                  </div>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {resumen.hayQueRetirar && can('inventory.manage') && (
+                  <button className="btn-primary" disabled={firmando} onClick={generarRetiro}>
+                    {firmando ? 'Generando…' : 'Generar retiro de almacén'}
+                  </button>
+                )}
+                {resumen.porDevolver > 0 && editable && (
+                  <button className="btn-mini" onClick={devolver}>Devolver lo que sobró</button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {resumen?.hayQueRetirar && !can('inventory.manage') && (
+            <div className="sign-note" style={{ marginTop: 8 }}>
+              La salida de almacén la autoriza el ingeniero. Tu lista ya está
+              pedida; no hace falta que hagas nada más.
+            </div>
+          )}
+
           {items.length > 0 ? (
             <table style={{ fontSize: 12, marginTop: 10 }}>
-              <thead><tr><th>Material</th><th>SAP</th><th>Previsto</th><th>Usado</th>{editable && <th></th>}</tr></thead>
+              <thead><tr>
+                <th>Material</th><th>SAP</th><th>Previsto</th><th>Retirado</th>
+                <th>Usado</th><th>Estado</th>{editable && <th></th>}
+              </tr></thead>
               <tbody>
                 {items.map((m) => (
                   <tr key={m.id}>
@@ -143,15 +243,37 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
                     </td>
                     <td className="muted">{m.sapCode || '—'}</td>
                     <td>{m.plannedQty ?? '—'} {m.unit || ''}</td>
+                    <td>{m.withdrawnQty ?? <span className="muted">—</span>}</td>
                     <td>
-                      {editable ? (
+                      {/* Lo usado solo se declara sobre lo que YA salió de
+                          almacén: apuntar consumo de algo que no se retiró es
+                          inventar. */}
+                      {editable && m.status === 'RETIRADO' ? (
                         <input type="number" min={0} step="0.5" defaultValue={m.usedQty ?? ''}
                           style={{ width: 70 }}
                           onBlur={(e) => marcarUsado(m, e.target.value)} />
                       ) : (m.usedQty ?? '—')}
                     </td>
+                    <td>
+                      <EstadoMaterial m={m} />
+                      {m.porDevolver > 0 && (
+                        <div style={{ fontSize: 10, color: '#b45309' }}>
+                          sobran {m.porDevolver}
+                        </div>
+                      )}
+                    </td>
                     {editable && (
-                      <td><button className="btn-mini" onClick={() => quitar(m)}>Quitar</button></td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        {m.status === 'SOLICITADO' && (
+                          <>
+                            <button className="btn-mini" onClick={() => quitar(m)}>Quitar</button>
+                            {can('inventory.manage') && (
+                              <button className="btn-mini btn-danger" style={{ marginLeft: 4 }}
+                                onClick={() => rechazar(m)}>No autorizo</button>
+                            )}
+                          </>
+                        )}
+                      </td>
                     )}
                   </tr>
                 ))}
@@ -277,5 +399,31 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
         </>
       )}
     </Modal>
+  );
+}
+
+/**
+ * Etiqueta de estado de una línea de material.
+ * Se ve el estado en la propia fila y no solo en un contador: el técnico tiene
+ * que saber de un vistazo qué puede ya llevarse y qué sigue esperando firma.
+ */
+function EstadoMaterial({ m }: { m: any }) {
+  const mapa: Record<string, { t: string; c: string; f: string }> = {
+    SOLICITADO: { t: 'Pedido',    c: '#92400e', f: '#fff4e5' },
+    RETIRADO:   { t: 'Retirado',  c: '#166534', f: '#e7f7ee' },
+    DEVUELTO:   { t: 'Cerrado',   c: '#2e5496', f: '#eef4ff' },
+    RECHAZADO:  { t: 'No autorizado', c: '#991b1b', f: '#fdecec' },
+  };
+  const e = mapa[m.status] || mapa.SOLICITADO;
+  return (
+    <>
+      <span style={{
+        background: e.f, color: e.c, border: '1px solid ' + e.c + '33',
+        borderRadius: 20, padding: '2px 8px', fontSize: 10, fontWeight: 600,
+      }}>{e.t}</span>
+      {m.status === 'RECHAZADO' && m.rejectedReason && (
+        <div style={{ fontSize: 10, color: '#991b1b', marginTop: 2 }}>{m.rejectedReason}</div>
+      )}
+    </>
   );
 }

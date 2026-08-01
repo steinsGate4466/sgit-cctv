@@ -71,6 +71,51 @@ export class PreparacionController {
     return this.prep.quitarMaterial(materialId);
   }
 
+  // ---- Retiro de almacén (3D) ----
+
+  /**
+   * El ingeniero firma y sale TODO lo solicitado de una vez.
+   *
+   * Pide 'inventory.manage' y no 'wo.update' a propósito: quien autoriza la
+   * salida de almacén no es el mismo que ejecuta el trabajo. El técnico pide;
+   * el ingeniero descuenta stock. Separar esos dos permisos ES el control.
+   */
+  @Post('materials/retiro')
+  @RequirePermissions('inventory.manage')
+  generarRetiro(
+    @Param('id') id: string,
+    @Body() body: any,
+    @CurrentUser() user: any,
+    @Ip() ip: string,
+  ) {
+    return this.prep.generarRetiro(id, body || {}, user?.userId, ip);
+  }
+
+  /** No se autoriza una línea. El motivo es obligatorio. */
+  @Post('materials/:materialId/rechazar')
+  @RequirePermissions('inventory.manage')
+  rechazarMaterial(
+    @Param('materialId') materialId: string,
+    @Body() body: { motivo?: string },
+    @CurrentUser() user: any,
+    @Ip() ip: string,
+  ) {
+    return this.prep.rechazarMaterial(materialId, body?.motivo || '', user?.userId, ip);
+  }
+
+  /**
+   * Devuelve al almacén lo retirado y no usado.
+   *
+   * Aquí sí basta 'wo.update': devolver material NO es una operación de riesgo
+   * —solo puede aumentar el stock— y exigir al ingeniero para cerrar el ciclo
+   * garantizaría que nadie lo hace y que el almacén quede mintiendo.
+   */
+  @Post('materials/devolucion')
+  @RequirePermissions('wo.update')
+  devolver(@Param('id') id: string, @CurrentUser() user: any, @Ip() ip: string) {
+    return this.prep.devolverSobrante(id, user?.userId, ip);
+  }
+
   // ---- Reemplazo de equipo ----
 
   /** Equipos en almacén disponibles para reemplazo. */

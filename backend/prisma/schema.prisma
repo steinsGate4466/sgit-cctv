@@ -40,6 +40,7 @@ model User {
   auditLogs    AuditLog[]
   stockMovements StockMovement[]
   stockChecks    StockCheck[]
+  materialesRetirados WorkOrderMaterial[] @relation("MaterialRetiradoPor")
   accessRequested AccessRequest[] @relation("AccessRequester")
   accessReviewed  AccessRequest[] @relation("AccessReviewer")
   woOpened        WorkOrder[]     @relation("WoOpenedBy")
@@ -1122,6 +1123,17 @@ model WorkOrderTool {
 //  PREVIÓ y qué se USÓ en cada orden; el catálogo local se actualiza subiendo
 //  la exportación de SAP y sirve para comparar, no para reemplazarlo.
 // =====================================================================
+/// Estado de una LÍNEA de material dentro de la orden.
+/// El flujo real de planta: el técnico lista lo que necesita con su código SAP,
+/// el ingeniero lo autoriza y sale de almacén, y lo que sobra VUELVE.
+/// Sin el último paso el almacén miente y en tres meses nadie se fía del stock.
+enum MaterialStatus {
+  SOLICITADO  // el técnico lo pidió; todavía no salió de almacén
+  RETIRADO    // el ingeniero firmó y se descontó del stock
+  DEVUELTO    // sobró y volvió al almacén
+  RECHAZADO   // el ingeniero no lo autoriza, con motivo
+}
+
 model WorkOrderMaterial {
   id          String     @id @default(uuid())
   workOrderId String
@@ -1140,6 +1152,29 @@ model WorkOrderMaterial {
   /// Cantidad REALMENTE usada, al cerrar. La diferencia entre las dos es lo
   /// que dice si se está estimando bien.
   usedQty     Float?
+
+  // ---- Retiro de almacén (3D) ----
+  status         MaterialStatus @default(SOLICITADO)
+  /// Cantidad que SALIÓ de almacén. Puede no coincidir con lo previsto: el
+  /// ingeniero entrega lo que hay, no lo que se pidió.
+  withdrawnQty   Float?
+  /// Cantidad que VOLVIÓ. Se guarda, no se recalcula: el dato tiene que quedar.
+  returnedQty    Float?
+  /// Movimiento de stock del retiro. Es el hilo que une la orden con el
+  /// almacén: sin él, "se retiró" sería una afirmación sin respaldo.
+  movementId     String?
+  movement       StockMovement? @relation("MaterialRetiro", fields: [movementId], references: [id])
+  /// Movimiento de la devolución, si la hubo.
+  returnMovementId String?
+  returnMovement   StockMovement? @relation("MaterialDevolucion", fields: [returnMovementId], references: [id])
+  /// Quién firmó el retiro y cuándo. El ingeniero, no el técnico.
+  withdrawnById  String?
+  withdrawnBy    User?          @relation("MaterialRetiradoPor", fields: [withdrawnById], references: [id])
+  withdrawnAt    DateTime?
+  /// Motivo del rechazo. Obligatorio al rechazar: un "no" sin explicación hace
+  /// que el técnico vuelva a pedir lo mismo la semana siguiente.
+  rejectedReason String?
+
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
@@ -1269,6 +1304,10 @@ model StockMovement {
   userId      String?
   user        User?        @relation(fields: [userId], references: [id])
   createdAt   DateTime     @default(now())
+
+  // Lado inverso del retiro y la devolución de una línea de material (3D).
+  materialRetiro     WorkOrderMaterial[] @relation("MaterialRetiro")
+  materialDevolucion WorkOrderMaterial[] @relation("MaterialDevolucion")
 
   @@index([sparePartId])
   @@map("stock_movements")
