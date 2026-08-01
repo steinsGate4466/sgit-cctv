@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import Bandeja from './pages/Bandeja';
 import Assets from './pages/Assets';
 import Mapeo from './pages/Mapeo';
 import Cableado from './pages/Cableado';
@@ -34,6 +35,7 @@ export default function App() {
       >
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/bandeja" element={<Bandeja />} />
         <Route path="/trains" element={<TrainBoard />} />
         <Route path="/assets" element={<Assets />} />
         <Route path="/mapeo" element={<Mapeo />} />

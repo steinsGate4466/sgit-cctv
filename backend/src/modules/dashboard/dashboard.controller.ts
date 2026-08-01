@@ -1,16 +1,31 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { DashboardService } from './dashboard.service';
+import { BandejaService } from './bandeja.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('dashboard')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('dashboard')
 export class DashboardController {
-  constructor(private readonly dashboard: DashboardService) {}
+  constructor(
+    private readonly dashboard: DashboardService,
+    private readonly bandeja: BandejaService,
+  ) {}
+
+  /**
+   * LA BANDEJA: lo que espera una decisión, hoy, en una sola llamada.
+   * Un indicador se mira; una bandeja se VACÍA.
+   */
+  @Get('bandeja')
+  @RequirePermissions('dashboard.read')
+  miBandeja(@CurrentUser() user: any) {
+    return this.bandeja.bandeja(user?.userId);
+  }
 
   @Get('kpis')
   @RequirePermissions('dashboard.read')

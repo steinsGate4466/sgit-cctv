@@ -42,6 +42,9 @@ export default function Layout() {
     {
       titulo: '',
       items: [
+        // La bandeja va PRIMERA a propósito: es lo que hay que vaciar al
+        // llegar. El tablero se mira cuando ya no queda nada esperando.
+        can('dashboard.read') && <NavLink key="bd" to="/bandeja"><span className="ico">📥</span> Mi bandeja</NavLink>,
         can('dashboard.read') && <NavLink key="d" to="/dashboard"><span className="ico">▦</span> Dashboard</NavLink>,
         can('dashboard.read') && <NavLink key="t" to="/trains"><span className="ico">🚂</span> Estado por Tren</NavLink>,
       ].filter(Boolean) as ReactNode[],
