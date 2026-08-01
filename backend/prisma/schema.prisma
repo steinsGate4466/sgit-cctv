@@ -1180,6 +1180,13 @@ model WorkOrderMaterial {
 
   @@index([workOrderId])
   @@index([sparePartId])
+  // Estos dos los crea la migracion 20260802000000 y hay que DECLARARLOS aquí:
+  // si el esquema no los nombra, la comprobación de desfase del CI entiende que
+  // sobran en la base y falla. Fue un descuido mío y el CI lo cazó.
+  // Por estado, porque la consulta que se hará mil veces es "qué hay pendiente
+  // de retirar", no "dame todas las líneas".
+  @@index([status])
+  @@index([movementId])
   @@map("work_order_materials")
 }
 
