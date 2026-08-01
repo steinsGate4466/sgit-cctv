@@ -1,5 +1,6 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { api } from '../api/client';
+import RutinasEditor from '../components/RutinasEditor';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
 
@@ -21,6 +22,7 @@ export default function Preventive() {
   const [oms, setOms] = useState<any[]>([]);
   const [auto, setAuto] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [vista, setVista] = useState<'plan' | 'rutinas'>('plan');
   const [generating, setGenerating] = useState(false);
 
   const [form, setForm] = useState<any>(null);
@@ -115,10 +117,25 @@ export default function Preventive() {
           <p className="page-sub">Programación por activo · 30 días en zonas críticas (suciedad), 60 días en el resto</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          {can('wo.create') && <button className="btn-mini" onClick={openNew}>+ Nuevo plan</button>}
-          {can('wo.create') && <button className="btn-primary" disabled={generating} onClick={generate}>{generating ? 'Generando…' : 'Generar OM vencidas'}</button>}
+          {vista === 'plan' && can('wo.create') && <button className="btn-mini" onClick={openNew}>+ Nuevo plan</button>}
+          {vista === 'plan' && can('wo.create') && <button className="btn-primary" disabled={generating} onClick={generate}>{generating ? 'Generando…' : 'Generar OM vencidas'}</button>}
         </div>
       </div>
+
+      {/* El PLAN dice CUÁNDO se visita cada equipo. La RUTINA dice QUÉ se hace
+          en esa visita. Son las dos mitades del preventivo y hasta ahora solo
+          existía la primera. */}
+      <div className="tabs" style={{ margin: '14px 0' }}>
+        <button className={vista === 'plan' ? 'tab active' : 'tab'}
+          onClick={() => setVista('plan')}>Plan · cuándo</button>
+        <button className={vista === 'rutinas' ? 'tab active' : 'tab'}
+          onClick={() => setVista('rutinas')}>Rutinas · qué se hace</button>
+      </div>
+
+      {vista === 'rutinas' && <RutinasEditor />}
+
+      {vista === 'plan' && (
+      <>
 
       {auto && (
         <div className="sign-note" style={{ marginBottom: 16 }}>
@@ -218,6 +235,9 @@ export default function Preventive() {
           </form>
         </Modal>
       )}
+      </>
+      )}
+
     </div>
   );
 }

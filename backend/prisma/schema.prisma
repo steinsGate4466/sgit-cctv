@@ -908,6 +908,7 @@ model WorkOrder {
   // ---- Preparación y consumo (Bloque 2f) ----
   tools         WorkOrderTool[]
   materialItems WorkOrderMaterial[]
+  checklist     WorkOrderChecklist[]
   swaps         WorkOrderSwap[]
 
   @@index([assetId])
@@ -1198,6 +1199,82 @@ model CatalogItem {
   @@unique([kind, code])
   @@index([kind, active])
   @@map("catalog_items")
+}
+
+/// Resultado de un punto de la rutina preventiva.
+enum ChecklistResult {
+  OK
+  NO_OK
+  NO_APLICA
+}
+
+/// RUTINA PREVENTIVA POR TIPO DE ACTIVO (bloque 3F-2).
+///
+/// POR QUÉ POR TIPO DE ACTIVO Y NO UNA SOLA
+/// Una cámara, un grabador y una antena no se mantienen igual. La cámara lleva
+/// limpieza de lente, sello y fijación; el grabador lleva discos, ventilación y
+/// sesiones; la antena, alineación y tensado. Una lista única obligaría al
+/// técnico a ir descartando lo que no toca, que es justo el trabajo mental que
+/// queremos quitarle.
+///
+/// LO QUE HAY DENTRO NO LO ESCRIBO YO. La plantilla nace vacía y la llenan
+/// ustedes: yo no sé qué se revisa en una cámara del Tren 2.
+model ChecklistTemplate {
+  id        String    @id @default(uuid())
+  /// Una rutina por tipo de activo. Única: dos rutinas para cámaras acabarían
+  /// divergiendo y nadie sabría cuál es la buena.
+  assetType AssetType @unique
+  name      String
+  active    Boolean   @default(true)
+  items     ChecklistItem[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("checklist_templates")
+}
+
+model ChecklistItem {
+  id         String            @id @default(uuid())
+  templateId String
+  template   ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  /// Lo que el técnico tiene que comprobar, en imperativo y sin ambigüedad.
+  /// "Limpiar el lente y comprobar imagen en el púlpito", no "revisar cámara".
+  text       String
+  /// Ayuda opcional: cómo se hace o con qué. Se enseña bajo el punto.
+  help       String?
+  sequence   Int               @default(0)
+  /// Si este punto sale NO OK, el sistema PROPONE un correctivo. Se marca solo
+  /// en lo que de verdad deja el equipo comprometido: no todo hallazgo es una
+  /// orden nueva, y llenar el tablero de órdenes que nadie pidió lo vuelve
+  /// papel mojado.
+  critical   Boolean           @default(false)
+  active     Boolean           @default(true)
+  answers    WorkOrderChecklist[]
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  @@index([templateId, active])
+  @@map("checklist_items")
+}
+
+/// Lo que el técnico respondió en UNA orden concreta.
+model WorkOrderChecklist {
+  id          String          @id @default(uuid())
+  workOrderId String
+  workOrder   WorkOrder       @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  itemId      String
+  item        ChecklistItem   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  result      ChecklistResult
+  /// Detalle solo cuando hace falta: obligatorio si el punto sale NO OK.
+  /// Un "no conforme" sin explicación no sirve para nada.
+  note        String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  /// Una respuesta por punto y orden: volver a responder ACTUALIZA, no duplica.
+  @@unique([workOrderId, itemId])
+  @@index([workOrderId])
+  @@map("work_order_checklist")
 }
 
 model WorkOrderMaterial {

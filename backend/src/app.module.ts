@@ -15,6 +15,7 @@ import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 import { IncidentsModule } from './modules/incidents/incidents.module';
 import { TroubleshootingModule } from './modules/troubleshooting/troubleshooting.module';
 import { DocumentsModule } from './modules/documents/documents.module';
+import { ChecklistModule } from './modules/checklist/checklist.module';
 import { CatalogosModule } from './modules/catalogos/catalogos.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { AuditModule } from './modules/audit/audit.module';
@@ -38,6 +39,7 @@ import { PredictiveModule } from './modules/predictive/predictive.module';
     MaintenanceModule,
     IncidentsModule,
     TroubleshootingModule,
+    ChecklistModule,   // rutina preventiva por tipo de activo (3F-2)
     CatalogosModule,   // causas, sintomas, acciones y motivos, editables (3E)
     DashboardModule,
     AuditModule,

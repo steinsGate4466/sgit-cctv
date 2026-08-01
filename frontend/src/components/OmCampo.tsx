@@ -7,6 +7,7 @@ import { useAuth } from '../auth/AuthContext';
 // duracion, y porque CAUSA_ES aun traduce las causas de ordenes ANTIGUAS.
 import { fh, duracion } from '../pages/omCatalogos';
 import OmHerramientas, { HerramientaMarcada } from './OmHerramientas';
+import RutinaEnCampo from './RutinaEnCampo';
 
 /**
  * Pantallas de EJECUCIÓN EN CAMPO de una orden de mantenimiento.
@@ -59,6 +60,8 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
   // ---- material retirado y no usado (solo al cerrar) ----
   const [sobrante, setSobrante] = useState<any[]>([]);
   const [devolviendo, setDevolviendo] = useState(false);
+  // Motivo por el que la rutina preventiva impide cerrar, si lo hay.
+  const [bloqueoRutina, setBloqueoRutina] = useState<string | null>(null);
 
   // ---- herramientas (solo al abrir) ----
   const [herramientas, setHerramientas] = useState<HerramientaMarcada[]>([]);
@@ -157,6 +160,15 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
           );
           if (!ok) { setGuardando(false); return; }
         }
+        // LA RUTINA MANDA: si quedan puntos sin responder, o un "no conforme"
+        // sin explicar, no se cierra. El servidor no lo sabe —el cierre es una
+        // operación aparte— así que se comprueba aquí, con el motivo exacto.
+        if (bloqueoRutina) {
+          setError('No se puede cerrar: ' + bloqueoRutina);
+          setGuardando(false);
+          return;
+        }
+
         // MATERIAL SIN DEVOLVER
         // El cable UTP es el caso normal, no la excepción: se retira un rollo
         // o un tramo largo y se usa lo que hace falta. Si esto no se pregunta
@@ -328,6 +340,13 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
                 {wo.openedBy?.fullName ? ` por ${wo.openedBy.fullName}` : ''}
                 {wo.companion?.fullName ? ` · acompañó ${wo.companion.fullName}` : ''}
               </div>
+            )}
+
+            {/* LA RUTINA, SOLO EN PREVENTIVO.
+                En un correctivo no hay rutina que seguir: se va a arreglar algo
+                concreto. Enseñarla ahí sería ruido. */}
+            {wo.type === 'PREVENTIVO' && (
+              <RutinaEnCampo workOrderId={wo.id} onCambio={setBloqueoRutina} />
             )}
 
             {sobrante.length > 0 && (
