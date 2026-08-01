@@ -2,36 +2,93 @@
 //  SGIT-CCTV — DIAGNOSTICO DE DESFASE ENTRE EL ESQUEMA Y LA BASE REAL
 //
 //  POR QUE EXISTE
-//  El endpoint /dashboard/infra/tren/:code fallaba con P2022:
-//    "The column work_orders.progressPct does not exist in the current database"
-//  La columna SI esta en schema.prisma y SI la crea la migracion
-//  20260729120000_om_ejecucion_campo. Es decir: el codigo esta bien y la BASE
-//  DE PRODUCCION esta desfasada. Eso significa que puede faltar mucho mas que
-//  una columna, y hay que saber QUE falta antes de tocar nada.
+//  El 30/07/2026 faltaban en produccion una tabla y dos columnas que su
+//  migracion decia haber creado. Causa: la migracion se edito DESPUES de
+//  aplicarse. El CI no lo vio porque aplica las migraciones sobre una base
+//  LIMPIA, donde todo funciona. Esto comprueba la base de VERDAD.
 //
-//  EL CI NO PODIA DETECTARLO: aplica las migraciones sobre una base LIMPIA, y
-//  ahi todo funciona. Lo que no comprueba es si PRODUCCION recibio todas.
+//  ---------------------------------------------------------------------------
+//  POR QUE LEE EL ESQUEMA EN EL MOMENTO Y NO LLEVA UNA LISTA DENTRO
+//
+//  La primera version llevaba las 42 tablas y 389 columnas EMPOTRADAS, tal
+//  como estaban el dia que se escribio. Dos bloques despues (3D y 3D-bis) esa
+//  lista ya estaba vieja: no conocia work_order_materials.status ni ninguna de
+//  las columnas nuevas, asi que NO habria detectado que faltaran.
+//
+//  Un verificador desactualizado es PEOR que no tener ninguno: da tranquilidad
+//  falsa. Y la tranquilidad falsa es exactamente lo que nos llevo al desastre.
+//
+//  Ahora lee prisma/schema.prisma cada vez que se ejecuta. No se puede quedar
+//  atras porque no guarda nada.
+//  ---------------------------------------------------------------------------
 //
 //  QUE HACE
 //   1) Lee el registro de migraciones (_prisma_migrations) con su estado.
-//   2) Compara las 42 tablas y 389 columnas que espera el esquema contra las
-//      que existen de verdad.
-//   3) Compara los 28 tipos enumerados.
-//   4) Imprime SOLO las diferencias, y propone el orden de arreglo.
+//   2) Compara TODAS las tablas, columnas y tipos enumerados del esquema
+//      actual contra los que existen de verdad.
+//   3) Imprime SOLO las diferencias y sale con codigo 1 si falta algo, para
+//      que sirva en el CI.
 //
 //  NO MODIFICA NADA. Es de solo lectura.
 //
 //  USO
 //    cd backend
-//    node scripts/diagnostico-bd.js "postgresql://usuario:clave@host:puerto/base"
-//  o, si la variable ya esta en el entorno:
-//    node scripts/diagnostico-bd.js
+//    npm run verificar:bd                          (usa DATABASE_URL)
+//    node scripts/diagnostico-bd.js "postgresql://..."
 // ============================================================================
+const fs = require('fs');
+const path = require('path');
 const { PrismaClient } = require('@prisma/client');
 
-const ESPERADO = {"access_request_photos": ["caption", "createdAt", "fileId", "id", "requestId"], "access_requests": ["accessRoute", "assetId", "code", "createdAt", "decisionNotes", "eppDetail", "hasAts", "hasIperc", "heightMeters", "id", "justification", "locationKind", "means", "personnelCount", "productionImpact", "requestedById", "requiresPetar", "reviewedAt", "reviewedById", "risks", "status", "updatedAt"], "asset_cables": ["category", "code", "createdAt", "fromAssetId", "fromPortNumber", "id", "installedAt", "meters", "metersEstimated", "notes", "route", "shielded", "status", "toAssetId", "updatedAt"], "asset_cameras": ["assetId", "cameraStyle", "cameraUser", "ipAddress", "macAddress", "nvrChannel", "nvrId", "nvrName", "poeSourcePortId", "resolution", "rtspUrl", "switchPortId", "vlanId", "wirelessUplinkId"], "asset_decoders": ["assetId", "mgmtIp", "outputCount", "sourceNvrId"], "asset_history": ["assetId", "changedBy", "createdAt", "field", "id", "newValue", "oldValue"], "asset_nvrs": ["assetId", "capacityTb", "channels", "diskCount", "hasLocalDisk", "nicPrimary", "nicSecondary", "switchIdDirect"], "asset_pcs": ["assetId", "hostname", "ivmsVersion", "nvrsConfigured", "os", "videoOutputs"], "asset_photos": ["assetId", "caption", "createdAt", "fileId", "id", "kind"], "asset_screens": ["assetId", "label", "layout", "sizeInch", "sourceKind", "sourcePcAssetId"], "asset_switches": ["assetId", "mgmtIp", "mgmtNetwork", "poeBudgetW", "poePorts", "portCount", "switchRole", "vendor"], "asset_wireless": ["assetId", "destPoint", "frequency", "hasCredentials", "linkStable", "mode", "originPoint", "parentWirelessId", "signalDbm", "ssid", "switchPortId", "vendor"], "assets": ["assetCode", "brand", "cabinetId", "costCenter", "createdAt", "criticality", "deletedAt", "firmware", "id", "installDate", "ipAddress", "isDraft", "locationId", "mappedInWorkOrderId", "model", "referencePlace", "responsibleArea", "sapId", "serialNumber", "status", "train", "type", "updatedAt", "warrantyEnd"], "audit_logs": ["action", "after", "before", "createdAt", "entity", "entityId", "id", "ip", "userId"], "cabinets": ["code", "createdAt", "id", "locationId", "name", "notes", "photoFileId", "referencePlace", "updatedAt"], "credentials": ["assetId", "createdAt", "id", "secretEnc", "type", "username"], "decoder_outputs": ["decoderAssetId", "id", "number", "screenAssetId", "type"], "documents": ["assetId", "category", "createdAt", "fileId", "id", "locationId", "title", "uploadedBy", "version"], "incident_evidences": ["caption", "createdAt", "fileId", "id", "incidentId"], "incidents": ["affectedCameras", "assetId", "category", "code", "concurrentSessions", "description", "id", "interveners", "lineManagerNotified", "materials", "mttrMinutes", "observations", "priority", "proposal", "proposalCost", "proposalRisk", "reportedAt", "requiresThirdParty", "resolvedAt", "responsibleId", "responsibleName", "rootCause", "solution", "status", "title", "visionDownMin", "zone"], "locations": ["code", "costCenter", "createdAt", "environment", "howToGet", "id", "name", "parentId", "path", "photoFileId", "responsibleArea", "sapLocationCode", "stageId", "type", "updatedAt"], "network_links": ["description", "endpointAId", "endpointBId", "id", "isRing", "medium"], "permissions": ["code", "description", "id"], "preventive_plans": ["active", "assetId", "createdAt", "id", "intervalDays", "lastServiceAt", "nextDueAt", "updatedAt", "zoneCritical"], "process_stages": ["active", "baseCriticality", "code", "createdAt", "defaultIntervalDays", "environment", "id", "name", "sequence", "updatedAt", "watches"], "role_permissions": ["permissionId", "roleId"], "roles": ["description", "id", "name"], "screen_cells": ["cameraAssetId", "id", "position", "screenAssetId"], "spare_part_assets": ["assetId", "id", "sparePartId"], "spare_parts": ["brand", "category", "createdAt", "currentStock", "description", "id", "lastCheckedAt", "minStock", "model", "name", "sapCode", "unit", "updatedAt", "warehouse"], "stock_checks": ["checkedAt", "countedQty", "id", "note", "previousQty", "sparePartId", "userId"], "stock_movements": ["createdAt", "id", "quantity", "reason", "sapCode", "sparePartId", "type", "userId"], "switch_ports": ["assetSwitchId", "connectedAssetId", "id", "poe", "portNumber", "switchId", "vlanNumber"], "tools": ["active", "category", "code", "createdAt", "id", "name", "notes", "updatedAt"], "users": ["active", "createdAt", "email", "fullName", "id", "lastLoginAt", "passwordHash", "pinHash", "pinUpdatedAt", "roleId", "updatedAt"], "vlans": ["id", "name", "number", "role", "subnet"], "work_order_evidences": ["caption", "createdAt", "fileId", "id", "workOrderId"], "work_order_materials": ["createdAt", "description", "id", "plannedQty", "sapCode", "sparePartId", "unit", "updatedAt", "usedQty", "workOrderId"], "work_order_progress": ["id", "note", "pct", "reportedAt", "reportedById", "workOrderId"], "work_order_swaps": ["createdAt", "id", "installedAssetId", "note", "removedAssetId", "workOrderId"], "work_order_tools": ["carried", "id", "note", "toolId", "workOrderId"], "work_orders": ["activity", "assetId", "closedById", "code", "companionId", "condition", "createdAt", "diagnosis", "endedAt", "executedDate", "externalRef", "id", "incidentId", "isRecurrent", "locationId", "materials", "openedById", "plannedDurationMin", "plannedStopAt", "progressPct", "receivedAt", "requestChannel", "requestedBy", "responsible", "rootCause", "rootCauseNote", "scheduledDate", "spareParts", "startedAt", "status", "technicianId", "type", "updatedAt", "zone"]};
+// ---------------------------------------------------------------------------
+//  Lectura del esquema. Se saca de aqui lo que la base DEBERIA tener.
+// ---------------------------------------------------------------------------
+function leerEsquema() {
+  const ruta = path.join(__dirname, '..', 'prisma', 'schema.prisma');
+  if (!fs.existsSync(ruta)) {
+    throw new Error(`No se encuentra el esquema en ${ruta}`);
+  }
+  const src = fs.readFileSync(ruta, 'utf8');
 
-const ENUMS = ["AccessMeans", "AccessRequestStatus", "AssetStatus", "AssetType", "CableCategory", "CableRoute", "CableStatus", "Criticality", "DocumentCategory", "Environment", "IncidentCategory", "IncidentStatus", "LinkMedium", "LocationType", "MgmtNetwork", "MovementType", "PhotoKind", "PlantTrain", "Priority", "RequestChannel", "RootCause", "ScreenLayout", "ScreenSource", "SwitchRole", "VideoOutputType", "WirelessMode", "WorkOrderStatus", "WorkOrderType"];
+  const enums = [...src.matchAll(/^enum\s+(\w+)\s*\{/gm)].map((m) => m[1]);
+
+  // Primero los nombres de modelo: hacen falta para distinguir una RELACION
+  // (que no es columna) de un campo escalar.
+  const nombresModelo = new Set([...src.matchAll(/^model\s+(\w+)\s*\{/gm)].map((m) => m[1]));
+
+  const esperado = {};
+  for (const m of src.matchAll(/^model\s+(\w+)\s*\{([\s\S]*?)^\}/gm)) {
+    const cuerpo = m[2];
+
+    // El nombre real de la tabla puede diferir del modelo: @@map("...").
+    const mapa = cuerpo.match(/@@map\("([^"]+)"\)/);
+    const tabla = mapa ? mapa[1] : m[1];
+
+    const columnas = [];
+    for (const linea of cuerpo.split('\n')) {
+      const t = linea.trim();
+      if (!t || t.startsWith('//') || t.startsWith('@@')) continue;
+
+      const f = t.match(/^(\w+)\s+(\w+)(\[\])?(\??)(.*)$/);
+      if (!f) continue;
+      const [, campo, tipo, lista, , resto] = f;
+
+      // Una relacion no es una columna: la columna es su campo de clave ajena,
+      // que se declara aparte.
+      if (nombresModelo.has(tipo)) continue;
+      // Las listas escalares (ej. WorkOrderType[]) las guarda Postgres como
+      // array en la misma tabla, pero se omiten para no dar falsos positivos:
+      // el comparador solo mira nombres.
+      if (lista) continue;
+
+      const conMapa = (resto || '').match(/@map\("([^"]+)"\)/);
+      columnas.push(conMapa ? conMapa[1] : campo);
+    }
+    esperado[tabla] = columnas.sort();
+  }
+
+  return { esperado, enums };
+}
 
 const url = process.argv[2] || process.env.DATABASE_URL;
 if (!url) {
@@ -46,6 +103,11 @@ function titulo(t) { console.log('\n' + '='.repeat(70) + '\n ' + t + '\n' + '='.
 
 (async () => {
   try {
+    const { esperado, enums } = leerEsquema();
+    const nTablas = Object.keys(esperado).length;
+    const nColumnas = Object.values(esperado).reduce((a, c) => a + c.length, 0);
+    console.log(`Esquema leido en este momento: ${nTablas} tablas · ${nColumnas} columnas · ${enums.length} enums`);
+
     // ------------------------------------------------- 1. migraciones
     titulo('REGISTRO DE MIGRACIONES');
     let migs = [];
@@ -73,46 +135,41 @@ function titulo(t) { console.log('\n' + '='.repeat(70) + '\n ' + t + '\n' + '='.
        ORDER BY table_name, column_name`);
     const real = {};
     for (const f of filas) {
-      const t = f.table_name;
-      if (!real[t]) real[t] = new Set();
-      real[t].add(f.column_name);
+      if (!real[f.table_name]) real[f.table_name] = new Set();
+      real[f.table_name].add(f.column_name);
     }
 
     titulo('TABLAS QUE FALTAN');
-    const tablasFaltan = Object.keys(ESPERADO).filter((t) => !real[t]).sort();
-    if (!tablasFaltan.length) console.log('  Ninguna. Las 42 tablas existen.');
+    const tablasFaltan = Object.keys(esperado).filter((t) => !real[t]).sort();
+    if (!tablasFaltan.length) console.log(`  Ninguna. Las ${nTablas} tablas existen.`);
     else tablasFaltan.forEach((t) => console.log('  FALTA tabla: ' + t));
 
     titulo('COLUMNAS QUE FALTAN');
     let totalCols = 0;
-    for (const t of Object.keys(ESPERADO).sort()) {
+    for (const t of Object.keys(esperado).sort()) {
       if (!real[t]) continue;
-      const faltan = ESPERADO[t].filter((c) => !real[t].has(c));
+      const faltan = esperado[t].filter((c) => !real[t].has(c));
       if (faltan.length) {
         console.log(`  ${t}:`);
         faltan.forEach((c) => console.log('      FALTA  ' + c));
         totalCols += faltan.length;
       }
     }
-    if (!totalCols) console.log('  Ninguna. Las 389 columnas existen.');
+    if (!totalCols) console.log(`  Ninguna. Las ${nColumnas} columnas existen.`);
 
     titulo('COLUMNAS DE SOBRA (existen en la base y no en el esquema)');
     let sobra = 0;
-    for (const t of Object.keys(ESPERADO).sort()) {
+    for (const t of Object.keys(esperado).sort()) {
       if (!real[t]) continue;
-      const extra = [...real[t]].filter((c) => !ESPERADO[t].includes(c)).sort();
-      if (extra.length) {
-        console.log(`  ${t}: ` + extra.join(', '));
-        sobra += extra.length;
-      }
+      const extra = [...real[t]].filter((c) => !esperado[t].includes(c)).sort();
+      if (extra.length) { console.log(`  ${t}: ` + extra.join(', ')); sobra += extra.length; }
     }
     if (!sobra) console.log('  Ninguna.');
     else {
-      console.log('  (No siempre son un problema. Dos casos distintos:');
+      console.log('  (No siempre es un problema. Dos casos distintos:');
       console.log('    - columnas conservadas a proposito, como assets.train;');
       console.log('    - listas escalares como tools.suggestedFor, que este');
-      console.log('      comparador no cuenta como esperadas. Es un falso positivo');
-      console.log('      mio, no un desfase.)');
+      console.log('      comparador omite. Eso es cosa mia, no un desfase.)');
     }
 
     // ------------------------------------------------- 3. enums
@@ -122,32 +179,32 @@ function titulo(t) { console.log('\n' + '='.repeat(70) + '\n ' + t + '\n' + '='.
        JOIN pg_namespace n ON n.oid = t.typnamespace
        WHERE t.typtype = 'e' AND n.nspname = 'public'`);
     const existentes = new Set(tipos.map((x) => x.typname));
-    const enumsFaltan = ENUMS.filter((e) => !existentes.has(e));
-    if (!enumsFaltan.length) console.log('  Ninguno. Los 28 tipos existen.');
+    const enumsFaltan = enums.filter((e) => !existentes.has(e));
+    if (!enumsFaltan.length) console.log(`  Ninguno. Los ${enums.length} tipos existen.`);
     else enumsFaltan.forEach((e) => console.log('  FALTA enum: ' + e));
 
     // ------------------------------------------------- 4. veredicto
     titulo('VEREDICTO');
     const roto = tablasFaltan.length + totalCols + enumsFaltan.length;
     if (!roto) {
-      console.log('  La base coincide con el esquema. El desfase ya no existe.');
+      console.log('  La base coincide con el esquema. No hay desfase.');
     } else {
-      // Salir con error para que sirva en el CI: un desfase de produccion tiene
-      // que romper la comprobacion, no solo imprimir un aviso que nadie lee.
+      // Sale con error para que sirva en el CI: un desfase de produccion tiene
+      // que ROMPER la comprobacion, no imprimir un aviso que nadie lee.
       process.exitCode = 1;
       console.log(`  ${tablasFaltan.length} tabla(s), ${totalCols} columna(s) y ${enumsFaltan.length} enum(s) sin crear.`);
       console.log('');
-      console.log('  Esto NO se arregla volviendo a lanzar las migraciones: las que');
-      console.log('  aparecen como "ok" arriba no se vuelven a ejecutar. Hace falta una');
-      console.log('  migracion de reparacion idempotente (ADD COLUMN IF NOT EXISTS), que');
-      console.log('  funcione tanto en la base desfasada como en una limpia.');
+      console.log('  Esto NO se arregla relanzando las migraciones: las que');
+      console.log('  figuran aplicadas no se vuelven a ejecutar. Hace falta una');
+      console.log('  migracion de reparacion idempotente (ADD COLUMN IF NOT');
+      console.log('  EXISTS), como 20260801000000_reparar_desfase_om.');
       console.log('');
-      console.log('  Copiame TODO este informe y te la preparo.');
+      console.log('  Y la regla que evita que vuelva a pasar: una migracion ya');
+      console.log('  aplicada es INMUTABLE. Lo que falto va en una NUEVA.');
     }
     if (problematicas.length) {
       console.log('');
       console.log('  ATENCION: hay migraciones marcadas REVERTIDA o SIN TERMINAR.');
-      console.log('  Esa es la causa mas probable del desfase.');
     }
   } catch (e) {
     console.error('\nFALLO EL DIAGNOSTICO: ' + e.message.split('\n')[0]);
