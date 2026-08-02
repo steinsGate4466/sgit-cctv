@@ -4,8 +4,4 @@ export class QuerySpareDto {
   @IsOptional() @IsString() q?: string;        // nombre, código SAP, modelo, categoría
   @IsOptional() @IsString() category?: string;
   @IsOptional() @IsString() lowStock?: string; // 'true' -> solo faltantes
-
-  // ---- Paginación ----
-  @IsOptional() @IsString() page?: string;
-  @IsOptional() @IsString() pageSize?: string;
 }

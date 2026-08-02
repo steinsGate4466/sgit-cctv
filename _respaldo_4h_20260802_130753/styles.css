@@ -943,24 +943,3 @@ input:disabled, select:disabled { background: #f2f4f8; color: var(--muted); curs
   .aviso-red { padding: 10px 12px; font-size: 12.5px; }
   .aviso-red-btn { min-height: 44px; }
 }
-
-/* ------------------------------------------------------- PAGINACIÓN
-   Siempre dice el TOTAL, aunque haya una sola página: es el dato que evita
-   creer que hay 50 repuestos porque son los que caben en la pantalla. */
-.paginacion {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; flex-wrap: wrap; padding: 12px 4px 4px;
-}
-.paginacion-cuenta { font-size: 12.5px; color: var(--muted); }
-.paginacion-botones { display: flex; align-items: center; gap: 8px; }
-.paginacion-pag {
-  font-size: 12.5px; color: var(--tinta); font-weight: 600;
-  font-variant-numeric: tabular-nums; min-width: 52px; text-align: center;
-}
-.paginacion .btn-mini:disabled { opacity: .45; cursor: default; }
-.paginacion .btn-mini:disabled:hover { background: #fff; color: var(--steel); border-color: #d8e1f0; }
-@media (max-width: 780px) {
-  .paginacion { justify-content: center; }
-  .paginacion-cuenta { width: 100%; text-align: center; }
-  .paginacion .btn-mini { min-height: 44px; padding: 10px 16px; }
-}

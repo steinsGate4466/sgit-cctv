@@ -41,47 +41,12 @@ export class InventoryService {
       ];
     }
     if (q.category) where.category = q.category;
-
-    // BAJO MÍNIMO: se filtra en la BASE, no después de traer las filas.
-    //
-    // Antes se traía todo y se filtraba en memoria con .filter(). Al paginar,
-    // eso se convierte en un fallo silencioso: se filtraría sólo la página
-    // actual, así que "50 repuestos bajo mínimo" podría enseñar 3 porque los
-    // otros 47 estaban en la página siguiente. Un contador que miente sobre
-    // repuestos es cómo se llega al día de la parada sin la pieza.
-    //
-    // Prisma no compara dos columnas entre sí, así que los identificadores
-    // salen de una consulta cruda y se usan como filtro normal.
-    if (q.lowStock === 'true') {
-      const bajos = await this.prisma.$queryRaw<{ id: string }[]>`
-        SELECT id FROM spare_parts WHERE "currentStock" <= "minStock"
-      `;
-      where.id = { in: bajos.map((b) => b.id) };
-    }
-
-    // PAGINACIÓN. El almacén de SAP puede traer miles de referencias tras la
-    // importación del Excel: traerlas todas en cada consulta es lento y, en
-    // el celular del técnico, directamente insostenible.
-    const page = Math.max(1, Number(q.page) || 1);
-    const pageSize = Math.min(200, Math.max(1, Number(q.pageSize) || 50));
-
-    const [total, rows] = await Promise.all([
-      this.prisma.sparePart.count({ where }),
-      this.prisma.sparePart.findMany({
-        where, orderBy: { name: 'asc' },
-        include: { _count: { select: { assets: true } } },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-      }),
-    ]);
-
-    return {
-      items: rows.map(flags),
-      total,
-      page,
-      pageSize,
-      pages: Math.max(1, Math.ceil(total / pageSize)),
-    };
+    const rows = await this.prisma.sparePart.findMany({
+      where, orderBy: { name: 'asc' },
+      include: { _count: { select: { assets: true } } },
+    });
+    const data = rows.map(flags);
+    return q.lowStock === 'true' ? data.filter((r) => r.lowStock) : data;
   }
 
   async findOne(id: string) {

@@ -93,43 +93,21 @@ export class CablesService {
       condiciones.push({ OR: [{ fromAssetId: q.assetId }, { toAssetId: q.assetId }] });
     }
 
-    const where = {
-      status: q.status,
-      category: q.category,
-      ...(condiciones.length ? { AND: condiciones } : {}),
-      // Filtro directo para el listado de "tramos fuera de norma".
-      ...(q.fueraNorma === 'true' ? { meters: { gt: LIMITE_TRAMO_M } } : {}),
-    };
-
-    // PAGINACIÓN. Hasta ahora esto se traía TODOS los tramos de la planta en
-    // cada consulta. Con doscientos no se notaba; el día que Laminación tenga
-    // dos mil, la pantalla tarda y en un celular directamente se queda sin
-    // memoria. Y el día que eso pase, pasará en planta.
-    const page = Math.max(1, Number(q.page) || 1);
-    // Tope de 200: protege de un ?pageSize=100000 que anularía la paginación.
-    const pageSize = Math.min(200, Math.max(1, Number(q.pageSize) || 50));
-
-    const [total, rows] = await Promise.all([
-      this.prisma.assetCable.count({ where }),
-      this.prisma.assetCable.findMany({
-        where,
-        include: {
-          fromAsset: { select: { id: true, assetCode: true, type: true } },
-          toAsset: { select: { id: true, assetCode: true, type: true } },
-        },
-        orderBy: [{ status: 'asc' }, { meters: 'desc' }],
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-      }),
-    ]);
-
-    return {
-      items: rows.map((c) => ({ ...c, avisos: CablesService.avisos(c) })),
-      total,
-      page,
-      pageSize,
-      pages: Math.max(1, Math.ceil(total / pageSize)),
-    };
+    const rows = await this.prisma.assetCable.findMany({
+      where: {
+        status: q.status,
+        category: q.category,
+        ...(condiciones.length ? { AND: condiciones } : {}),
+        // Filtro directo para el listado de "tramos fuera de norma".
+        ...(q.fueraNorma === 'true' ? { meters: { gt: LIMITE_TRAMO_M } } : {}),
+      },
+      include: {
+        fromAsset: { select: { id: true, assetCode: true, type: true } },
+        toAsset: { select: { id: true, assetCode: true, type: true } },
+      },
+      orderBy: [{ status: 'asc' }, { meters: 'desc' }],
+    });
+    return rows.map((c) => ({ ...c, avisos: CablesService.avisos(c) }));
   }
 
   async create(dto: CreateCableDto, userId?: string | null, ip?: string | null) {

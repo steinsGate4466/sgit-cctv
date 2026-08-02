@@ -57,11 +57,4 @@ export class QueryCableDto {
   // ---- Ámbito de planta (3B-2) ----
   @IsOptional() @IsString() tren?: string;
   @IsOptional() @IsString() etapa?: string;
-
-  // ---- Paginación ----
-  // Llegan como texto en la URL; se convierten en el servicio. No se usa
-  // @Type(() => Number) porque un "?page=abc" daría NaN silenciosamente y
-  // acabaría en un skip: NaN. Convertir con tope y mínimo es más seguro.
-  @IsOptional() @IsString() page?: string;
-  @IsOptional() @IsString() pageSize?: string;
 }

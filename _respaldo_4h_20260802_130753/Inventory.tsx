@@ -1,6 +1,5 @@
 import { useEffect, useState, FormEvent, ReactNode } from 'react';
 import { api } from '../api/client';
-import Paginacion from '../components/Paginacion';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
 import InventarioHerramientas from '../components/InventarioHerramientas';
@@ -41,11 +40,6 @@ export default function Inventory() {
   const [fq, setFq] = useState('');
   const [fCat, setFCat] = useState('');
   const [onlyLow, setOnlyLow] = useState(false);
-  const [meta, setMeta] = useState<any>(null);
-  // La página vuelve a 1 al cambiar de filtro: si no, se filtra estando en la
-  // página 7 y sale vacío, que se lee como "no hay repuestos" cuando en
-  // realidad hay dos, en la página 1.
-  const [pagina, setPagina] = useState(1);
 
   const [form, setForm] = useState<any>(null);      // crear/editar
   const [saving, setSaving] = useState(false);
@@ -62,35 +56,22 @@ export default function Inventory() {
     if (fq.trim()) params.set('q', fq.trim());
     if (fCat) params.set('category', fCat);
     if (onlyLow) params.set('lowStock', 'true');
-    params.set('page', String(pagina));
-    params.set('pageSize', '50');
     const [list, sum, ast] = await Promise.all([
-      api.get('/inventory?' + params.toString()).then((r) => r.data).catch(() => null),
+      api.get('/inventory?' + params.toString()).then((r) => r.data).catch(() => []),
       api.get('/inventory/summary').then((r) => r.data).catch(() => null),
       api.get('/assets/options').then((r) => r.data).catch(() => []),
     ]);
-    // Ahora llega { items, total, page, pages }. Se acepta también un array
-    // por si el backend todavía es el anterior: el despliegue va en dos pasos.
-    setRows(Array.isArray(list) ? list : list?.items || []);
-    setMeta(Array.isArray(list) ? null : list);
+    setRows(list || []);
     setSummary(sum);
     setAssets(ast || []);
     setLoading(false);
   }
-  // ANTES la carga era única al montar y los filtros NO recargaban: se
-  // marcaba "solo faltantes" y no pasaba nada hasta pulsar Enter en el
-  // buscador. Con el filtro ya en el servidor (y con paginación), tiene que
-  // recargar al cambiar cualquier filtro o de página.
-  //
-  // El buscador de texto NO va aquí a propósito: recargaría en cada letra.
-  // Ese sigue disparándose con Enter, que es lo que ya hacía.
+  // La carga es intencionalmente ÚNICA al montar: los filtros de esta pantalla
+  // se aplican en memoria, no en el servidor. Declarar `load` como dependencia
+  // obligaría a envolverla en useCallback y volvería a consultar el servidor en
+  // cada tecla, que es exactamente lo que no queremos aquí.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { setPagina(1); }, [fCat, onlyLow]);
-  useEffect(() => { load(); }, [fCat, onlyLow, pagina]);
-
-  // (Nota histórica: `load` no se declara como dependencia a propósito.
-  // Obligaría a envolverla en useCallback y volvería a consultar el servidor
-  // en cada tecla del buscador, que es justo lo que no queremos.)
+  useEffect(() => { load(); }, []);
 
   const categories = Array.from(new Set(rows.map((r) => r.category).filter(Boolean)));
 
@@ -260,14 +241,6 @@ export default function Inventory() {
           </tbody>
         </table>
       </div>
-      <Paginacion
-        page={meta?.page || 1}
-        pages={meta?.pages || 1}
-        total={meta?.total ?? rows.length}
-        pageSize={meta?.pageSize || 50}
-        onChange={setPagina}
-        etiqueta="repuesto"
-      />
 
       </>
       )}

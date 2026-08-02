@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback, FormEvent } from 'react';
 import { api } from '../api/client';
-import Paginacion from '../components/Paginacion';
 import { useNavigate } from 'react-router-dom';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, conAmbito, AvisoAmbito } from '../components/FiltroAmbito';
 import Modal from '../components/Modal';
@@ -49,11 +48,6 @@ const VACIO = {
 export default function Cableado() {
   const { can } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
-  const [meta, setMeta] = useState<any>(null);
-  // La página vuelve a 1 al cambiar cualquier filtro. Si no, se filtra estando
-  // en la página 7 y sale una lista vacía que parece "no hay nada" cuando en
-  // realidad hay dos resultados, en la página 1.
-  const [pagina, setPagina] = useState(1);
   const [resumen, setResumen] = useState<any>(null);
   const [opciones, setOpciones] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,22 +65,16 @@ export default function Cableado() {
     if (soloFuera) params.fueraNorma = 'true';
     if (fEstado) params.status = fEstado;
     const [c, r] = await Promise.all([
-      api.get('/assets/cables', { params: { ...params, page: pagina, pageSize: 50 } })
-        .then((x) => x.data).catch(() => null),
+      api.get('/assets/cables', { params }).then((x) => x.data).catch(() => []),
       api.get('/assets/cables/resumen').then((x) => x.data).catch(() => null),
     ]);
-    // La respuesta trae ahora { items, total, page, pages }. Se acepta también
-    // un array por si alguien abre esta pantalla con el backend anterior
-    // todavía desplegado: es un despliegue en dos pasos, no un fallo.
-    setRows(Array.isArray(c) ? c : c?.items || []);
-    setMeta(Array.isArray(c) ? null : c);
+    setRows(c || []);
     setResumen(r);
-  }, [soloFuera, fEstado, ambito, pagina]);
+  }, [soloFuera, fEstado, ambito]);
 
   useEffect(() => {
     api.get('/assets/options').then((r) => setOpciones(r.data || [])).catch(() => setOpciones([]));
   }, []);
-  useEffect(() => { setPagina(1); }, [soloFuera, fEstado, ambito]);
   useEffect(() => { load().finally(() => setLoading(false)); }, [load]);
 
   function nuevo() { setForm({ ...VACIO }); }
@@ -272,14 +260,6 @@ export default function Cableado() {
           </tbody>
         </table>
       </div>
-      <Paginacion
-        page={meta?.page || 1}
-        pages={meta?.pages || 1}
-        total={meta?.total ?? rows.length}
-        pageSize={meta?.pageSize || 50}
-        onChange={setPagina}
-        etiqueta="tramo"
-      />
 
       {form && (
         <Modal title={form.id ? 'Editar tramo' : 'Nuevo tramo de cable'} onClose={() => setForm(null)}>
