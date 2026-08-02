@@ -32,8 +32,6 @@ const TrainBoard = lazy(() => import('./pages/TrainBoard'));
 const Assets = lazy(() => import('./pages/Assets'));
 const Mapeo = lazy(() => import('./pages/Mapeo'));
 const Cableado = lazy(() => import('./pages/Cableado'));
-const Topologia = lazy(() => import('./pages/Topologia'));
-const Monitoreo = lazy(() => import('./pages/Monitoreo'));
 const Incidents = lazy(() => import('./pages/Incidents'));
 const Maintenance = lazy(() => import('./pages/Maintenance'));
 const Preventive = lazy(() => import('./pages/Preventive'));
@@ -78,8 +76,6 @@ export default function App() {
           <Route path="/assets" element={<Assets />} />
           <Route path="/mapeo" element={<Mapeo />} />
           <Route path="/cableado" element={<Cableado />} />
-          <Route path="/topologia" element={<Topologia />} />
-          <Route path="/monitoreo" element={<Monitoreo />} />
           <Route path="/incidents" element={<Incidents />} />
           <Route path="/maintenance" element={<Maintenance />} />
           <Route path="/preventive" element={<Preventive />} />

@@ -1,6 +1,4 @@
 import { Module } from '@nestjs/common';
-import { NetworkService } from './network.service';
-import { NetworkController } from './network.controller';
 
 /**
  * MÓDULO DE RED Y TOPOLOGÍA — reservado para la fase F8.
@@ -17,14 +15,7 @@ import { NetworkController } from './network.controller';
  *     instante QUÉ se deja de ver y priorizar según el riesgo para producción.
  *   - Registro del anillo de fibra del core y de los enlaces PMP de los Trenes.
  *
- * IMPLEMENTADO EN EL BLOQUE 7 (02/08/2026): topología y análisis de impacto.
- * El grafo NO se guarda: se arma en cada consulta a partir de los puertos de
- * switch, los enlaces declarados y el NVR de cada cámara. Guardarlo aparte
- * sería mantener dos verdades, y la segunda siempre se queda vieja.
+ * Se mantiene declarado para conservar la estructura del dominio ya modelada.
  */
-@Module({
-  controllers: [NetworkController],
-  providers: [NetworkService],
-  exports: [NetworkService],
-})
+@Module({})
 export class NetworkModule {}

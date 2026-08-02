@@ -428,7 +428,6 @@ model Asset {
   @@index([locationId])
   @@index([cabinetId])
   @@index([train])
-  observacion     AssetObservation?
   @@map("assets")
 }
 
@@ -1657,65 +1656,4 @@ model IncidentEvidence {
   createdAt   DateTime @default(now())
 
   @@map("incident_evidences")
-}
-
-// =====================================================================
-//  MONITOREO — ESTADO OBSERVADO (bloque 8, preparado y apagado)
-//
-//  Lo OBSERVADO va aparte de lo DECLARADO, y es deliberado:
-//    · assets.status  → lo pone una PERSONA. Es una decisión ("está de baja").
-//    · AssetObservation → lo pone una MÁQUINA. Es un hecho ("no responde").
-//  Una cámara declarada OPERATIVO que no responde no es una contradicción:
-//  es justo la información que hoy no tenemos.
-// =====================================================================
-
-enum ProbeSource {
-  AGENTE      // agente instalado dentro de planta
-  ZABBIX
-  HIKCENTRAL
-  MANUAL      // alguien lo comprobó a mano
-}
-
-enum ProbeResult {
-  RESPONDE
-  NO_RESPONDE
-  DEGRADADO      // responde, pero con pérdida o latencia alta
-  DESCONOCIDO    // nunca se ha comprobado
-}
-
-/// UNA fila por activo, no un histórico. El histórico de pings de 2.000
-/// cámaras cada minuto son 2,8 millones de filas al día y no dice nada que
-/// no diga la última. El histórico que importa —cuándo se cayó y cuánto
-/// duró— son las incidencias, que ya existen.
-model AssetObservation {
-  assetId          String      @id
-  asset            Asset       @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  result           ProbeResult @default(DESCONOCIDO)
-  source           ProbeSource @default(AGENTE)
-  latencyMs        Int?
-  lastSeenAt       DateTime?
-  checkedAt        DateTime    @default(now())
-  /// Fallos seguidos. Se exige más de uno antes de dar nada por caído: una
-  /// pérdida suelta en una wifi industrial es lo normal, no una avería.
-  consecutiveFails Int         @default(0)
-  note             String?
-
-  @@index([result])
-  @@index([checkedAt])
-  @@map("asset_observations")
-}
-
-/// Agentes autorizados a reportar. Sin esto el endpoint de ingesta sería un
-/// buzón abierto donde cualquiera podría declarar media planta caída.
-model MonitorAgent {
-  id           String    @id @default(uuid())
-  name         String    @unique
-  /// Sólo el hash. El token se enseña UNA vez, al crearlo, y no se guarda.
-  tokenHash    String
-  active       Boolean   @default(true)
-  lastReportAt DateTime?
-  lastIp       String?
-  createdAt    DateTime  @default(now())
-
-  @@map("monitor_agents")
 }

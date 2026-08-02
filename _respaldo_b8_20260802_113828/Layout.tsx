@@ -24,7 +24,6 @@ const TITLES: Record<string, string> = {
   '/roles': 'Roles y permisos',
   '/mi-tren': 'Mi tren',
   '/topologia': 'Puntos críticos de la red',
-  '/monitoreo': 'Monitoreo de red',
 };
 
 /**
@@ -68,7 +67,6 @@ export default function Layout() {
         can('asset.read') && <NavLink key="cb" to="/cableado"><Icono n="cableado" /> Cableado</NavLink>,
         can('asset.read') && <NavLink key="mp" to="/mapeo"><Icono n="mapeo" /> Avance del mapeo</NavLink>,
         can('asset.read') && <NavLink key="tp" to="/topologia"><Icono n="predictivo" /> Puntos críticos</NavLink>,
-        can('monitor.read') && <NavLink key="mo" to="/monitoreo"><Icono n="reloj" /> Monitoreo</NavLink>,
         can('access.read') && <NavLink key="ac" to="/access"><Icono n="acceso" /> Accesibilidad</NavLink>,
       ].filter(Boolean) as ReactNode[],
     },

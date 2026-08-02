@@ -29,8 +29,6 @@ const EXCEPCIONES: Record<string, string> = {
     'Cada uno gestiona SU pin. El identificador sale del token, nunca de la URL, así que no hay forma de tocar el de otro.',
   'users.controller.ts:verifyPin':
     'Igual que el anterior: identidad del token y freno de intentos.',
-  'monitoreo.controller.ts:reporte':
-    'Lo llama el AGENTE de planta, que no es una persona y no tiene sesión. Se autentica con su propio token, comparado por hash contra monitor_agents, y va con freno de intentos. Un permiso de usuario aquí no aplica.',
 };
 
 function controladores(dir: string, acc: string[] = []): string[] {

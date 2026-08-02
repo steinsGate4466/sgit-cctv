@@ -8,7 +8,6 @@ import { PermissionsGuard } from './common/guards/permissions.guard';
 
 import { AuthModule } from './modules/auth/auth.module';
 import { RolesModule } from './modules/roles/roles.module';
-import { MonitoreoModule } from './modules/monitoreo/monitoreo.module';
 import { UsersModule } from './modules/users/users.module';
 import { LocationsModule } from './modules/locations/locations.module';
 import { AssetsModule } from './modules/assets/assets.module';
@@ -58,7 +57,6 @@ import { PredictiveModule } from './modules/predictive/predictive.module';
     AccessModule,
     PredictiveModule,
     RolesModule,       // roles que crea el ingeniero + ámbito por tren (4C)
-    MonitoreoModule,   // estado observado: montado y en espera de TI (bloque 8)
   ],
   controllers: [HealthController],
   providers: [
