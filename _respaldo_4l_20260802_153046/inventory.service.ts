@@ -295,65 +295,29 @@ export class InventoryService {
     let actualizados = 0;
     const fallidos: { sapCode: string; motivo: string }[] = [];
 
-    // ------------------------------------------------------------------
-    //  POR QUÉ ESTO NO VA FILA A FILA
-    //
-    //  Antes, por cada fila del Excel se hacía una consulta para ver si el
-    //  repuesto existía y otra para guardarlo. Con un maestro de SAP de
-    //  3.000 referencias son 6.000 idas y vueltas a la base: varios minutos
-    //  con la pantalla en "cargando", y el ingeniero pensando que se colgó.
-    //
-    //  Ahora: UNA consulta para saber cuáles existen, y las escrituras en
-    //  tandas dentro de una transacción.
-    // ------------------------------------------------------------------
-    const codigos = lectura.filas.map((f) => f.sapCode);
-    const existentes = new Map(
-      (await this.prisma.sparePart.findMany({
-        where: { sapCode: { in: codigos } },
-        select: { id: true, sapCode: true },
-      })).map((r) => [r.sapCode, r.id]),
-    );
-
-    const datosDe = (f: any) => ({
-      name: f.name,
-      category: f.category ?? undefined,
-      brand: f.brand ?? undefined,
-      model: f.model ?? undefined,
-      unit: f.unit ?? undefined,
-      warehouse: f.warehouse ?? undefined,
-      ...(f.currentStock !== undefined ? { currentStock: f.currentStock } : {}),
-      ...(f.minStock !== undefined ? { minStock: f.minStock } : {}),
-    });
-
-    const escrituraDe = (f: any) => {
-      const id = existentes.get(f.sapCode);
-      return id
-        ? this.prisma.sparePart.update({ where: { id }, data: datosDe(f) })
-        : this.prisma.sparePart.create({ data: { sapCode: f.sapCode, ...datosDe(f) } });
-    };
-
-    const TANDA = 200;
-    for (let i = 0; i < lectura.filas.length; i += TANDA) {
-      const tanda = lectura.filas.slice(i, i + TANDA);
+    for (const f of lectura.filas) {
       try {
-        await this.prisma.$transaction(tanda.map(escrituraDe));
-        for (const f of tanda) existentes.has(f.sapCode) ? actualizados++ : creados++;
-      } catch {
-        // SI LA TANDA FALLA, SE REPITE FILA A FILA.
-        //
-        // Agrupar es rápido pero pierde el detalle: si una sola fila trae un
-        // dato imposible, la transacción entera se cae y no se sabría cuál.
-        // Y ese detalle es justo lo que el ingeniero necesita para arreglar
-        // su Excel. Así que en el caso raro —que algo falle— se paga la
-        // lentitud a cambio de poder decir QUÉ fila y POR QUÉ.
-        for (const f of tanda) {
-          try {
-            await escrituraDe(f);
-            existentes.has(f.sapCode) ? actualizados++ : creados++;
-          } catch (e: any) {
-            fallidos.push({ sapCode: f.sapCode, motivo: e?.message || 'Error al guardar.' });
-          }
+        const ya = await this.prisma.sparePart.findFirst({ where: { sapCode: f.sapCode } });
+        const datos = {
+          name: f.name,
+          category: f.category ?? undefined,
+          brand: f.brand ?? undefined,
+          model: f.model ?? undefined,
+          unit: f.unit ?? undefined,
+          warehouse: f.warehouse ?? undefined,
+          ...(f.currentStock !== undefined ? { currentStock: f.currentStock } : {}),
+          ...(f.minStock !== undefined ? { minStock: f.minStock } : {}),
+        };
+        if (ya) {
+          await this.prisma.sparePart.update({ where: { id: ya.id }, data: datos });
+          actualizados++;
+        } else {
+          await this.prisma.sparePart.create({ data: { sapCode: f.sapCode, ...datos } });
+          creados++;
         }
+      } catch (e: any) {
+        // Una fila que falla no detiene el archivo: se reporta y se sigue.
+        fallidos.push({ sapCode: f.sapCode, motivo: e?.message || 'Error al guardar.' });
       }
     }
 

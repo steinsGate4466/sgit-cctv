@@ -40,11 +40,7 @@ export default function MiTren() {
     try {
       const [infra, oms] = await Promise.all([
         api.get('/dashboard/infra/trenes').then((r) => r.data),
-        // La ruta es /work-orders, NO /maintenance. El módulo se llama
-        // maintenance pero su controlador expone 'work-orders'. Lo escribí
-        // mal y esta pantalla habría salido siempre vacía: el 404 se lo
-        // traga el catch y se lee como "no hay órdenes en tu tren".
-        api.get('/work-orders', { params: { status: 'ABIERTA', pageSize: 50 } })
+        api.get('/maintenance', { params: { status: 'ABIERTA', pageSize: 50 } })
           .then((r) => r.data),
       ]);
       setDatos(infra);
@@ -73,7 +69,7 @@ export default function MiTren() {
   async function descargarInforme(o: any) {
     setBajando(o.id);
     try {
-      const { data } = await api.get(`/work-orders/${o.id}/report`, { responseType: 'blob' });
+      const { data } = await api.get(`/maintenance/${o.id}/report`, { responseType: 'blob' });
       const url = URL.createObjectURL(data);
       const a = document.createElement('a');
       a.href = url;

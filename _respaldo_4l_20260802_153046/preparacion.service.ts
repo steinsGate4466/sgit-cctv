@@ -93,18 +93,13 @@ export class PreparacionService {
     }
     if (!items?.length) throw new BadRequestException('No se envió ninguna herramienta.');
 
-    // En una sola transacción: son pocas herramientas, pero además así
-    // quedan TODAS marcadas o NINGUNA. A medias sería peor que no marcar:
-    // el técnico creería que revisó la lista entera.
-    await this.prisma.$transaction(
-      items.map((it: any) =>
-        this.prisma.workOrderTool.upsert({
-          where: { workOrderId_toolId: { workOrderId, toolId: it.toolId } },
-          create: { workOrderId, toolId: it.toolId, carried: !!it.carried, note: it.note?.trim() || null },
-          update: { carried: !!it.carried, note: it.note?.trim() || null },
-        }),
-      ),
-    );
+    for (const it of items) {
+      await this.prisma.workOrderTool.upsert({
+        where: { workOrderId_toolId: { workOrderId, toolId: it.toolId } },
+        create: { workOrderId, toolId: it.toolId, carried: !!it.carried, note: it.note?.trim() || null },
+        update: { carried: !!it.carried, note: it.note?.trim() || null },
+      });
+    }
 
     const faltantes = items.filter((i) => !i.carried).length;
     await this.audit.record({
