@@ -105,17 +105,9 @@ export default function Cabinets() {
           <h1 className="page-title">Gabinetes</h1>
           <p className="page-sub">{rows.length} gabinetes · rótulo, ubicación, foto y equipos montados</p>
         </div>
-        {/* Los dos botones van dentro de UN envoltorio: un `&&` sólo puede
-            devolver un elemento. Al insertar el de etiquetas quedaron dos
-            hermanos sueltos y el typecheck lo rechazó, con razón. */}
-        {can('asset.update') && (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button className="btn-mini" onClick={descargarEtiquetas}>
-              <Icono n="mapeo" size={14} /> Etiquetas QR
-            </button>
-            <button className="btn-primary" onClick={openNew}>+ Nuevo gabinete</button>
-          </div>
-        )}
+        {can('asset.update') && <button className="btn-mini" onClick={descargarEtiquetas}>
+          <Icono n="mapeo" size={14} /> Etiquetas QR
+        </button> <button className="btn-primary" onClick={openNew}>+ Nuevo gabinete</button>}
       </div>
 
       <AvisoAmbito valor={ambito} total={rows.length} />

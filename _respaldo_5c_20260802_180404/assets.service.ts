@@ -379,14 +379,7 @@ export class AssetsService {
         },
         workOrders: {
           orderBy: { createdAt: 'desc' }, take: 8,
-          // `activity` hace falta para la ficha del QR: "OM-14 en proceso" no
-          // dice nada; "OM-14 en proceso — cambio de fuente PoE" sí, y evita
-          // que alguien abra una orden repetida por lo mismo.
-          select: {
-            code: true, type: true, status: true, activity: true,
-            scheduledDate: true, executedDate: true,
-            technician: { select: { fullName: true } },
-          },
+          select: { code: true, type: true, status: true, scheduledDate: true, executedDate: true },
         },
       },
     });

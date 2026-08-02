@@ -8,77 +8,59 @@ publicado y funcionando en producción.
 
 ---
 
-## Hecho y entregado
-
-Estado real a 02/08/2026: **25 módulos · 25 pantallas · 18 migraciones ·
-346 pruebas automáticas · 5 verificadores.**
+## Terminado y en producción
 
 | Bloque | Qué resolvió |
 |---|---|
 | F0–F8 | Base: activos, ubicaciones, incidencias, OM, inventario, preventivo, auditoría, CI/CD |
 | 2f-2 | Materiales y herramientas de la OM |
-| 3A · 3B | Una sola verdad de tren y etapa · Estado por Tren · filtro en las seis pantallas |
-| 3C · 3D | Permiso de altura al abrir la OM · retiro de almacén con firma |
-| 3E · 3F | Catálogos editables · cierre con síntoma→causa→acción · rutina por tipo de activo |
-| 3G | Soltar el Excel de SAP y que se llene solo |
-| 4A · 4B | El ingeniero asigna y el técnico detalla · Mi bandeja |
-| **4C** | **Roles que crea el ingeniero + ámbito por tren** |
-| **4D** | **Ilustración de planta, iconos vectoriales, celular hasta 320 px, carga por página** |
-| **4E** | **Mi tren: la pantalla de Producción, sólo consulta** |
-| **4F** | **Bot de Telegram — montado y apagado** |
-| **4G · 4H** | **Avisar cuando algo no carga · paginación en Cableado e Inventario** |
-| **4K** | **Órdenes paradas, con plazo según lo que esperan** |
-| **4S · 4T** | **Seguridad: freno de fuerza bruta, validación real de imágenes, JWT obligatorio · 23 pruebas de permisos** |
-| **7** | **Topología y análisis de impacto** |
-| **8** | **Monitoreo — montado y apagado, con su agente de planta** |
+| 3A | Una sola verdad de tren y etapa (`plant-context`) + tablero de infraestructura |
+| 3B-1 / 3B-2 | Estado por Tren + filtro de tren y etapa en las seis pantallas |
+| 3C | Permiso de acceso al abrir la OM · OM desde tramo fuera de norma |
+| 3D | Retiro de almacén desde la OM |
+| 3E | Catálogos editables: causas, síntomas, acciones, motivos |
+| 3F-1 / 3F-2 | Cierre y avance con catálogo · rutina preventiva por tipo de activo |
+| 3G | Soltar el Excel de SAP en almacén y que se llene solo |
+| 4A | El ingeniero asigna, el técnico de red detalla |
+| 4B | Mi bandeja: lo que espera una decisión hoy |
+| 4D-1 | Acceso con marca en celular · ajuste de pantallas hasta 320 px |
 
-**Incidentes resueltos, cada uno con su guarda automática:** desfase de la base
-· respaldos rotos · redirección abierta · expulsión por inactividad · arranque
-caído por dependencia sin declarar · tablero en 400 por filtro anidado ·
-historial de migraciones perdido · «Mi tren» apuntando a una ruta inexistente.
+**Incidentes resueltos:** desfase de la base (30/07) · respaldos rotos (pg_dump
+16 contra servidor 18.4) · redirección abierta en el acceso · expulsión inmediata
+por inactividad · arranque caído por dependencia sin declarar (01/08) · historial
+de migraciones perdido en la base local (02/08) · tablero en 400 por un filtro de
+Prisma anidado (02/08).
 
-Guardas que corren en la CI y antes de cada push (`npm run verificar`):
+Cada uno dejó una **guarda automática** que lo caza en un segundo, sin levantar
+la aplicación. Están todas en `docs/INCIDENTES_Y_GUARDAS.md` y corren en la CI:
 
-    verificar:inyeccion    dependencias declaradas en su módulo
-    verificar:filtros      filtros de Prisma anidados por error
-    verificar:migraciones  esquema contra migraciones, sin base de datos
-    verificar:bd           la base real contra schema.prisma
-    (+ verificador de rutas frontend→backend)
+    npm run verificar:inyeccion   dependencias declaradas en su módulo
+    npm run verificar:filtros     filtros de Prisma anidados por error
+    npm run verificar:bd          la base real contra schema.prisma
+    node scripts/historial-migraciones.js   qué migraciones cree tener la base
 
 ---
 
-## Lo que falta, por orden de lo que cambia en planta
+## En cola
 
-### Corto — se puede hacer ya
-
-| | Qué | Por qué importa | Bloquea |
-|---|---|---|---|
-| **1** | **Conectar los 3 avisos que ya están escritos**: OM en espera, incidencia crítica y resumen diario. Las plantillas existen y están probadas; falta el enganche y un temporizador | Hoy sólo avisan el cierre y la asignación. Lo que más valor tiene —"esta orden lleva 23 días parada"— está escrito y sin usar | Nada |
-| **2** | **Sesiones y freno en base de datos** | El freno de fuerza bruta se borra en cada despliegue, y cerrar sesión no invalida el token: robado, sigue valiendo | Nada. Una migración para las dos cosas |
-| **3** | **Ámbito en las rutas por identificador** | Con sesión y permiso, un usuario del Tren 2 puede pedir la foto de un equipo del Tren 1 | Nada |
-| **4** | **Bloque 9 · Campañas de mapeo** | "Estas 300 cámaras hay que levantarlas": repartir, seguir el avance, cerrar. Es el modelo de tercería que quiere el ingeniero | Nada |
-| **5** | **Bloque 5 · QR de gabinete** | El QR del activo ya existe; falta el del gabinete, que es lo que se ve al llegar | Nada |
-| **6** | **Bloque 6 · Mapa de canales del NVR** | Saber qué canal ocupa cada cámara y cuáles quedan libres | Nada |
-
-### Esperando a alguien
-
-| | Qué | Espera |
+| Bloque | Qué resuelve | Depende de |
 |---|---|---|
-| **4F encendido** | Crear el bot y poner el token | Visto bueno de TI |
-| **8 encendido** | Instalar el agente en una PC de planta | Visto bueno de TI |
-| **3G-bis** | Mapeo manual de columnas del Excel | El exporte real de SAP del ingeniero |
-| **4C tercería** | Que el contratista vea sólo lo suyo | Decidir el modelo con el ingeniero |
+| **4C** | Tercería: el contratista ve **sólo sus** órdenes | Permisos por ámbito |
+| **4E** | Producción ve el estado de **su** tren | Mismo motor que 4C |
+| ~~4F-1~~ | **Bot de Telegram — HECHO, montado y apagado.** Sin `TELEGRAM_BOT_TOKEN` no se envía nada y el sistema funciona igual | ✅ |
+| **4F-2** | Resumen de turno para Producción, un mensaje al día | 4E |
+| **4D-2** | Rediseño de tableros · carga por página (bajar los 887 kB) | Que dejen de cambiar los campos |
+| **3G-bis** | Mapeo manual de columnas del Excel de SAP | El exporte real del ingeniero |
+| 5 | QR de gabinete | — |
+| 6 | Mapa de canales del NVR | — |
+| 7 | Topología de red | — |
+| 8 | Ping a NVR y cámaras | Salida desde Railway a la red de planta |
+| 9 | Campañas de mapeo | — |
 
-### Deuda anotada, no urgente
-
-- **92 `catch(() => [])`** en el frontend. Mitigado en 4G —ahora se avisa— pero
-  cada pantalla sigue enseñando lista vacía en vez de decir qué pasó.
-- **19 `@Body() dto: any`**: con `any`, la validación global no valida nada.
-- **NestJS 11**: 25 alertas de dependencias, casi todas de desarrollo. Va como
-  bloque propio con su rama, no entre entregas diarias.
-- **Rediseño de tableros por público** (Jefe / ingeniero / Producción): hoy hay
-  un solo tablero para tres personas distintas.
-- Rotar la contraseña de Postgres y el `JWT_SECRET` que salió en una captura.
+**4C y 4E van juntos**: comparten el mismo motor de permisos por ámbito.
+**4F-1 ya no depende de ellos** (ver abajo el porqué): si sólo reciben el
+ingeniero y el técnico de red, no hace falta el motor de ámbito. Se puede
+adelantar en cuanto TI autorice Telegram.
 
 ---
 

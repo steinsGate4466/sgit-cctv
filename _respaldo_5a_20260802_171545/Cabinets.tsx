@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback, FormEvent } from 'react';
-import Icono from '../components/Iconos';
 import { api } from '../api/client';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, AvisoAmbito } from '../components/FiltroAmbito';
 import Modal from '../components/Modal';
@@ -79,25 +78,6 @@ export default function Cabinets() {
 
   if (loading) return <div className="loading">Cargando gabinetes…</div>;
 
-  /**
-   * Hoja de etiquetas en PDF. Se pide con el cliente y no con un enlace
-   * porque un <a href> no lleva la cabecera de autorización: el servidor
-   * respondería 401 y saldría una pestaña con un error en vez del PDF.
-   */
-  async function descargarEtiquetas() {
-    try {
-      const { data } = await api.get('/cabinets/qr/sheet', { responseType: 'blob' });
-      const url = URL.createObjectURL(data);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'etiquetas-gabinetes.pdf';
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      window.alert('No se pudieron generar las etiquetas.');
-    }
-  }
-
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -105,17 +85,7 @@ export default function Cabinets() {
           <h1 className="page-title">Gabinetes</h1>
           <p className="page-sub">{rows.length} gabinetes · rótulo, ubicación, foto y equipos montados</p>
         </div>
-        {/* Los dos botones van dentro de UN envoltorio: un `&&` sólo puede
-            devolver un elemento. Al insertar el de etiquetas quedaron dos
-            hermanos sueltos y el typecheck lo rechazó, con razón. */}
-        {can('asset.update') && (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button className="btn-mini" onClick={descargarEtiquetas}>
-              <Icono n="mapeo" size={14} /> Etiquetas QR
-            </button>
-            <button className="btn-primary" onClick={openNew}>+ Nuevo gabinete</button>
-          </div>
-        )}
+        {can('asset.update') && <button className="btn-primary" onClick={openNew}>+ Nuevo gabinete</button>}
       </div>
 
       <AvisoAmbito valor={ambito} total={rows.length} />

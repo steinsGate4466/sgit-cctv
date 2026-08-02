@@ -22,10 +22,7 @@ export default function Login() {
   // Se valida aquí y no solo actualizando la librería porque esto lo cierra
   // pase lo que pase con la versión: solo se acepta una ruta interna.
   const destino = rutaInternaSegura((location.state as any)?.from);
-  // Las dos rutas de QR: /a/ es un equipo, /g/ un gabinete. Si sólo se
-  // mirara /a/, quien escanea la etiqueta de un armario sin sesión entraría
-  // sin entender por qué acaba en otra pantalla.
-  const vieneDeQr = !!destino && (destino.startsWith('/a/') || destino.startsWith('/g/'));
+  const vieneDeQr = !!destino && destino.startsWith('/a/');
   // El correo NO viene precargado: revelar el usuario administrador en la pantalla
   // de acceso es una fuga de información innecesaria.
   const [email, setEmail] = useState('');

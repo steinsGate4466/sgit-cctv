@@ -25,35 +25,6 @@ export class CabinetsController {
   }
 
   // Foto del gabinete (previsualización).
-  // 'qr/sheet' y 'ficha/:id' van ANTES de ':id': si no, ':id' captura la
-  // palabra "qr" y devuelve "gabinete no encontrado". Es la misma disciplina
-  // que ya se sigue en Activos y en Usuarios.
-  @Get('qr/sheet')
-  @RequirePermissions('asset.read')
-  async qrSheet(@Query('ids') ids: string, @Res() res: Response) {
-    const lista = (ids || '').split(',').map((x) => x.trim()).filter(Boolean);
-    const { buffer, filename } = await this.cabinets.qrSheet(lista);
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.send(buffer);
-  }
-
-  @Get(':id/qr')
-  @RequirePermissions('asset.read')
-  async qr(@Param('id') id: string, @Res() res: Response) {
-    const { buffer, filename } = await this.cabinets.qrPng(id);
-    res.setHeader('Content-Type', 'image/png');
-    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
-    res.send(buffer);
-  }
-
-  /** Lo que se ve al escanear la etiqueta del gabinete. */
-  @Get(':id/ficha')
-  @RequirePermissions('asset.read')
-  ficha(@Param('id') id: string) {
-    return this.cabinets.fichaRapida(id);
-  }
-
   @Get(':id/photo')
   @RequirePermissions('asset.read')
   async photo(@Param('id') id: string, @Res() res: Response) {

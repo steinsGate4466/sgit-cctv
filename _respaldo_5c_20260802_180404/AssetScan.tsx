@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import HistorialActivo from '../components/HistorialActivo';
-import Icono from '../components/Iconos';
 
 /**
  * Ficha rápida del activo — destino del código QR pegado en el equipo.
@@ -14,9 +13,6 @@ const TYPE_ES: Record<string, string> = {
   CAMERA: 'Cámara', NVR: 'NVR', SWITCH: 'Switch', WIRELESS: 'Enlace inalámbrico', ROUTER: 'Router',
   FIREWALL: 'Firewall', SERVER: 'Servidor', UPS: 'UPS', FIBER: 'Fibra', CABINET: 'Gabinete',
   DECODER: 'Decodificador', PC: 'PC / iVMS-4200', OTHER: 'Otro',
-};
-const ESTADO_OM: Record<string, string> = {
-  ABIERTA: 'abierta', EN_PROCESO: 'en proceso', EN_ESPERA: 'EN ESPERA',
 };
 const STATUS_ES: Record<string, string> = {
   OPERATIVO: 'Operativo', FUERA_SERVICIO: 'Fuera de servicio', MANTENIMIENTO: 'En mantenimiento',
@@ -42,11 +38,6 @@ export default function AssetScan() {
   if (err) return <div className="scan-wrap"><div className="error">{err}</div></div>;
 
   const estado = a.effectiveStatus || a.status;
-  // Órdenes vivas de ESTE equipo. Vienen con la ficha; sólo había que
-  // mirarlas.
-  const abiertas = (a.workOrders || []).filter((o: any) =>
-    ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'].includes(o.status),
-  );
 
   return (
     <div className="scan-wrap">
@@ -55,89 +46,39 @@ export default function AssetScan() {
         <span className={'badge ' + estado}>{STATUS_ES[estado] || estado}</span>
       </div>
 
-      {/* LO PRIMERO DE TODO: ¿YA HAY ALGUIEN EN ESTO?
-          Es la misma lección que el gabinete. Sin esto, el técnico escanea,
-          ve "fuera de servicio", abre una orden nueva... y resulta que ya
-          había una asignada a otro desde el martes. El equipo tiene el dato
-          y no lo estaba enseñando. */}
-      {abiertas.length > 0 && (
-        <div className="error" style={{ display: 'block' }}>
-          <b>Ya hay trabajo abierto en este equipo.</b>
-          {abiertas.map((o: any) => (
-            <div key={o.code} style={{ fontSize: 12.5, marginTop: 6 }}>
-              {o.code} · {ESTADO_OM[o.status] || o.status}
-              {o.activity ? ` — ${o.activity}` : ''}
-              {o.technician?.fullName ? ` (${o.technician.fullName})` : ''}
-            </div>
-          ))}
-        </div>
-      )}
-
       <div className="card scan-card">
         <Row k="Tipo" v={TYPE_ES[a.type] || a.type} />
-        {/* El tren y la etapa NO son columnas: se derivan del árbol. Aquí
-            importan porque quien escanea suele estar orientándose. */}
-        <Row k="Tren" v={a.planta?.tren} />
-        <Row k="Etapa" v={a.planta?.etapa} />
         <Row k="Marca / Modelo" v={[a.brand, a.model].filter(Boolean).join(' ')} />
         <Row k="Ubicación" v={a.location?.name} />
         <Row k="Gabinete" v={a.cabinet ? `${a.cabinet.code} — ${a.cabinet.name}` : null} />
         <Row k="Referencia" v={a.referencePlace} />
-        {/* La criticidad EFECTIVA: la mayor entre la del equipo y la mínima
-            que impone su etapa del proceso. La columna a secas puede decir
-            MEDIA en una cámara de colada, y eso es engañar a quien decide
-            si esperar a la parada. */}
-        <Row k="Criticidad" v={a.planta?.criticidadEfectiva || a.criticality} />
+        <Row k="Criticidad" v={a.criticality} />
         {can('credential.read') && <Row k="IP" v={a.ipAddress} mono />}
       </div>
 
       {a.accessRequests?.length > 0 && (
         <div className="sign-note" style={{ marginTop: 12 }}>
-          <Icono n="acceso" size={16} />
-          <span>
-            Este equipo tiene una solicitud de <b>acceso especial</b>{' '}
-            ({a.accessRequests[0].status}). Revisa las condiciones antes de intervenir.
-          </span>
+          🦺 Este equipo tiene una solicitud de <b>acceso especial</b> ({a.accessRequests[0].status}).
+          Revisa las condiciones antes de intervenir.
         </div>
       )}
 
       {a.preventivePlan?.nextDueAt && (
         <div className="scan-note">
-          <Icono n="preventivo" size={16} />
-          <span>
-            Próximo preventivo:{' '}
-            <b>{new Date(a.preventivePlan.nextDueAt).toLocaleDateString('es-PE')}</b>
-            {' '}(cada {a.preventivePlan.intervalDays} días)
-          </span>
+          🗓️ Próximo preventivo: <b>{new Date(a.preventivePlan.nextDueAt).toLocaleDateString()}</b>
+          {' '}(cada {a.preventivePlan.intervalDays} días)
         </div>
       )}
 
       <div className="scan-actions">
-        {/* LOS BOTONES LLEVAN EL EQUIPO CONSIGO.
-            Antes iban a la pantalla general: el técnico escaneaba para no
-            tener que buscar el equipo entre cientos... y al pulsar acababa
-            en una lista donde tenía que buscarlo. Justo lo que el QR venía
-            a evitar. */}
         {can('incident.create') && (
-          <button className="btn-primary"
-                  onClick={() => nav(`/incidents?assetId=${a.id}&nuevo=1`)}>
-            <Icono n="incidencia" size={16} /> Reportar incidencia de este equipo
-          </button>
-        )}
-        {can('wo.read') && (
-          <button className="btn-mini" onClick={() => nav(`/maintenance?q=${a.assetCode}`)}>
-            <Icono n="orden" size={14} /> Órdenes de este equipo
-          </button>
+          <button className="btn-primary" onClick={() => nav('/incidents')}>⚠ Reportar incidencia</button>
         )}
         {can('asset.read') && (
-          <button className="btn-mini" onClick={() => nav(`/assets?search=${a.assetCode}`)}>
-            Ver ficha completa
-          </button>
+          <button className="btn-mini" onClick={() => nav('/assets')}>Ver ficha completa</button>
         )}
-        {a.cabinet?.id && (
-          <button className="btn-mini" onClick={() => nav(`/g/${a.cabinet.id}`)}>
-            <Icono n="gabinete" size={14} /> Ver el gabinete {a.cabinet.code}
-          </button>
+        {can('wo.read') && (
+          <button className="btn-mini" onClick={() => nav('/maintenance')}>Órdenes de mantenimiento</button>
         )}
       </div>
 

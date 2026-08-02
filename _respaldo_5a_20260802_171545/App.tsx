@@ -45,7 +45,6 @@ const Cabinets = lazy(() => import('./pages/Cabinets'));
 const Locations = lazy(() => import('./pages/Locations'));
 const Access = lazy(() => import('./pages/Access'));
 const AssetScan = lazy(() => import('./pages/AssetScan'));
-const CabinetScan = lazy(() => import('./pages/CabinetScan'));
 const Inventory = lazy(() => import('./pages/Inventory'));
 const Audit = lazy(() => import('./pages/Audit'));
 const Users = lazy(() => import('./pages/Users'));
@@ -92,11 +91,8 @@ export default function App() {
           <Route path="/cabinets" element={<Cabinets />} />
           <Route path="/locations" element={<Locations />} />
           <Route path="/access" element={<Access />} />
-          {/* Destino de los QR pegados en planta. Rutas CORTAS a propósito:
-              se teclean a mano cuando la cámara del celular no enfoca bien,
-              con guantes y con prisa. /a/ activo · /g/ gabinete. */}
+          {/* Destino del QR pegado en el equipo (ficha rápida para el celular) */}
           <Route path="/a/:id" element={<AssetScan />} />
-          <Route path="/g/:id" element={<CabinetScan />} />
           <Route path="/inventory" element={<Inventory />} />
           <Route path="/audit" element={<Audit />} />
           <Route path="/users" element={<Users />} />

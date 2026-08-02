@@ -6,6 +6,9 @@ import { filtroDeUbicaciones } from '../../common/ambito-planta';
 import { AuditService } from '../audit/audit.service';
 import { StorageService } from '../storage/storage.service';
 import { CreateCabinetDto, UpdateCabinetDto } from './dto/cabinet.dto';
+import * as QRCode from 'qrcode';
+import * as PDFDocument from 'pdfkit';
+import { computeEffectiveStatuses } from '../../common/asset-status';
 
 @Injectable()
 export class CabinetsService {
@@ -85,5 +88,171 @@ export class CabinetsService {
     const buffer = await this.storage.getBuffer(cab.photoFileId);
     const ext = cab.photoFileId.split('.').pop()?.toLowerCase();
     return { buffer, contentType: ext === 'png' ? 'image/png' : 'image/jpeg' };
+  }
+
+  // ==========================================================================
+  //  QR DEL GABINETE (bloque 5a)
+  //
+  //  POR QUÉ EL GABINETE Y NO SÓLO EL ACTIVO
+  //  El técnico que llega a planta no se planta delante de una cámara: se
+  //  planta delante de un ARMARIO CERRADO. Lo que necesita ahí es "qué hay
+  //  dentro de esto y qué le pasa", no la ficha de un equipo que todavía no
+  //  sabe cuál es.
+  //
+  //  El QR del activo sirve cuando ya lo tienes localizado. Éste sirve para
+  //  llegar, que es el paso de antes.
+  // ==========================================================================
+
+  private urlGabinete(id: string): string {
+    const base = (process.env.APP_URL || process.env.FRONTEND_URL || '')
+      .trim().replace(/\/$/, '');
+    return `${base}/g/${id}`;
+  }
+
+  /** QR individual del gabinete, en PNG. */
+  async qrPng(id: string): Promise<{ buffer: Buffer; filename: string }> {
+    const gab = await this.prisma.cabinet.findUnique({
+      where: { id }, select: { code: true },
+    });
+    if (!gab) throw new NotFoundException('Gabinete no encontrado');
+    const buffer: Buffer = await QRCode.toBuffer(this.urlGabinete(id), {
+      type: 'png', width: 512, margin: 1,
+      color: { dark: '#16233bff', light: '#ffffffff' },
+      // Tolerancia media: la etiqueta va dentro de una nave con polvo de
+      // laminación y se ensucia. Es la misma que se usa en los activos.
+      errorCorrectionLevel: 'M',
+    });
+    return { buffer, filename: `qr-gabinete-${gab.code}.png` };
+  }
+
+  /**
+   * Lo que se ve al escanear: qué hay dentro y qué le pasa.
+   *
+   * El estado de cada equipo es el EFECTIVO —el mismo que ve en Activos—, no
+   * la columna a secas: una cámara con una OM abierta no está "operativa"
+   * aunque nadie haya cambiado su estado a mano.
+   */
+  async fichaRapida(id: string) {
+    const gab = await this.prisma.cabinet.findUnique({
+      where: { id },
+      include: {
+        location: { select: { name: true, path: true } },
+        assets: {
+          where: { deletedAt: null },
+          select: {
+            id: true, assetCode: true, type: true, status: true,
+            referencePlace: true, ipAddress: true,
+          },
+          orderBy: { assetCode: 'asc' },
+        },
+      },
+    });
+    if (!gab) throw new NotFoundException('Gabinete no encontrado');
+
+    const eff = await computeEffectiveStatuses(this.prisma, gab.assets as any);
+    const ids = gab.assets.map((a) => a.id);
+
+    // Órdenes abiertas de CUALQUIER equipo del gabinete. Es la pregunta real
+    // de quien está delante: "¿ya hay alguien en esto?". Sin esto, dos
+    // técnicos se plantan el mismo día en el mismo armario.
+    const ordenes = ids.length
+      ? await this.prisma.workOrder.findMany({
+          where: { assetId: { in: ids }, status: { in: ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'] } },
+          select: {
+            id: true, code: true, status: true, activity: true, scheduledDate: true,
+            asset: { select: { assetCode: true } },
+            technician: { select: { fullName: true } },
+          },
+          orderBy: { scheduledDate: 'asc' },
+        })
+      : [];
+
+    const equipos = gab.assets.map((a) => ({
+      ...a,
+      estadoEfectivo: eff[a.id] || a.status,
+    }));
+    const caidos = equipos.filter((e) =>
+      ['FUERA_SERVICIO', 'CON_INCIDENCIA', 'MANTENIMIENTO'].includes(e.estadoEfectivo),
+    ).length;
+
+    return {
+      id: gab.id,
+      code: gab.code,
+      name: gab.name,
+      lugar: gab.referencePlace,
+      ubicacion: gab.location?.name,
+      tieneFoto: !!gab.photoFileId,
+      notas: gab.notes,
+      equipos,
+      total: equipos.length,
+      caidos,
+      ordenes,
+      // Frase lista para la pantalla. El número solo no dice si hay que
+      // preocuparse; esto sí.
+      resumen: equipos.length === 0
+        ? 'Este gabinete no tiene equipos registrados todavía.'
+        : caidos === 0
+          ? `${equipos.length} equipo(s), todos operativos.`
+          : `${caidos} de ${equipos.length} equipo(s) con problema.`,
+    };
+  }
+
+  /**
+   * Hoja de etiquetas de gabinete, en PDF.
+   *
+   * Distinta de la de activos a propósito: SEIS por hoja en lugar de doce, y
+   * el rótulo MUCHO más grande. Una etiqueta de gabinete se lee de pie, a dos
+   * metros, en una nave con poca luz. La del activo se lee a un palmo.
+   */
+  async qrSheet(ids?: string[]): Promise<{ buffer: Buffer; filename: string }> {
+    const gabinetes = await this.prisma.cabinet.findMany({
+      where: ids && ids.length ? { id: { in: ids } } : undefined,
+      select: {
+        id: true, code: true, name: true, referencePlace: true,
+        location: { select: { name: true } },
+      },
+      orderBy: { code: 'asc' },
+      take: 120,
+    });
+    if (!gabinetes.length) throw new NotFoundException('No hay gabinetes para generar etiquetas');
+
+    const doc = new PDFDocument({ size: 'A4', margin: 28 });
+    const chunks: Buffer[] = [];
+    doc.on('data', (c: Buffer) => chunks.push(c));
+    const done = new Promise<Buffer>((resolve) => doc.on('end', () => resolve(Buffer.concat(chunks))));
+
+    const NAVY = '#16233b', GREY = '#555555';
+    const cols = 2, rows = 3;                 // 6 etiquetas por hoja
+    const cellW = (doc.page.width - 56) / cols;
+    const cellH = (doc.page.height - 56) / rows;
+
+    let i = 0;
+    for (const g of gabinetes) {
+      const pos = i % (cols * rows);
+      if (i > 0 && pos === 0) doc.addPage();
+      const cx = 28 + (pos % cols) * cellW;
+      const cy = 28 + Math.floor(pos / cols) * cellH;
+
+      doc.rect(cx + 4, cy + 4, cellW - 8, cellH - 8).lineWidth(0.5).strokeColor('#cccccc').stroke();
+
+      const png: Buffer = await QRCode.toBuffer(this.urlGabinete(g.id), {
+        type: 'png', width: 400, margin: 0,
+        color: { dark: '#000000ff', light: '#ffffffff' }, errorCorrectionLevel: 'M',
+      });
+      const qrSize = Math.min(cellW - 80, cellH - 96);
+      doc.image(png, cx + (cellW - qrSize) / 2, cy + 18, { width: qrSize, height: qrSize });
+
+      let ty = cy + 18 + qrSize + 10;
+      // 20 puntos: el rótulo es lo que se busca con la vista desde lejos.
+      doc.fontSize(20).fillColor(NAVY).text(g.code, cx + 8, ty, { width: cellW - 16, align: 'center' });
+      ty = doc.y + 2;
+      const sub = [g.name, g.referencePlace || g.location?.name].filter(Boolean).join(' · ');
+      doc.fontSize(9).fillColor(GREY).text(sub, cx + 8, ty, { width: cellW - 16, align: 'center' });
+      i++;
+    }
+
+    doc.end();
+    const buffer = await done;
+    return { buffer, filename: `etiquetas-gabinetes-${new Date().toISOString().slice(0, 10)}.pdf` };
   }
 }
