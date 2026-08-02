@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { AssetStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { computeEffectiveStatuses } from '../../common/asset-status';
 import { resolverContextoDePlanta } from '../../common/plant-context';
@@ -29,7 +30,18 @@ export class DashboardService {
     // Incidencias vigentes: incluye EN_ESPERA (si no, una incidencia en espera
     // desaparecía del tablero y el Jefe la perdía de vista).
     const openIncidentStatus: any = { in: ['ABIERTA', 'EN_DIAGNOSTICO', 'EN_PROCESO', 'EN_ESPERA'] };
-    const outOfService: any = { in: ['BAJA', 'STOCK'] };
+    // FUERA DE INVENTARIO: dado de baja o guardado en almacén. No es una
+    // cámara "caída"; es una cámara que no está puesta. Contarla arruinaría
+    // el porcentaje de disponibilidad.
+    //
+    // OJO CON LA FORMA: esto es un ARRAY, no un objeto de filtro.
+    // Estuvo escrito como `{ in: ['BAJA','STOCK'] }` y se usaba en
+    // `status: { notIn: outOfService }`, lo que producía
+    // `notIn: { in: [...] }` — un filtro dentro de otro filtro. Prisma lo
+    // rechazaba y el tablero devolvía 400 en producción.
+    // Compiló porque estaba anotado `: any`, que apaga exactamente la
+    // comprobación que lo habría cazado. Por eso ahora va tipado de verdad.
+    const fueraDeInventario: AssetStatus[] = ['BAJA', 'STOCK'];
 
     const [
       totalAssets, criticalAssets,
@@ -54,7 +66,7 @@ export class DashboardService {
     // Disponibilidad de visión con el ESTADO EFECTIVO (el mismo que ve el usuario en
     // Activos): una cámara con OM o incidencia abierta NO cuenta como operativa.
     const cameraRows = await this.prisma.asset.findMany({
-      where: { deletedAt: null, type: 'CAMERA', status: { notIn: outOfService } },
+      where: { deletedAt: null, type: 'CAMERA', status: { notIn: fueraDeInventario } },
       select: { id: true, status: true },
     });
     const eff = await computeEffectiveStatuses(this.prisma, cameraRows);

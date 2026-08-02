@@ -72,6 +72,13 @@ jobs:
         working-directory: backend
         run: npm run verificar:inyeccion
 
+      # Filtros de Prisma anidados por error. El 02/08 esto devolvio 400 en
+      # el tablero de produccion y ni build ni test lo vieron: la constante
+      # estaba anotada ': any', que apaga justo la comprobacion que lo caza.
+      - name: Verificar filtros de Prisma
+        working-directory: backend
+        run: npm run verificar:filtros
+
       - name: Pruebas unitarias
         working-directory: backend
         run: npm test -- --ci --runInBand
