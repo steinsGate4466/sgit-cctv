@@ -2,8 +2,6 @@ import { ReactNode, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import MiPin from './MiPin';
-import Icono from './Iconos';
-import { MarcaSGIT } from './Ilustraciones';
 
 const TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard Ejecutivo',
@@ -46,49 +44,49 @@ export default function Layout() {
       items: [
         // La bandeja va PRIMERA a propósito: es lo que hay que vaciar al
         // llegar. El tablero se mira cuando ya no queda nada esperando.
-        can('dashboard.read') && <NavLink key="bd" to="/bandeja"><Icono n="bandeja" /> Mi bandeja</NavLink>,
-        can('dashboard.read') && <NavLink key="d" to="/dashboard"><Icono n="tablero" /> Dashboard</NavLink>,
-        can('dashboard.read') && <NavLink key="t" to="/trains"><Icono n="tren" /> Estado por Tren</NavLink>,
+        can('dashboard.read') && <NavLink key="bd" to="/bandeja"><span className="ico">📥</span> Mi bandeja</NavLink>,
+        can('dashboard.read') && <NavLink key="d" to="/dashboard"><span className="ico">▦</span> Dashboard</NavLink>,
+        can('dashboard.read') && <NavLink key="t" to="/trains"><span className="ico">🚂</span> Estado por Tren</NavLink>,
       ].filter(Boolean) as ReactNode[],
     },
     {
       titulo: 'Infraestructura',
       items: [
-        can('asset.read') && <NavLink key="a" to="/assets"><Icono n="activos" /> Activos</NavLink>,
-        can('asset.read') && <NavLink key="g" to="/cabinets"><Icono n="gabinete" /> Gabinetes</NavLink>,
-        can('asset.read') && <NavLink key="u" to="/locations"><Icono n="ubicacion" /> Ubicaciones</NavLink>,
-        can('asset.read') && <NavLink key="cb" to="/cableado"><Icono n="cableado" /> Cableado</NavLink>,
-        can('asset.read') && <NavLink key="mp" to="/mapeo"><Icono n="mapeo" /> Avance del mapeo</NavLink>,
-        can('access.read') && <NavLink key="ac" to="/access"><Icono n="acceso" /> Accesibilidad</NavLink>,
+        can('asset.read') && <NavLink key="a" to="/assets"><span className="ico">▤</span> Activos</NavLink>,
+        can('asset.read') && <NavLink key="g" to="/cabinets"><span className="ico">🗄️</span> Gabinetes</NavLink>,
+        can('asset.read') && <NavLink key="u" to="/locations"><span className="ico">📍</span> Ubicaciones</NavLink>,
+        can('asset.read') && <NavLink key="cb" to="/cableado"><span className="ico">🔌</span> Cableado</NavLink>,
+        can('asset.read') && <NavLink key="mp" to="/mapeo"><span className="ico">📋</span> Avance del mapeo</NavLink>,
+        can('access.read') && <NavLink key="ac" to="/access"><span className="ico">🦺</span> Accesibilidad</NavLink>,
       ].filter(Boolean) as ReactNode[],
     },
     {
       titulo: 'Operación',
       items: [
-        can('incident.read') && <NavLink key="i" to="/incidents"><Icono n="incidencia" /> Incidencias</NavLink>,
-        can('wo.read') && <NavLink key="m" to="/maintenance"><Icono n="orden" /> Órdenes (OM)</NavLink>,
+        can('incident.read') && <NavLink key="i" to="/incidents"><span className="ico">⚠</span> Incidencias</NavLink>,
+        can('wo.read') && <NavLink key="m" to="/maintenance"><span className="ico">🔧</span> Órdenes (OM)</NavLink>,
       ].filter(Boolean) as ReactNode[],
     },
     {
       titulo: 'Mantenimiento',
       items: [
-        can('wo.read') && <NavLink key="p" to="/preventive"><Icono n="preventivo" /> Preventivo</NavLink>,
-        can('wo.read') && <NavLink key="c" to="/corrective"><Icono n="correctivo" /> Correctivo</NavLink>,
-        can('wo.read') && <NavLink key="pr" to="/predictive"><Icono n="predictivo" /> Predictivo</NavLink>,
-        can('wo.read') && <NavLink key="me" to="/improvements"><Icono n="mejora" /> Mejora</NavLink>,
+        can('wo.read') && <NavLink key="p" to="/preventive"><span className="ico">🗓️</span> Preventivo</NavLink>,
+        can('wo.read') && <NavLink key="c" to="/corrective"><span className="ico">🛠️</span> Correctivo</NavLink>,
+        can('wo.read') && <NavLink key="pr" to="/predictive"><span className="ico">📈</span> Predictivo</NavLink>,
+        can('wo.read') && <NavLink key="me" to="/improvements"><span className="ico">⬆️</span> Mejora</NavLink>,
       ].filter(Boolean) as ReactNode[],
     },
     {
       titulo: 'Almacén',
       items: [
-        can('inventory.read') && <NavLink key="inv" to="/inventory"><Icono n="inventario" /> Inventario</NavLink>,
+        can('inventory.read') && <NavLink key="inv" to="/inventory"><span className="ico">📦</span> Inventario</NavLink>,
       ].filter(Boolean) as ReactNode[],
     },
     {
       titulo: 'Sistema',
       items: [
-        can('audit.read') && <NavLink key="au" to="/audit"><Icono n="auditoria" /> Auditoría</NavLink>,
-        can('user.manage') && <NavLink key="us" to="/users"><Icono n="usuarios" /> Usuarios</NavLink>,
+        can('audit.read') && <NavLink key="au" to="/audit"><span className="ico">▦</span> Auditoría</NavLink>,
+        can('user.manage') && <NavLink key="us" to="/users"><span className="ico">◉</span> Usuarios</NavLink>,
       ].filter(Boolean) as ReactNode[],
     },
   ];
@@ -97,11 +95,8 @@ export default function Layout() {
     <div className="app">
       <aside className="sidebar">
         <div className="brand">
-          <MarcaSGIT size={30} />
-          <div>
-            <div className="logo">SGIT<span>-CCTV</span></div>
-            <div className="sub">Aceros Arequipa · Pisco</div>
-          </div>
+          <div className="logo">SGIT-CCTV</div>
+          <div className="sub">Aceros Arequipa · Pisco</div>
         </div>
         <nav className="nav">
           {secciones
@@ -126,8 +121,8 @@ export default function Layout() {
             </div>
             <div className="avatar">{initials}</div>
             <button className="logout" onClick={() => setVerPin(true)}
-              title="PIN para reanudar órdenes en campo"><Icono n="pin" size={15} /> Mi PIN</button>
-            <button className="logout" onClick={() => logout()}><Icono n="salir" size={15} /> Salir</button>
+              title="PIN para reanudar órdenes en campo">Mi PIN</button>
+            <button className="logout" onClick={() => logout()}>Salir</button>
           </div>
         </header>
         <main className="content">

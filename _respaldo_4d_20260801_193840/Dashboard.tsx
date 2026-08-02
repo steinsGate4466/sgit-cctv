@@ -1,6 +1,5 @@
 import { useEffect, useState, ReactNode } from 'react';
 import { api } from '../api/client';
-import { EsqueletoTablero } from '../components/Esqueleto';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar,
   XAxis, YAxis, Tooltip, CartesianGrid, Legend,
@@ -36,7 +35,7 @@ export default function Dashboard() {
     });
   }, []);
 
-  if (loading) return <EsqueletoTablero kpis={4} paneles={2} />;
+  if (loading) return <div className="loading">Cargando indicadores…</div>;
 
   const tr = (map: Record<string, string>, arr: any[]) =>
     (arr || []).map((x) => ({ ...x, name: map[x.name] || x.name }));

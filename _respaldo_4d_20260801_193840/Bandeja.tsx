@@ -1,6 +1,4 @@
 import { useEffect, useState, useCallback } from 'react';
-import { EsqueletoTabla } from '../components/Esqueleto';
-import { NadaPendiente } from '../components/Ilustraciones';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 
@@ -34,7 +32,7 @@ export default function Bandeja() {
   }, []);
   useEffect(() => { cargar().finally(() => setCargando(false)); }, [cargar]);
 
-  if (cargando) return <EsqueletoTabla filas={5} />;
+  if (cargando) return <div className="loading">Revisando qué te espera…</div>;
   if (!d) return <div className="card" style={{ padding: 30, textAlign: 'center' }}>
     <div className="muted">No se pudo cargar la bandeja.</div>
   </div>;
@@ -47,13 +45,15 @@ export default function Bandeja() {
       <p className="page-sub">Lo que espera una decisión tuya. No es un tablero: es una lista para vaciar.</p>
 
       {r.total === 0 ? (
-        <div className="card vacio">
-          <NadaPendiente />
-          <h3>No hay nada esperándote</h3>
-          <p>
+        <div className="card" style={{ padding: 48, textAlign: 'center' }}>
+          <div style={{ fontSize: 40, lineHeight: 1 }}>✓</div>
+          <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--ok)', marginTop: 10 }}>
+            No hay nada esperándote
+          </div>
+          <div className="muted" style={{ fontSize: 13, marginTop: 6 }}>
             Ni órdenes sin detallar, ni firmas pendientes, ni permisos sin
             resolver. Eso es una buena noticia y merece decirse.
-          </p>
+          </div>
         </div>
       ) : (
         <>

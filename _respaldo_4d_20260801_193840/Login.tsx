@@ -1,8 +1,6 @@
 import { useState, FormEvent } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-import { MarcaSGIT, LineaLaminacion } from '../components/Ilustraciones';
-import Icono from '../components/Iconos';
 
 export default function Login() {
   const { login } = useAuth();
@@ -71,7 +69,7 @@ export default function Login() {
   const year = new Date().getFullYear();
 
   return (
-    <div className="login-page">
+    <div className="login-wrap">
       {/* El aviso EMPUJA el contenido, no flota encima.
           Flotando y fijo, en un celular acostado tapaba el campo de correo
           justo cuando el usuario iba a escribir: el sistema parecía roto dos
@@ -81,17 +79,11 @@ export default function Login() {
           Tu sesión se cerró por inactividad. Vuelve a ingresar.
         </div>
       )}
-
-      <div className="login-wrap">
       {/* Panel de marca — identidad industrial */}
       <div className="login-brandside">
-        {/* La línea de laminación, dibujada en vector: horno, castillos, la
-            barra al rojo y las cámaras. Va detrás y muy tenue — da identidad
-            sin competir con el formulario. Pesa 6 kB; una foto pesaría 300. */}
-        <LineaLaminacion className="lb-arte" />
         <div className="lb-content">
           <div className="lb-logo">
-            <span className="lb-logo-mark"><MarcaSGIT size={38} /></span>
+            <span className="lb-logo-mark" />
             <div>
               <div className="lb-title">SGIT<span>-CCTV</span></div>
               <div className="lb-sub">Sistema de Gestión de Infraestructura Tecnológica</div>
@@ -123,8 +115,7 @@ export default function Login() {
 
           {vieneDeQr && (
             <div className="scan-note" style={{ marginBottom: 14 }}>
-              <Icono n="etiqueta" size={16} />
-              <span>Escaneaste la etiqueta de un equipo. Al ingresar te llevamos directo a su ficha.</span>
+              🏷️ Escaneaste la etiqueta de un equipo. Al ingresar te llevamos directo a su ficha.
             </div>
           )}
 
@@ -156,22 +147,20 @@ export default function Login() {
               tabIndex={-1}
               aria-label={showPass ? 'Ocultar contraseña' : 'Mostrar contraseña'}
             >
-              <Icono n={showPass ? 'ojoNo' : 'ojo'} size={19} />
+              {showPass ? '🙈' : '👁'}
             </button>
           </div>
 
           {error && <div className={blocked ? 'error blocked' : 'error'}>{error}</div>}
 
           <button className="btn" disabled={loading || blocked}>
-            {loading ? <><span className="btn-spin" />Verificando…</> : 'Ingresar'}
+            {loading ? 'Verificando…' : 'Ingresar'}
           </button>
 
           <div className="login-note">
-            <Icono n="candado" size={13} />
-            Los accesos quedan registrados en la auditoría del sistema.
+            🔒 Los accesos quedan registrados en la auditoría del sistema.
           </div>
         </form>
-      </div>
       </div>
     </div>
   );

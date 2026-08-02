@@ -33,9 +33,6 @@ a { color: inherit; text-decoration: none; }
    Ahora la marca NO desaparece: se convierte en una franja superior compacta
    y la tarjeta de acceso se monta encima de ella.
    ========================================================================= */
-.login-page { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; background: var(--bg); }
-.login-page > .login-wrap { flex: 1; min-height: 0; }
-
 .login-wrap {
   min-height: 100vh;   /* respaldo para navegadores viejos */
   min-height: 100dvh;  /* dvh: la barra de direcciones del celular ya no empuja
@@ -116,22 +113,19 @@ a { color: inherit; text-decoration: none; }
 .login-card .btn { padding: 14px; font-size: 15px; border-radius: 10px; }
 .error.blocked { background: #fff4e5; color: #b45309; border: 1px solid #f5dcb0; }
 .login-note { margin-top: 18px; font-size: 11px; color: var(--muted); text-align: center; line-height: 1.5; }
-/* AVISO DE SESIÓN CERRADA — fuera de la rejilla, a propósito.
-   Estuvo un rato DENTRO de .login-wrap y el resultado fue un desastre: como
-   la rejilla de escritorio tiene una sola fila de 1fr, el aviso se quedó con
-   todo el espacio sobrante y salía una mancha amarilla de media pantalla.
-   Una franja de aviso es una franja: nunca debe poder crecer. */
+/* Aviso de sesión cerrada: no se superpone al contenido, empuja hacia abajo */
 .login-aviso {
-  flex: none; background: #fef3c7; color: #92400e;
+  grid-column: 1 / -1; background: #fef3c7; color: #92400e;
   border-bottom: 1px solid #fcd34d; padding: 11px 16px;
   padding-top: calc(11px + env(safe-area-inset-top));
   font-size: 13px; text-align: center; line-height: 1.4;
 }
-.login-aviso + .login-wrap .login-brandside { padding-top: clamp(16px, 4.5vw, 48px); }
+.login-aviso + .login-brandside { padding-top: clamp(16px, 4.5vw, 48px); }
 
 /* ---- Escritorio: dos columnas, la marca recupera todo su peso ---- */
 @media (min-width: 901px) {
   .login-wrap { grid-template-columns: 1.05fr .95fr; grid-template-rows: 1fr; }
+  .login-aviso { grid-column: 1 / -1; }
   .login-brandside::before { background: repeating-linear-gradient(115deg, #fff 0 2px, transparent 2px 22px); }
   .login-brandside::after { right: -120px; top: -80px; width: 420px; height: 420px; }
   .lb-content { display: block; }
@@ -667,237 +661,3 @@ select optgroup { font-weight: 700; color: var(--navy); }
   .login-card { padding: 16px 13px; }
   .btn, .btn-primary { padding: 12px; font-size: 13.5px; }
 }
-
-/* =========================================================================
-   4D-2 · PULIDO VISUAL
-   -------------------------------------------------------------------------
-   El sistema funcionaba y se veía plano. Esto no es maquillaje: una pantalla
-   que se lee de un vistazo es una pantalla en la que se cometen menos
-   errores. Aquí se trabaja de noche, de pie y con guantes.
-   Tres ideas, y ninguna es "poner más color":
-     1. JERARQUÍA — que el número importante se vea antes que la etiqueta.
-     2. PROFUNDIDAD MEDIDA — tres niveles de sombra, no quince.
-     3. NADA GIRA NI PARPADEA sin motivo. El movimiento se reserva para
-        decir "estoy cargando" o "esto se puede pulsar".
-   ========================================================================= */
-
-:root {
-  /* Tres niveles de elevación. Más niveles es ruido, no profundidad. */
-  --e1: 0 1px 2px rgba(16,24,40,.05), 0 1px 3px rgba(16,24,40,.05);
-  --e2: 0 2px 4px rgba(16,24,40,.05), 0 6px 16px rgba(16,24,40,.07);
-  --e3: 0 10px 24px rgba(16,24,40,.12), 0 2px 6px rgba(16,24,40,.07);
-  --shadow: var(--e1);
-  --navy-3: #0d1729;
-  --tinta: #101828;
-}
-
-/* ---------------------------------------------------------- ACCESO: EL ARTE */
-.lb-arte {
-  position: absolute; left: 0; right: 0; bottom: 0;
-  width: 100%; height: 62%; opacity: .5; pointer-events: none;
-}
-.login-brandside .lb-content { z-index: 2; }
-.lb-logo-mark {
-  width: auto; height: auto; background: none; border-radius: 0;
-  display: grid; place-items: center; color: #cddcf5;
-}
-@media (min-width: 901px) {
-  .lb-arte { height: 46%; opacity: .62; }
-  .login-brandside { align-items: flex-start; padding-top: 8vh; }
-}
-/* En horizontal el dibujo se comería el formulario. Fuera. */
-@media (max-height: 560px) and (max-width: 900px) { .lb-arte { display: none; } }
-
-/* ------------------------------------------------------- BARRA LATERAL */
-.sidebar {
-  background: linear-gradient(180deg, var(--navy-3) 0%, var(--navy) 55%, #1a2942 100%);
-  border-right: 1px solid rgba(255,255,255,.06);
-}
-.sidebar .brand {
-  display: flex; align-items: center; gap: 11px;
-  padding: 18px 18px; border-bottom: 1px solid rgba(255,255,255,.07);
-  color: #b9cbe8;
-}
-.sidebar .brand .logo { font-size: 18px; letter-spacing: .6px; }
-.sidebar .brand .logo span { color: var(--red); }
-.sidebar .brand .sub { font-size: 10.5px; color: #8296b8; letter-spacing: .2px; }
-
-.nav a {
-  position: relative; gap: 11px; font-size: 13.5px; font-weight: 500;
-  color: #b6c4dc; border-radius: 9px;
-}
-.nav a .ico { flex: none; opacity: .78; transition: opacity .15s ease; }
-.nav a:hover { background: rgba(255,255,255,.07); color: #fff; }
-.nav a:hover .ico { opacity: 1; }
-/* La opción activa lleva una marca roja a la izquierda: se localiza sin
-   tener que leer. El fondo azul solo ya obligaba a buscar. */
-.nav a.active {
-  background: linear-gradient(90deg, rgba(46,84,150,.55), rgba(46,84,150,.22));
-  color: #fff; font-weight: 600;
-}
-.nav a.active .ico { opacity: 1; color: #fff; }
-.nav a.active::before {
-  content: ''; position: absolute; left: -10px; top: 7px; bottom: 7px;
-  width: 3px; border-radius: 0 3px 3px 0; background: var(--red);
-}
-.nav-group-title { color: #6f81a1; letter-spacing: 1px; }
-.sidebar .foot { color: #7487a8; font-size: 11px; }
-
-/* --------------------------------------------------------------- CABECERA */
-.topbar {
-  position: sticky; top: 0; z-index: 20;
-  background: rgba(255,255,255,.88);
-  backdrop-filter: saturate(180%) blur(10px);
-  -webkit-backdrop-filter: saturate(180%) blur(10px);
-  box-shadow: 0 1px 0 var(--border);
-  border-bottom: none;
-}
-.topbar .title { font-size: 17px; letter-spacing: -.2px; color: var(--tinta); }
-.topbar .user .avatar {
-  background: linear-gradient(145deg, var(--steel), var(--navy-2));
-  box-shadow: 0 2px 6px rgba(46,84,150,.35); font-size: 13px;
-}
-.logout {
-  display: inline-flex; align-items: center; gap: 6px;
-  background: #fff; font-weight: 500;
-}
-.logout:hover { background: #fdf2f3; }
-
-/* ------------------------------------------------------------- INDICADORES */
-.kpi {
-  border-left: none; border-radius: 14px; padding: 17px 18px 16px;
-  box-shadow: var(--e1); position: relative; overflow: hidden;
-}
-/* Barra de color ARRIBA en lugar de a la izquierda: al apilarse en el
-   celular, las barras laterales se leían como un margen decorativo. */
-.kpi::before {
-  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px;
-  background: var(--steel);
-}
-.kpi.ok::before   { background: var(--ok); }
-.kpi.warn::before { background: var(--warn); }
-.kpi.crit::before { background: var(--crit); }
-.kpi.red::before  { background: var(--red); }
-/* Rastro de color detrás del número: da cuerpo sin añadir ruido */
-.kpi::after {
-  content: ''; position: absolute; right: -30px; top: -30px;
-  width: 120px; height: 120px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(46,84,150,.07), transparent 70%);
-}
-.kpi.crit::after { background: radial-gradient(circle, rgba(220,38,38,.09), transparent 70%); }
-.kpi.warn::after { background: radial-gradient(circle, rgba(217,119,6,.09), transparent 70%); }
-.kpi.ok::after   { background: radial-gradient(circle, rgba(22,163,74,.08), transparent 70%); }
-.kpi .label { font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: .5px; }
-.kpi .value { font-size: 32px; letter-spacing: -1px; color: var(--tinta); margin-top: 4px; }
-.kpi .hint { font-size: 11.5px; line-height: 1.45; }
-.kpi:hover { box-shadow: var(--e2); }
-
-/* -------------------------------------------------------------- TARJETAS */
-.card, .panel { border-radius: 14px; box-shadow: var(--e1); }
-.panel { padding: 18px 20px; }
-.panel h3 { font-size: 13px; letter-spacing: .3px; color: var(--tinta); text-transform: none; }
-.panel h3::before { height: 13px; background: var(--red); }
-
-/* ---------------------------------------------------------------- TABLAS */
-th {
-  font-size: 10.5px; letter-spacing: .7px; color: #7b8798;
-  background: #f7f9fc; border-bottom: 1px solid var(--border);
-}
-td { color: #2b3648; }
-tbody tr:hover { background: #f5f8fe; }
-/* La primera columna es el identificador: se lee como tal */
-tbody td:first-child { font-weight: 600; color: var(--tinta); }
-
-/* --------------------------------------------------------------- ETIQUETAS */
-.badge {
-  padding: 3px 10px; font-size: 10.5px; letter-spacing: .3px;
-  display: inline-flex; align-items: center; gap: 5px;
-}
-/* Punto de color: se distingue el estado sin depender solo del color,
-   que es lo que hace ilegible una pantalla para quien no distingue el
-   rojo del verde — y en planta hay gente así. */
-.badge::before {
-  content: ''; width: 5px; height: 5px; border-radius: 50%;
-  background: currentColor; flex: none;
-}
-
-/* ------------------------------------------------------------ FORMULARIOS */
-label { font-weight: 600; color: #55627a; letter-spacing: .2px; }
-input, select, textarea {
-  border-radius: 9px; padding: 11px 12px;
-  background: #fcfdfe; transition: border-color .12s, box-shadow .12s, background .12s;
-}
-input:hover, select:hover, textarea:hover { border-color: #cbd5e6; }
-input:focus, select:focus, textarea:focus {
-  background: #fff; border-color: var(--steel); box-shadow: 0 0 0 3.5px rgba(46,84,150,.13);
-}
-input::placeholder, textarea::placeholder { color: #a8b2c4; }
-input:disabled, select:disabled { background: #f2f4f8; color: var(--muted); cursor: not-allowed; }
-
-/* --------------------------------------------------------------- BOTONES */
-.btn, .btn-primary {
-  background: linear-gradient(180deg, #35609f, var(--steel));
-  border-radius: 10px; box-shadow: 0 1px 2px rgba(16,24,40,.12);
-  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-}
-.btn:hover:not(:disabled), .btn-primary:hover:not(:disabled) {
-  background: linear-gradient(180deg, var(--steel), var(--navy-2));
-  box-shadow: 0 3px 10px rgba(46,84,150,.32);
-}
-/* El botón se HUNDE al pulsar: en una pantalla táctil es la única
-   confirmación de que el dedo dio en el sitio. */
-.btn:active:not(:disabled), .btn-primary:active:not(:disabled),
-.btn-mini:active { transform: translateY(1px); box-shadow: none; }
-.btn-mini {
-  display: inline-flex; align-items: center; gap: 6px; border-radius: 8px;
-  background: #fff; color: var(--steel); border-color: #d8e1f0; font-weight: 600;
-}
-.btn-mini:hover { background: var(--steel); color: #fff; border-color: var(--steel); }
-
-/* Rueda de espera dentro del botón. Sin esto, pulsar "Ingresar" con la red
-   de planta lenta parecía no hacer nada y la gente pulsaba tres veces. */
-.btn-spin {
-  width: 15px; height: 15px; border-radius: 50%; flex: none;
-  border: 2px solid rgba(255,255,255,.35); border-top-color: #fff;
-  animation: sgit-giro .7s linear infinite;
-}
-@keyframes sgit-giro { to { transform: rotate(360deg); } }
-
-/* --------------------------------------------------------------- MODALES */
-.modal { border-radius: 16px; box-shadow: var(--e3); }
-.modal-head { background: #fbfcfe; }
-.modal-overlay { background: rgba(13,23,41,.55); backdrop-filter: blur(2px); }
-
-/* -------------------------------------------------- ESQUELETO DE CARGA
-   "Cargando…" en el centro de una pantalla vacía no dice nada y se siente
-   lento. Un esqueleto con la forma de lo que va a llegar hace que la espera
-   se perciba más corta, y además evita el salto cuando entran los datos. */
-.esq { background: linear-gradient(90deg, #eef1f6 25%, #f6f8fb 37%, #eef1f6 63%);
-  background-size: 400% 100%; animation: sgit-brillo 1.3s ease infinite;
-  border-radius: 7px; }
-@keyframes sgit-brillo { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
-.esq-kpi { height: 96px; border-radius: 14px; }
-.esq-linea { height: 12px; margin-bottom: 9px; }
-.esq-linea.corta { width: 55%; }
-.esq-panel { height: 220px; border-radius: 14px; }
-
-/* --------------------------------------------------------- ESTADO VACÍO */
-.vacio { text-align: center; padding: 42px 20px; color: var(--muted); }
-.vacio svg { color: var(--steel); opacity: .8; }
-.vacio h3 { margin: 14px 0 4px; font-size: 16px; color: var(--tinta); font-weight: 700; }
-.vacio p { margin: 0 auto; font-size: 13px; max-width: 380px; line-height: 1.6; }
-
-/* Los avisos con icono se alinean; antes el texto colgaba bajo el símbolo */
-.scan-note, .sign-note, .hint-link { display: flex; align-items: flex-start; gap: 8px; }
-.scan-note svg, .sign-note svg { flex: none; margin-top: 1px; }
-.login-note { display: flex; align-items: center; justify-content: center; gap: 6px; }
-
-@media (prefers-reduced-motion: reduce) {
-  .esq { animation: none; }
-  .btn-spin { animation-duration: 2s; }
-}
-
-/* Texto solo para lectores de pantalla: el esqueleto es visual, quien usa
-   lector necesita oír que se está cargando. */
-.sr-solo { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
-  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
