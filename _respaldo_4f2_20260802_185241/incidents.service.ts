@@ -1,7 +1,4 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { BandejaSalidaService } from '../notificaciones/bandeja-salida.service';
-import { incidenciaCritica } from '../notificaciones/plantillas';
-import { resolverContextoDePlanta } from '../../common/plant-context';
 import { Prisma } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { randomUUID } from 'crypto';
@@ -26,7 +23,6 @@ export class IncidentsService {
     private prisma: PrismaService,
     private audit: AuditService,
     private storage: StorageService,
-    private avisos: BandejaSalidaService,
   ) {}
 
   private async nextCode(): Promise<string> {
@@ -36,7 +32,7 @@ export class IncidentsService {
   }
 
   async create(dto: CreateIncidentDto) {
-    const inc = await this.prisma.incident.create({
+    return this.prisma.incident.create({
       data: {
         code: await this.nextCode(),
         title: dto.title,
@@ -51,47 +47,6 @@ export class IncidentsService {
       },
       include: assetSel,
     });
-
-    // AVISO DE INCIDENCIA ALTA O CRÍTICA.
-    //
-    // Sólo esas dos. Avisar de todas convertiría el bot en ruido y la gente
-    // lo silenciaría — y entonces tampoco vería las críticas. Lo que
-    // despierta se reserva para lo que exige levantarse.
-    if (inc.priority === 'ALTA' || inc.priority === 'CRITICA') {
-      // El tren no es una columna: se deriva del árbol. Se resuelve aquí para
-      // que el aviso diga DÓNDE, que es lo primero que se pregunta.
-      let tren: string | null = null;
-      if (inc.assetId) {
-        const activo = await this.prisma.asset
-          .findUnique({ where: { id: inc.assetId }, select: { id: true, locationId: true, assetCode: true } })
-          .catch(() => null);
-        if (activo) {
-          const ctx = await resolverContextoDePlanta(this.prisma, [activo] as any).catch(() => ({} as any));
-          tren = ctx?.[activo.id]?.trenNombre || ctx?.[activo.id]?.trenCode || null;
-        }
-      }
-      const activo = inc.assetId
-        ? await this.prisma.asset
-            .findUnique({ where: { id: inc.assetId }, select: { assetCode: true } })
-            .catch(() => null)
-        : null;
-
-      await this.avisos.encolar(
-        'INCIDENCIA_ALTA',
-        incidenciaCritica({
-          code: inc.code,
-          titulo: inc.title,
-          equipo: activo?.assetCode,
-          tren,
-          prioridad: inc.priority,
-          reportaba: inc.responsibleName,
-          enlace: enlaceIncidencia(inc.code),
-        }),
-        await this.avisos.destinatarios('INGENIERO').catch(() => []),
-        inc.id,
-      ).catch(() => 0);
-    }
-    return inc;
   }
 
   async findAll(q: QueryIncidentDto) {
@@ -349,13 +304,4 @@ export class IncidentsService {
     const buffer = await done;
     return { buffer, filename: `informe-${inc.code}.pdf` };
   }
-}
-
-/**
- * Enlace a la incidencia. Sale de APP_URL; sin ella el aviso va sin enlace,
- * que es mejor que uno roto a `undefined/incidents`.
- */
-function enlaceIncidencia(code: string): string | null {
-  const base = (process.env.APP_URL || '').replace(/\/+$/, '');
-  return base ? `${base}/incidents?q=${code}` : null;
 }

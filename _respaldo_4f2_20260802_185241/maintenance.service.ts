@@ -6,8 +6,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { filtroDeUbicaciones } from '../../common/ambito-planta';
 import { filtroConAmbito } from '../../common/ambito-usuario';
 import { BandejaSalidaService } from '../notificaciones/bandeja-salida.service';
-import { omCerrada, omAsignada, omEnEspera } from '../notificaciones/plantillas';
-import { evaluarEspera } from './espera';
+import { omCerrada, omAsignada } from '../notificaciones/plantillas';
 import { fechaLimite, estadoDetalle, actividadDesdeIncidencia } from './asignacion.util';
 import { resolverContexto } from '../../common/plant-context';
 import { AuditService } from '../audit/audit.service';
@@ -272,71 +271,7 @@ export class MaintenanceService {
     const data: any = { ...dto };
     if (dto.scheduledDate) data.scheduledDate = new Date(dto.scheduledDate);
     if (dto.status === 'CERRADA' && !cur.executedDate) data.executedDate = new Date();
-    const actualizada = await this.prisma.workOrder.update({ where: { id }, data, include: inc });
-
-    // AVISO AL PONER EN ESPERA.
-    //
-    // Sólo cuando CAMBIA a EN_ESPERA, no cada vez que se guarda una orden que
-    // ya lo estaba: si no, cualquier edición volvería a avisar de lo mismo y
-    // el aviso se convertiría en ruido. Es la diferencia entre "esto acaba de
-    // pararse" y "esto sigue parado", y sólo la primera merece sonar.
-    if (dto.status === 'EN_ESPERA' && cur.status !== 'EN_ESPERA') {
-      await this.avisarEspera(actualizada);
-    }
-    return actualizada;
-  }
-
-  /**
-   * Encola el aviso de "esta orden se ha parado".
-   *
-   * El motivo sale del último avance, donde el técnico eligió del catálogo por
-   * qué no pudo seguir (3F-1). Y el texto lo arma `evaluarEspera`, el mismo
-   * que usa Mi bandeja: una sola forma de contar una espera en todo el
-   * sistema, en la pantalla y en el teléfono.
-   */
-  private async avisarEspera(wo: any) {
-    try {
-      await this.encolarEspera(wo);
-    } catch {
-      // TODO EL CAMINO va protegido, no sólo la parte de encolar.
-      //
-      // Aquí se consulta el último avance para saber qué se espera. Si esa
-      // consulta fallara —o ni existiera, como pasa al construir el servicio
-      // a mano en una prueba—, el error subiría hasta `update()` y REVENTARÍA
-      // EL GUARDADO DE LA ORDEN. Poner en espera es la operación principal;
-      // avisar es lo accesorio, y lo accesorio nunca tumba a lo principal.
-    }
-  }
-
-  private async encolarEspera(wo: any) {
-    const ultimo = await this.prisma.workOrderProgress
-      .findFirst({ where: { workOrderId: wo.id }, orderBy: { reportedAt: 'desc' } })
-      .catch(() => null);
-
-    const e = evaluarEspera({
-      id: wo.id,
-      code: wo.code,
-      activity: wo.activity,
-      desde: ultimo?.reportedAt ?? new Date(),
-      motivo: ultimo?.reasonCode ?? null,
-      motivoTexto: ultimo?.note ?? null,
-    });
-
-    await this.avisos.encolar(
-      'OM_EN_ESPERA',
-      omEnEspera({
-        code: wo.code,
-        equipo: wo.asset?.assetCode,
-        // Se manda la frase ya redactada: "un repuesto", "la grúa de
-        // mecánica". El código del catálogo no significa nada en un teléfono.
-        queEspera: (e.texto.match(/esperando (.+?)\./) || [])[1] || ultimo?.note || null,
-        dias: e.dias,
-        tecnico: wo.technician?.fullName,
-        enlace: enlaceA(`/maintenance?q=${wo.code}`),
-      }),
-      await this.avisos.destinatarios('INGENIERO').catch(() => []),
-      wo.id,
-    ).catch(() => 0);
+    return this.prisma.workOrder.update({ where: { id }, data, include: inc });
   }
 
   // Cierre firmado: re-verifica credenciales del que cierra y audita la firma.
@@ -524,13 +459,6 @@ export class MaintenanceService {
       before: { avance: wo.progressPct },
       after: { om: wo.code, avance: pct, motivo: dto.note || null },
     });
-
-    // Si el parte de avance dejó la orden EN ESPERA, se avisa igual: es el
-    // camino por el que de verdad se paran las órdenes en campo —el técnico
-    // reporta que no puede seguir— y sería absurdo cubrir sólo el otro.
-    if (updated.status === 'EN_ESPERA' && wo.status !== 'EN_ESPERA') {
-      await this.avisarEspera(updated);
-    }
     return updated;
   }
 

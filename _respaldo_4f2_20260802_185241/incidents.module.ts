@@ -3,10 +3,9 @@ import { IncidentsService } from './incidents.service';
 import { IncidentsController } from './incidents.controller';
 import { AuditModule } from '../audit/audit.module';
 import { StorageModule } from '../storage/storage.module';
-import { NotificacionesModule } from '../notificaciones/notificaciones.module';
 
 @Module({
-  imports: [AuditModule, StorageModule, NotificacionesModule],
+  imports: [AuditModule, StorageModule],
   controllers: [IncidentsController],
   providers: [IncidentsService],
 })

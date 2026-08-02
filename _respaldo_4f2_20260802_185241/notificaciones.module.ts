@@ -3,7 +3,6 @@ import { TelegramClient } from './telegram.client';
 import { BandejaSalidaService } from './bandeja-salida.service';
 import { DespachadorService } from './despachador.service';
 import { VinculacionService } from './vinculacion.service';
-import { ResumenScheduler } from './resumen.scheduler';
 import { NotificacionesController } from './notificaciones.controller';
 
 /**
@@ -19,7 +18,7 @@ import { NotificacionesController } from './notificaciones.controller';
  */
 @Module({
   controllers: [NotificacionesController],
-  providers: [TelegramClient, BandejaSalidaService, DespachadorService, VinculacionService, ResumenScheduler],
+  providers: [TelegramClient, BandejaSalidaService, DespachadorService, VinculacionService],
   exports: [BandejaSalidaService],
 })
 export class NotificacionesModule {}
