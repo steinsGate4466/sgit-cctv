@@ -22,7 +22,6 @@ const TITLES: Record<string, string> = {
   '/audit': 'Auditoría',
   '/users': 'Usuarios',
   '/roles': 'Roles y permisos',
-  '/mi-tren': 'Mi tren',
 };
 
 /**
@@ -48,10 +47,6 @@ export default function Layout() {
       items: [
         // La bandeja va PRIMERA a propósito: es lo que hay que vaciar al
         // llegar. El tablero se mira cuando ya no queda nada esperando.
-        // 'Mi tren' sólo aparece si el usuario TIENE ámbito. A quien lo ve
-        // todo no le aporta nada: ya tiene Estado por Tren con los tres.
-        (user?.ambitoTrenes?.length ?? 0) > 0 && can('dashboard.read') &&
-          <NavLink key="mt" to="/mi-tren"><Icono n="tren" /> Mi tren</NavLink>,
         can('dashboard.read') && <NavLink key="bd" to="/bandeja"><Icono n="bandeja" /> Mi bandeja</NavLink>,
         can('dashboard.read') && <NavLink key="d" to="/dashboard"><Icono n="tablero" /> Dashboard</NavLink>,
         can('dashboard.read') && <NavLink key="t" to="/trains"><Icono n="tren" /> Estado por Tren</NavLink>,

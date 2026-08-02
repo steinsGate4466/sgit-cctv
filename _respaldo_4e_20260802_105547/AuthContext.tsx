@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { api } from '../api/client';
 import { useInactivity } from './useInactivity';
 
@@ -8,8 +8,6 @@ interface User {
   fullName: string;
   role: string;
   permissions: string[];
-  /** Trenes que puede ver. Vacío = todos. Lo decide el ingeniero (4C). */
-  ambitoTrenes?: string[];
 }
 
 interface AuthCtx {
@@ -50,35 +48,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const valido = typeof motivo === 'string' && motivo.length > 0;
     location.href = valido ? `/login?motivo=${encodeURIComponent(motivo!)}` : '/login';
   }, []);
-
-  // AL ABRIR LA APLICACIÓN SE RELEE EL PERFIL DEL SERVIDOR.
-  //
-  // El usuario guardado en el navegador es de cuando inició sesión, y puede
-  // tener horas. Si el ingeniero le cambió el rol o le acotó los trenes, el
-  // menú seguiría enseñándole lo de antes hasta que volviera a entrar.
-  //
-  // Esto NO es la seguridad —el servidor ya rechaza lo que no toca— sino
-  // evitar la peor cara de un permiso: pulsar una opción que sigue en el
-  // menú y recibir un error, sin entender por qué.
-  //
-  // Si la llamada falla no se cierra la sesión: puede ser un corte de red y
-  // dejar tirado a alguien en planta por eso sería peor que el problema.
-  useEffect(() => {
-    if (!user) return;
-    let vigente = true;
-    api.get('/auth/me')
-      .then(({ data }) => {
-        if (!vigente || !data) return;
-        const fresco = { ...user, ...data };
-        localStorage.setItem('sgit_user', JSON.stringify(fresco));
-        setUser(fresco);
-      })
-      .catch(() => { /* corte de red: se sigue con lo que había */ });
-    return () => { vigente = false; };
-    // Sólo al montar y al cambiar de identidad. Con `user` entero en las
-    // dependencias se llamaría en bucle, porque la propia llamada lo cambia.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
 
   const cerrarPorInactividad = useCallback(() => logout('inactividad'), [logout]);
   const { restante, seguir, minutosCierre } = useInactivity(!!user, cerrarPorInactividad);

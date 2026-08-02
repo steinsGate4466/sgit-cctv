@@ -33,9 +33,6 @@ export class AuthController {
   @ApiBearerAuth()
   @Get('me')
   me(@CurrentUser() user: any) {
-    // Se completa desde la BASE, no sólo con lo que trae el token: el ámbito
-    // de trenes puede haber cambiado hace un minuto y la pantalla tiene que
-    // enterarse ya, no cuando el usuario vuelva a entrar mañana.
-    return this.auth.perfil(user);
+    return user;
   }
 }

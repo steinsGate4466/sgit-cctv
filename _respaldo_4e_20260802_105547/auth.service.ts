@@ -137,24 +137,4 @@ export class AuthService {
       },
     };
   }
-
-  /**
-   * Perfil completo de quien pregunta. Añade al contenido del token los
-   * datos que pueden cambiar mientras la sesión sigue abierta: el ámbito de
-   * trenes y si la cuenta se ha desactivado.
-   */
-  async perfil(delToken: any) {
-    if (!delToken?.userId) return delToken;
-    const u = await this.prisma.user.findUnique({
-      where: { id: delToken.userId },
-      select: { fullName: true, active: true, ambitoTrenes: true, role: { select: { name: true } } },
-    });
-    return {
-      ...delToken,
-      fullName: u?.fullName ?? delToken.fullName,
-      role: u?.role?.name ?? delToken.role,
-      activo: u?.active ?? true,
-      ambitoTrenes: u?.ambitoTrenes ?? [],
-    };
-  }
 }
