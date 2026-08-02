@@ -3,7 +3,6 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import MiPin from './MiPin';
 import Icono from './Iconos';
-import AvisoRed from './AvisoRed';
 import { MarcaSGIT } from './Ilustraciones';
 
 const TITLES: Record<string, string> = {
@@ -142,8 +141,6 @@ export default function Layout() {
             <button className="logout" onClick={() => logout()}><Icono n="salir" size={15} /> Salir</button>
           </div>
         </header>
-        {/* Va aquí, entre la cabecera y el contenido: empuja, no tapa. */}
-        <AvisoRed />
         <main className="content">
           <Outlet />
         </main>

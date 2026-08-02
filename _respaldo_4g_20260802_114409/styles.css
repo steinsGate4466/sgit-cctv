@@ -921,25 +921,3 @@ input:disabled, select:disabled { background: #f2f4f8; color: var(--muted); curs
   color: #b45309; font-size: 11.5px; line-height: 1.4;
 }
 .permiso-cuidado svg { flex: none; margin-top: 1px; }
-
-/* ---------------------------------------------- AVISO DE FALLO DE RED
-   Aparece sola cuando el servidor no responde. Va DENTRO del flujo: empuja
-   el contenido hacia abajo en lugar de taparlo. Flotando ya tapó una vez el
-   campo que el usuario iba a escribir. */
-.aviso-red {
-  display: flex; align-items: center; gap: 10px;
-  background: #fff4e5; color: #92400e; border-bottom: 1px solid #f5dcb0;
-  padding: 10px 20px; font-size: 13px; line-height: 1.4;
-}
-.aviso-red svg { flex: none; }
-.aviso-red span { flex: 1; }
-.aviso-red-btn {
-  flex: none; background: #fff; border: 1px solid #e6c99a; color: #92400e;
-  border-radius: 8px; padding: 6px 12px; font-size: 12.5px; font-weight: 600;
-  cursor: pointer; min-height: 36px;
-}
-.aviso-red-btn:hover { background: #92400e; color: #fff; border-color: #92400e; }
-@media (max-width: 780px) {
-  .aviso-red { padding: 10px 12px; font-size: 12.5px; }
-  .aviso-red-btn { min-height: 44px; }
-}
