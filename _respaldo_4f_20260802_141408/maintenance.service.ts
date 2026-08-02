@@ -5,8 +5,6 @@ import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { filtroDeUbicaciones } from '../../common/ambito-planta';
 import { filtroConAmbito } from '../../common/ambito-usuario';
-import { BandejaSalidaService } from '../notificaciones/bandeja-salida.service';
-import { omCerrada, omAsignada } from '../notificaciones/plantillas';
 import { fechaLimite, estadoDetalle, actividadDesdeIncidencia } from './asignacion.util';
 import { resolverContexto } from '../../common/plant-context';
 import { AuditService } from '../audit/audit.service';
@@ -43,7 +41,6 @@ export class MaintenanceService {
     private audit: AuditService,
     private storage: StorageService,
     private preventive: PreventiveService,
-    private readonly avisos: BandejaSalidaService,
   ) {}
 
   /**
@@ -359,38 +356,6 @@ export class MaintenanceService {
         .markServiced(wo.assetId, updated.executedDate || new Date())
         .catch(() => null);
     }
-
-    // AVISO DE CIERRE (4F). Sólo se GUARDA; no se envía aquí.
-    //
-    // Si el envío formara parte de esta función, un corte de internet
-    // impediría cerrar la orden. Encolar no puede fallar —es la misma base—
-    // y además va envuelto por dentro en try/catch: perder un aviso es malo,
-    // impedir que se cierre una orden es peor.
-    //
-    // Va el ENLACE al informe, no el PDF: un archivo con fotos de planta
-    // subido a Telegram queda en sus servidores y se reenvía con dos toques.
-    // DOBLE RED. El try/catch vive DENTRO de BandejaSalidaService, pero
-    // también se protege aquí: si mañana alguien sustituye ese servicio, o
-    // si el fallo ocurre antes de entrar en él, el cierre TIENE que
-    // sobrevivir igual. Cerrar una orden es lo que no puede fallar; el aviso
-    // es lo accesorio, y lo accesorio nunca tumba a lo principal.
-    await this.avisos.encolar(
-      'OM_CERRADA',
-      omCerrada({
-        code: updated.code,
-        equipo: (updated as any).asset?.assetCode,
-        lugar: (updated as any).asset?.referencePlace,
-        actividad: updated.activity,
-        cerradaPor: signer!.fullName,
-        sintoma: dto.symptomCode,
-        causa: dto.rootCauseCode || dto.rootCause,
-        accion: dto.actionCode,
-        duracionMin: minutos,
-        enlace: enlaceA(`/maintenance?q=${updated.code}`),
-      }),
-      await this.avisos.destinatarios('INGENIERO').catch(() => []),
-      updated.id,
-    ).catch(() => 0);
     return updated;
   }
 
@@ -765,21 +730,6 @@ export class MaintenanceService {
       },
     });
 
-    // AVISO AL TÉCNICO. Está en campo, no mirando el sistema: el aviso le
-    // llega donde está. Si no ha vinculado su Telegram, no se encola nada.
-    await this.avisos.encolar(
-      'OM_ASIGNADA',
-      omAsignada({
-        code: wo.code,
-        equipo: (wo as any).asset?.assetCode,
-        actividad: wo.activity,
-        para: wo.scheduledDate ? new Date(wo.scheduledDate).toLocaleDateString('es-PE') : null,
-        asignadaPor: (wo as any).assignedBy?.fullName,
-        enlace: enlaceA(`/maintenance?q=${wo.code}`),
-      }),
-      await this.avisos.destinatarios('TECNICO', wo.technicianId).catch(() => []),
-      wo.id,
-    ).catch(() => 0);
     return { ...wo, avisoDuplicado };
   }
 
@@ -904,16 +854,4 @@ export class MaintenanceService {
     }, userId, ip);
   }
 
-}
-
-/**
- * Enlace absoluto a una pantalla del sistema.
- *
- * Sale de APP_URL. Si no está puesta, se devuelve null y el aviso va sin
- * enlace: es preferible un aviso sin enlace que un aviso con un enlace roto
- * a `undefined/maintenance`, que además haría dudar de todo lo demás.
- */
-function enlaceA(ruta: string): string | null {
-  const base = (process.env.APP_URL || '').replace(/\/+$/, '');
-  return base ? base + ruta : null;
 }

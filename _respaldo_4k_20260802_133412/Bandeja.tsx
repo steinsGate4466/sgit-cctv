@@ -86,27 +86,6 @@ export default function Bandeja() {
             textoAccion="Ir a órdenes"
           />
 
-          {/* Va justo después de "sin detallar" y ANTES de las vencidas: una
-              orden parada bloquea a alguien igual que una sin detallar, sólo
-              que en silencio. Las vencidas al menos se ven venir. */}
-          <Bloque
-            titulo="Órdenes paradas esperando algo"
-            porque="Una orden en espera no vence ni avisa: no se pierde, se olvida. Aquí salen primero las que llevan más de lo razonable para lo que esperan."
-            n={r.enEspera}
-            filas={d.enEspera}
-            columnas={['Orden', 'Equipo', 'Qué espera', 'Técnico']}
-            fila={(w: any) => [
-              <b>{w.code}</b>,
-              w.equipo || <span className="muted">sin definir</span>,
-              <span style={{ fontSize: 12, color: w.excedida ? 'var(--crit)' : undefined }}>
-                {w.excedida && <b>⚠ </b>}{w.texto}
-              </span>,
-              w.tecnico || <span className="muted">sin asignar</span>,
-            ]}
-            accion={() => navegar('/maintenance?status=EN_ESPERA')}
-            textoAccion="Ir a órdenes"
-          />
-
           <Bloque
             titulo="Material esperando tu firma"
             porque="El técnico ya lo pidió. Sin la firma no sale del almacén."

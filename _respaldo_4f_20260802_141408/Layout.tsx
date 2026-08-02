@@ -26,7 +26,6 @@ const TITLES: Record<string, string> = {
   '/mi-tren': 'Mi tren',
   '/topologia': 'Puntos críticos de la red',
   '/monitoreo': 'Monitoreo de red',
-  '/avisos': 'Avisos',
 };
 
 /**
@@ -100,9 +99,6 @@ export default function Layout() {
       titulo: 'Sistema',
       items: [
         can('audit.read') && <NavLink key="au" to="/audit"><Icono n="auditoria" /> Auditoría</NavLink>,
-        // Avisos lo ve CUALQUIERA: todo el mundo puede vincular su Telegram.
-        // La bandeja de salida de dentro sí exige permiso.
-        <NavLink key="av" to="/avisos"><Icono n="alerta" /> Avisos</NavLink>,
         can('user.manage') && <NavLink key="us" to="/users"><Icono n="usuarios" /> Usuarios</NavLink>,
         can('role.manage') && <NavLink key="ro" to="/roles"><Icono n="candado" /> Roles y permisos</NavLink>,
       ].filter(Boolean) as ReactNode[],

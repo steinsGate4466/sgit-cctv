@@ -6,10 +6,9 @@ import { PreparacionController } from './preparacion.controller';
 import { AuditModule } from '../audit/audit.module';
 import { StorageModule } from '../storage/storage.module';
 import { PreventiveModule } from '../preventive/preventive.module';
-import { NotificacionesModule } from '../notificaciones/notificaciones.module';
 
 @Module({
-  imports: [AuditModule, StorageModule, PreventiveModule, NotificacionesModule],
+  imports: [AuditModule, StorageModule, PreventiveModule],
   // PreparacionController va PRIMERO: sus rutas son más específicas
   // (/work-orders/:id/tools, /materials, /swaps). Si fuera después, las rutas
   // genéricas de MaintenanceController podrían capturarlas.

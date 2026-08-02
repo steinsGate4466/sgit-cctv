@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { evaluarEspera, ordenarPorUrgencia } from '../maintenance/espera';
 import { WorkOrderStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -33,7 +32,7 @@ export class BandejaService {
 
     const [
       sinDetallar, vencidas, materialesPendientes, accesos,
-      incidenciasCriticas, bajoMinimo, sinDevolver, paradas,
+      incidenciasCriticas, bajoMinimo, sinDevolver,
     ] = await Promise.all([
       // 1. Asignadas y sin detallar. Es trabajo que todavía no se puede hacer.
       this.prisma.workOrder.findMany({
@@ -115,30 +114,6 @@ export class BandejaService {
         },
         take: 50,
       }),
-
-      // 8. ÓRDENES PARADAS. Es la fuga más callada del sistema.
-      //
-      // Una orden EN ESPERA no aparece en ninguna lista de problemas: no
-      // tiene fecha que venza, y esperar no es un error. Así que el trabajo
-      // no se pierde, se OLVIDA — que es peor, porque nadie lo echa en falta
-      // hasta que alguien pregunta por ese equipo semanas después.
-      //
-      // Se trae también el ÚLTIMO avance, que es donde el técnico dejó dicho
-      // qué está esperando. Sin eso sólo se sabría que está parada, no por qué.
-      this.prisma.workOrder.findMany({
-        where: { status: 'EN_ESPERA' },
-        select: {
-          id: true, code: true, activity: true, updatedAt: true,
-          asset: { select: { assetCode: true, referencePlace: true } },
-          technician: { select: { fullName: true } },
-          progress: {
-            select: { reasonCode: true, note: true, reportedAt: true },
-            orderBy: { reportedAt: 'desc' },
-            take: 1,
-          },
-        },
-        take: 100,
-      }),
     ]);
 
     const sobrantes = sinDevolver
@@ -164,41 +139,8 @@ export class BandejaService {
     }
     const firmasPendientes = [...porOrden.values()];
 
-    // Se evalúa con la lógica pura de espera.ts: cuántos días lleva, si eso
-    // es mucho PARA LO QUE ESPERA (un repuesto tarda; un permiso no), y con
-    // qué frase se cuenta. Ordenado por urgencia real, no por antigüedad:
-    // lo primero es lo que se pasó de plazo.
-    const enEspera = ordenarPorUrgencia(
-      paradas.map((o) => {
-        const ultimo = o.progress[0];
-        return evaluarEspera(
-          {
-            id: o.id,
-            code: o.code,
-            activity: o.activity,
-            // Cuándo empezó a esperar: el último avance si lo hay, y si no
-            // la última modificación de la orden. No es exacto, pero es
-            // mucho mejor que no decir nada — y se afina solo en cuanto el
-            // técnico registre un avance.
-            desde: ultimo?.reportedAt ?? o.updatedAt,
-            motivo: ultimo?.reasonCode ?? null,
-            motivoTexto: ultimo?.note ?? null,
-            // Los datos del equipo van DENTRO del objeto, no se pegan
-            // después por índice: ordenarPorUrgencia reordena la lista, y
-            // casar por posición después de ordenar es cómo se acaba
-            // enseñando el equipo de otra orden.
-            equipo: o.asset?.assetCode ?? null,
-            lugar: o.asset?.referencePlace ?? null,
-            tecnico: o.technician?.fullName ?? null,
-          } as any,
-          ahora.getTime(),
-        );
-      }),
-    );
-
     return {
       sinDetallar,
-      enEspera,
       vencidas,
       firmasPendientes,
       accesos,
@@ -207,10 +149,6 @@ export class BandejaService {
       sobrantes,
       resumen: {
         sinDetallar: sinDetallar.length,
-        enEspera: enEspera.length,
-        // Las que además se pasaron del plazo razonable. Es el número que
-        // de verdad hay que mirar: que haya órdenes en espera es normal.
-        esperaExcedida: enEspera.filter((e) => e.excedida).length,
         vencidas: vencidas.length,
         firmasPendientes: firmasPendientes.length,
         accesos: accesos.length,

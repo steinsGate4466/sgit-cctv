@@ -37,13 +37,6 @@ model User {
   /// ya existían siguen viéndolo todo. Si el vacío significara "ninguno",
   /// el día del despliegue la planta entera se queda sin ver nada.
   ambitoTrenes String[]  @default([]) @map("ambito_trenes")
-  /// A dónde escribirle por Telegram. Telegram PROHÍBE que un bot inicie
-  /// conversación: la persona tiene que escribirle /start primero. Por eso
-  /// esto NO se puede rellenar a mano: se guarda cuando el bot recibe el
-  /// mensaje con el código de vinculación.
-  telegramChatId      String?   @unique @map("telegram_chat_id")
-  telegramCodigo      String?   @unique @map("telegram_codigo")
-  telegramVinculadoEn DateTime? @map("telegram_vinculado_en")
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -1725,53 +1718,4 @@ model MonitorAgent {
   createdAt    DateTime  @default(now())
 
   @@map("monitor_agents")
-}
-
-// =====================================================================
-//  BANDEJA DE SALIDA DE AVISOS (bloque 4F)
-//
-//  CERRAR UNA ORDEN NO PUEDE FALLAR PORQUE TELEGRAM ESTÉ CAÍDO.
-//  El aviso no se envía en el momento: se guarda aquí dentro de la misma
-//  transacción —lo que no puede fallar, es la misma base— y otro proceso
-//  lo manda y reintenta.
-// =====================================================================
-
-enum NotificacionEstado {
-  PENDIENTE
-  ENVIADA
-  FALLIDA
-  DESCARTADA
-}
-
-enum NotificacionCanal {
-  TELEGRAM
-  CORREO
-  TEAMS
-}
-
-model NotificacionSaliente {
-  id             String             @id @default(uuid())
-  canal          NotificacionCanal  @default(TELEGRAM)
-  estado         NotificacionEstado @default(PENDIENTE)
-  /// Identificador de chat, correo o lo que necesite el canal.
-  destino        String
-  asunto         String
-  cuerpo         String
-  /// Qué lo disparó: OM_CERRADA, OM_EN_ESPERA, OM_ASIGNADA, INCIDENCIA_ALTA…
-  evento         String
-  referenciaId   String?
-  intentos       Int                @default(0)
-  /// Espera creciente: 1, 5, 15 y 60 minutos. Si el servidor de Telegram
-  /// está caído no tiene sentido machacarlo cada minuto.
-  proximoIntento DateTime?
-  ultimoError    String?
-  /// Los resúmenes van sin sonido. Si todo suena igual, se silencia el bot
-  /// entero y el sistema de avisos deja de existir.
-  silencioso     Boolean            @default(false)
-  creadaEn       DateTime           @default(now())
-  enviadaEn      DateTime?
-
-  @@index([estado, proximoIntento])
-  @@index([evento])
-  @@map("notificaciones_salientes")
 }

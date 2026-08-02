@@ -38,8 +38,19 @@ describe('MaintenanceService — ejecución de OM en campo', () => {
     };
     const audit = { record: jest.fn().mockResolvedValue(null) };
     const preventive = { markServiced: jest.fn().mockResolvedValue(null) };
-    const svc = new MaintenanceService(prisma, audit as any, {} as any, preventive as any);
-    return { svc, prisma, audit };
+    // Bandeja de salida de avisos (4F). Se puede hacer que FALLE a propósito
+    // con `over.avisosRotos`, para comprobar lo que promete el bloque: que un
+    // aviso caído no impide cerrar una orden.
+    const avisos = {
+      encolar: jest.fn().mockImplementation(() =>
+        over.avisosRotos ? Promise.reject(new Error('Telegram caído')) : Promise.resolve(1),
+      ),
+      destinatarios: jest.fn().mockResolvedValue([{ telegramChatId: '123' }]),
+    };
+    const svc = new MaintenanceService(
+      prisma, audit as any, {} as any, preventive as any, avisos as any,
+    );
+    return { svc, prisma, audit, avisos };
   }
 
   // --------------------------------------------------- correlativo por año
@@ -277,6 +288,32 @@ describe('MaintenanceService — ejecución de OM en campo', () => {
       expect(d.rootCause).toBe('CABLE_FUERA_NORMA');
       expect(d.isRecurrent).toBe(true);
       expect(d.closedById).toBe('u1');
+    });
+
+    // ------------------------------------------------- avisos al cerrar (4F)
+    it('al cerrar se ENCOLA el aviso, no se envía', async () => {
+      // Encolar es lo único que ocurre dentro del cierre. El envío es de
+      // otro proceso, y esa separación es toda la garantía del bloque.
+      const { svc, avisos } = build({ wo: enProceso });
+      await svc.closeSigned('w1', {
+        email: 'tec@aa.local', password: 'correcta', rootCauseCode: 'FUENTE',
+      } as any);
+      expect(avisos.encolar).toHaveBeenCalledTimes(1);
+      expect(avisos.encolar.mock.calls[0][0]).toBe('OM_CERRADA');
+      const aviso = avisos.encolar.mock.calls[0][1];
+      expect(aviso.asunto).toContain('OM-2026-0001');
+    });
+
+    it('SI EL AVISO FALLA, LA ORDEN SE CIERRA IGUAL', async () => {
+      // Ésta es LA promesa del bloque 4F, y por eso se prueba: si el envío
+      // formara parte del cierre, un corte de internet dejaría al técnico
+      // sin poder cerrar su orden a las once de la noche, en planta.
+      const { svc, prisma } = build({ wo: enProceso, avisosRotos: true });
+      await expect(svc.closeSigned('w1', {
+        email: 'tec@aa.local', password: 'correcta',
+      } as any)).resolves.toBeDefined();
+      // Y lo importante: la orden quedó cerrada de verdad.
+      expect(prisma.workOrder.update.mock.calls[0][0].data.status).toBe('CERRADA');
     });
 
     it('rechaza una hora de cierre anterior al inicio', async () => {

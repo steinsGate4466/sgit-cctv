@@ -47,7 +47,7 @@ la aplicación. Están todas en `docs/INCIDENTES_Y_GUARDAS.md` y corren en la CI
 |---|---|---|
 | **4C** | Tercería: el contratista ve **sólo sus** órdenes | Permisos por ámbito |
 | **4E** | Producción ve el estado de **su** tren | Mismo motor que 4C |
-| ~~4F-1~~ | **Bot de Telegram — HECHO, montado y apagado.** Sin `TELEGRAM_BOT_TOKEN` no se envía nada y el sistema funciona igual | ✅ |
+| **4F-1** | **Bot de Telegram: avisa a quien tiene que actuar** | Nada. Se puede hacer ya |
 | **4F-2** | Resumen de turno para Producción, un mensaje al día | 4E |
 | **4D-2** | Rediseño de tableros · carga por página (bajar los 887 kB) | Que dejen de cambiar los campos |
 | **3G-bis** | Mapeo manual de columnas del Excel de SAP | El exporte real del ingeniero |
