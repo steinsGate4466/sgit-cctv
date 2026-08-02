@@ -21,7 +21,6 @@ const TITLES: Record<string, string> = {
   '/inventory': 'Inventario de Repuestos',
   '/audit': 'Auditoría',
   '/users': 'Usuarios',
-  '/roles': 'Roles y permisos',
 };
 
 /**
@@ -90,7 +89,6 @@ export default function Layout() {
       items: [
         can('audit.read') && <NavLink key="au" to="/audit"><Icono n="auditoria" /> Auditoría</NavLink>,
         can('user.manage') && <NavLink key="us" to="/users"><Icono n="usuarios" /> Usuarios</NavLink>,
-        can('role.manage') && <NavLink key="ro" to="/roles"><Icono n="candado" /> Roles y permisos</NavLink>,
       ].filter(Boolean) as ReactNode[],
     },
   ];

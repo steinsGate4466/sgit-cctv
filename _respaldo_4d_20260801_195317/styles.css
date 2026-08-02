@@ -901,23 +901,3 @@ input:disabled, select:disabled { background: #f2f4f8; color: var(--muted); curs
    lector necesita oír que se está cargando. */
 .sr-solo { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
-
-/* ------------------------------------------- ELECCIÓN DE PERMISOS (4C)
-   Una casilla con un código al lado no se entiende. Cada permiso ocupa una
-   fila con su nombre, qué deja hacer, y el aviso si es delicado. Ocupa más
-   sitio, y merece la pena: se marca lo que se quiere marcar, no todo. */
-.permiso {
-  display: flex; align-items: flex-start; gap: 10px; margin: 0 0 4px;
-  padding: 9px 10px; border-radius: 9px; cursor: pointer;
-  border: 1px solid transparent; font-weight: 400; color: var(--text);
-  text-transform: none; letter-spacing: 0; font-size: 13px;
-}
-.permiso:hover { background: #f6f9fd; border-color: var(--border); }
-.permiso input { width: 18px; height: 18px; margin: 1px 0 0; flex: none; accent-color: var(--steel); }
-.permiso b { display: block; font-weight: 600; color: var(--tinta); font-size: 13px; }
-.permiso-explica { display: block; color: var(--muted); font-size: 12px; line-height: 1.45; margin-top: 1px; }
-.permiso-cuidado {
-  display: flex; align-items: flex-start; gap: 5px; margin-top: 5px;
-  color: #b45309; font-size: 11.5px; line-height: 1.4;
-}
-.permiso-cuidado svg { flex: none; margin-top: 1px; }

@@ -3,7 +3,6 @@ import * as argon2 from 'argon2';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { filtroDeUbicaciones } from '../../common/ambito-planta';
-import { filtroConAmbito } from '../../common/ambito-usuario';
 import { fechaLimite, estadoDetalle, actividadDesdeIncidencia } from './asignacion.util';
 import { resolverContexto } from '../../common/plant-context';
 import { AuditService } from '../audit/audit.service';
@@ -181,7 +180,7 @@ export class MaintenanceService {
     return updated;
   }
 
-  async findAll(q: QueryWorkOrderDto, userId?: string | null) {
+  async findAll(q: QueryWorkOrderDto) {
     const page = q.page && q.page > 0 ? q.page : 1;
     const pageSize = q.pageSize && q.pageSize > 0 && q.pageSize <= 200 ? q.pageSize : 50;
     const where: any = { status: q.status, type: q.type, assetId: q.assetId };
@@ -189,10 +188,7 @@ export class MaintenanceService {
     // Ámbito de planta. Una OM puede colgar de un ACTIVO o solo de una
     // UBICACIÓN (una campaña de barrido, por ejemplo), así que se aceptan las
     // dos vías. Si no, las campañas desaparecerían al filtrar por tren.
-    // filtroConAmbito CRUZA lo que pide la pantalla con lo que el usuario
-    // tiene permitido, y manda siempre lo más restrictivo. Si el jefe del
-    // Tren 2 escribe ?tren=T1 a mano, no ve el Tren 1: ve vacío.
-    const ambito = await filtroConAmbito(this.prisma, userId, { tren: q.tren, etapa: q.etapa });
+    const ambito = await filtroDeUbicaciones(this.prisma, { tren: q.tren, etapa: q.etapa });
     if (ambito) {
       where.AND = [
         ...(where.AND || []),

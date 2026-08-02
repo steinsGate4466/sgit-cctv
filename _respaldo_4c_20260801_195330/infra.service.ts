@@ -1,5 +1,4 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { ambitoDelUsuario } from '../../common/ambito-usuario';
 import { PrismaService } from '../../prisma/prisma.service';
 import { computeEffectiveStatuses } from '../../common/asset-status';
 import { resolverContextoDePlanta } from '../../common/plant-context';
@@ -103,11 +102,7 @@ export class InfraService {
   //  RESUMEN DE LOS TRENES  (GET /dashboard/infra/trenes)
   // ==========================================================================
 
-  /**
-   * @param userId  Si el usuario tiene ámbito (jefe de línea de Producción),
-   *                sólo se le devuelven SUS trenes. Sin ámbito, los tres.
-   */
-  async resumenTrenes(userId?: string | null) {
+  async resumenTrenes() {
     const [trenes, activos, cables, gabinetes] = await Promise.all([
       this.trenesDelArbol(),
       this.activosConTodo(),
@@ -238,29 +233,14 @@ export class InfraService {
       };
     };
 
-    // El recorte por ámbito se hace AL FINAL, sobre el resultado ya armado.
-    // Se calcula todo y se entrega sólo lo suyo. Hacerlo antes obligaría a
-    // duplicar el filtro dentro de cada contador, y ahí es donde se cuela el
-    // que se olvida — el que enseña de más.
-    const { trenes: permitidos, sinLimite } = await ambitoDelUsuario(this.prisma, userId);
-    const visibles = sinLimite
-      ? trenes
-      : trenes.filter((t) => permitidos.includes((t.code || '').toUpperCase()));
-
     return {
-      trenes: visibles.map((t) => arma(t.code, t.id, t.name)),
+      trenes: trenes.map((t) => arma(t.code, t.id, t.name)),
       // NO es un tren: es trabajo pendiente de asignar en el árbol. Va aparte
       // justamente para que nadie lo lea como si Laminación tuviera cuatro.
-      // Con ámbito NO se entrega: lo sin ubicar puede estar en cualquier
-      // sitio, y enseñárselo al jefe del Tren 2 sería enseñarle algo que
-      // quizá no es suyo.
-      sinUbicar: sinLimite
-        ? {
-            activos: porTren.get(null)?.total || 0,
-            detalle: arma(null, null, 'Sin ubicación en el árbol'),
-          }
-        : null,
-      ambitoLimitado: !sinLimite,
+      sinUbicar: {
+        activos: porTren.get(null)?.total || 0,
+        detalle: arma(null, null, 'Sin ubicación en el árbol'),
+      },
       limiteTramoM: LIMITE_TRAMO_M,
     };
   }
@@ -269,20 +249,12 @@ export class InfraService {
   //  DETALLE DE UN TREN  (GET /dashboard/infra/tren/:idOrCode)
   // ==========================================================================
 
-  async detalleTren(idOrCode: string, userId?: string | null) {
+  async detalleTren(idOrCode: string) {
     const tren = await this.prisma.location.findFirst({
       where: { type: 'TREN', OR: [{ id: idOrCode }, { code: idOrCode }] },
       select: { id: true, code: true, name: true },
     });
     if (!tren) throw new NotFoundException('No existe un tren con ese identificador.');
-
-    // Pedir un tren ajeno escribiendo su código en la dirección es lo PRIMERO
-    // que alguien prueba. Se responde 404, no 403: un 403 confirmaría que ese
-    // tren existe, y aquí no hay ninguna razón para confirmárselo.
-    const { trenes: permitidos, sinLimite } = await ambitoDelUsuario(this.prisma, userId);
-    if (!sinLimite && !permitidos.includes((tren.code || '').toUpperCase())) {
-      throw new NotFoundException('No existe un tren con ese identificador.');
-    }
 
     const activos = await this.activosConTodo();
     const { ctx, eff, agregables } = await this.normalizar(activos);
@@ -452,9 +424,7 @@ export class InfraService {
    * tren: es una lista de trabajo. Se devuelve con el motivo para que quien la
    * abra sepa qué hacer con cada fila.
    */
-  async sinUbicar(userId?: string | null) {
-    const { sinLimite } = await ambitoDelUsuario(this.prisma, userId);
-    if (!sinLimite) return { activos: [], total: 0, ambitoLimitado: true };
+  async sinUbicar() {
     const activos = await this.prisma.asset.findMany({
       where: { deletedAt: null },
       select: {

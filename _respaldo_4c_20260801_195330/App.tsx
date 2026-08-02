@@ -8,7 +8,6 @@ import Cableado from './pages/Cableado';
 import Audit from './pages/Audit';
 import Incidents from './pages/Incidents';
 import Users from './pages/Users';
-import Roles from './pages/Roles';
 import Maintenance from './pages/Maintenance';
 import Preventive from './pages/Preventive';
 import Corrective from './pages/Corrective';
@@ -55,7 +54,6 @@ export default function App() {
         <Route path="/inventory" element={<Inventory />} />
         <Route path="/audit" element={<Audit />} />
         <Route path="/users" element={<Users />} />
-        <Route path="/roles" element={<Roles />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

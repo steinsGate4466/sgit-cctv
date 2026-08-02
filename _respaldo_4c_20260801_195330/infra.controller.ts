@@ -4,7 +4,6 @@ import { InfraService } from './infra.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 /**
  * Tablero de INFRAESTRUCTURA.
@@ -24,8 +23,8 @@ export class InfraController {
   /** Los trenes REALES del árbol, cada uno con su estado de infraestructura. */
   @Get('trenes')
   @RequirePermissions('dashboard.read')
-  trenes(@CurrentUser() user: any) {
-    return this.infra.resumenTrenes(user?.userId);
+  trenes() {
+    return this.infra.resumenTrenes();
   }
 
   /**
@@ -34,16 +33,14 @@ export class InfraController {
    */
   @Get('sin-ubicar')
   @RequirePermissions('dashboard.read')
-  sinUbicar(@CurrentUser() user: any) {
-    // Lo que no cuelga de ningún tren sólo lo ve quien lo ve todo. Un jefe
-    // de línea no puede saber si eso es suyo, así que no se le enseña.
-    return this.infra.sinUbicar(user?.userId);
+  sinUbicar() {
+    return this.infra.sinUbicar();
   }
 
   /** Tablero completo de un tren. Acepta el id o el código de la ubicación. */
   @Get('tren/:idOrCode')
   @RequirePermissions('dashboard.read')
-  detalle(@Param('idOrCode') idOrCode: string, @CurrentUser() user: any) {
-    return this.infra.detalleTren(idOrCode, user?.userId);
+  detalle(@Param('idOrCode') idOrCode: string) {
+    return this.infra.detalleTren(idOrCode);
   }
 }

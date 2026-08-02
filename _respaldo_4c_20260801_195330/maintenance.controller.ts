@@ -30,8 +30,8 @@ export class MaintenanceController {
 
   @Get()
   @RequirePermissions('wo.read')
-  findAll(@Query() q: QueryWorkOrderDto, @CurrentUser() user: any) {
-    return this.wo.findAll(q, user?.userId);
+  findAll(@Query() q: QueryWorkOrderDto) {
+    return this.wo.findAll(q);
   }
 
   // Descargar imagen de evidencia (para previsualización).

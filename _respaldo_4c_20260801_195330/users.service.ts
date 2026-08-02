@@ -13,9 +13,6 @@ const userSelect = {
   active: true,
   lastLoginAt: true,
   createdAt: true,
-  // A qué trenes mira. Vacío = todos. Se devuelve para que la pantalla de
-  // Usuarios pueda enseñarlo sin una segunda llamada.
-  ambitoTrenes: true,
   role: { select: { id: true, name: true } },
 };
 

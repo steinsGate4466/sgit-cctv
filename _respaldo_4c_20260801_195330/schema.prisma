@@ -32,11 +32,6 @@ model User {
   /// La apertura y el cierre de la orden SIEMPRE exigen contraseña completa.
   pinHash      String?
   pinUpdatedAt DateTime?
-  /// A qué trenes puede MIRAR este usuario. ARRAY VACÍO = TODOS.
-  /// El vacío significa "sin restricción" a propósito: así los usuarios que
-  /// ya existían siguen viéndolo todo. Si el vacío significara "ninguno",
-  /// el día del despliegue la planta entera se queda sin ver nada.
-  ambitoTrenes String[]  @default([]) @map("ambito_trenes")
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -62,10 +57,6 @@ model Role {
   id          String           @id @default(uuid())
   name        String           @unique // Administrador, Supervisor TI, Técnico, Consulta
   description String?
-  /// Rol que vino con el sistema: no se borra ni se queda sin permisos.
-  /// Evita el fallo del que solo se sale por base de datos: quitarte a ti
-  /// mismo 'user.manage' y quedarte fuera de la administración.
-  sistema     Boolean          @default(false)
   users       User[]
   permissions RolePermission[]
 
