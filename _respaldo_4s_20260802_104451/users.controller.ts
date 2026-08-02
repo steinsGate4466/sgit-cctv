@@ -1,7 +1,4 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
-import { UseGuards } from '@nestjs/common';
-import { FrenoGuard, Freno } from '../../common/guards/freno.guard';
-import { CUPO_PIN } from '../../common/freno';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -36,19 +33,11 @@ export class UsersController {
     return this.users.pinStatus(user.userId);
   }
 
-  @Freno(CUPO_PIN)
-  @UseGuards(FrenoGuard)
   @Post('pin')
   setPin(@CurrentUser() user: any, @Body() dto: SetPinDto) {
     return this.users.setPin(user.userId, dto);
   }
 
-  // EL AGUJERO MÁS SERIO QUE ENCONTRÓ LA AUDITORÍA DEL 02/08.
-  // El PIN es de 4 cifras: 10.000 combinaciones. Sin freno, un programa las
-  // prueba todas en segundos y entra como ese técnico. Con este cupo son
-  // más de dieciséis horas, y el primer bloqueo salta a los 11 intentos.
-  @Freno(CUPO_PIN)
-  @UseGuards(FrenoGuard)
   @Post('pin/verify')
   verifyPin(@CurrentUser() user: any, @Body() dto: VerifyPinDto) {
     return this.users.verifyPin(user.userId, dto);

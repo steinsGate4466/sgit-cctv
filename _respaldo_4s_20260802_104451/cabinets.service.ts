@@ -1,5 +1,4 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { revisarImagen } from '../../common/archivos-seguros';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { filtroDeUbicaciones } from '../../common/ambito-planta';
@@ -65,17 +64,9 @@ export class CabinetsService {
     const cab = await this.prisma.cabinet.findUnique({ where: { id } });
     if (!cab) throw new NotFoundException('Gabinete no encontrado');
     if (!file || !file.buffer) throw new BadRequestException('Imagen requerida');
-    // No se cree lo que el archivo DICE ser: se miran sus primeros bytes.
-    // `file.mimetype` lo manda el navegador; un .html declarado como
-    // imagen quedaba guardado y se ejecutaba al abrir la evidencia.
-    const revision = revisarImagen(file as any);
-    if (!revision.ok) throw new BadRequestException(revision.motivo);
-    // La extensión sale del tipo REAL del archivo, nunca del nombre que
-    // mandó el navegador: 'foto.jpg.html' o un nombre con ../ dentro no
-    // puede acabar decidiendo cómo ni dónde se guarda.
-    const ext = revision.tipo.extension;
+    const ext = (file.originalname?.split('.').pop() || 'jpg').toLowerCase();
     const objectName = `cabinet/${id}/${Date.now()}-${randomUUID()}.${ext}`;
-    await this.storage.put(objectName, file.buffer, revision.tipo.mime);
+    await this.storage.put(objectName, file.buffer, file.mimetype || 'image/jpeg');
     return this.prisma.cabinet.update({ where: { id }, data: { photoFileId: objectName } });
   }
 

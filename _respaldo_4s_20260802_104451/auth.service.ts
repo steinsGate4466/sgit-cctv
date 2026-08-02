@@ -1,5 +1,4 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { secretoJwt } from '../../common/secreto-jwt';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -118,7 +117,7 @@ export class AuthService {
     const payload = { sub: user.id, email: user.email, role: user.role.name, permissions };
     return {
       accessToken: await this.jwt.signAsync(payload, {
-        secret: secretoJwt(),
+        secret: process.env.JWT_SECRET || 'change_me_in_prod',
         expiresIn: process.env.JWT_EXPIRES_IN || '900s',
       }),
       refreshToken: await this.jwt.signAsync(
