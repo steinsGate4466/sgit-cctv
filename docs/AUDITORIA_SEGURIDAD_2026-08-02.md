@@ -138,14 +138,69 @@ entregas diarias, es como se rompen los proyectos.
 
 ---
 
+## Revisado después: MinIO · **sin problema**
+
+Se comprobó lo que quedaba pendiente y **el riesgo no existe**:
+
+- Las fotos **no se sirven desde MinIO**. Pasan por el backend
+  (`getObject` → memoria → respuesta), así que van por la misma puerta que
+  todo lo demás.
+- **No hay URLs firmadas ni bucket público.** `makeBucket` crea el bucket
+  privado y no se le aplica ninguna política de lectura.
+- Las cinco rutas que devuelven una foto exigen permiso (`asset.read`,
+  `access.read`, …) además del token.
+- `X-Content-Type-Options: nosniff` ya estaba puesto, así que el navegador
+  tampoco adivina tipos.
+
+**Queda anotado, menor:** las rutas de foto no comprueban el ámbito. Un
+usuario con `asset.read` acotado al Tren 2 puede pedir la foto de un equipo
+del Tren 1 si conoce su identificador. No es un agujero abierto —hace falta
+sesión y permiso— pero es incoherente con 4C. Va con el repaso de ámbito en
+las rutas por identificador.
+
+---
+
+## Pruebas de control de acceso · **añadidas**
+
+Eran el punto que más me preocupaba: cero pruebas sobre lo único cuyo fallo
+**no se nota** — nadie llama para avisar de que ve cosas de más.
+
+**23 pruebas nuevas**, en tres frentes:
+
+1. **El guard** (`permisos.guard.spec.ts`). Que exige *todos* los permisos y
+   no basta con uno; que rechaza si no hay usuario en la petición —aunque no
+   debería llegar ahí, un fallo de seguridad no puede depender del orden de
+   los guards—; que un permiso parecido no vale; y que el mensaje de error
+   **no dice qué permiso falta**, porque a quien ataca eso le ahorra trabajo
+   y a quien trabaja no le sirve.
+
+2. **La cobertura** (`cobertura-permisos.spec.ts`). Recorre los controladores
+   y comprueba que **los 85 endpoints que escriben** declaran permiso. Hoy
+   pasan todos. Existe por el fallo típico, que no es escribir mal un permiso
+   sino **olvidarlo**: se añade un endpoint, funciona en las pruebas manuales
+   —quien prueba es administrador y lo puede todo— y queda abierto. Las
+   cuatro excepciones (login, refresh y los dos del PIN) están listadas con
+   su motivo escrito, y otra prueba comprueba que ese motivo existe y que el
+   endpoint sigue existiendo, para que la lista no se llene de
+   justificaciones muertas.
+
+3. **Las plantillas de rol** (`plantillas-rol.spec.ts`). Son la puerta por
+   donde entra todo: si una lleva de más un permiso peligroso, el error se
+   replica en cada rol creado a partir de ella y nadie lo revisa porque
+   "venía puesto". Se comprueba que **ninguna reparte credenciales de cámaras
+   ni administración**, y que **el jefe de línea no puede tocar nada** — si
+   algún día alguien le añade `wo.update` "para que cierre las suyas", la
+   prueba se cae y obliga a decidirlo a propósito.
+
+---
+
 ## Lo que NO se ha revisado todavía
 
 Dicho para que no se lea esto como una garantía:
 
 - No se ha hecho prueba de intrusión real contra el despliegue.
-- No se han revisado los permisos del bucket de MinIO (¿se puede leer una
-  foto sin sesión conociendo su URL?). **Es la siguiente comprobación.**
-- No se ha revisado la configuración de red de Railway ni el acceso a la base
-  desde fuera.
-- La cobertura de pruebas de permisos (RBAC) sigue en cero: no hay ninguna
-  prueba que confirme que un rol sin permiso recibe 403.
+- No se ha revisado la configuración de red de Railway ni si la base de datos
+  acepta conexiones desde fuera.
+- No se ha revisado el ámbito en las rutas por identificador (ver arriba).
+- La contraseña de Postgres y el `JWT_SECRET` mostrado en una captura
+  **siguen pendientes de rotar**.
