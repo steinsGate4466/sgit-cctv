@@ -114,8 +114,8 @@ export class MonitoreoService {
     );
 
     const ahora = new Date();
-    let guardados = 0;
     const desconocidos: string[] = [];
+    const escrituras: any[] = [];
 
     for (const it of items) {
       const id = String(it.assetId || '');
@@ -130,13 +130,30 @@ export class MonitoreoService {
         { responde: !!it.responde, latencyMs: typeof it.latencyMs === 'number' ? it.latencyMs : null },
         ahora,
       );
-      await this.prisma.assetObservation.upsert({
-        where: { assetId: id },
-        create: { assetId: id, source: 'AGENTE', ...s },
-        update: { source: 'AGENTE', ...s },
-      });
-      guardados++;
+      escrituras.push(
+        this.prisma.assetObservation.upsert({
+          where: { assetId: id },
+          create: { assetId: id, source: 'AGENTE', ...s },
+          update: { source: 'AGENTE', ...s },
+        }),
+      );
     }
+
+    // NO se hace `await` DENTRO del bucle.
+    //
+    // La primera versión de esto guardaba una a una: con 2.000 cámaras son
+    // 2.000 viajes de ida y vuelta a la base. A 20 ms cada uno son 40
+    // segundos por reporte, y el agente reporta cada dos minutos: los
+    // reportes se irían amontonando hasta que el servidor no diera más.
+    //
+    // En tandas de 500 y en una transacción, Prisma las manda juntas: son
+    // cuatro viajes en lugar de dos mil. Se trocea porque una transacción de
+    // 5.000 sentencias sostiene bloqueos demasiado tiempo y frena al resto.
+    const TANDA = 500;
+    for (let i = 0; i < escrituras.length; i += TANDA) {
+      await this.prisma.$transaction(escrituras.slice(i, i + TANDA));
+    }
+    const guardados = escrituras.length;
 
     await this.prisma.monitorAgent.update({
       where: { id: agente.id },

@@ -79,6 +79,15 @@ jobs:
         working-directory: backend
         run: npm run verificar:filtros
 
+      # Desfase entre schema.prisma y las migraciones, SIN base de datos.
+      # El trabajo `migraciones` de mas abajo hace la comprobacion completa con
+      # `prisma migrate diff`, pero tarda minutos porque levanta un Postgres.
+      # Esta version lee los .sql y falla en medio segundo, asi que el aviso
+      # llega al principio del CI y no al final.
+      - name: Verificar migraciones (lectura, sin base de datos)
+        working-directory: backend
+        run: npm run verificar:migraciones
+
       - name: Pruebas unitarias
         working-directory: backend
         run: npm test -- --ci --runInBand

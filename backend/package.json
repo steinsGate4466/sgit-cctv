@@ -8,6 +8,8 @@
     "build": "nest build && tsc prisma/seed.ts --outDir dist --rootDir prisma --module commonjs --target ES2021 --esModuleInterop --skipLibCheck",
     "verificar:inyeccion": "node scripts/verificar-inyeccion.js",
     "verificar:filtros": "node scripts/verificar-filtros-prisma.js",
+    "verificar:migraciones": "node scripts/verificar-migraciones.js",
+    "verificar": "npm run verificar:inyeccion && npm run verificar:filtros && npm run verificar:migraciones",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main.js",
