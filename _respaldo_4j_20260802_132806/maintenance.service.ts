@@ -1,5 +1,4 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -185,10 +184,7 @@ export class MaintenanceService {
   async findAll(q: QueryWorkOrderDto, userId?: string | null) {
     const page = q.page && q.page > 0 ? q.page : 1;
     const pageSize = q.pageSize && q.pageSize > 0 && q.pageSize <= 200 ? q.pageSize : 50;
-    // Tipado con el WhereInput que genera Prisma: si se escribe mal el
-    // nombre de un campo o se anida un filtro dentro de otro, lo dice al
-    // compilar en lugar de devolver un 400 en producción.
-    const where: Prisma.WorkOrderWhereInput = { status: q.status, type: q.type, assetId: q.assetId };
+    const where: any = { status: q.status, type: q.type, assetId: q.assetId };
 
     // Ámbito de planta. Una OM puede colgar de un ACTIVO o solo de una
     // UBICACIÓN (una campaña de barrido, por ejemplo), así que se aceptan las
@@ -197,13 +193,11 @@ export class MaintenanceService {
     // tiene permitido, y manda siempre lo más restrictivo. Si el jefe del
     // Tren 2 escribe ?tren=T1 a mano, no ve el Tren 1: ve vacío.
     const ambito = await filtroConAmbito(this.prisma, userId, { tren: q.tren, etapa: q.etapa });
-    // Las condiciones acumuladas viven en un ARRAY PROPIO y se asignan al
-    // final. Antes se hacía `where.AND = [...(where.AND || []), ...]`, que con
-    // el tipo real no compila: AND puede ser un objeto O un array, y no se
-    // puede extender una unión sin saber cuál de los dos es.
-    const condiciones: Prisma.WorkOrderWhereInput[] = [];
     if (ambito) {
-      condiciones.push({ OR: [{ asset: { locationId: ambito } }, { locationId: ambito }] });
+      where.AND = [
+        ...(where.AND || []),
+        { OR: [{ asset: { locationId: ambito } }, { locationId: ambito }] },
+      ];
     }
     // Búsqueda documental: código de OM, código de incidencia, actividad o zona.
     if (q.q && q.q.trim()) {
@@ -217,12 +211,10 @@ export class MaintenanceService {
     }
     // Rango de fechas sobre la fecha programada (para volver a registros por periodo).
     if (q.from || q.to) {
-      where.scheduledDate = {
-        ...(q.from ? { gte: new Date(q.from) } : {}),
-        ...(q.to ? { lte: new Date(q.to) } : {}),
-      };
+      where.scheduledDate = {};
+      if (q.from) where.scheduledDate.gte = new Date(q.from);
+      if (q.to) where.scheduledDate.lte = new Date(q.to);
     }
-    if (condiciones.length) where.AND = condiciones;
     const [total, data] = await this.prisma.$transaction([
       this.prisma.workOrder.count({ where }),
       this.prisma.workOrder.findMany({

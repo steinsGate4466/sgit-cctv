@@ -1,5 +1,4 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -52,10 +51,7 @@ export class IncidentsService {
   async findAll(q: QueryIncidentDto) {
     const page = q.page && q.page > 0 ? q.page : 1;
     const pageSize = q.pageSize && q.pageSize > 0 && q.pageSize <= 200 ? q.pageSize : 50;
-    // Tipado con el WhereInput que genera Prisma: si se escribe mal el
-    // nombre de un campo o se anida un filtro dentro de otro, lo dice al
-    // compilar en lugar de devolver un 400 en producción.
-    const where: Prisma.IncidentWhereInput = { status: q.status, category: q.category, priority: q.priority, assetId: q.assetId };
+    const where: any = { status: q.status, category: q.category, priority: q.priority, assetId: q.assetId };
 
     // Ámbito de planta: la incidencia hereda el tren de su activo.
     const ambito = await filtroDeUbicaciones(this.prisma, { tren: q.tren, etapa: q.etapa });
@@ -68,19 +64,10 @@ export class IncidentsService {
         { zone: { contains: t, mode: 'insensitive' } },
       ];
     }
-    // El rango se arma ENTERO y se asigna una vez.
-    //
-    // Antes era `where.reportedAt = {}` y luego `.gte = ...`. Con el tipo real
-    // de Prisma eso NO COMPILA: `reportedAt` puede ser una fecha o un filtro,
-    // y a una unión no se le puede tocar una propiedad sin decidir cuál es.
-    // Escribirlo así no es un rodeo para contentar al compilador: describe
-    // mejor lo que pasa, que es "este es el filtro de fechas", no "creo un
-    // objeto vacío y lo voy rellenando".
     if (q.from || q.to) {
-      where.reportedAt = {
-        ...(q.from ? { gte: new Date(q.from) } : {}),
-        ...(q.to ? { lte: new Date(q.to) } : {}),
-      };
+      where.reportedAt = {};
+      if (q.from) where.reportedAt.gte = new Date(q.from);
+      if (q.to) where.reportedAt.lte = new Date(q.to);
     }
     const [total, data] = await this.prisma.$transaction([
       this.prisma.incident.count({ where }),

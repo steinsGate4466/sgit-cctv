@@ -1,5 +1,4 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { revisarImagen } from '../../common/archivos-seguros';
 import * as argon2 from 'argon2';
 import { randomUUID } from 'crypto';
@@ -54,10 +53,7 @@ export class AccessService {
   }
 
   async findAll(q: QueryAccessRequestDto) {
-    // Tipado con el WhereInput que genera Prisma: si se escribe mal el
-    // nombre de un campo o se anida un filtro dentro de otro, lo dice al
-    // compilar en lugar de devolver un 400 en producción.
-    const where: Prisma.AccessRequestWhereInput = { status: q.status, assetId: q.assetId };
+    const where: any = { status: q.status, assetId: q.assetId };
     if (q.q && q.q.trim()) {
       const t = q.q.trim();
       where.OR = [

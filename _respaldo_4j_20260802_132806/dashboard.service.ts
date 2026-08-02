@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AssetStatus, IncidentStatus, WorkOrderStatus } from '@prisma/client';
+import { AssetStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { computeEffectiveStatuses } from '../../common/asset-status';
 import { resolverContextoDePlanta } from '../../common/plant-context';
@@ -26,12 +26,10 @@ export class DashboardService {
   async kpis() {
     const now = new Date();
     const in7 = new Date(now.getTime() + 7 * 24 * 3600 * 1000);
-    const WO_ABIERTAS: WorkOrderStatus[] = ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'];
-    const openWo = { status: { in: WO_ABIERTAS } };
+    const openWo: any = { status: { in: ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'] } };
     // Incidencias vigentes: incluye EN_ESPERA (si no, una incidencia en espera
     // desaparecía del tablero y el Jefe la perdía de vista).
-    const INC_ABIERTAS: IncidentStatus[] = ['ABIERTA', 'EN_DIAGNOSTICO', 'EN_PROCESO', 'EN_ESPERA'];
-    const openIncidentStatus = { in: INC_ABIERTAS };
+    const openIncidentStatus: any = { in: ['ABIERTA', 'EN_DIAGNOSTICO', 'EN_PROCESO', 'EN_ESPERA'] };
     // FUERA DE INVENTARIO: dado de baja o guardado en almacén. No es una
     // cámara "caída"; es una cámara que no está puesta. Contarla arruinaría
     // el porcentaje de disponibilidad.

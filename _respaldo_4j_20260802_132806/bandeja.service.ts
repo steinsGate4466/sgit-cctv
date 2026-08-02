@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { WorkOrderStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 /**
@@ -22,13 +21,7 @@ export class BandejaService {
 
   async bandeja(userId?: string | null) {
     const ahora = new Date();
-    // Tipado de verdad, no `any`. El `: any` apaga la comprobación que
-    // habría cazado el filtro anidado que tumbó el tablero el 02/08.
-    // Además, si mañana alguien añade un estado al enum y se olvida de esta
-    // lista, TypeScript no dirá nada — pero si se escribe mal uno de estos
-    // tres, lo dice al compilar.
-    const ABIERTAS: WorkOrderStatus[] = ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'];
-    const abiertas = { in: ABIERTAS };
+    const abiertas: any = { in: ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'] };
 
     const [
       sinDetallar, vencidas, materialesPendientes, accesos,
