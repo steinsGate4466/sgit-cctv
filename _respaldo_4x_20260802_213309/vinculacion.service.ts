@@ -36,9 +36,8 @@ export class VinculacionService {
       where: { id: userId },
       select: { telegramChatId: true, telegramCodigo: true, telegramVinculadoEn: true },
     });
-    const activo = await this.telegram.activo();
     if (u?.telegramChatId) {
-      return { vinculado: true, desde: u.telegramVinculadoEn, activo };
+      return { vinculado: true, desde: u.telegramVinculadoEn, activo: this.telegram.activo() };
     }
     let codigo = u?.telegramCodigo;
     if (!codigo) {
@@ -51,8 +50,8 @@ export class VinculacionService {
     return {
       vinculado: false,
       codigo,
-      activo,
-      instrucciones: activo
+      activo: this.telegram.activo(),
+      instrucciones: this.telegram.activo()
         ? `Busca el bot en Telegram y escríbele:  /start ${codigo}`
         : 'El bot todavía no está configurado. Cuando TI lo autorice, este código servirá para vincularte.',
     };
@@ -73,7 +72,7 @@ export class VinculacionService {
    * exponer ninguna URL.
    */
   async revisarMensajes(): Promise<number> {
-    if (!(await this.telegram.activo())) return 0;
+    if (!this.telegram.activo()) return 0;
     const mensajes = await this.telegram.recibir(this.ultimoUpdate + 1);
     let vinculados = 0;
 

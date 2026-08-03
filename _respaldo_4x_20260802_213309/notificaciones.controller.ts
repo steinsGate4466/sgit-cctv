@@ -4,7 +4,6 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { VinculacionService } from './vinculacion.service';
 import { DespachadorService } from './despachador.service';
 import { TelegramClient } from './telegram.client';
-import { ConfiguracionService } from './configuracion.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
@@ -20,7 +19,6 @@ export class NotificacionesController {
     private readonly vinculacion: VinculacionService,
     private readonly despachador: DespachadorService,
     private readonly telegram: TelegramClient,
-    private readonly config: ConfiguracionService,
   ) {}
 
   /** Mi propia vinculación. Sin permiso especial: cada uno gestiona la suya. */
@@ -32,48 +30,6 @@ export class NotificacionesController {
   @Post('mi-telegram/desvincular')
   desvincular(@CurrentUser() user: any) {
     return this.vinculacion.desvincular(user.userId);
-  }
-
-  /**
-   * CONFIGURAR EL BOT DESDE LA PANTALLA.
-   *
-   * El token lo emite @BotFather y no hay forma de generarlo por programa
-   * —Telegram no lo permite—, pero pegarlo aquí evita entrar al panel de
-   * despliegue, evita el reinicio del backend, y sobre todo COMPRUEBA EL
-   * TOKEN AL INSTANTE contra Telegram en vez de dejarte adivinando.
-   */
-  @Get('configuracion')
-  @RequirePermissions('notify.manage')
-  async verConfig() {
-    return {
-      token: await this.config.estado('TELEGRAM_BOT_TOKEN', 'TELEGRAM_BOT_TOKEN'),
-      appUrl: await this.config.estado('APP_URL', 'APP_URL'),
-    };
-  }
-
-  @Post('configuracion/token')
-  @RequirePermissions('notify.manage')
-  async guardarToken(@Body() dto: any, @CurrentUser() user: any) {
-    const token = String(dto?.token || '').trim();
-    if (!token) {
-      // Vaciar el token es la forma de APAGAR los avisos sin desplegar nada.
-      await this.config.guardar('TELEGRAM_BOT_TOKEN', null, true, user?.userId);
-      return { ok: true, apagado: true };
-    }
-    // Se comprueba ANTES de guardar. Guardar un token malo y descubrirlo
-    // cuando alguien eche en falta un aviso es justo lo que se quiere evitar.
-    const r = await this.telegram.comprobar(token);
-    if (!r.ok) return { ok: false, motivo: r.error };
-    await this.config.guardar('TELEGRAM_BOT_TOKEN', token, true, user?.userId);
-    return { ok: true, bot: r.bot };
-  }
-
-  @Post('configuracion/app-url')
-  @RequirePermissions('notify.manage')
-  async guardarAppUrl(@Body() dto: any, @CurrentUser() user: any) {
-    // No es secreto: es la dirección pública del sistema.
-    await this.config.guardar('APP_URL', String(dto?.url || '').trim(), false, user?.userId);
-    return { ok: true };
   }
 
   /** Estado del canal y cuántos avisos hay en cada situación. */
@@ -89,7 +45,7 @@ export class NotificacionesController {
     return {
       // Si el canal está apagado se dice, en lugar de enseñar ceros que
       // parecerían "todo enviado".
-      canalActivo: await this.telegram.activo(),
+      canalActivo: this.telegram.activo(),
       pendientes, enviadas, fallidas, vinculados,
     };
   }

@@ -1822,22 +1822,3 @@ model IntentoAcceso {
   @@index([bloqueadoHasta])
   @@map("intentos_acceso")
 }
-
-/// Ajustes que hoy están en variables de entorno y que tiene sentido que
-/// cambie el ingeniero sin entrar al panel de despliegue.
-///
-/// El token de Telegram NO se puede generar por programa —lo emite
-/// @BotFather—, pero sí se puede pegar aquí una vez en lugar de en Railway:
-/// sin reinicio, con comprobación inmediata y sin necesitar acceso al panel.
-model ConfiguracionSistema {
-  clave          String   @id
-  /// Cifrado con el mismo mecanismo que las credenciales de las cámaras
-  /// cuando `secreto` es true. Nunca se devuelve en claro a la pantalla.
-  valor          String?
-  secreto        Boolean  @default(false)
-  descripcion    String?
-  actualizadoEn  DateTime @default(now())
-  actualizadoPor String?
-
-  @@map("configuracion_sistema")
-}

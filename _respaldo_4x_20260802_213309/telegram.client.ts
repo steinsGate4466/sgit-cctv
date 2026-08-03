@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as https from 'https';
-import { ConfiguracionService } from './configuracion.service';
 
 /**
  * EL ÚNICO ARCHIVO QUE SABE QUE TELEGRAM EXISTE.
@@ -23,51 +22,9 @@ import { ConfiguracionService } from './configuracion.service';
 export class TelegramClient {
   private readonly logger = new Logger('Telegram');
 
-  constructor(private readonly config: ConfiguracionService) {}
-
-  /**
-   * El token sale de la configuración del sistema o, si está puesta, de la
-   * variable de entorno —que tiene prioridad para no cambiarle el
-   * comportamiento a quien ya la tenía funcionando—.
-   */
-  async token(): Promise<string | null> {
-    const t = await this.config.leer('TELEGRAM_BOT_TOKEN', 'TELEGRAM_BOT_TOKEN');
-    return t && t.length > 20 ? t : null;
-  }
-
-  async activo(): Promise<boolean> {
-    return !!(await this.token());
-  }
-
-  /**
-   * Comprueba un token contra Telegram y devuelve el nombre del bot.
-   *
-   * Es lo que convierte "pega esto y reza" en "pega esto y te digo si vale".
-   * Sin esta comprobación, un token mal copiado no se descubre hasta que
-   * alguien echa en falta un aviso que nunca llegó.
-   */
-  async comprobar(token: string): Promise<{ ok: boolean; bot?: string; error?: string }> {
-    return new Promise((resolve) => {
-      const req = https.request(
-        { hostname: 'api.telegram.org', path: `/bot${token}/getMe`, method: 'GET', timeout: 10000 },
-        (res) => {
-          let txt = '';
-          res.on('data', (d) => (txt += d));
-          res.on('end', () => {
-            try {
-              const j = JSON.parse(txt);
-              if (j.ok && j.result?.username) resolve({ ok: true, bot: '@' + j.result.username });
-              else resolve({ ok: false, error: j.description || 'Telegram no reconoce ese token.' });
-            } catch {
-              resolve({ ok: false, error: 'Respuesta ilegible de Telegram.' });
-            }
-          });
-        },
-      );
-      req.on('timeout', () => { req.destroy(); resolve({ ok: false, error: 'Telegram no respondió.' }); });
-      req.on('error', (e) => resolve({ ok: false, error: e.message }));
-      req.end();
-    });
+  activo(): boolean {
+    const t = process.env.TELEGRAM_BOT_TOKEN;
+    return !!(t && t.length > 20);
   }
 
   /**
@@ -82,12 +39,8 @@ export class TelegramClient {
     /** Segundos que Telegram pide esperar (cabecera retry_after). */
     esperarSeg?: number;
   }> {
-    const token = await this.token();
-    if (!token) {
-      return {
-        ok: false, reintentable: false,
-        error: 'Telegram no está configurado. Pega el token del bot en la pantalla de Avisos.',
-      };
+    if (!this.activo()) {
+      return { ok: false, reintentable: false, error: 'Telegram no está configurado (falta TELEGRAM_BOT_TOKEN).' };
     }
 
     const cuerpo = JSON.stringify({
@@ -104,7 +57,7 @@ export class TelegramClient {
       const req = https.request(
         {
           hostname: 'api.telegram.org',
-          path: `/bot${token}/sendMessage`,
+          path: `/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`,
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(cuerpo) },
           timeout: 15000,
@@ -161,9 +114,8 @@ export class TelegramClient {
    * en el agente de planta, y por el mismo motivo.
    */
   async recibir(desdeId = 0): Promise<{ updateId: number; chatId: string; texto: string }[]> {
-    const token = await this.token();
-    if (!token) return [];
-    const url = `/bot${token}/getUpdates?offset=${desdeId}&timeout=0&limit=50`;
+    if (!this.activo()) return [];
+    const url = `/bot${process.env.TELEGRAM_BOT_TOKEN}/getUpdates?offset=${desdeId}&timeout=0&limit=50`;
     return new Promise((resolve) => {
       const req = https.request(
         { hostname: 'api.telegram.org', path: url, method: 'GET', timeout: 15000 },

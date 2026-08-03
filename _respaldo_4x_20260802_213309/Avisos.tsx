@@ -26,9 +26,6 @@ export default function Avisos() {
   const [lista, setLista] = useState<any[]>([]);
   const [cargando, setCargando] = useState(true);
   const [msg, setMsg] = useState('');
-  const [config, setConfig] = useState<any>(null);
-  const [token, setToken] = useState('');
-  const [guardando, setGuardando] = useState(false);
 
   const cargar = useCallback(async () => {
     const [m, e, l] = await Promise.all([
@@ -39,31 +36,9 @@ export default function Avisos() {
         : [],
     ]);
     setMio(m); setEstado(e); setLista(l || []);
-    if (can('notify.manage')) {
-      setConfig(await api.get('/avisos/configuracion').then((r) => r.data).catch(() => null));
-    }
   }, [can]);
 
   useEffect(() => { cargar().finally(() => setCargando(false)); }, [cargar]);
-
-  /**
-   * Guardar el token. Se COMPRUEBA en el servidor contra Telegram antes de
-   * guardarlo: si el token está mal, se dice ahora y no cuando alguien eche
-   * en falta un aviso que nunca llegó.
-   */
-  async function guardarToken() {
-    setGuardando(true);
-    setMsg('');
-    try {
-      const { data } = await api.post('/avisos/configuracion/token', { token });
-      setMsg(data.ok
-        ? (data.apagado ? 'Avisos apagados.' : `Conectado como ${data.bot}. Ya puedes vincularte.`)
-        : `Telegram rechazó ese token: ${data.motivo}`);
-      if (data.ok) { setToken(''); await cargar(); }
-    } finally {
-      setGuardando(false);
-    }
-  }
 
   async function probar() {
     const { data } = await api.post('/avisos/probar', {});
@@ -86,80 +61,19 @@ export default function Avisos() {
         Qué te llega al teléfono, y si algo no llegó.
       </p>
 
-      {/* ----------------------------------------- CONFIGURAR EL BOT ----
-          El token lo emite @BotFather y NO se puede generar por programa:
-          Telegram no lo permite, y no hay forma de rodearlo. Lo que sí se
-          quita de en medio es todo lo demás — ya no hace falta entrar al
-          panel de despliegue, ni reiniciar el backend, ni adivinar si el
-          token es el bueno. */}
-      {can('notify.manage') && (apagado || config) && (
-        <div className="card" style={{ padding: 18, marginBottom: 18 }}>
-          <div className="section-title" style={{ margin: '0 0 10px' }}>
-            Conexión con Telegram
-          </div>
-
-          {config?.token?.puesto ? (
-            <div className="sign-note">
-              <Icono n="ok" size={16} />
-              <span>
-                Token configurado ({config.token.pista})
-                {config.token.desdeEntorno && ' · puesto como variable en Railway'}.
-              </span>
-            </div>
-          ) : (
-            <p className="muted" style={{ fontSize: 13, margin: '0 0 12px', lineHeight: 1.6 }}>
-              El token lo crea <b>@BotFather</b> en Telegram y no se puede
-              generar desde aquí — es una regla de Telegram. Pero sólo hay que
-              pegarlo una vez:
-              <br /><br />
-              1. En Telegram, busca <b>@BotFather</b> y escribe <code>/newbot</code>.
-              <br />
-              2. Te pide un nombre y un usuario terminado en <code>bot</code>.
-              <br />
-              3. Copia el token que te devuelve y pégalo aquí abajo.
-            </p>
-          )}
-
-          <label>Token del bot</label>
-          <input
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder={config?.token?.puesto ? 'Pega uno nuevo para reemplazarlo' : '1234567890:AAF...'}
-            autoComplete="off"
-          />
-          <span className="campo-msg">
-            Se comprueba contra Telegram antes de guardarlo, y queda cifrado
-            en la base igual que las credenciales de las cámaras.
-          </span>
-
-          <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-            <button className="btn-primary" onClick={guardarToken}
-                    disabled={guardando || !token.trim()}>
-              {guardando ? 'Comprobando…' : 'Comprobar y guardar'}
-            </button>
-            {config?.token?.puesto && !config.token.desdeEntorno && (
-              <button
-                className="btn-mini btn-danger"
-                onClick={async () => {
-                  if (!window.confirm('¿Apagar los avisos por Telegram?')) return;
-                  await api.post('/avisos/configuracion/token', { token: '' });
-                  await cargar();
-                }}
-              >
-                Apagar avisos
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {apagado && !can('notify.manage') && (
+      {apagado && (
         <div className="card vacio">
           <Icono n="alerta" size={38} />
           <h3>El bot todavía no está configurado</h3>
           <p>
-            Pídeselo a quien administra el sistema. Mientras tanto todo
-            funciona igual y no se acumula nada.
+            Todo está montado: las plantillas, la cola de envío y los
+            reintentos. Falta una cosa — <b>crear el bot con @BotFather y
+            poner su token en Railway</b> como <code>TELEGRAM_BOT_TOKEN</code>.
+          </p>
+          <p style={{ marginTop: 12 }}>
+            El bot <b>no abre ningún puerto</b>: es el sistema el que se
+            conecta hacia fuera. Mientras tanto, el sistema funciona igual y
+            no se acumula nada.
           </p>
         </div>
       )}

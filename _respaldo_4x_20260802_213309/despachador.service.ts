@@ -36,22 +36,16 @@ export class DespachadorService implements OnModuleInit, OnModuleDestroy {
     private readonly vinculacion: VinculacionService,
   ) {}
 
-  async onModuleInit() {
-    // `activo()` es asíncrono desde que el token puede vivir en la base:
-    // hay que preguntárselo, no leerlo de una variable.
-    if (!(await this.telegram.activo())) {
+  onModuleInit() {
+    if (!this.telegram.activo()) {
       // No es un error: es el estado normal hasta que TI autorice. Se dice
       // una vez al arrancar para que quien mire los logs lo sepa.
-      // NO se sale: el token se puede pegar en la pantalla en cualquier
-      // momento, y entonces el temporizador ya tiene que estar en marcha.
-      // Antes, con la variable de entorno, apagado al arrancar significaba
-      // apagado hasta el siguiente despliegue.
-      this.logger.log('Avisos por Telegram apagados (sin token). Se encienden solos al ponerlo en Avisos.');
-    } else {
-      this.logger.log('Avisos por Telegram activados.');
+      this.logger.log('Avisos por Telegram APAGADOS (falta TELEGRAM_BOT_TOKEN). Todo lo demás funciona igual.');
+      return;
     }
     setTimeout(() => this.vuelta(), this.PRIMERA_MS);
     this.timer = setInterval(() => this.vuelta(), this.CADA_MS);
+    this.logger.log('Avisos por Telegram activados.');
   }
 
   onModuleDestroy() {
@@ -61,7 +55,7 @@ export class DespachadorService implements OnModuleInit, OnModuleDestroy {
   async vuelta() {
     // Si la vuelta anterior sigue en marcha no se lanza otra: dos a la vez
     // mandarían el mismo aviso dos veces.
-    if (this.ocupado || !(await this.telegram.activo())) return;
+    if (this.ocupado || !this.telegram.activo()) return;
     this.ocupado = true;
     try {
       // Antes de enviar se leen los mensajes que le han escrito al bot: es
