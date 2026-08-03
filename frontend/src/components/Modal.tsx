@@ -1,23 +1,84 @@
-import { ReactNode, useRef } from 'react';
+import { ReactNode, useEffect, useRef } from 'react';
 
 /**
- * Modal. Cierra al hacer clic en el fondo SOLO si el clic empezó y terminó en el fondo.
- * Así, seleccionar texto dentro y soltar fuera (arrastrar) ya NO cierra la ventana.
+ * Ventana de formulario.
+ *
+ * CIERRA AL PULSAR EL FONDO sólo si el clic empezó Y terminó ahí: seleccionar
+ * texto dentro y soltar fuera ya no cierra la ventana perdiendo lo escrito.
+ *
+ * ---------------------------------------------------------------------------
+ *  LO QUE SE ARREGLA AQUÍ (4W): EL BOTÓN DE GUARDAR EN EL CELULAR
+ * ---------------------------------------------------------------------------
+ *  El formulario de activo tiene más de cuarenta campos. En un teléfono eso
+ *  son varias pantallas de scroll, y el botón de Guardar estaba AL FINAL DE
+ *  TODO: para guardar un cambio de una línea había que recorrer el formulario
+ *  entero hasta abajo.
+ *
+ *  Ahora las acciones van en una barra FIJA al pie de la ventana. Siempre
+ *  visible, siempre alcanzable con el pulgar. Es el cambio que más se nota
+ *  de todo el pase de formularios, y no se ve en una captura: se nota al
+ *  usarlo con una mano.
+ *
+ *  También:
+ *   · Escape cierra. Con teclado se espera; sin ello hay que buscar la X.
+ *   · El foco entra en el primer campo al abrir, así se puede escribir sin
+ *     tocar la pantalla.
+ *   · El fondo NO hace scroll detrás de la ventana. En el celular, deslizar
+ *     dentro de un formulario largo movía la página de detrás y al cerrar
+ *     aparecías en otro sitio.
  */
-export default function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+export default function Modal({
+  title, onClose, children, acciones, ancho,
+}: {
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+  /** Botones del pie. Van en barra fija: en el celular, siempre a mano. */
+  acciones?: ReactNode;
+  /** 'ancho' para formularios de muchos campos: dos columnas en escritorio. */
+  ancho?: boolean;
+}) {
   const downInside = useRef(false);
+  const caja = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', esc);
+
+    // Se bloquea el scroll del fondo mientras la ventana está abierta, y se
+    // devuelve exactamente como estaba al cerrar (no se pone 'auto' a lo
+    // bruto: si la página tenía otro valor, se lo cargaría).
+    const antes = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    // Foco en el primer campo. Se salta los de sólo lectura y los ocultos.
+    const primero = caja.current?.querySelector<HTMLElement>(
+      'input:not([type=hidden]):not([disabled]), select:not([disabled]), textarea:not([disabled])',
+    );
+    primero?.focus();
+
+    return () => {
+      document.removeEventListener('keydown', esc);
+      document.body.style.overflow = antes;
+    };
+  }, [onClose]);
+
   return (
     <div
       className="modal-overlay"
       onMouseDown={(e) => { downInside.current = e.target !== e.currentTarget; }}
       onClick={(e) => { if (e.target === e.currentTarget && !downInside.current) onClose(); }}
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
     >
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className={'modal' + (ancho ? ' modal-ancho' : '')} ref={caja} onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <h3>{title}</h3>
-          <button className="modal-x" onClick={onClose}>×</button>
+          <button className="modal-x" onClick={onClose} aria-label="Cerrar">×</button>
         </div>
         <div className="modal-body">{children}</div>
+        {acciones && <div className="modal-pie">{acciones}</div>}
       </div>
     </div>
   );

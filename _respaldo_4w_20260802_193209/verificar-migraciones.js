@@ -76,10 +76,6 @@ function leerSchema() {
 function leerMigraciones() {
   const tablas = new Map();
   const enums = new Set();
-  /** nombre de índice -> tabla. Sirve para comparar con los @@index/@@unique. */
-  const indices = new Map();
-  /** nombre de FK -> texto de la cláusula, para ver si trae ON UPDATE. */
-  const fks = new Map();
 
   const carpetas = fs.readdirSync(DIR_MIG, { withFileTypes: true })
     .filter((e) => e.isDirectory())
@@ -93,30 +89,6 @@ function leerMigraciones() {
     const sql = fs.readFileSync(f, 'utf8')
       .replace(/--[^\n]*/g, '')
       .replace(/\/\*[\s\S]*?\*\//g, '');
-
-    // ÍNDICES. Se guardan por NOMBRE porque es lo que compara `migrate diff`:
-    // un índice correcto con el nombre equivocado cuenta como uno de más y
-    // otro de menos. Fue lo que pasó con
-    // notificaciones_salientes_estado_idx sobre (estado, proximoIntento).
-    for (const m of sql.matchAll(/CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?"?([\w.]+)"?\s+ON\s+"?([\w.]+)"?\s*(?:USING\s+(\w+)\s*)?\(([^)]*)\)/gi)) {
-      indices.set(m[1], {
-        tabla: m[2].replace(/^public\./, ''),
-        metodo: (m[3] || 'btree').toLowerCase(),
-        columnas: m[4].split(',').map((c) => c.trim().replace(/"/g, '')),
-      });
-    }
-    for (const m of sql.matchAll(/DROP\s+INDEX\s+(?:IF\s+EXISTS\s+)?"?([\w.]+)"?/gi)) indices.delete(m[1]);
-    for (const m of sql.matchAll(/ALTER\s+INDEX\s+(?:IF\s+EXISTS\s+)?"?([\w.]+)"?\s+RENAME\s+TO\s+"?([\w.]+)"?/gi)) {
-      const v = indices.get(m[1]);
-      if (v) { indices.delete(m[1]); indices.set(m[2], v); }
-    }
-
-    // CLAVES FORÁNEAS. Prisma genera SIEMPRE ON DELETE ... ON UPDATE ...;
-    // escribir sólo la primera hace que vea una clave distinta.
-    for (const m of sql.matchAll(/ADD\s+CONSTRAINT\s+"?([\w.]+)"?\s+FOREIGN\s+KEY[\s\S]*?(?=;)/gi)) {
-      fks.set(m[1], m[0]);
-    }
-    for (const m of sql.matchAll(/DROP\s+CONSTRAINT\s+(?:IF\s+EXISTS\s+)?"?([\w.]+)"?/gi)) fks.delete(m[1]);
 
     for (const m of sql.matchAll(/CREATE\s+TYPE\s+"?(\w+)"?/gi)) enums.add(m[1]);
     for (const m of sql.matchAll(/DROP\s+TYPE\s+(?:IF\s+EXISTS\s+)?"?(\w+)"?/gi)) enums.delete(m[1]);
@@ -176,7 +148,7 @@ function leerMigraciones() {
       if (tablas.has(viejo)) { tablas.set(m[2].replace(/^public\./, ''), tablas.get(viejo)); tablas.delete(viejo); }
     }
   }
-  return { tablas, enums, carpetas, indices, fks };
+  return { tablas, enums, carpetas };
 }
 
 // ------------------------------------------------------------ COMPARACIÓN
@@ -184,8 +156,6 @@ function leerMigraciones() {
 const S = leerSchema();
 const M = leerMigraciones();
 const problemas = [];
-// Se declara aquí arriba porque la comprobación de índices ya lo usa.
-const sobran = [];
 
 for (const [tabla, cols] of S.tablas) {
   if (!M.tablas.has(tabla)) {
@@ -199,55 +169,13 @@ for (const [tabla, cols] of S.tablas) {
     }
   }
 }
-// ---- ÍNDICES declarados en el esquema pero que ninguna migración crea ----
-//
-// Es el fallo que ya nos comió dos veces: crear el índice en el SQL y
-// olvidar el @@index, o al revés. Aquí se cazan los dos sentidos.
-{
-  const txt = fs.readFileSync(SCHEMA, 'utf8');
-  for (const m of txt.matchAll(/model\s+(\w+)\s*\{([\s\S]*?)\n\}/g)) {
-    const cuerpo = m[2];
-    const mapa = /@@map\("([^"]+)"\)/.exec(cuerpo);
-    const tabla = mapa ? mapa[1] : m[1];
-    for (const idx of cuerpo.matchAll(/@@(index|unique)\(\[([^\]]+)\]\)/g)) {
-      const cols = idx[2].split(',').map((c) => c.trim());
-      const sufijo = idx[1] === 'unique' ? 'key' : 'idx';
-      const esperado = `${tabla}_${cols.join('_')}_${sufijo}`;
-      const enMig = [...M.indices.keys()].includes(esperado);
-      if (!enMig) {
-        problemas.push(
-          `Índice "${esperado}" (${tabla}: ${cols.join(', ')}) está en schema.prisma ` +
-          'pero ninguna migración lo crea con ESE nombre.',
-        );
-      }
-    }
-  }
-  // Índices que crean las migraciones y el esquema no conoce. Sólo se avisa:
-  // pueden ser índices puestos a mano a propósito... pero la CI los va a
-  // marcar igual, así que conviene verlos.
-  for (const [nombre, i] of M.indices) {
-    if (i.metodo !== 'btree') {
-      sobran.push(`índice ${nombre} (${i.metodo}: Prisma no sabe expresarlo)`);
-    }
-  }
-}
-
-// ---- CLAVES FORÁNEAS sin ON UPDATE ----
-for (const [nombre, texto] of M.fks) {
-  if (!/ON\s+UPDATE/i.test(texto)) {
-    problemas.push(
-      `La clave foránea "${nombre}" no declara ON UPDATE. Prisma genera siempre ` +
-      'ON DELETE ... ON UPDATE ..., así que la verá como distinta y propondrá rehacerla.',
-    );
-  }
-}
-
 for (const e of S.enums) {
   if (!M.enums.has(e)) problemas.push(`Tipo enumerado "${e}" está en schema.prisma pero no en las migraciones.`);
 }
 
 // Al revés sólo se avisa, no se falla: una columna que existe en la base y ya
 // no en el esquema puede ser algo conservado a propósito.
+const sobran = [];
 for (const [tabla, cols] of M.tablas) {
   if (!S.tablas.has(tabla)) { sobran.push(`tabla ${tabla}`); continue; }
   for (const c of cols) if (!S.tablas.get(tabla).has(c)) sobran.push(`${tabla}.${c}`);

@@ -152,20 +152,8 @@ export default function Cabinets() {
       </div>
 
       {form && (
-        <Modal
-          title={form.id ? 'Editar gabinete' : 'Nuevo gabinete'}
-          onClose={() => setForm(null)}
-          ancho
-          acciones={
-            <>
-              <button type="button" className="btn-mini" onClick={() => setForm(null)}>Cancelar</button>
-              <button type="submit" form="form-gabinete" className="btn" disabled={saving}>
-                {saving ? 'Guardando…' : 'Guardar gabinete'}
-              </button>
-            </>
-          }
-        >
-          <form id="form-gabinete" onSubmit={submit}>
+        <Modal title={form.id ? 'Editar gabinete' : 'Nuevo gabinete'} onClose={() => setForm(null)}>
+          <form onSubmit={submit}>
             <label>Rótulo (código del gabinete)</label>
             <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="Ej: GAB-T1-R01" required />
             <label>Nombre</label>
@@ -179,6 +167,7 @@ export default function Cabinets() {
             <input value={form.referencePlace} onChange={(e) => setForm({ ...form, referencePlace: e.target.value })} placeholder="Ej: Sala de equipos — Tren 1" />
             <label>Notas</label>
             <input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+            <button className="btn" disabled={saving}>{saving ? 'Guardando…' : 'Guardar gabinete'}</button>
           </form>
         </Modal>
       )}

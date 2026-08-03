@@ -964,10 +964,6 @@ model WorkOrder {
   @@index([status])
   @@index([incidentId])
   @@index([type, status])
-    /// Existe en la base desde 4A. Declararlo aquí es lo que evita que la
-  /// CI lo vea como un índice "de más" en cada comprobación.
-  @@index([detailedAt])
-  @@index([rootCauseCode])
   @@map("work_orders")
 }
 

@@ -279,20 +279,8 @@ export default function Inventory() {
 
       {/* Crear / editar */}
       {form && (
-        <Modal
-          title={form.id ? 'Editar repuesto' : 'Nuevo repuesto'}
-          onClose={() => setForm(null)}
-          ancho
-          acciones={
-            <>
-              <button type="button" className="btn-mini" onClick={() => setForm(null)}>Cancelar</button>
-              <button type="submit" form="form-repuesto" className="btn" disabled={saving}>
-                {saving ? 'Guardando…' : 'Guardar'}
-              </button>
-            </>
-          }
-        >
-          <form id="form-repuesto" onSubmit={save}>
+        <Modal title={form.id ? 'Editar repuesto' : 'Nuevo repuesto'} onClose={() => setForm(null)}>
+          <form onSubmit={save}>
             <label>Nombre</label>
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
             <label>Código SAP (libre)</label>
@@ -309,6 +297,7 @@ export default function Inventory() {
               <div style={{ flex: 1 }}><label>Stock actual</label><input type="number" min={0} value={form.currentStock} onChange={(e) => setForm({ ...form, currentStock: e.target.value })} /></div>
               <div style={{ flex: 1 }}><label>Stock mínimo</label><input type="number" min={0} value={form.minStock} onChange={(e) => setForm({ ...form, minStock: e.target.value })} /></div>
             </div>
+            <button className="btn" disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</button>
           </form>
         </Modal>
       )}

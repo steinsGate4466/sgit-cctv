@@ -834,20 +834,8 @@ export default function Assets() {
       )}
 
       {form && (
-        <Modal
-          title={form.id ? 'Editar activo (firmado)' : 'Registrar activo (firmado)'}
-          onClose={() => setForm(null)}
-          ancho
-          acciones={
-            <>
-              <button type="button" className="btn-mini" onClick={() => setForm(null)}>Cancelar</button>
-              <button type="submit" form="form-activo" className="btn" disabled={saving || tries <= 0}>
-                {saving ? 'Guardando…' : (form.id ? 'Firmar y guardar cambios' : 'Firmar y registrar')}
-              </button>
-            </>
-          }
-        >
-          <form id="form-activo" onSubmit={submitNew}>
+        <Modal title={form.id ? 'Editar activo (firmado)' : 'Registrar activo (firmado)'} onClose={() => setForm(null)}>
+          <form onSubmit={submitNew}>
             <div className="sign-note">El activo contiene información sensible (IP, red, accesos). Confirma tu identidad con correo y contraseña; quedará auditado con tu firma quién {form.id ? 'editó' : 'registró'} el activo.</div>
             <label>Código / rótulo del activo</label>
             <input value={form.assetCode} onChange={(e) => setForm({ ...form, assetCode: e.target.value })} required />
@@ -904,6 +892,7 @@ export default function Assets() {
             <label>Contraseña</label>
             <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
             {formErr && <div className="error">{formErr}</div>}
+            <button className="btn" disabled={saving || tries <= 0}>{saving ? 'Guardando…' : (form.id ? 'Firmar y guardar cambios' : 'Firmar y registrar')}</button>
           </form>
         </Modal>
       )}
