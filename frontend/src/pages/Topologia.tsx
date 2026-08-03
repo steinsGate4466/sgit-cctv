@@ -85,15 +85,50 @@ export default function Topologia() {
           anterior: CÓMO ESTÁ MONTADO. Con una tabla, entender que ocho
           cámaras cuelgan del mismo switch exige leer ocho filas y
           recordarlas; aquí se ve de un golpe. */}
-      {(mapa?.nodos?.length ?? 0) > 0 && (
-        <>
+      {/* EL BLOQUE SE PINTA SIEMPRE, aunque no haya nada que dibujar.
+          La primera versión lo escondía cuando no había nodos, y eso fue un
+          error: sin red cargada no aparecía NADA, y eso es indistinguible de
+          "la función no existe". Una pantalla que no explica por qué está
+          vacía manda a la gente a preguntar. */}
+      <>
           <div className="section-title">
             Mapa de la red
-            <button className="btn-mini" style={{ marginLeft: 'auto' }}
-                    onClick={() => setVerMapa((v) => !v)}>
-              {verMapa ? 'Ocultar' : `Ver mapa (${mapa.nodos.length} equipos)`}
-            </button>
+            {(mapa?.nodos?.length ?? 0) > 0 && (
+              <button className="btn-mini" style={{ marginLeft: 'auto' }}
+                      onClick={() => setVerMapa((v) => !v)}>
+                {verMapa ? 'Ocultar' : `Ver mapa (${mapa.nodos.length} equipos)`}
+              </button>
+            )}
           </div>
+
+          {(mapa?.nodos?.length ?? 0) === 0 && (
+            <div className="card vacio">
+              <Icono n="predictivo" size={38} />
+              <h3>Todavía no hay red que dibujar</h3>
+              <p>
+                El mapa se arma con lo que esté registrado. Ahora mismo falta
+                todo esto, y por eso no hay nada que enseñar:
+              </p>
+              <div style={{ textAlign: 'left', maxWidth: 460, margin: '14px auto 0' }}>
+                <div className="frow">
+                  <span className="k">Puertos de switch ocupados</span>
+                  <span className="v">en Activos, ficha del switch</span>
+                </div>
+                <div className="frow">
+                  <span className="k">Enlaces de fibra y radio</span>
+                  <span className="v">marcando cuáles son del anillo</span>
+                </div>
+                <div className="frow">
+                  <span className="k">NVR de cada cámara</span>
+                  <span className="v">en la ficha de la cámara</span>
+                </div>
+              </div>
+              <p style={{ marginTop: 14 }}>
+                En cuanto haya un switch con equipos enchufados, el mapa
+                aparece solo. <b>No hace falta configurar nada más.</b>
+              </p>
+            </div>
+          )}
           {verMapa && (
             <div className="card" style={{ padding: 12 }}>
               <MapaRed datos={mapa} onNodo={(n) => verImpacto(n)} />
@@ -109,8 +144,7 @@ export default function Topologia() {
               </div>
             </div>
           )}
-        </>
-      )}
+      </>
 
       {fallo && <div className="error">{fallo}</div>}
 

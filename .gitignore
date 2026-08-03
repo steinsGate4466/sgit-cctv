@@ -11,6 +11,9 @@ coverage/
 prisma/*.db
 uploads/
 
-# Respaldos de base de datos: NUNCA al repositorio
-respaldos/
-*.sql.gz
+# Copias que hacen los scripts de entrega antes de tocar nada.
+# Utiles en la maquina de quien aplica, pero NO en el repositorio: son
+# versiones viejas de los mismos archivos, y alguna vez alguien va a abrir
+# una creyendo que es la buena.
+_respaldo_*/
+_respaldos_bd/
