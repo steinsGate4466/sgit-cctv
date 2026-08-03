@@ -1067,22 +1067,3 @@ input[type="checkbox"], input[type="radio"] {
 /* Textarea: altura mínima cómoda y sin redimensionar en horizontal, que
    rompía la rejilla al arrastrar. */
 textarea { min-height: 84px; resize: vertical; }
-
-/* ----------------------------------------------------- MAPA DE LA RED
-   Se desplaza en horizontal a propósito: una red de planta no cabe a lo
-   ancho de un celular, y encogerla hasta que quepa la haría ilegible.
-   Mejor desplazarse que no poder leer los códigos. */
-.mapa-red { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 6px; }
-.mapa-red svg { display: block; }
-.mapa-red text { font-family: var(--fuente, 'Segoe UI'), system-ui, sans-serif; }
-
-.mapa-leyenda {
-  display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center;
-  margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);
-  font-size: 12px; color: var(--muted);
-}
-.mapa-leyenda span { display: flex; align-items: center; gap: 6px; }
-.mapa-leyenda i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
-.mapa-leyenda i.anillo {
-  width: 18px; height: 0; border-top: 2px dashed var(--steel); border-radius: 0;
-}

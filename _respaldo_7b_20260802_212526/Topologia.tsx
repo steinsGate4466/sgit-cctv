@@ -4,7 +4,6 @@ import Modal from '../components/Modal';
 import Icono from '../components/Iconos';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, conAmbito } from '../components/FiltroAmbito';
 import { EsqueletoTabla } from '../components/Esqueleto';
-import MapaRed from '../components/MapaRed';
 
 /**
  * PUNTOS CRÍTICOS DE LA RED (bloque 7).
@@ -34,19 +33,11 @@ export default function Topologia() {
   const [cargando, setCargando] = useState(true);
   const [fallo, setFallo] = useState('');
   const [detalle, setDetalle] = useState<any>(null);
-  const [mapa, setMapa] = useState<any>(null);
-  // El mapa se pinta plegado: es lo más pesado de la pantalla y no todo el
-  // mundo entra aquí a mirarlo. Quien lo quiere, lo abre.
-  const [verMapa, setVerMapa] = useState(false);
 
   const cargar = useCallback(async () => {
     try {
-      const [criticos, dibujo] = await Promise.all([
-        api.get('/network/criticos', { params: conAmbito({}, ambito) }).then((r) => r.data),
-        api.get('/network/mapa', { params: conAmbito({}, ambito) }).then((r) => r.data),
-      ]);
-      setDatos(criticos);
-      setMapa(dibujo);
+      const { data } = await api.get('/network/criticos', { params: conAmbito({}, ambito) });
+      setDatos(data);
       setFallo('');
     } catch (e: any) {
       // "No hay datos" y "no pude preguntar" son cosas distintas. Confundirlas
@@ -79,38 +70,6 @@ export default function Topologia() {
       </p>
 
       <FiltroAmbito valor={ambito} onChange={setAmbito} />
-
-      {/* ------------------------------------------------------ EL MAPA ----
-          El ranking dice QUÉ PASA SI CAE algo. El mapa contesta la pregunta
-          anterior: CÓMO ESTÁ MONTADO. Con una tabla, entender que ocho
-          cámaras cuelgan del mismo switch exige leer ocho filas y
-          recordarlas; aquí se ve de un golpe. */}
-      {(mapa?.nodos?.length ?? 0) > 0 && (
-        <>
-          <div className="section-title">
-            Mapa de la red
-            <button className="btn-mini" style={{ marginLeft: 'auto' }}
-                    onClick={() => setVerMapa((v) => !v)}>
-              {verMapa ? 'Ocultar' : `Ver mapa (${mapa.nodos.length} equipos)`}
-            </button>
-          </div>
-          {verMapa && (
-            <div className="card" style={{ padding: 12 }}>
-              <MapaRed datos={mapa} onNodo={(n) => verImpacto(n)} />
-              <div className="mapa-leyenda">
-                <span><i style={{ background: '#16a34a' }} /> Operativo</span>
-                <span><i style={{ background: '#ea580c' }} /> Con incidencia</span>
-                <span><i style={{ background: '#dc2626' }} /> Fuera de servicio o sin camino al grabador</span>
-                <span><i className="anillo" /> Tramo de anillo</span>
-                <span className="muted">
-                  Las columnas son saltos hasta el grabador. Pulsa un equipo para ver qué se
-                  pierde si cae.
-                </span>
-              </div>
-            </div>
-          )}
-        </>
-      )}
 
       {fallo && <div className="error">{fallo}</div>}
 

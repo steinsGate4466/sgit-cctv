@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../../prisma/prisma.service';
 import { resolverContextoDePlanta } from '../../common/plant-context';
 import { ambitoDelUsuario } from '../../common/ambito-usuario';
-import { GrafoRed, alcanzables, impactoDeCaida, porDanoPotencial } from './impacto';
+import { GrafoRed, impactoDeCaida, porDanoPotencial } from './impacto';
 
 /**
  * TOPOLOGÍA Y ANÁLISIS DE IMPACTO (bloque 7).
@@ -196,73 +196,5 @@ export class NetworkService {
       throw new NotFoundException('Ese enlace ya no existe.');
     });
     return { ok: true };
-  }
-
-  /**
-   * EL MAPA, para dibujarlo.
-   *
-   * Devuelve nodos y enlaces tal cual, sin posiciones: dónde va cada caja lo
-   * decide la pantalla, que es la que sabe cuánto sitio tiene. Mandar
-   * coordenadas desde aquí obligaría a rehacer el servidor cada vez que
-   * cambie el diseño.
-   *
-   * Se incluye la PROFUNDIDAD de cada nodo —a cuántos saltos está del
-   * grabador— porque eso NO es diseño: es la estructura de la red, y sale de
-   * los mismos datos. Con ella el dibujo se ordena solo en columnas:
-   * grabadores, switches de core, switches de tren, cámaras.
-   */
-  async mapa(userId?: string | null, tren?: string | null) {
-    const { g, info } = await this.grafo();
-    const { trenes, sinLimite } = await ambitoDelUsuario(this.prisma, userId);
-
-    const permitido = (id: string) => {
-      const t = info.get(id)?.tren ?? null;
-      if (!sinLimite && (!t || !trenes.includes(t))) return false;
-      if (tren && t !== tren.toUpperCase()) return false;
-      return true;
-    };
-
-    // Profundidad desde las raíces, en anchura.
-    const ady = new Map<string, string[]>();
-    for (const n of g.nodos) ady.set(n, []);
-    for (const e of g.enlaces) {
-      ady.get(e.a)?.push(e.b);
-      ady.get(e.b)?.push(e.a);
-    }
-    const nivel = new Map<string, number>();
-    const cola: string[] = [];
-    for (const r of g.raices) { nivel.set(r, 0); cola.push(r); }
-    for (let i = 0; i < cola.length; i++) {
-      const n = cola[i];
-      for (const v of ady.get(n) || []) {
-        if (!nivel.has(v)) { nivel.set(v, (nivel.get(n) ?? 0) + 1); cola.push(v); }
-      }
-    }
-
-    // Los nodos del tren pedido, MÁS los que hagan falta para que el dibujo
-    // tenga sentido: si el switch del core no es "de este tren" pero da
-    // servicio a sus cámaras, esconderlo dejaría las cámaras flotando.
-    const visibles = new Set(g.nodos.filter(permitido));
-    for (const e of g.enlaces) {
-      if (visibles.has(e.a) && !visibles.has(e.b) && !this.esCamara(info)(e.b)) visibles.add(e.b);
-      if (visibles.has(e.b) && !visibles.has(e.a) && !this.esCamara(info)(e.a)) visibles.add(e.a);
-    }
-
-    const alcanzan = alcanzables(g);
-
-    return {
-      nodos: [...visibles].map((id) => ({
-        id,
-        ...info.get(id),
-        nivel: nivel.get(id) ?? null,
-        // Si no llega al grabador, se dibuja aparte: es lo que hay que ver.
-        aislado: !alcanzan.has(id),
-        esRaiz: g.raices.includes(id),
-      })),
-      enlaces: g.enlaces
-        .filter((e) => visibles.has(e.a) && visibles.has(e.b))
-        .map((e) => ({ a: e.a, b: e.b, esAnillo: !!e.esAnillo })),
-      generado: new Date().toISOString(),
-    };
   }
 }

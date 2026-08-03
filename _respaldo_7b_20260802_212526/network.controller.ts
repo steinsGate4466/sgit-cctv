@@ -20,13 +20,6 @@ export class NetworkController {
     return this.red.puntosCriticos(user?.userId, tren);
   }
 
-  /** El mapa para dibujar. 'mapa' antes de ':assetId', como siempre. */
-  @Get('mapa')
-  @RequirePermissions('asset.read')
-  mapa(@CurrentUser() user: any, @Query('tren') tren?: string) {
-    return this.red.mapa(user?.userId, tren);
-  }
-
   @Get('impacto/:assetId')
   @RequirePermissions('asset.read')
   impacto(@Param('assetId') assetId: string) {
