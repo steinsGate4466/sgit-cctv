@@ -6,8 +6,17 @@ import { filtroDeUbicaciones } from '../../common/ambito-planta';
 import { AuditService } from '../audit/audit.service';
 import { StorageService } from '../storage/storage.service';
 import { CreateCabinetDto, UpdateCabinetDto } from './dto/cabinet.dto';
-import * as QRCode from 'qrcode';
-import * as PDFDocument from 'pdfkit';
+// Se cargan con require, IGUAL que en assets.service.ts, y no con
+// `import * as`. Con esModuleInterop, `import * as PDFDocument` devuelve un
+// objeto de espacio de nombres que NO se puede usar con `new`: compila sin
+// una queja y revienta al pulsar el botón con
+// "PDFDocument is not a constructor".
+// Es justo lo que pasó: el QR individual funcionaba —ahí sólo se llama a un
+// método— y la hoja de etiquetas fallaba.
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const PDFDocument = require('pdfkit');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const QRCode = require('qrcode');
 import { computeEffectiveStatuses } from '../../common/asset-status';
 
 @Injectable()

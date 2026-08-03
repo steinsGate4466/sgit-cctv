@@ -88,6 +88,13 @@ jobs:
         working-directory: backend
         run: npm run verificar:migraciones
 
+      # `new X()` sobre un modulo importado con `import * as`. Compila sin una
+      # queja y revienta al pulsar el boton. Paso el 02/08 con la hoja de
+      # etiquetas de gabinetes.
+      - name: Verificar constructores
+        working-directory: backend
+        run: npm run verificar:constructores
+
       - name: Pruebas unitarias
         working-directory: backend
         run: npm test -- --ci --runInBand
