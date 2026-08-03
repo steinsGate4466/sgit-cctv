@@ -25,10 +25,6 @@ const EXCEPCIONES: Record<string, string> = {
     'Es la puerta de entrada: exigir un permiso para iniciar sesión no tiene sentido. Va con @Public y con freno de intentos.',
   'auth.controller.ts:refresh':
     'Renueva el token con el token de refresco, que ya es la credencial. Va con @Public y con freno.',
-  'auth.controller.ts:logout':
-    'Cada persona cierra SU sesión. El identificador sale del token, nunca del cuerpo, así que no se puede cerrar la de otro. Exigir un permiso impediría que alguien salga por su cuenta, que es lo contrario de lo que se busca.',
-  'auth.controller.ts:cerrarTodas':
-    'El botón de "me robaron el teléfono". Cierra sólo las sesiones del usuario del token. Poner un permiso delante haría que la persona a la que le robaron el móvil tuviera que pedir ayuda para cerrarlas.',
   'users.controller.ts:setPin':
     'Cada uno gestiona SU pin. El identificador sale del token, nunca de la URL, así que no hay forma de tocar el de otro.',
   'users.controller.ts:verifyPin':

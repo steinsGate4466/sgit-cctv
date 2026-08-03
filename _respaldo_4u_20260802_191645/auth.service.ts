@@ -1,6 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { secretoJwt, secretoRefresh } from '../../common/secreto-jwt';
-import { randomUUID } from 'crypto';
+import { secretoJwt } from '../../common/secreto-jwt';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -64,7 +63,7 @@ export class AuthService {
     this.attempts.delete(key);
     await this.prisma.user.update({ where: { id: user!.id }, data: { lastLoginAt: new Date() } });
     await this.audit.record({ userId: user!.id, action: 'LOGIN', entity: 'auth', entityId: user!.id, ip });
-    return this.buildTokens(user, ip);
+    return this.buildTokens(user);
   }
 
   /** Registra un intento fallido y bloquea la cuenta si se supera el máximo. */
@@ -91,46 +90,14 @@ export class AuthService {
    * Por qué existe: permitir renovar el access token (corto) sin re-login, y
    * recalcular permisos actualizados desde la BD en cada rotación.
    */
-  async refresh(refreshToken: string, ip?: string | null, dispositivo?: string | null) {
-    let payload: { sub: string; jti?: string };
+  async refresh(refreshToken: string) {
+    let payload: { sub: string };
     try {
       payload = await this.jwt.verifyAsync(refreshToken, {
-        secret: secretoRefresh(),
+        secret: process.env.JWT_REFRESH_SECRET || 'change_me_refresh',
       });
     } catch {
       throw new UnauthorizedException('Refresh token inválido o expirado');
-    }
-
-    // Los tokens emitidos ANTES de este cambio no llevan jti. Se aceptan una
-    // última vez y salen con uno nuevo: si no, al desplegar se caería la
-    // sesión de todo el mundo a la vez, sin motivo.
-    const sesion = payload.jti
-      ? await this.prisma.sesion.findUnique({ where: { id: payload.jti } })
-      : null;
-
-    if (payload.jti && !sesion) {
-      throw new UnauthorizedException('Esta sesión ya no existe. Vuelve a iniciar sesión.');
-    }
-
-    if (sesion?.revocadaEn) {
-      // REUTILIZACIÓN DE UN TOKEN YA ROTADO.
-      //
-      // Cada refresh revoca el anterior. Si llega uno revocado, hay dos
-      // copias del mismo token circulando: la de la persona y la de quien se
-      // lo llevó. No se puede saber cuál es cuál, así que se cierran TODAS
-      // las sesiones de ese usuario. Es molesto —tiene que volver a entrar—
-      // y es lo correcto: la alternativa es dejar dentro al que robó.
-      await this.prisma.sesion.updateMany({
-        where: { userId: sesion.userId, revocadaEn: null },
-        data: { revocadaEn: new Date(), motivoRevocacion: 'token reutilizado' },
-      });
-      await this.audit.record({
-        action: 'SESION_REUTILIZADA', entity: 'auth', ip,
-        after: { userId: sesion.userId, sesion: sesion.id },
-      });
-      throw new UnauthorizedException(
-        'Esta sesión se cerró por seguridad. Vuelve a iniciar sesión.',
-      );
     }
 
     const user = await this.prisma.user.findUnique({
@@ -139,95 +106,25 @@ export class AuthService {
     });
     if (!user || !user.active) throw new UnauthorizedException('Usuario no válido');
 
-    // ROTACIÓN: el token que se acaba de usar deja de valer. Es lo que
-    // permite detectar el robo en el párrafo de arriba.
-    if (sesion) {
-      await this.prisma.sesion.update({
-        where: { id: sesion.id },
-        data: { revocadaEn: new Date(), motivoRevocacion: 'rotado', ultimoUsoEn: new Date() },
-      }).catch(() => null);
-    }
-
-    return this.buildTokens(user, ip, dispositivo);
-  }
-
-  /** Cerrar sesión de verdad: la sesión deja de valer al instante. */
-  async logout(refreshToken?: string, userId?: string | null, ip?: string | null) {
-    let jti: string | null = null;
-    if (refreshToken) {
-      try {
-        const p: any = await this.jwt.verifyAsync(refreshToken, { secret: secretoRefresh() });
-        jti = p?.jti ?? null;
-      } catch { /* token ilegible: se sigue, puede que baste con el usuario */ }
-    }
-    if (jti) {
-      await this.prisma.sesion.updateMany({
-        where: { id: jti, revocadaEn: null },
-        data: { revocadaEn: new Date(), motivoRevocacion: 'cierre de sesión' },
-      });
-    }
-    await this.audit.record({ userId: userId || null, action: 'LOGOUT', entity: 'auth', ip });
-    return { ok: true };
-  }
-
-  /** Mis sesiones abiertas. Sirve para reconocer una que no es tuya. */
-  async misSesiones(userId: string) {
-    const filas = await this.prisma.sesion.findMany({
-      where: { userId, revocadaEn: null, expiraEn: { gt: new Date() } },
-      orderBy: { creadaEn: 'desc' },
-      take: 20,
-    });
-    return filas.map((s) => ({
-      id: s.id, creadaEn: s.creadaEn, ultimoUsoEn: s.ultimoUsoEn,
-      ip: s.ip, dispositivo: s.dispositivo,
-    }));
-  }
-
-  /** Cerrar todas mis sesiones. El botón de "me robaron el teléfono". */
-  async cerrarTodas(userId: string, ip?: string | null) {
-    const r = await this.prisma.sesion.updateMany({
-      where: { userId, revocadaEn: null },
-      data: { revocadaEn: new Date(), motivoRevocacion: 'cerradas por el usuario' },
-    });
-    await this.audit.record({ userId, action: 'CERRAR_TODAS_SESIONES', entity: 'auth', ip, after: { cerradas: r.count } });
-    return { ok: true, cerradas: r.count };
+    return this.buildTokens(user);
   }
 
   /**
    * Construye el par de tokens con los permisos del usuario resueltos.
    * El access token lleva rol y permisos; el refresh solo el id (sub).
    */
-  private async buildTokens(user: any, ip?: string | null, dispositivo?: string | null) {
+  private async buildTokens(user: any) {
     const permissions = user.role.permissions.map((rp: any) => rp.permission.code);
     const payload = { sub: user.id, email: user.email, role: user.role.name, permissions };
-
-    // CADA REFRESH TOKEN NACE CON SU FILA DE SESIÓN.
-    //
-    // El token lleva dentro el identificador (jti) de esa fila. Verificar la
-    // firma ya no basta: además se comprueba que la sesión exista y no esté
-    // revocada. Eso es lo que hace que cerrar sesión —o cambiar la
-    // contraseña— sirva de algo de verdad.
-    const jti = randomUUID();
-    const dias = Number((process.env.JWT_REFRESH_EXPIRES_IN || '7d').replace(/\D/g, '')) || 7;
-    await this.prisma.sesion.create({
-      data: {
-        id: jti,
-        userId: user.id,
-        expiraEn: new Date(Date.now() + dias * 86400000),
-        ip: ip?.slice(0, 60) || null,
-        dispositivo: dispositivo?.slice(0, 120) || null,
-      },
-    }).catch(() => null);
-
     return {
       accessToken: await this.jwt.signAsync(payload, {
         secret: secretoJwt(),
         expiresIn: process.env.JWT_EXPIRES_IN || '900s',
       }),
       refreshToken: await this.jwt.signAsync(
-        { sub: user.id, jti },
+        { sub: user.id },
         {
-          secret: secretoRefresh(),
+          secret: process.env.JWT_REFRESH_SECRET || 'change_me_refresh',
           expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
         },
       ),

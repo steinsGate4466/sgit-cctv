@@ -28,31 +28,3 @@ export function secretoJwt(): string {
   }
   return 'desarrollo_local_no_usar_en_produccion';
 }
-
-/**
- * SECRETO DEL REFRESH TOKEN.
- *
- * Tenía el mismo agujero que el de acceso y se me pasó al arreglar aquél:
- * `process.env.JWT_REFRESH_SECRET || 'change_me_refresh'`.
- *
- * Y es igual de grave, o más: con el secreto del refresh se fabrica un token
- * que el propio sistema cambia por uno de acceso. La puerta de atrás es tan
- * buena como la de delante.
- *
- * Falla al arrancar en producción, como los otros dos cierres en falso.
- */
-export function secretoRefresh(): string {
-  const s = process.env.JWT_REFRESH_SECRET;
-  if (s && s.trim().length >= 16) return s;
-  if (process.env.NODE_ENV === 'production') {
-    // eslint-disable-next-line no-console
-    console.error(
-      '\n[ARRANQUE ABORTADO] Falta JWT_REFRESH_SECRET, o tiene menos de 16 caracteres.\n' +
-      'Con ese secreto se fabrican tokens de refresco, que el sistema cambia\n' +
-      'por tokens de acceso. Es tan grave como el JWT_SECRET.\n' +
-      'Ponlo en las variables del servicio: JWT_REFRESH_SECRET=<cadena larga>\n',
-    );
-    process.exit(1);
-  }
-  return 'desarrollo_local_refresh_no_usar_en_produccion';
-}

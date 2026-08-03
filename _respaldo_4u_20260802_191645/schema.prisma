@@ -61,7 +61,6 @@ model User {
   woClosed        WorkOrder[]     @relation("WoClosedBy")
   woAccompanied   WorkOrder[]     @relation("WoCompanion")
   woProgress      WorkOrderProgress[] @relation("WoProgressBy")
-  sesiones        Sesion[]
 
   @@map("users")
 }
@@ -1775,46 +1774,4 @@ model NotificacionSaliente {
   @@index([estado, proximoIntento])
   @@index([evento])
   @@map("notificaciones_salientes")
-}
-
-// =====================================================================
-//  SESIONES REVOCABLES Y FRENO PERSISTENTE
-//
-//  Las dos cosas vivían en la memoria del proceso, y eso significaba:
-//   · cerrar sesión no invalidaba nada — el refresh token seguía valiendo
-//     hasta caducar, aunque la persona hubiera cambiado la contraseña;
-//   · el freno de fuerza bruta se borraba en cada despliegue.
-// =====================================================================
-
-/// Una fila por sesión viva. El refresh token lleva su `id` dentro (jti):
-/// si la fila no existe o está revocada, el token no sirve.
-model Sesion {
-  id               String    @id
-  userId           String
-  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  creadaEn         DateTime  @default(now())
-  expiraEn         DateTime
-  ultimoUsoEn      DateTime?
-  revocadaEn       DateTime?
-  motivoRevocacion String?
-  ip               String?
-  /// Navegador o aparato, recortado. Sirve para que alguien reconozca su
-  /// propia sesión en la lista: "Chrome en Windows" dice más que un id.
-  dispositivo      String?
-
-  @@index([userId])
-  @@index([expiraEn])
-  @@map("sesiones")
-}
-
-/// Freno por origen, persistido. Clave = ruta + origen.
-model IntentoAcceso {
-  clave          String    @id
-  golpes         Int       @default(0)
-  ventanaDesde   DateTime  @default(now())
-  bloqueadoHasta DateTime?
-  actualizadoEn  DateTime  @default(now())
-
-  @@index([bloqueadoHasta])
-  @@map("intentos_acceso")
 }

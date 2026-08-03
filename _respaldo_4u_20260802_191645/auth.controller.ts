@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Ip, Post } from '@nestjs/common';
+import { Body, Controller, Get, Ip, Post } from '@nestjs/common';
 import { UseGuards } from '@nestjs/common';
 import { FrenoGuard, Freno } from '../../common/guards/freno.guard';
 import { CUPO_LOGIN } from '../../common/freno';
@@ -25,35 +25,8 @@ export class AuthController {
   @Public()
   @Freno(CUPO_LOGIN)
   @Post('refresh')
-  refresh(@Body() dto: RefreshDto, @Ip() ip: string, @Headers('user-agent') ua: string) {
-    return this.auth.refresh(dto.refreshToken, ip, ua);
-  }
-
-  /**
-   * CERRAR SESIÓN DE VERDAD.
-   *
-   * Hasta ahora "cerrar sesión" sólo borraba el token del navegador: el
-   * refresh seguía valiendo hasta caducar. Robado, servía igual. Ahora la
-   * sesión se revoca en el servidor y deja de valer al instante.
-   */
-  @ApiBearerAuth()
-  @Post('logout')
-  logout(@Body() dto: any, @CurrentUser() user: any, @Ip() ip: string) {
-    return this.auth.logout(dto?.refreshToken, user?.userId, ip);
-  }
-
-  /** Mis sesiones abiertas: sirve para reconocer una que no es tuya. */
-  @ApiBearerAuth()
-  @Get('sesiones')
-  sesiones(@CurrentUser() user: any) {
-    return this.auth.misSesiones(user.userId);
-  }
-
-  /** El botón de "me robaron el teléfono". */
-  @ApiBearerAuth()
-  @Post('sesiones/cerrar-todas')
-  cerrarTodas(@CurrentUser() user: any, @Ip() ip: string) {
-    return this.auth.cerrarTodas(user.userId, ip);
+  refresh(@Body() dto: RefreshDto) {
+    return this.auth.refresh(dto.refreshToken);
   }
 
   // Protegido por el guard global (JWT). Devuelve el usuario del token.

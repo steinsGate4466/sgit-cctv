@@ -37,18 +37,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = useCallback((motivo?: string) => {
-    // SE AVISA AL SERVIDOR ANTES DE BORRAR NADA.
-    //
-    // Hasta ahora "cerrar sesión" sólo borraba el token del navegador: en el
-    // servidor la sesión seguía viva hasta caducar, y un token robado seguía
-    // funcionando. Ahora se revoca de verdad.
-    //
-    // No se espera la respuesta: si el servidor no contesta, el usuario sale
-    // igual. Dejarlo dentro porque falló la red sería lo peor de los dos
-    // mundos — y la sesión caduca sola de todas formas.
-    const refresh = localStorage.getItem('sgit_refresh');
-    api.post('/auth/logout', { refreshToken: refresh }).catch(() => undefined);
-
     localStorage.removeItem('sgit_token');
     localStorage.removeItem('sgit_refresh');
     localStorage.removeItem('sgit_user');
