@@ -1,4 +1,5 @@
 import { useEffect, useState, ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { EsqueletoTablero } from '../components/Esqueleto';
 import {
@@ -20,10 +21,13 @@ const STATUS_ES: Record<string, string> = {
 const CRIT_ES: Record<string, string> = { BAJA: 'Baja', MEDIA: 'Media', ALTA: 'Alta', CRITICA: 'Crítica' };
 
 export default function Dashboard() {
+  const nav = useNavigate();
   const [kpis, setKpis] = useState<any>(null);
   const [ov, setOv] = useState<any>(null);
   const [metrics, setMetrics] = useState<any>(null);
   const [causes, setCauses] = useState<any[]>([]);
+  const [bandeja, setBandeja] = useState<any>(null);
+  const [criticos, setCriticos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     Promise.all([
@@ -31,8 +35,14 @@ export default function Dashboard() {
       api.get('/dashboard/overview').then((r) => r.data).catch(() => null),
       api.get('/troubleshooting/metrics').then((r) => r.data).catch(() => null),
       api.get('/dashboard/root-causes').then((r) => r.data).catch(() => []),
-    ]).then(([k, o, m, c]) => {
-      setKpis(k); setOv(o); setMetrics(m); setCauses(c || []); setLoading(false);
+      // La bandeja y los puntos criticos YA existian como pantallas; el
+      // tablero solo trae su resumen para contestar lo primero que uno se
+      // pregunta al abrir: "¿que hago primero?" y "¿donde me duele la red?".
+      api.get('/dashboard/bandeja').then((r) => r.data).catch(() => null),
+      api.get('/network/criticos').then((r) => r.data?.equipos || []).catch(() => []),
+    ]).then(([k, o, m, c, b, cr]) => {
+      setKpis(k); setOv(o); setMetrics(m); setCauses(c || []);
+      setBandeja(b); setCriticos(cr.slice(0, 3)); setLoading(false);
     });
   }, []);
 
@@ -46,6 +56,68 @@ export default function Dashboard() {
       <h1 className="page-title">Dashboard Ejecutivo</h1>
       <p className="page-sub">Estado de la infraestructura de CCTV y redes — Aceros Arequipa, Planta Pisco</p>
 
+      {/* ───────── ¿QUÉ HAGO PRIMERO? ─────────
+          Va ANTES que los números. Un tablero que solo describe obliga a
+          deducir; este empieza diciendo qué espera una decisión HOY, y cada
+          tarjeta lleva directo a la pantalla donde se resuelve. */}
+      {bandeja?.resumen && bandeja.resumen.total > 0 && (
+        <>
+          <div className="section-title">Qué hago primero</div>
+          <div className="accion-strip">
+            {bandeja.resumen.vencidas > 0 && (
+              <button className="accion crit" onClick={() => nav('/bandeja')}>
+                <b>{bandeja.resumen.vencidas}</b> órdenes vencidas
+                <span>pasaron de fecha y siguen abiertas</span>
+              </button>
+            )}
+            {bandeja.resumen.incidenciasCriticas > 0 && (
+              <button className="accion crit" onClick={() => nav('/incidents')}>
+                <b>{bandeja.resumen.incidenciasCriticas}</b> incidencias críticas
+                <span>abiertas ahora mismo</span>
+              </button>
+            )}
+            {bandeja.resumen.sinDetallar > 0 && (
+              <button className="accion warn" onClick={() => nav('/bandeja')}>
+                <b>{bandeja.resumen.sinDetallar}</b> órdenes sin detallar
+                <span>asignadas pero aún no se pueden trabajar</span>
+              </button>
+            )}
+            {bandeja.resumen.esperaExcedida > 0 && (
+              <button className="accion warn" onClick={() => nav('/bandeja')}>
+                <b>{bandeja.resumen.esperaExcedida}</b> esperas excedidas
+                <span>llevan parado más de lo que su motivo permite</span>
+              </button>
+            )}
+            {bandeja.resumen.accesos > 0 && (
+              <button className="accion warn" onClick={() => nav('/access')}>
+                <b>{bandeja.resumen.accesos}</b> permisos de altura
+                <span>esperan tu autorización</span>
+              </button>
+            )}
+            {bandeja.resumen.bajoMinimo > 0 && (
+              <button className="accion" onClick={() => nav('/inventory')}>
+                <b>{bandeja.resumen.bajoMinimo}</b> repuestos bajo mínimo
+                <span>reponer antes de que falten</span>
+              </button>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Riesgo de red: los 3 equipos que más cámaras se llevarían por
+          delante. Sale del análisis de impacto (bloque 7); aquí solo asoma. */}
+      {criticos.length > 0 && criticos[0]?.camarasAfectadas > 0 && (
+        <div className="riesgo-strip" onClick={() => nav('/topologia')} role="button" tabIndex={0}>
+          <span className="rs-titulo">Puntos críticos de la red:</span>
+          {criticos.map((c: any) => (
+            <span key={c.id} className="rs-item">
+              <b>{c.code}</b> se llevaría <b>{c.camarasAfectadas}</b> cámaras
+            </span>
+          ))}
+          <span className="rs-ver">ver análisis →</span>
+        </div>
+      )}
+
       {/* ───────── Bloque 1: SALUD DE LA VISIÓN (lo que le importa a Producción) ───────── */}
       <div className="section-title">Salud de la visión</div>
       <div className="kpi-grid">
@@ -55,8 +127,8 @@ export default function Dashboard() {
           cls={availClass(kpis?.cameraAvailabilityPct)}
           hint={`${kpis?.cameras ?? 0} cámaras en operación`}
         />
-        <Kpi label="Cámaras sin servicio" value={kpis?.camerasDown ?? 0} cls={kpis?.camerasDown ? 'crit' : 'ok'} hint="Fuera de servicio, con incidencia o en mantenimiento" />
-        <Kpi label="Incidencias abiertas" value={kpis?.openIncidents ?? 0} cls={kpis?.openIncidents ? 'red' : 'ok'} hint={`${kpis?.criticalIncidents ?? 0} de prioridad alta/crítica`} />
+        <Kpi label="Cámaras sin servicio" value={kpis?.camerasDown ?? 0} cls={kpis?.camerasDown ? 'crit' : 'ok'} hint="Fuera de servicio, con incidencia o en mantenimiento" ir={() => nav('/assets?status=FUERA_SERVICIO')} />
+        <Kpi label="Incidencias abiertas" value={kpis?.openIncidents ?? 0} cls={kpis?.openIncidents ? 'red' : 'ok'} hint={`${kpis?.criticalIncidents ?? 0} de prioridad alta/crítica`} ir={() => nav('/incidents')} />
         <Kpi label="Tiempo medio de reparación" value={(metrics?.mttrMinutes ?? 0) + ' min'} hint="MTTR de incidencias resueltas" />
       </div>
 
@@ -75,8 +147,8 @@ export default function Dashboard() {
           cls={complianceClass(kpis?.preventiveCompliancePct)}
           hint={`${kpis?.preventiveOverdue ?? 0} planes vencidos`}
         />
-        <Kpi label="OM pendientes" value={kpis?.pendingWorkOrders ?? 0} cls="warn" hint="Abiertas, en proceso o en espera" />
-        <Kpi label="OM vencidas" value={kpis?.overdueWorkOrders ?? 0} cls={kpis?.overdueWorkOrders ? 'crit' : 'ok'} hint="Programadas y no ejecutadas" />
+        <Kpi label="OM pendientes" value={kpis?.pendingWorkOrders ?? 0} cls="warn" hint="Abiertas, en proceso o en espera" ir={() => nav('/maintenance')} />
+        <Kpi label="OM vencidas" value={kpis?.overdueWorkOrders ?? 0} cls={kpis?.overdueWorkOrders ? 'crit' : 'ok'} hint="Programadas y no ejecutadas" ir={() => nav('/bandeja')} />
         <Kpi label="OM próximas (7 días)" value={kpis?.upcomingWorkOrders ?? 0} hint="Planificar cuadrilla" />
       </div>
 
@@ -84,9 +156,9 @@ export default function Dashboard() {
       <div className="section-title">Recursos y riesgo</div>
       <div className="kpi-grid">
         <Kpi label="Activos críticos" value={kpis?.criticalAssets ?? 0} cls="warn" hint="Su falla afecta producción" />
-        <Kpi label="Repuestos bajo mínimo" value={kpis?.lowStockParts ?? 0} cls={kpis?.lowStockParts ? 'crit' : 'ok'} hint="Reponer en almacén" />
-        <Kpi label="Accesos por aprobar" value={kpis?.accessRequestsPending ?? 0} cls={kpis?.accessRequestsPending ? 'warn' : 'ok'} hint="Manlift / trabajo en altura" />
-        <Kpi label="Activos totales" value={kpis?.totalAssets ?? 0} hint="Inventario técnico" />
+        <Kpi label="Repuestos bajo mínimo" value={kpis?.lowStockParts ?? 0} cls={kpis?.lowStockParts ? 'crit' : 'ok'} hint="Reponer en almacén" ir={() => nav('/inventory')} />
+        <Kpi label="Accesos por aprobar" value={kpis?.accessRequestsPending ?? 0} cls={kpis?.accessRequestsPending ? 'warn' : 'ok'} hint="Manlift / trabajo en altura" ir={() => nav('/access')} />
+        <Kpi label="Activos totales" value={kpis?.totalAssets ?? 0} hint="Inventario técnico" ir={() => nav('/assets')} />
       </div>
 
       {/* ───────── Gráficos ───────── */}
@@ -153,9 +225,19 @@ export default function Dashboard() {
   );
 }
 
-function Kpi({ label, value, cls, hint }: { label: string; value: any; cls?: string; hint?: string }) {
+function Kpi({ label, value, cls, hint, ir }: {
+  label: string; value: any; cls?: string; hint?: string; ir?: () => void;
+}) {
+  // Si el indicador sabe a dónde llevar, es un botón. Un número que alarma
+  // y no lleva a ningún sitio obliga a buscar en el menú qué pantalla era.
   return (
-    <div className={'kpi ' + (cls || '')}>
+    <div
+      className={'kpi ' + (cls || '') + (ir ? ' kpi-link' : '')}
+      onClick={ir}
+      role={ir ? 'button' : undefined}
+      tabIndex={ir ? 0 : undefined}
+      onKeyDown={ir ? (e) => { if (e.key === 'Enter') ir(); } : undefined}
+    >
       <div className="label">{label}</div>
       <div className="value">{value}</div>
       {hint && <div className="hint">{hint}</div>}

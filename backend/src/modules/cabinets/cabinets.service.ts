@@ -66,9 +66,26 @@ export class CabinetsService {
   }
 
   async remove(id: string) {
-    const exists = await this.prisma.cabinet.findUnique({ where: { id } });
+    const exists = await this.prisma.cabinet.findUnique({
+      where: { id },
+      select: { id: true, code: true, _count: { select: { assets: true } } },
+    });
     if (!exists) throw new NotFoundException('Gabinete no encontrado');
-    // Los activos montados quedan con cabinetId = null (relación opcional).
+
+    /* GUARDA DEL BLOQUE 11.2 — borrar con recuento.
+       Antes, borrar un gabinete con equipos dentro los dejaba SIN gabinete
+       en silencio (la relación es opcional y queda en null). Nadie se
+       enteraba hasta que el mapa o una orden preguntaba "¿dónde está esto?".
+       Ahora el sistema se niega y dice exactamente qué hay dentro y qué
+       hacer. No hay opción de forzar A PROPÓSITO: el camino correcto es
+       mover los equipos primero, y así no existe el atajo que deja huérfanos. */
+    if (exists._count.assets > 0) {
+      throw new BadRequestException(
+        `El gabinete ${exists.code} aloja ${exists._count.assets} equipo(s). ` +
+        `Muévelos a otro gabinete (o quítales el gabinete en su ficha) y vuelve a intentarlo. ` +
+        `Así ninguno queda sin ubicación física sin que nadie se entere.`,
+      );
+    }
     await this.prisma.cabinet.delete({ where: { id } });
     return { ok: true };
   }

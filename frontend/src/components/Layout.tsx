@@ -28,6 +28,7 @@ const TITLES: Record<string, string> = {
   '/topologia': 'Puntos críticos de la red',
   '/monitoreo': 'Monitoreo de red',
   '/grabadores': 'Grabadores y canales',
+  '/exportar': 'Exportar a Excel',
   '/avisos': 'Avisos',
 };
 
@@ -60,6 +61,8 @@ export default function Layout() {
           <NavLink key="mt" to="/mi-tren"><Icono n="tren" /> Mi tren</NavLink>,
         can('dashboard.read') && <NavLink key="bd" to="/bandeja"><Icono n="bandeja" /> Mi bandeja</NavLink>,
         can('dashboard.read') && <NavLink key="d" to="/dashboard"><Icono n="tablero" /> Dashboard</NavLink>,
+        // Exportar vive junto al Dashboard: los dos son "mirar y llevarse".
+        can('dashboard.read') && <NavLink key="xl" to="/exportar"><Icono n="bandeja" /> Exportar</NavLink>,
         can('dashboard.read') && <NavLink key="t" to="/trains"><Icono n="tren" /> Estado por Tren</NavLink>,
       ].filter(Boolean) as ReactNode[],
     },

@@ -30,6 +30,32 @@ export default function AssetScan() {
   const [a, setA] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
+  // 11.3 — abrir una OM parado frente al equipo, sin teclear su codigo.
+  const [abriendoOm, setAbriendoOm] = useState(false);
+  const [actividad, setActividad] = useState('');
+  const [creando, setCreando] = useState(false);
+  const [omError, setOmError] = useState('');
+  const [omCreada, setOmCreada] = useState<any>(null);
+
+  async function crearOm() {
+    setCreando(true);
+    setOmError('');
+    try {
+      const r = await api.post('/work-orders', {
+        type: 'CORRECTIVO',
+        assetId: id,
+        activity: actividad.trim() || undefined,
+      });
+      // No se navega solo: se confirma con el codigo. En el celular, saltar
+      // de pantalla sin decir que salio bien deja la duda de si salio.
+      setOmCreada(r.data);
+      setAbriendoOm(false);
+    } catch (e: any) {
+      setOmError(e?.response?.data?.message || 'No se pudo abrir la orden. Vuelve a intentarlo.');
+    } finally {
+      setCreando(false);
+    }
+  }
 
   useEffect(() => {
     api.get('/assets/' + id)
@@ -112,7 +138,53 @@ export default function AssetScan() {
         </div>
       )}
 
+      {/* Confirmacion de la orden recien abierta, con su codigo y su enlace. */}
+      {omCreada && (
+        <div className="scan-note" style={{ borderColor: '#7fbf8f', background: '#eef8f0' }}>
+          <Icono n="ok" size={16} />
+          <span>
+            Orden <b>{omCreada.code}</b> abierta sobre este equipo.{' '}
+            <a onClick={() => nav(`/maintenance?q=${omCreada.code}`)} style={{ cursor: 'pointer', textDecoration: 'underline' }}>
+              Ir a la orden
+            </a>
+          </span>
+        </div>
+      )}
+
+      {/* Mini formulario de apertura: UNA caja de texto y un boton. Todo lo
+          demas (equipo, tren, ubicacion) ya lo sabe el sistema porque se
+          escaneo el QR; hacer pasar al tecnico por el formulario grande
+          seria tirar esa informacion. */}
+      {abriendoOm && (
+        <div className="card scan-card" style={{ marginTop: 12 }}>
+          <b style={{ fontSize: 13.5 }}>Abrir orden correctiva en {a.assetCode}</b>
+          {omError && <div className="error" style={{ display: 'block', marginTop: 8 }}>{omError}</div>}
+          <textarea
+            value={actividad}
+            onChange={(e) => setActividad(e.target.value)}
+            placeholder="¿Qué se va a hacer? (ej: cámara sin imagen, revisar alimentación PoE)"
+            rows={3}
+            style={{ width: '100%', marginTop: 10 }}
+          />
+          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+            <button className="btn-primary" disabled={creando} onClick={crearOm}>
+              {creando ? 'Abriendo…' : 'Abrir la orden'}
+            </button>
+            <button className="btn-mini" disabled={creando} onClick={() => setAbriendoOm(false)}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="scan-actions">
+        {/* 11.3 — la orden se abre AQUI, con el equipo ya puesto. Si ya hay
+            trabajo abierto, el aviso rojo de arriba lo dijo primero. */}
+        {can('wo.create') && !abriendoOm && !omCreada && (
+          <button className="btn-primary" onClick={() => setAbriendoOm(true)}>
+            <Icono n="orden" size={16} /> Abrir orden en este equipo
+          </button>
+        )}
         {/* LOS BOTONES LLEVAN EL EQUIPO CONSIGO.
             Antes iban a la pantalla general: el técnico escaneaba para no
             tener que buscar el equipo entre cientos... y al pulsar acababa
