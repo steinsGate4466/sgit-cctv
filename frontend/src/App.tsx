@@ -1,4 +1,5 @@
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
+import { lazyConReintento } from './lazy-con-reintento';
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import Login from './pages/Login';
 import Layout from './components/Layout';
@@ -25,31 +26,32 @@ import { EsqueletoTablero } from './components/Esqueleto';
  * Un texto de "cargando" distinto en cada sitio se lee como que el sistema
  * hace cosas raras.
  */
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const Bandeja = lazy(() => import('./pages/Bandeja'));
-const MiTren = lazy(() => import('./pages/MiTren'));
-const TrainBoard = lazy(() => import('./pages/TrainBoard'));
-const Assets = lazy(() => import('./pages/Assets'));
-const Mapeo = lazy(() => import('./pages/Mapeo'));
-const Cableado = lazy(() => import('./pages/Cableado'));
-const Topologia = lazy(() => import('./pages/Topologia'));
-const Monitoreo = lazy(() => import('./pages/Monitoreo'));
-const Avisos = lazy(() => import('./pages/Avisos'));
-const Incidents = lazy(() => import('./pages/Incidents'));
-const Maintenance = lazy(() => import('./pages/Maintenance'));
-const Preventive = lazy(() => import('./pages/Preventive'));
-const Corrective = lazy(() => import('./pages/Corrective'));
-const Predictive = lazy(() => import('./pages/Predictive'));
-const Improvements = lazy(() => import('./pages/Improvements'));
-const Cabinets = lazy(() => import('./pages/Cabinets'));
-const Locations = lazy(() => import('./pages/Locations'));
-const Access = lazy(() => import('./pages/Access'));
-const AssetScan = lazy(() => import('./pages/AssetScan'));
-const CabinetScan = lazy(() => import('./pages/CabinetScan'));
-const Inventory = lazy(() => import('./pages/Inventory'));
-const Audit = lazy(() => import('./pages/Audit'));
-const Users = lazy(() => import('./pages/Users'));
-const Roles = lazy(() => import('./pages/Roles'));
+const Dashboard = lazyConReintento(() => import('./pages/Dashboard'));
+const Bandeja = lazyConReintento(() => import('./pages/Bandeja'));
+const MiTren = lazyConReintento(() => import('./pages/MiTren'));
+const TrainBoard = lazyConReintento(() => import('./pages/TrainBoard'));
+const Assets = lazyConReintento(() => import('./pages/Assets'));
+const Mapeo = lazyConReintento(() => import('./pages/Mapeo'));
+const Cableado = lazyConReintento(() => import('./pages/Cableado'));
+const Topologia = lazyConReintento(() => import('./pages/Topologia'));
+const Monitoreo = lazyConReintento(() => import('./pages/Monitoreo'));
+const Grabadores = lazyConReintento(() => import('./pages/Grabadores'));
+const Avisos = lazyConReintento(() => import('./pages/Avisos'));
+const Incidents = lazyConReintento(() => import('./pages/Incidents'));
+const Maintenance = lazyConReintento(() => import('./pages/Maintenance'));
+const Preventive = lazyConReintento(() => import('./pages/Preventive'));
+const Corrective = lazyConReintento(() => import('./pages/Corrective'));
+const Predictive = lazyConReintento(() => import('./pages/Predictive'));
+const Improvements = lazyConReintento(() => import('./pages/Improvements'));
+const Cabinets = lazyConReintento(() => import('./pages/Cabinets'));
+const Locations = lazyConReintento(() => import('./pages/Locations'));
+const Access = lazyConReintento(() => import('./pages/Access'));
+const AssetScan = lazyConReintento(() => import('./pages/AssetScan'));
+const CabinetScan = lazyConReintento(() => import('./pages/CabinetScan'));
+const Inventory = lazyConReintento(() => import('./pages/Inventory'));
+const Audit = lazyConReintento(() => import('./pages/Audit'));
+const Users = lazyConReintento(() => import('./pages/Users'));
+const Roles = lazyConReintento(() => import('./pages/Roles'));
 
 export default function App() {
   return (
@@ -82,6 +84,7 @@ export default function App() {
           <Route path="/cableado" element={<Cableado />} />
           <Route path="/topologia" element={<Topologia />} />
           <Route path="/monitoreo" element={<Monitoreo />} />
+          <Route path="/grabadores" element={<Grabadores />} />
           <Route path="/avisos" element={<Avisos />} />
           <Route path="/incidents" element={<Incidents />} />
           <Route path="/maintenance" element={<Maintenance />} />

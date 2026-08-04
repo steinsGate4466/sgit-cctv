@@ -43,8 +43,8 @@ export class NetworkService {
         select: { endpointAId: true, endpointBId: true, isRing: true },
       }),
       this.prisma.assetCamera.findMany({
-        where: { nvrName: { not: null } },
-        select: { assetId: true, nvrName: true },
+        where: { OR: [{ nvrId: { not: null } }, { nvrName: { not: null } }] },
+        select: { assetId: true, nvrId: true, nvrName: true },
       }),
     ]);
 
@@ -59,10 +59,25 @@ export class NetworkService {
       }]),
     );
 
-    // Las cámaras se enlazan a su NVR POR NOMBRE, que es como está el dato
-    // hoy. Es más flojo que un identificador y por eso se resuelve contra el
-    // código del activo: si el nombre no casa con ningún NVR, la cámara sale
-    // como no conectada en vez de inventarse un enlace que no existe.
+    /* -------------------------------------------------------------------
+       FALLO CORREGIDO EL 03/08/2026 — POR QUÉ EL MAPA SALÍA VACÍO
+       -------------------------------------------------------------------
+       Esta parte enlazaba la cámara con su grabador comparando `nvrName`
+       contra el CÓDIGO del NVR. Pero `nvrName` no es el código del grabador:
+       es "el nombre de la cámara tal como se ve en el púlpito" — cosas como
+       "GRUA 2 PATIO". Nunca iba a casar con "AA-NVR-T2-01".
+
+       Resultado: el ingeniero rellenaba "Grabador al que entra" en la ficha
+       —el campo `nvrId`, que es el bueno— y el mapa seguía sin dibujar ni un
+       solo enlace de cámara. La función no estaba rota: estaba mirando el
+       campo equivocado.
+
+       Ahora manda `nvrId`, que es una referencia de verdad. El nombre se
+       conserva SÓLO como último recurso para los datos viejos que se
+       cargaron antes de que existiera el campo; si algún día no queda
+       ninguno, esta segunda vía se puede borrar sin más.
+       ------------------------------------------------------------------- */
+    const idsDeNvr = new Set(activos.filter((a) => a.type === 'NVR').map((a) => a.id));
     const nvrPorCodigo = new Map(
       activos.filter((a) => a.type === 'NVR').map((a) => [a.assetCode.toUpperCase(), a.id]),
     );
@@ -75,7 +90,10 @@ export class NetworkService {
       lista.push({ a: e.endpointAId, b: e.endpointBId, esAnillo: e.isRing });
     }
     for (const c of camaras) {
-      const nvr = nvrPorCodigo.get((c.nvrName || '').trim().toUpperCase());
+      // 1) El campo bueno: la referencia al grabador.
+      let nvr = c.nvrId && idsDeNvr.has(c.nvrId) ? c.nvrId : null;
+      // 2) Sólo si no hay referencia, se intenta el nombre (datos antiguos).
+      if (!nvr) nvr = nvrPorCodigo.get((c.nvrName || '').trim().toUpperCase()) ?? null;
       if (nvr) lista.push({ a: c.assetId, b: nvr });
     }
 

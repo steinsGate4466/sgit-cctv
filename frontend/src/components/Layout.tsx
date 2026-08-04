@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import MiPin from './MiPin';
 import Icono from './Iconos';
 import AvisoRed from './AvisoRed';
+import ErrorBoundary from './ErrorBoundary';
 import { MarcaSGIT } from './Ilustraciones';
 
 const TITLES: Record<string, string> = {
@@ -26,6 +27,7 @@ const TITLES: Record<string, string> = {
   '/mi-tren': 'Mi tren',
   '/topologia': 'Puntos críticos de la red',
   '/monitoreo': 'Monitoreo de red',
+  '/grabadores': 'Grabadores y canales',
   '/avisos': 'Avisos',
 };
 
@@ -69,6 +71,9 @@ export default function Layout() {
         can('asset.read') && <NavLink key="u" to="/locations"><Icono n="ubicacion" /> Ubicaciones</NavLink>,
         can('asset.read') && <NavLink key="cb" to="/cableado"><Icono n="cableado" /> Cableado</NavLink>,
         can('asset.read') && <NavLink key="mp" to="/mapeo"><Icono n="mapeo" /> Avance del mapeo</NavLink>,
+        // Va junto a Puntos críticos porque son la misma conversación: uno
+        // dice qué se cae, el otro traduce lo que grita el púlpito.
+        can('asset.read') && <NavLink key="gr" to="/grabadores"><Icono n="gabinete" /> Grabadores</NavLink>,
         can('asset.read') && <NavLink key="tp" to="/topologia"><Icono n="predictivo" /> Puntos críticos</NavLink>,
         can('monitor.read') && <NavLink key="mo" to="/monitoreo"><Icono n="reloj" /> Monitoreo</NavLink>,
         can('access.read') && <NavLink key="ac" to="/access"><Icono n="acceso" /> Accesibilidad</NavLink>,
@@ -149,7 +154,12 @@ export default function Layout() {
         {/* Va aquí, entre la cabecera y el contenido: empuja, no tapa. */}
         <AvisoRed />
         <main className="content">
-          <Outlet />
+          {/* La clave está en la `key`: al cambiar de ruta se monta una red
+              nueva. Sin eso, una pantalla que falló dejaría el error puesto
+              al navegar a otra, y parecería que todo el sistema está roto. */}
+          <ErrorBoundary donde={title} key={loc.pathname}>
+            <Outlet />
+          </ErrorBoundary>
         </main>
         {verPin && <MiPin onClose={() => setVerPin(false)} />}
       </div>

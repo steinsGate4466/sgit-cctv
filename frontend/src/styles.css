@@ -1086,3 +1086,105 @@ textarea { min-height: 84px; resize: vertical; }
 .mapa-leyenda i.anillo {
   width: 18px; height: 0; border-top: 2px dashed var(--steel); border-radius: 0;
 }
+
+/* =========================================================================
+   GRABADORES Y CANALES (bloque 6a/6b)
+   -------------------------------------------------------------------------
+   La rejilla imita el mostrador del grabador: casillas numeradas, en el
+   mismo orden en el que salen en la pantalla del púlpito. Se hizo así a
+   propósito — una tabla con una columna "canal" es más fácil de programar,
+   pero obliga a leer; la rejilla se reconoce de un vistazo porque es lo que
+   el operador tiene delante todo el día.
+   ========================================================================= */
+
+.fila-busqueda { display: flex; gap: 8px; flex-wrap: wrap; }
+.fila-busqueda input { flex: 1 1 260px; min-width: 0; }
+
+.rejilla-tarjetas {
+  display: grid; gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+}
+
+.tarjeta-grabador {
+  text-align: left; background: var(--card, #fff); cursor: pointer;
+  border: 1px solid var(--border, #dfe3ea); border-radius: 12px; padding: 14px;
+  display: flex; flex-direction: column; gap: 8px;
+  transition: border-color .15s, box-shadow .15s, transform .08s;
+}
+.tarjeta-grabador:hover { border-color: #9fb4d4; box-shadow: 0 4px 14px rgba(20,40,80,.09); }
+.tarjeta-grabador:active { transform: translateY(1px); }
+.tg-cabecera { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.tg-sitio { font-size: 12.5px; color: var(--muted, #6b7280); }
+.tg-cifras { display: flex; gap: 14px; margin-top: 2px; }
+.tg-cifras div { display: flex; flex-direction: column; line-height: 1.15; }
+.tg-cifras b { font-size: 19px; }
+.tg-cifras span { font-size: 10.5px; color: var(--muted, #6b7280); text-transform: uppercase; letter-spacing: .3px; }
+.tg-cifras .lleno b { color: #b3261e; }
+.tg-aviso {
+  font-size: 11.5px; color: #8a6100; background: #fff6e0;
+  border: 1px solid #f0dfb0; border-radius: 6px; padding: 4px 8px;
+}
+.tg-tren { font-size: 11px; color: var(--muted, #6b7280); }
+
+.lista-problemas { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.problema {
+  display: flex; gap: 8px; align-items: flex-start; font-size: 13px;
+  background: #fff6e0; border: 1px solid #f0dfb0; border-left: 4px solid #e0a800;
+  border-radius: 8px; padding: 8px 10px;
+}
+.problema svg { flex: 0 0 auto; margin-top: 1px; }
+
+.rejilla-canales {
+  display: grid; gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+}
+.canal {
+  position: relative; border-radius: 10px; padding: 8px 9px 9px;
+  border: 1px solid var(--border, #dfe3ea); min-height: 74px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.canal.libre { background: repeating-linear-gradient(45deg, #fafbfd, #fafbfd 6px, #f2f4f8 6px, #f2f4f8 12px); }
+.canal.ocupado { background: #fff; border-color: #c9d4e6; }
+/* El conflicto se ve por BORDE y por FONDO, no sólo por color de texto:
+   hay gente que no distingue el rojo del gris en una pantalla con sol. */
+.canal.conflicto { border: 2px solid #b3261e; background: #fdf1f0; }
+.canal-num {
+  font-size: 11px; font-weight: 700; color: var(--muted, #6b7280);
+  letter-spacing: .4px;
+}
+.canal-nombre { font-size: 12.5px; font-weight: 600; line-height: 1.25; word-break: break-word; }
+.canal-nombre em { font-weight: 400; color: #a0a6b0; }
+.canal-code { font-size: 10.5px; color: var(--muted, #6b7280); word-break: break-all; }
+.canal-quitar {
+  position: absolute; top: 4px; right: 4px; width: 22px; height: 22px;
+  border: 0; border-radius: 6px; background: transparent; cursor: pointer;
+  color: #97a0ad; font-size: 16px; line-height: 1;
+}
+.canal-quitar:hover { background: #fdf1f0; color: #b3261e; }
+.canal-vacio {
+  margin-top: auto; border: 1px dashed #c3ccd9; background: transparent;
+  border-radius: 7px; padding: 5px; font-size: 11.5px; color: #6b7280;
+  cursor: pointer; width: 100%;
+}
+.canal-vacio:hover { border-color: #6f8fbf; color: #1f4e79; background: #f4f8ff; }
+
+.lista-elegir { max-height: 240px; overflow: auto; border: 1px solid var(--border, #dfe3ea); border-radius: 8px; }
+.fila-elegir {
+  display: flex; gap: 9px; align-items: center; padding: 8px 10px;
+  border-bottom: 1px solid #eef1f5; font-size: 13px; cursor: pointer;
+}
+.fila-elegir:last-child { border-bottom: 0; }
+.fila-elegir:hover { background: #f6f8fb; }
+.fila-elegir.sel { background: #eaf2ff; }
+
+/* En el móvil las casillas se hacen más pequeñas pero NO se apilan en una
+   columna: perder la forma de rejilla es perder justo lo que la hace
+   reconocible. Cuatro por fila sigue siendo legible en la pantalla más
+   estrecha que usa el equipo. */
+@media (max-width: 560px) {
+  .rejilla-canales { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+  .canal { min-height: 66px; padding: 6px 7px 7px; }
+  .canal-nombre { font-size: 11.5px; }
+  .canal-code { font-size: 9.5px; }
+  .rejilla-tarjetas { grid-template-columns: 1fr; }
+}

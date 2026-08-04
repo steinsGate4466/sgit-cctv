@@ -84,6 +84,10 @@ jobs:
       # `prisma migrate diff`, pero tarda minutos porque levanta un Postgres.
       # Esta version lee los .sql y falla en medio segundo, asi que el aviso
       # llega al principio del CI y no al final.
+      - name: Campos de Prisma que no existen
+        working-directory: backend
+        run: npm run verificar:campos
+
       - name: Verificar migraciones (lectura, sin base de datos)
         working-directory: backend
         run: npm run verificar:migraciones

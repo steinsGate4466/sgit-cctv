@@ -10,8 +10,8 @@ publicado y funcionando en producción.
 
 ## Hecho y entregado
 
-Estado real a 02/08/2026: **25 módulos · 25 pantallas · 18 migraciones ·
-346 pruebas automáticas · 5 verificadores.**
+Estado real a 03/08/2026: **27 módulos · 26 pantallas · 20 migraciones ·
+359 pruebas automáticas · 5 verificadores.**
 
 | Bloque | Qué resolvió |
 |---|---|
@@ -31,6 +31,12 @@ Estado real a 02/08/2026: **25 módulos · 25 pantallas · 18 migraciones ·
 | **4S · 4T** | **Seguridad: freno de fuerza bruta, validación real de imágenes, JWT obligatorio · 23 pruebas de permisos** |
 | **7** | **Topología y análisis de impacto** |
 | **8** | **Monitoreo — montado y apagado, con su agente de planta** |
+| **4U · 4V · 4W** | **Sesiones con rotación y detección de reuso · pulido de formularios · ventanas con pie fijo** |
+| **4X** | **Token de Telegram configurable desde la pantalla, cifrado, sin tocar Railway** |
+| **5a · 5c** | **QR de activo y QR de gabinete, con la información que sirve al llegar** |
+| **7B** | **Mapa de la red dibujado, ordenado por saltos hasta el grabador** |
+| **4Y** | **Fin de la página en blanco: red de seguridad + recarga automática tras un despliegue** |
+| **6a · 6b** | **Rejilla de canales del grabador · buscador "lo que dijo el púlpito"** |
 
 **Incidentes resueltos, cada uno con su guarda automática:** desfase de la base
 · respaldos rotos · redirección abierta · expulsión por inactividad · arranque
@@ -57,8 +63,7 @@ Guardas que corren en la CI y antes de cada push (`npm run verificar`):
 | **2** | **Sesiones y freno en base de datos** | El freno de fuerza bruta se borra en cada despliegue, y cerrar sesión no invalida el token: robado, sigue valiendo | Nada. Una migración para las dos cosas |
 | **3** | **Ámbito en las rutas por identificador** | Con sesión y permiso, un usuario del Tren 2 puede pedir la foto de un equipo del Tren 1 | Nada |
 | **4** | **Bloque 9 · Campañas de mapeo** | "Estas 300 cámaras hay que levantarlas": repartir, seguir el avance, cerrar. Es el modelo de tercería que quiere el ingeniero | Nada |
-| **5** | **Bloque 5 · QR de gabinete** | El QR del activo ya existe; falta el del gabinete, que es lo que se ve al llegar | Nada |
-| **6** | **Bloque 6 · Mapa de canales del NVR** | Saber qué canal ocupa cada cámara y cuáles quedan libres | Nada |
+| **5** | **Bloque 5b · Que el QR abra una OM de un toque** | El QR ya muestra la ficha; falta que desde ahí se abra la orden sin teclear nada | Nada |
 
 ### Esperando a alguien
 
