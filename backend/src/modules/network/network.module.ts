@@ -3,6 +3,8 @@ import { NetworkService } from './network.service';
 import { NetworkController } from './network.controller';
 import { GrabadoresService } from './grabadores.service';
 import { GrabadoresController } from './grabadores.controller';
+import { ConexionesService } from './conexiones.service';
+import { ConexionesController } from './conexiones.controller';
 
 /**
  * MÓDULO DE RED Y TOPOLOGÍA — reservado para la fase F8.
@@ -19,6 +21,12 @@ import { GrabadoresController } from './grabadores.controller';
  *     instante QUÉ se deja de ver y priorizar según el riesgo para producción.
  *   - Registro del anillo de fibra del core y de los enlaces PMP de los Trenes.
  *
+ * BLOQUE 12.1 (04/08/2026): CONEXIONES. Los modelos de puertos y enlaces
+ * existían desde F8 y el alta de enlaces desde el bloque 7, pero NO HABÍA
+ * PANTALLA para declarar qué está conectado con qué. El mapa salía como
+ * cajas sueltas porque el único enlace posible era cámara→NVR. Aquí está la
+ * puerta de entrada que faltaba.
+ *
  * BLOQUE 6a/6b (03/08/2026): rejilla de canales del grabador. El púlpito
  * habla de canales y de nombres ("el 7 está negro", "la de la grúa"); aquí
  * está la tabla que traduce eso a un activo del sistema.
@@ -29,8 +37,8 @@ import { GrabadoresController } from './grabadores.controller';
  * sería mantener dos verdades, y la segunda siempre se queda vieja.
  */
 @Module({
-  controllers: [NetworkController, GrabadoresController],
-  providers: [NetworkService, GrabadoresService],
-  exports: [NetworkService, GrabadoresService],
+  controllers: [NetworkController, GrabadoresController, ConexionesController],
+  providers: [NetworkService, GrabadoresService, ConexionesService],
+  exports: [NetworkService, GrabadoresService, ConexionesService],
 })
 export class NetworkModule {}

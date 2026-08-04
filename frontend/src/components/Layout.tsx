@@ -28,6 +28,7 @@ const TITLES: Record<string, string> = {
   '/topologia': 'Puntos críticos de la red',
   '/monitoreo': 'Monitoreo de red',
   '/grabadores': 'Grabadores y canales',
+  '/conexiones': 'Conexiones de red',
   '/exportar': 'Exportar a Excel',
   '/avisos': 'Avisos',
 };
@@ -77,6 +78,9 @@ export default function Layout() {
         // Va junto a Puntos críticos porque son la misma conversación: uno
         // dice qué se cae, el otro traduce lo que grita el púlpito.
         can('asset.read') && <NavLink key="gr" to="/grabadores"><Icono n="gabinete" /> Grabadores</NavLink>,
+        // Conexiones va ANTES de Puntos críticos: primero se declara la red,
+        // y sólo entonces el análisis de impacto tiene algo que analizar.
+        can('asset.read') && <NavLink key="cx" to="/conexiones"><Icono n="cableado" /> Conexiones</NavLink>,
         can('asset.read') && <NavLink key="tp" to="/topologia"><Icono n="predictivo" /> Puntos críticos</NavLink>,
         can('monitor.read') && <NavLink key="mo" to="/monitoreo"><Icono n="reloj" /> Monitoreo</NavLink>,
         can('access.read') && <NavLink key="ac" to="/access"><Icono n="acceso" /> Accesibilidad</NavLink>,

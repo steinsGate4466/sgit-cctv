@@ -37,6 +37,7 @@ const Topologia = lazyConReintento(() => import('./pages/Topologia'));
 const Monitoreo = lazyConReintento(() => import('./pages/Monitoreo'));
 const Grabadores = lazyConReintento(() => import('./pages/Grabadores'));
 const Exportar = lazyConReintento(() => import('./pages/Exportar'));
+const Conexiones = lazyConReintento(() => import('./pages/Conexiones'));
 const Avisos = lazyConReintento(() => import('./pages/Avisos'));
 const Incidents = lazyConReintento(() => import('./pages/Incidents'));
 const Maintenance = lazyConReintento(() => import('./pages/Maintenance'));
@@ -87,6 +88,7 @@ export default function App() {
           <Route path="/monitoreo" element={<Monitoreo />} />
           <Route path="/grabadores" element={<Grabadores />} />
           <Route path="/exportar" element={<Exportar />} />
+          <Route path="/conexiones" element={<Conexiones />} />
           <Route path="/avisos" element={<Avisos />} />
           <Route path="/incidents" element={<Incidents />} />
           <Route path="/maintenance" element={<Maintenance />} />
