@@ -5,6 +5,8 @@ import { ExportacionService } from './exportacion.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { Ritmo } from '../../common/guards/ritmo.guard';
+import { RITMO_PESADO } from '../../common/ritmo';
 
 @ApiTags('exportacion')
 @ApiBearerAuth()
@@ -30,19 +32,22 @@ export class ExportacionController {
    * lo que esa pantalla ya enseña.
    */
   @Get('todo')
+  // 12.2 — el libro completo se arma ENTERO en memoria. 5 por minuto es de
+  // sobra para una persona y corta en seco el bucle que tumbaria el servidor.
+  @Ritmo(RITMO_PESADO)
   @RequirePermissions('audit.read')
   async todo(@Res() res: Response) {
     const { nombre, buffer } = await this.exportacion.exportarTodo();
     this.responder(res, nombre, buffer);
   }
 
-  @Get('activos')     @RequirePermissions('asset.read')     async activos(@Res() res: Response)     { await this.una('activos', res); }
-  @Get('gabinetes')   @RequirePermissions('asset.read')     async gabinetes(@Res() res: Response)   { await this.una('gabinetes', res); }
-  @Get('ubicaciones') @RequirePermissions('location.read')  async ubicaciones(@Res() res: Response) { await this.una('ubicaciones', res); }
-  @Get('ordenes')     @RequirePermissions('wo.read')        async ordenes(@Res() res: Response)     { await this.una('ordenes', res); }
-  @Get('incidencias') @RequirePermissions('incident.read')  async incidencias(@Res() res: Response) { await this.una('incidencias', res); }
-  @Get('repuestos')   @RequirePermissions('inventory.read') async repuestos(@Res() res: Response)   { await this.una('repuestos', res); }
-  @Get('red')         @RequirePermissions('asset.read')     async red(@Res() res: Response)         { await this.una('red', res); }
+  @Get('activos')     @Ritmo(RITMO_PESADO) @RequirePermissions('asset.read')     async activos(@Res() res: Response)     { await this.una('activos', res); }
+  @Get('gabinetes')   @Ritmo(RITMO_PESADO) @RequirePermissions('asset.read')     async gabinetes(@Res() res: Response)   { await this.una('gabinetes', res); }
+  @Get('ubicaciones') @Ritmo(RITMO_PESADO) @RequirePermissions('location.read')  async ubicaciones(@Res() res: Response) { await this.una('ubicaciones', res); }
+  @Get('ordenes')     @Ritmo(RITMO_PESADO) @RequirePermissions('wo.read')        async ordenes(@Res() res: Response)     { await this.una('ordenes', res); }
+  @Get('incidencias') @Ritmo(RITMO_PESADO) @RequirePermissions('incident.read')  async incidencias(@Res() res: Response) { await this.una('incidencias', res); }
+  @Get('repuestos')   @Ritmo(RITMO_PESADO) @RequirePermissions('inventory.read') async repuestos(@Res() res: Response)   { await this.una('repuestos', res); }
+  @Get('red')         @Ritmo(RITMO_PESADO) @RequirePermissions('asset.read')     async red(@Res() res: Response)         { await this.una('red', res); }
 
   private async una(clave: string, res: Response) {
     const { nombre, buffer } = await this.exportacion.exportarUna(clave);

@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import HistorialActivo from '../components/HistorialActivo';
 import Icono from '../components/Iconos';
+import { guardarPendiente } from '../cola-offline';
 
 /**
  * Ficha rápida del activo — destino del código QR pegado en el equipo.
@@ -51,7 +52,23 @@ export default function AssetScan() {
       setOmCreada(r.data);
       setAbriendoOm(false);
     } catch (e: any) {
-      setOmError(e?.response?.data?.message || 'No se pudo abrir la orden. Vuelve a intentarlo.');
+      const estado = e?.response?.status;
+      /* 12.6 — SIN SEÑAL NO SE PIERDE LO ESCRITO.
+         Sólo cuando NO hubo respuesta del servidor (sin red) o el servidor
+         falló (5xx). Un 4xx es un rechazo por contenido: guardarlo sería
+         prometer que se subirá, y nunca se va a subir. */
+      if (!estado || estado >= 500) {
+        await guardarPendiente({
+          url: '/work-orders',
+          metodo: 'post',
+          cuerpo: { type: 'CORRECTIVO', assetId: id, activity: actividad.trim() || undefined },
+          titulo: `Orden correctiva en ${a?.assetCode || 'equipo'}`,
+        });
+        setAbriendoOm(false);
+        setOmCreada({ code: null, pendiente: true });
+      } else {
+        setOmError(e?.response?.data?.message || 'No se pudo abrir la orden. Revisa los datos.');
+      }
     } finally {
       setCreando(false);
     }
@@ -143,10 +160,20 @@ export default function AssetScan() {
         <div className="scan-note" style={{ borderColor: '#7fbf8f', background: '#eef8f0' }}>
           <Icono n="ok" size={16} />
           <span>
-            Orden <b>{omCreada.code}</b> abierta sobre este equipo.{' '}
-            <a onClick={() => nav(`/maintenance?q=${omCreada.code}`)} style={{ cursor: 'pointer', textDecoration: 'underline' }}>
-              Ir a la orden
-            </a>
+            {omCreada.pendiente ? (
+              <>
+                <b>Guardado en este teléfono.</b> No había señal, así que la orden
+                queda esperando y se sube sola en cuanto vuelva la conexión.
+                Puedes seguir trabajando.
+              </>
+            ) : (
+              <>
+                Orden <b>{omCreada.code}</b> abierta sobre este equipo.{' '}
+                <a onClick={() => nav(`/maintenance?q=${omCreada.code}`)} style={{ cursor: 'pointer', textDecoration: 'underline' }}>
+                  Ir a la orden
+                </a>
+              </>
+            )}
           </span>
         </div>
       )}

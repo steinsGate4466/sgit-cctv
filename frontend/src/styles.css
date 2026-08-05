@@ -1345,3 +1345,57 @@ select:focus-visible, textarea:focus-visible, [role="button"]:focus-visible {
 /* Los KPI ganan jerarquía: el número manda, la etiqueta acompaña. */
 .kpi .value { letter-spacing: -.5px; }
 .kpi .label { text-transform: uppercase; letter-spacing: .4px; font-size: 10.5px; }
+
+/* =========================================================================
+   BLOQUE 12.8 — MENÚ PLEGABLE
+   -------------------------------------------------------------------------
+   La barra llegó a ~30 entradas en una columna. Se pliega por secciones y
+   se recuerda lo plegado. La sección que contiene la pantalla actual se
+   abre siempre: si no, el usuario no vería dónde está parado.
+   ========================================================================= */
+
+button.nav-group-title {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; background: transparent; border: 0; cursor: pointer;
+  font: inherit; text-align: left; padding: 0;
+  color: inherit; letter-spacing: inherit; text-transform: inherit;
+}
+button.nav-group-title:hover { color: #fff; }
+button.nav-group-title .chevron { font-size: 10px; opacity: .55; margin-left: 6px; }
+button.nav-group-title:hover .chevron { opacity: 1; }
+.nav-group.plegada { margin-bottom: 2px; }
+
+/* =========================================================================
+   BLOQUE 12.6 — BORRADORES SIN SEÑAL
+   -------------------------------------------------------------------------
+   Sólo aparece si hay algo esperando. Un aviso permanente de "todo bien" es
+   ruido que la gente aprende a ignorar, y el día que dice algo tampoco lo
+   miran.
+   ========================================================================= */
+
+.pendientes { border-bottom: 1px solid #f0dfb0; background: #fff8e6; }
+.pd-barra {
+  display: flex; align-items: center; gap: 10px; cursor: pointer;
+  padding: 9px 16px; font-size: 12.5px; color: #7a5a00;
+}
+.pd-barra b { color: #5c4400; }
+.pd-punto {
+  width: 8px; height: 8px; border-radius: 50%; background: #e0a800;
+  flex: 0 0 auto; animation: pd-late 2s ease-in-out infinite;
+}
+@keyframes pd-late { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+.pd-barra > span:nth-child(2) { flex: 1; }
+.pd-chevron { opacity: .6; font-size: 11px; }
+.pd-lista { padding: 0 16px 12px; }
+.pd-item {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  padding: 8px 0; border-top: 1px solid #f0dfb0; font-size: 12.5px;
+}
+.pd-nota {
+  margin-top: 10px; font-size: 11.5px; color: #7a5a00;
+  background: #fff; border: 1px solid #f0dfb0; border-radius: 8px; padding: 8px 10px;
+}
+@media (max-width: 560px) {
+  .pd-barra { flex-wrap: wrap; }
+  .pd-barra > span:nth-child(2) { flex: 1 1 100%; order: 3; }
+}

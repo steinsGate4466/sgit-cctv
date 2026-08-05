@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import MiPin from './MiPin';
 import Icono from './Iconos';
 import AvisoRed from './AvisoRed';
+import AvisoPendientes from './AvisoPendientes';
 import ErrorBoundary from './ErrorBoundary';
 import { MarcaSGIT } from './Ilustraciones';
 
@@ -41,6 +42,30 @@ export default function Layout() {
   const { user, logout, can } = useAuth();
   const [verPin, setVerPin] = useState(false);
   const loc = useLocation();
+
+  /* MENÚ PLEGABLE (bloque 12.8).
+     La barra llegó a ~30 entradas en una sola columna: en un portátil no
+     caben y el técnico acaba haciendo scroll para encontrar lo de siempre.
+
+     Se recuerda qué quedó plegado en `localStorage`. Un menú que se cierra
+     entero en cada navegación es PEOR que el actual: obliga a reabrir lo
+     mismo veinte veces al día. Se guarda lo PLEGADO, no lo abierto, para que
+     el estado por defecto —todo abierto— siga siendo el de siempre y una
+     sección nueva aparezca visible sin tener que tocar nada. */
+  const [plegadas, setPlegadas] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('sgit:menu-plegado') || '[]'); }
+    catch { return []; }
+  });
+
+  const alternar = (titulo: string) => {
+    setPlegadas((antes) => {
+      const ahora = antes.includes(titulo)
+        ? antes.filter((t) => t !== titulo)
+        : [...antes, titulo];
+      try { localStorage.setItem('sgit:menu-plegado', JSON.stringify(ahora)); } catch { /* sin persistencia, pero funciona */ }
+      return ahora;
+    });
+  };
   const title = TITLES[loc.pathname] || 'SGIT-CCTV';
   const initials = (user?.fullName || 'U')
     .split(' ')
@@ -50,7 +75,7 @@ export default function Layout() {
     .toUpperCase();
 
   // Cada sección: [título, items visibles según permisos]
-  const secciones: { titulo: string; items: ReactNode[] }[] = [
+  const secciones: { titulo: string; items: ReactNode[]; rutas?: string[] }[] = [
     {
       titulo: '',
       items: [
@@ -69,6 +94,7 @@ export default function Layout() {
     },
     {
       titulo: 'Infraestructura',
+      rutas: ['/assets', '/cabinets', '/locations', '/access', '/cableado', '/mapeo', '/grabadores', '/conexiones', '/topologia', '/monitoreo'],
       items: [
         can('asset.read') && <NavLink key="a" to="/assets"><Icono n="activos" /> Activos</NavLink>,
         can('asset.read') && <NavLink key="g" to="/cabinets"><Icono n="gabinete" /> Gabinetes</NavLink>,
@@ -88,6 +114,7 @@ export default function Layout() {
     },
     {
       titulo: 'Operación',
+      rutas: ['/incidents', '/maintenance'],
       items: [
         can('incident.read') && <NavLink key="i" to="/incidents"><Icono n="incidencia" /> Incidencias</NavLink>,
         can('wo.read') && <NavLink key="m" to="/maintenance"><Icono n="orden" /> Órdenes (OM)</NavLink>,
@@ -95,6 +122,7 @@ export default function Layout() {
     },
     {
       titulo: 'Mantenimiento',
+      rutas: ['/preventive', '/corrective', '/predictive', '/improvements'],
       items: [
         can('wo.read') && <NavLink key="p" to="/preventive"><Icono n="preventivo" /> Preventivo</NavLink>,
         can('wo.read') && <NavLink key="c" to="/corrective"><Icono n="correctivo" /> Correctivo</NavLink>,
@@ -104,12 +132,14 @@ export default function Layout() {
     },
     {
       titulo: 'Almacén',
+      rutas: ['/inventory'],
       items: [
         can('inventory.read') && <NavLink key="inv" to="/inventory"><Icono n="inventario" /> Inventario</NavLink>,
       ].filter(Boolean) as ReactNode[],
     },
     {
       titulo: 'Sistema',
+      rutas: ['/users', '/roles', '/audit', '/avisos'],
       items: [
         can('audit.read') && <NavLink key="au" to="/audit"><Icono n="auditoria" /> Auditoría</NavLink>,
         // Avisos lo ve CUALQUIERA: todo el mundo puede vincular su Telegram.
@@ -134,12 +164,31 @@ export default function Layout() {
         <nav className="nav">
           {secciones
             .filter((s) => s.items.length > 0)
-            .map((s, i) => (
-              <div key={i} className="nav-group">
-                {s.titulo && <div className="nav-group-title">{s.titulo}</div>}
-                {s.items}
-              </div>
-            ))}
+            .map((s, i) => {
+              // La sección sin título (bandeja, tablero, mi tren) NO se pliega:
+              // es lo que se mira todos los días y esconderlo no ayuda a nadie.
+              const plegable = !!s.titulo;
+              const plegada = plegable && plegadas.includes(s.titulo);
+              // Si la pantalla actual está DENTRO de esta sección, se abre
+              // aunque estuviera plegada: si no, el usuario no vería dónde está.
+              const contieneActual = s.rutas?.some((r) => loc.pathname.startsWith(r));
+              const oculta = plegada && !contieneActual;
+              return (
+                <div key={i} className={'nav-group' + (oculta ? ' plegada' : '')}>
+                  {plegable && (
+                    <button
+                      className="nav-group-title"
+                      onClick={() => alternar(s.titulo)}
+                      aria-expanded={!oculta}
+                    >
+                      <span>{s.titulo}</span>
+                      <span className="chevron" aria-hidden>{oculta ? '▸' : '▾'}</span>
+                    </button>
+                  )}
+                  {!oculta && s.items}
+                </div>
+              );
+            })}
         </nav>
         <div className="foot">v0.6 · Infraestructura y CCTV</div>
       </aside>
@@ -160,6 +209,8 @@ export default function Layout() {
         </header>
         {/* Va aquí, entre la cabecera y el contenido: empuja, no tapa. */}
         <AvisoRed />
+        {/* 12.6 — sólo aparece si hay borradores esperando señal. */}
+        <AvisoPendientes />
         <main className="content">
           {/* La clave está en la `key`: al cambiar de ruta se monta una red
               nueva. Sin eso, una pantalla que falló dejaría el error puesto

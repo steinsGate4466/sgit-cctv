@@ -26,6 +26,32 @@ async function bootstrap() {
     res.setHeader('Referrer-Policy', 'no-referrer');
     res.setHeader('X-XSS-Protection', '0'); // recomendado: desactivar el filtro heredado
     res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+
+    /* CSP (bloque 12.4) — limita QUE puede cargar el navegador.
+       Es la ultima red contra un XSS: aunque alguien lograra inyectar un
+       <script src="http://sitio-ajeno">, el navegador se negaria a bajarlo.
+
+       'unsafe-inline' en estilos esta a proposito: el frontend usa `style={}`
+       en varios sitios y quitarlo romperia pantallas hoy. En scripts NO se
+       permite, que es donde de verdad importa.
+
+       connect-src '*' porque la API y el frontend viven en dominios distintos
+       en Railway y la lista blanca dependeria del despliegue. Se afina cuando
+       haya dominio propio (va con el bloque de Cloudflare). */
+    res.setHeader(
+      'Content-Security-Policy',
+      [
+        "default-src 'self'",
+        "script-src 'self'",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data: blob:",
+        "font-src 'self' data:",
+        "connect-src *",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "frame-ancestors 'none'",
+      ].join('; '),
+    );
     if (process.env.NODE_ENV === 'production') {
       res.setHeader('Strict-Transport-Security', 'max-age=15552000; includeSubDomains');
     }

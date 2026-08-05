@@ -84,6 +84,22 @@ jobs:
       # `prisma migrate diff`, pero tarda minutos porque levanta un Postgres.
       # Esta version lee los .sql y falla en medio segundo, asi que el aviso
       # llega al principio del CI y no al final.
+      # 12.4 - REVISION DE DEPENDENCIAS. INFORMA, NO ROMPE.
+      # `continue-on-error: true` es deliberado: un aviso nuevo en una libreria
+      # transitiva no puede bloquear un despliegue de planta un martes por la
+      # tarde. Queda en el registro para revisarlo cuando toque.
+      # NUNCA se ejecuta `npm audit fix --force` aqui: eso sube versiones
+      # mayores solo y es exactamente lo que este proyecto tiene prohibido.
+      - name: Revisar dependencias (informativo)
+        working-directory: backend
+        continue-on-error: true
+        run: npm audit --audit-level=high || true
+
+      - name: Revisar dependencias del frontend (informativo)
+        working-directory: frontend
+        continue-on-error: true
+        run: npm audit --audit-level=high || true
+
       - name: Campos de Prisma que no existen
         working-directory: backend
         run: npm run verificar:campos

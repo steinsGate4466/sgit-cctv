@@ -5,6 +5,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { HealthController } from './common/health.controller';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
+import { RitmoGuard } from './common/guards/ritmo.guard';
 
 import { AuthModule } from './modules/auth/auth.module';
 import { RolesModule } from './modules/roles/roles.module';
@@ -66,9 +67,13 @@ import { PredictiveModule } from './modules/predictive/predictive.module';
   ],
   controllers: [HealthController],
   providers: [
-    // Seguridad por defecto en TODOS los endpoints (F1-A):
+    // Seguridad por defecto en TODOS los endpoints:
+    // 0) RitmoGuard limita el VOLUMEN de peticiones (12.2). Va PRIMERO a
+    //    proposito: un bucle sin token valido se corta antes de gastar
+    //    tiempo comprobando la firma del token.
     // 1) JwtAuthGuard valida el token (excepto rutas @Public).
     // 2) PermissionsGuard valida @RequirePermissions (pasa si no se exige ninguno).
+    { provide: APP_GUARD, useClass: RitmoGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
   ],
