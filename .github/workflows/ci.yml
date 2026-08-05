@@ -95,6 +95,13 @@ jobs:
         continue-on-error: true
         run: npm audit --audit-level=high || true
 
+      # El foco que saltaba al primer campo con cada tecla. Un fallo de
+      # teclado no lo caza el typecheck ni un test de unidad: lo encontro el
+      # usuario despues de semanas.
+      - name: Efectos que roban el foco
+        working-directory: frontend
+        run: npm run verificar:foco
+
       - name: Revisar dependencias del frontend (informativo)
         working-directory: frontend
         continue-on-error: true

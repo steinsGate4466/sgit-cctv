@@ -1399,3 +1399,90 @@ button.nav-group-title:hover .chevron { opacity: 1; }
   .pd-barra { flex-wrap: wrap; }
   .pd-barra > span:nth-child(2) { flex: 1 1 100%; order: 3; }
 }
+
+/* =========================================================================
+   PULIDO VISUAL 2 — jerarquía y menú
+   -------------------------------------------------------------------------
+   Petición directa: "letras más grandes para Infraestructura, menú
+   desplegable más bonito". Va todo en CSS: no puede romper ninguna pantalla.
+
+   El criterio no es "que quede bonito" sino QUE SE LEA DE UN VISTAZO. Esto
+   se usa en un móvil, a contraluz, en una nave con polvo. El contraste y el
+   tamaño no son estética: son legibilidad.
+   ========================================================================= */
+
+/* ---- TÍTULOS DE SECCIÓN DEL MENÚ ---- */
+/* Eran 10 px en gris casi invisible. Ahora se leen y separan de verdad. */
+.nav-group-title,
+button.nav-group-title {
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+  color: #93a4bd;
+  padding: 6px 0 7px;
+  margin-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, .07);
+}
+.nav-group:first-child .nav-group-title { margin-top: 0; border-top: 0; }
+button.nav-group-title:hover { color: #dce6f5; }
+
+/* El chevron dentro de un círculo: se ve que es pulsable sin leer nada. */
+button.nav-group-title .chevron {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: rgba(255, 255, 255, .06);
+  font-size: 9px; opacity: .8; transition: background .15s, transform .15s;
+}
+button.nav-group-title:hover .chevron { background: rgba(255, 255, 255, .16); opacity: 1; }
+
+/* ---- ENTRADAS DEL MENÚ ---- */
+/* Más aire y una barra a la izquierda en la activa: dice dónde estás sin
+   depender sólo del color de fondo, que con brillo alto se pierde. */
+.nav a {
+  font-size: 13.5px;
+  padding: 8px 11px;
+  border-radius: 8px;
+  border-left: 3px solid transparent;
+  transition: background .13s, border-color .13s, padding-left .13s;
+}
+.nav a:hover { padding-left: 14px; }
+.nav a.active {
+  border-left-color: #e8a33d;
+  font-weight: 600;
+}
+
+/* ---- TÍTULOS DE PANTALLA ---- */
+.page-title { font-size: 22px; letter-spacing: -.3px; }
+.page-sub { font-size: 13px; }
+
+/* Los títulos de sección DENTRO de las pantallas también eran pequeños.
+   Son los que ordenan la lectura de una pantalla larga. */
+.section-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: .1px;
+  color: #24405f;
+}
+
+/* ---- LA BARRA SUPERIOR ---- */
+.topbar .title { font-size: 17px; font-weight: 700; letter-spacing: -.2px; }
+
+/* ---- TARJETAS Y KPI ---- */
+.kpi .value { font-size: 30px; }
+.card { border-radius: 12px; }
+
+/* ---- CAMPOS DE FORMULARIO ---- */
+/* En el móvil, cualquier campo con menos de 16 px hace que el navegador
+   HAGA ZOOM al tocarlo, y el técnico pierde de vista el formulario. Es el
+   detalle que más molesta en campo y no cuesta nada. */
+input, select, textarea { font-size: 15px; }
+@media (max-width: 760px) {
+  input, select, textarea { font-size: 16px; }
+}
+label.campo > span,
+.campo > span:first-child {
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: .1px;
+}

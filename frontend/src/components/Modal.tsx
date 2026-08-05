@@ -41,8 +41,30 @@ export default function Modal({
   const downInside = useRef(false);
   const caja = useRef<HTMLDivElement>(null);
 
+  /* EL BUG DEL FOCO QUE SALTABA — corregido el 05/08/2026.
+     ================================================================
+     Este efecto declaraba `[onClose]` como dependencia. Y `onClose` llega
+     SIEMPRE como función en línea desde quien abre la ventana:
+
+         <Modal onClose={() => setAbierto(null)} ... />
+
+     Una función en línea es un objeto NUEVO en cada render. Así que:
+       escribes una letra -> cambia el estado -> re-render -> `onClose` es
+       "distinto" -> el efecto se limpia y se vuelve a ejecutar -> hace
+       `primero?.focus()` -> EL CURSOR SALTA AL PRIMER CAMPO.
+
+     Es decir: no se podía escribir más de una letra seguida en ningún campo
+     que no fuera el primero, en NINGÚN formulario del sistema.
+
+     La solución no es memorizar `onClose` en cada una de las pantallas que
+     abren ventanas —son decenas y la número treinta se olvidaría—, sino
+     guardarlo en una ref aquí dentro. El efecto deja de depender de él y se
+     ejecuta UNA sola vez, que es lo que siempre debió hacer. */
+  const cerrar = useRef(onClose);
+  cerrar.current = onClose;
+
   useEffect(() => {
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') cerrar.current(); };
     document.addEventListener('keydown', esc);
 
     // Se bloquea el scroll del fondo mientras la ventana está abierta, y se
@@ -61,7 +83,11 @@ export default function Modal({
       document.removeEventListener('keydown', esc);
       document.body.style.overflow = antes;
     };
-  }, [onClose]);
+    // Sin dependencias A PROPÓSITO: montar y desmontar, nada más. Ver el
+    // comentario de arriba: cualquier dependencia que cambie por render
+    // vuelve a robar el foco.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div
