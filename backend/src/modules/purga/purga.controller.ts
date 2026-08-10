@@ -27,6 +27,18 @@ export class PurgaController {
     return this.purga.candidatosBasura();
   }
 
+  /**
+   * `wo.approve` y no un `wo.delete` nuevo: ese permiso YA está reservado al
+   * Jefe de Mantenimiento en la semilla, y crear uno nuevo obliga a sembrarlo
+   * y a que alguien se acuerde de asignarlo. El día que se olvide, el botón
+   * no lo ve nadie y parece que el módulo no funciona.
+   */
+  @Get('candidatos-om')
+  @RequirePermissions('wo.approve')
+  candidatosOm() {
+    return this.purga.candidatosOm();
+  }
+
   @Get('activo/:id')
   @RequirePermissions('asset.delete')
   previaActivo(@Param('id') id: string) {
@@ -37,6 +49,18 @@ export class PurgaController {
   @RequirePermissions('asset.delete')
   purgarActivo(@Param('id') id: string, @Body() dto: PurgarDto, @CurrentUser() u: any, @Ip() ip: string) {
     return this.purga.purgarActivo(id, dto.confirmacion, u?.userId, ip);
+  }
+
+  @Get('om/:id')
+  @RequirePermissions('wo.approve')
+  previaOm(@Param('id') id: string) {
+    return this.purga.vistaPreviaOm(id);
+  }
+
+  @Post('om/:id')
+  @RequirePermissions('wo.approve')
+  purgarOm(@Param('id') id: string, @Body() dto: PurgarDto, @CurrentUser() u: any, @Ip() ip: string) {
+    return this.purga.purgarOm(id, dto.confirmacion, u?.userId, ip);
   }
 
   @Get('usuario/:id')

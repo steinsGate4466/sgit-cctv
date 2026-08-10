@@ -15,7 +15,7 @@ import Modal from './Modal';
 export default function BorrarDefinitivo({
   tipo, id, onCerrar, onBorrado,
 }: {
-  tipo: 'activo' | 'usuario';
+  tipo: 'activo' | 'om' | 'usuario';
   id: string;
   onCerrar: () => void;
   onBorrado: (r: any) => void;
@@ -36,7 +36,9 @@ export default function BorrarDefinitivo({
   }, [tipo, id]);
 
   const esperado = previa
-    ? (tipo === 'activo' ? previa.activo?.code : previa.usuario?.email) || ''
+    ? (tipo === 'activo' ? previa.activo?.code
+      : tipo === 'om' ? previa.om?.code
+      : previa.usuario?.email) || ''
     : '';
   const puede = !!previa?.sePuedePurgar && confirmacion.trim() === esperado.trim();
 
@@ -52,7 +54,11 @@ export default function BorrarDefinitivo({
 
   return (
     <Modal
-      title={tipo === 'activo' ? 'Borrar definitivamente el activo' : 'Borrar definitivamente el usuario'}
+      title={
+        tipo === 'activo' ? 'Borrar definitivamente el activo'
+        : tipo === 'om' ? 'Borrar definitivamente la orden'
+        : 'Borrar definitivamente el usuario'
+      }
       onClose={onCerrar}
       acciones={
         <>
@@ -78,6 +84,12 @@ export default function BorrarDefinitivo({
               desaparece de los listados y conserva su historial.
             </p>
           )}
+          {tipo === 'om' && (
+            <p style={{ marginBottom: 0, fontSize: 13 }}>
+              Si la orden ya no aplica pero el trabajo existió, <b>cancélala</b>:
+              queda constancia de que se pidió y de que no se hizo.
+            </p>
+          )}
         </div>
       )}
 
@@ -88,7 +100,36 @@ export default function BorrarDefinitivo({
             desaparece de la base de datos.
           </div>
 
-          {tipo === 'activo' ? (
+          {tipo === 'om' ? (
+            <>
+              <p style={{ fontSize: 13.5, margin: '0 0 8px' }}>
+                Se borrará <b>{previa.om.code}</b> ({previa.om.tipo}, {previa.om.estado})
+                {previa.om.equipo ? <> sobre <b>{previa.om.equipo}</b></> : null}.
+              </p>
+              {previa.arrastra?.length > 0 ? (
+                <>
+                  <div className="section-title">Y con ella, esto:</div>
+                  <ul style={{ fontSize: 13, lineHeight: 1.8, margin: 0 }}>
+                    {previa.arrastra.map((x: any) => <li key={x.que}><b>{x.n}</b> {x.que}</li>)}
+                  </ul>
+                </>
+              ) : <p className="muted" style={{ fontSize: 13 }}>No arrastra nada: la orden está en blanco.</p>}
+
+              {/* LO QUE SOBREVIVE. Si no se dice, alguien va a creer que
+                  acaba de borrar 12 cámaras y va a entrar en pánico. */}
+              {previa.sobrevive?.length > 0 && (
+                <div className="card explica" style={{ marginTop: 12 }}>
+                  <b>Esto NO se borra</b>, sólo pierde la referencia a la orden:
+                  <ul style={{ margin: '6px 0 0', fontSize: 13, lineHeight: 1.7 }}>
+                    {previa.sobrevive.map((x: any) => <li key={x.que}><b>{x.n}</b> {x.que}</li>)}
+                  </ul>
+                  <div style={{ marginTop: 6, fontSize: 12.5 }}>
+                    Los equipos existen en la planta exista o no el papeleo.
+                  </div>
+                </div>
+              )}
+            </>
+          ) : tipo === 'activo' ? (
             <>
               <p style={{ fontSize: 13.5, margin: '0 0 8px' }}>
                 Se borrará <b>{previa.activo.code}</b> ({previa.activo.tipo})

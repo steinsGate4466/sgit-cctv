@@ -17,3 +17,8 @@ uploads/
 # una creyendo que es la buena.
 _respaldo_*/
 _respaldos_bd/
+
+# Respaldos que crea el script de aplicación de bloques antes de pisar
+# archivos. Son una red de seguridad LOCAL: el historial de verdad es git,
+# y meterlos dentro duplica el proyecto entero en cada entrega.
+_respaldo-antes-*/

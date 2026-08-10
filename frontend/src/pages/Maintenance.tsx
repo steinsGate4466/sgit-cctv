@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, AvisoAmbito } from '../components/FiltroAmbito';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
+import BorrarDefinitivo from '../components/BorrarDefinitivo';
 import OmCampo from '../components/OmCampo';
 import HistorialActivo from '../components/HistorialActivo';
 import AsignarOm from '../components/AsignarOm';
@@ -36,9 +37,13 @@ function isOverdue(w: any) {
 }
 
 export default function Maintenance() {
-  const { can } = useAuth();
+  const { can, user } = useAuth();
   const navegar = useNavigate();
   const [rows, setRows] = useState<any[]>([]);
+  // Borrado DEFINITIVO de una orden. No es cancelar: cancelar deja constancia
+  // de que se pidió y no se hizo; esto es para el papel que nunca debió
+  // existir. El servidor rechaza las CERRADAS y las que sacaron material.
+  const [omAPurgar, setOmAPurgar] = useState<any>(null);
   const [assets, setAssets] = useState<any[]>([]);
   const [incidents, setIncidents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -399,6 +404,15 @@ export default function Maintenance() {
                     title="Materiales previstos/usados y reemplazo de equipo"
                     onClick={() => setMatsFor(w)}>📦 Materiales</button>
                   <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => downloadReport(w)}>Informe</button>
+                  {/* Sólo el Jefe, y sólo si la orden no está cerrada. El
+                      servidor lo vuelve a comprobar —esconder un botón no
+                      protege nada— pero enseñarlo en una orden cerrada sería
+                      prometer algo que va a fallar. */}
+                  {w.status !== 'CERRADA' && can('wo.approve') && user?.role === 'Jefe de Mantenimiento' && (
+                    <button className="btn-mini btn-peligro" style={{ marginLeft: 4 }}
+                      title="Borrar definitivamente: para órdenes de prueba o duplicadas"
+                      onClick={() => setOmAPurgar(w)}>🧹</button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -406,6 +420,22 @@ export default function Maintenance() {
           </tbody>
         </table>
       </div>
+
+      {omAPurgar && (
+        <BorrarDefinitivo
+          tipo="om"
+          id={omAPurgar.id}
+          onCerrar={() => setOmAPurgar(null)}
+          onBorrado={(r) => {
+            setOmAPurgar(null);
+            alert(
+              `Borrada ${r.code} y ${r.arrastrado} registro(s) asociados.` +
+              (r.conservado ? `\n\nSe conservaron ${r.conservado} registro(s) que no dependen de la orden (equipos levantados, inspecciones).` : ''),
+            );
+            load();
+          }}
+        />
+      )}
 
       {showForm && (
         <Modal title="Nueva orden de mantenimiento" onClose={() => setShowForm(false)}>

@@ -211,6 +211,207 @@ export class PurgaService {
       .sort((a, b) => b.sospecha - a.sospecha || (a.code > b.code ? 1 : -1));
   }
 
+  /* ==================== ÓRDENES DE MANTENIMIENTO ==================== */
+
+  /**
+   * PURGAR UNA OM — el caso con más aristas de los cuatro.
+   *
+   * ===========================================================================
+   *  TRES FRENOS, Y CADA UNO ESTÁ POR UNA RAZÓN DISTINTA
+   * ===========================================================================
+   *
+   *  1. UNA ORDEN CERRADA NO SE BORRA. Lleva firma electrónica de quien la
+   *     cerró, causa, síntoma y acción. Es el documento que responde "¿qué se
+   *     hizo aquel día?". Si estorba en la lista, se filtra; no se borra.
+   *
+   *  2. SI SALIÓ MATERIAL DEL ALMACÉN, TAMPOCO. Y ésta es la importante,
+   *     porque no es obvia:
+   *
+   *       El retiro de almacén escribió un MOVIMIENTO DE STOCK. Ese
+   *       movimiento vive en la tabla del almacén, NO cuelga de la orden.
+   *       Borrar la orden se lleva la línea de material —que es el hilo que
+   *       explica el movimiento— pero **el movimiento se queda**. Resultado:
+   *       el almacén dice "salieron 3 conectores" y ya nadie sabe para qué.
+   *
+   *     Borrar el papel no devuelve los repuestos a la estantería. Si de
+   *     verdad hay que anular ese trabajo, primero se DEVUELVE el material
+   *     por el módulo de almacén —que escribe su movimiento de devolución— y
+   *     entonces la orden queda limpia y se puede purgar.
+   *
+   *  3. TIENE QUE ESCRIBIRSE EL CÓDIGO (OT-2026-0001). Igual que con los
+   *     activos: contra el clic en la fila de al lado.
+   *
+   * ===========================================================================
+   *  LO QUE **NO** SE BORRA, Y HAY QUE DECIRLO EN PANTALLA
+   * ===========================================================================
+   *
+   *  · Las CÁMARAS LEVANTADAS en una orden de MAPEO **no se borran**. La
+   *    relación es opcional, así que PostgreSQL sólo pone el enlace a nulo:
+   *    los equipos siguen ahí, pierden la referencia a la orden que los
+   *    levantó. Es lo correcto —el equipo existe en la planta, exista o no el
+   *    papeleo— pero si nadie lo avisa, alguien va a creer que borró 12
+   *    cámaras y va a entrar en pánico.
+   *
+   *  · Las INSPECCIONES DE GRÚA igual: quedan sin orden asociada, no se van.
+   *
+   *  · Las FOTOS quedan en MinIO. Se borra la fila que las nombra, no el
+   *    archivo. Es basura de almacenamiento, no de datos, y borrar objetos de
+   *    un bucket desde una operación de base de datos es la clase de cosa que
+   *    falla a medias y deja el sistema peor.
+   */
+  async vistaPreviaOm(id: string) {
+    const om = await this.prisma.workOrder.findUnique({
+      where: { id },
+      select: {
+        id: true, code: true, type: true, status: true, createdAt: true,
+        activity: true, closedById: true, executedDate: true,
+        asset: { select: { assetCode: true } },
+        _count: {
+          select: {
+            progress: true, evidences: true, materialItems: true,
+            tools: true, checklist: true, swaps: true,
+            mappedAssets: true, inspeccionesGrua: true,
+          },
+        },
+      },
+    });
+    if (!om) throw new NotFoundException('Esa orden no existe.');
+
+    // ¿Salió algo del almacén de verdad? `movementId` es el hilo con el
+    // movimiento de stock: si existe, hubo un retiro con respaldo.
+    const conRetiro = await this.prisma.workOrderMaterial.count({
+      where: { workOrderId: id, movementId: { not: null } },
+    });
+
+    const c = om._count;
+    const arrastra = [
+      { que: 'reportes de avance', n: c.progress },
+      { que: 'fotos de evidencia (la fila, no el archivo)', n: c.evidences },
+      { que: 'líneas de material', n: c.materialItems },
+      { que: 'herramientas preparadas', n: c.tools },
+      { que: 'respuestas del checklist', n: c.checklist },
+      { que: 'cambios de equipo registrados', n: c.swaps },
+    ].filter((x) => x.n > 0);
+
+    // Lo que sobrevive. Se enseña aparte para que nadie crea que lo perdió.
+    const sobrevive = [
+      { que: 'activos levantados en esta orden de mapeo', n: c.mappedAssets },
+      { que: 'inspecciones de grúa', n: c.inspeccionesGrua },
+    ].filter((x) => x.n > 0);
+
+    const cerrada = om.status === 'CERRADA';
+    let motivo: string | null = null;
+    if (cerrada) {
+      motivo =
+        `Esta orden está CERRADA: lleva firma de quien la cerró, causa y acción. ` +
+        `Es el documento que responde "qué se hizo aquel día" y no se borra. ` +
+        `Si sólo estorba en la lista, fíltrala por estado.`;
+    } else if (conRetiro > 0) {
+      motivo =
+        `De esta orden salió material del almacén (${conRetiro} línea(s) con retiro firmado). ` +
+        `Borrar la orden NO devuelve los repuestos a la estantería, y deja el movimiento ` +
+        `de almacén sin explicación. Devuelve primero el material desde el módulo de ` +
+        `almacén; después la orden queda limpia y se puede borrar.`;
+    }
+
+    return {
+      om: {
+        id: om.id, code: om.code, tipo: om.type as string,
+        estado: om.status as string, actividad: om.activity,
+        equipo: om.asset?.assetCode ?? null,
+        creada: om.createdAt, ejecutada: om.executedDate,
+      },
+      arrastra,
+      totalArrastrado: arrastra.reduce((s, x) => s + x.n, 0),
+      sobrevive,
+      materialesConRetiro: conRetiro,
+      sePuedePurgar: !cerrada && conRetiro === 0,
+      motivoSiNo: motivo,
+    };
+  }
+
+  async purgarOm(id: string, confirmacion: string, userId?: string | null, ip?: string | null) {
+    await this.exigirJefe(userId);
+
+    const previa = await this.vistaPreviaOm(id);
+    if (!previa.sePuedePurgar) throw new BadRequestException(previa.motivoSiNo!);
+
+    if ((confirmacion || '').trim().toUpperCase() !== previa.om.code.toUpperCase()) {
+      throw new BadRequestException(
+        `Para borrar definitivamente hay que escribir el código exacto: ${previa.om.code}. ` +
+        `Esto existe para que no se borre la fila de al lado por un clic.`,
+      );
+    }
+
+    await this.audit.record({
+      userId: userId || null, action: 'PURGE_WORKORDER', entity: 'work-orders', entityId: id, ip,
+      before: {
+        code: previa.om.code,
+        tipo: previa.om.tipo,
+        estado: previa.om.estado,
+        equipo: previa.om.equipo,
+        arrastrado: previa.arrastra,
+        total: previa.totalArrastrado,
+        conservado: previa.sobrevive,
+      },
+    });
+
+    await this.prisma.workOrder.delete({ where: { id } });
+    return {
+      ok: true,
+      code: previa.om.code,
+      arrastrado: previa.totalArrastrado,
+      conservado: previa.sobrevive.reduce((s: number, x: any) => s + x.n, 0),
+    };
+  }
+
+  /**
+   * Órdenes candidatas a ser basura.
+   *
+   * El criterio NO es "está abierta": hay órdenes abiertas legítimas esperando
+   * una parada de tren desde hace un mes, y sacarlas aquí sería invitar a
+   * borrar trabajo pendiente. El criterio es **no le ha pasado nada nunca**:
+   * sin avance, sin material, sin fotos, sin checklist. Un papel en blanco.
+   */
+  async candidatosOm() {
+    const oms = await this.prisma.workOrder.findMany({
+      where: { status: { notIn: ['CERRADA'] } },
+      select: {
+        id: true, code: true, type: true, status: true, createdAt: true,
+        activity: true, technicianId: true, scheduledDate: true, progressPct: true,
+        asset: { select: { assetCode: true } },
+        _count: {
+          select: { progress: true, evidences: true, materialItems: true, checklist: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+    });
+
+    const HACE_30 = Date.now() - 30 * 86_400_000;
+
+    return oms
+      .filter((o) => {
+        const c = o._count;
+        return c.progress === 0 && c.evidences === 0 && c.materialItems === 0 && c.checklist === 0
+          && o.progressPct === 0;
+      })
+      .map((o) => {
+        const razones: string[] = [];
+        if (!o.asset) razones.push('sin equipo');
+        if (!o.technicianId) razones.push('sin técnico asignado');
+        if (!o.activity || o.activity.trim().length < 8) razones.push('sin descripción');
+        if (o.createdAt.getTime() < HACE_30) razones.push('más de 30 días sin tocar');
+        if (o.status === 'CANCELADA') razones.push('cancelada');
+        return {
+          id: o.id, code: o.code, tipo: o.type as string, estado: o.status as string,
+          equipo: o.asset?.assetCode ?? null, actividad: o.activity,
+          creada: o.createdAt, razones, sospecha: razones.length,
+        };
+      })
+      .sort((a, b) => b.sospecha - a.sospecha || (a.code > b.code ? 1 : -1));
+  }
+
   /* ==================== USUARIOS ==================== */
 
   async vistaPreviaUsuario(id: string) {
@@ -319,7 +520,7 @@ export class PurgaService {
     }
 
     const total = await this.prisma.auditLog.count({
-      where: { createdAt: { lt: fecha }, action: { notIn: ['PURGE_ASSET', 'PURGE_USER', 'PURGE_AUDIT'] } },
+      where: { createdAt: { lt: fecha }, action: { notIn: ['PURGE_ASSET', 'PURGE_USER', 'PURGE_AUDIT', 'PURGE_WORKORDER'] } },
     });
     const masAntiguo = await this.prisma.auditLog.findFirst({
       where: { createdAt: { lt: fecha } },
@@ -355,7 +556,7 @@ export class PurgaService {
     const r = await this.prisma.auditLog.deleteMany({
       where: {
         createdAt: { lt: previa.antesDe },
-        action: { notIn: ['PURGE_ASSET', 'PURGE_USER', 'PURGE_AUDIT'] },
+        action: { notIn: ['PURGE_ASSET', 'PURGE_USER', 'PURGE_AUDIT', 'PURGE_WORKORDER'] },
       },
     });
     return { ok: true, borrados: r.count };

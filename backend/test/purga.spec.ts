@@ -29,7 +29,13 @@ function prismaFalso(over: any = {}) {
       findMany: jest.fn().mockResolvedValue([]),
       delete: jest.fn().mockResolvedValue({}),
     },
-    workOrder: { count: jest.fn().mockResolvedValue(0) },
+    workOrder: {
+      count: jest.fn().mockResolvedValue(0),
+      findUnique: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
+      delete: jest.fn().mockResolvedValue({}),
+    },
+    workOrderMaterial: { count: jest.fn().mockResolvedValue(0) },
     accessRequest: { count: jest.fn().mockResolvedValue(0) },
     auditLog: {
       count: jest.fn().mockResolvedValue(0),
@@ -264,5 +270,162 @@ describe('purga de auditoría · el freno de los 90 días', () => {
     expect(where.action.notIn).toEqual(
       expect.arrayContaining(['PURGE_ASSET', 'PURGE_USER', 'PURGE_AUDIT']),
     );
+  });
+});
+
+
+/* =========================================================================
+   ÓRDENES DE MANTENIMIENTO
+   ========================================================================= */
+
+const OM_LIMPIA = {
+  id: 'w1', code: 'OT-2026-0099', type: 'CORRECTIVO', status: 'ABIERTA',
+  createdAt: new Date(), activity: null, closedById: null, executedDate: null,
+  asset: null,
+  _count: {
+    progress: 0, evidences: 0, materialItems: 0, tools: 0,
+    checklist: 0, swaps: 0, mappedAssets: 0, inspeccionesGrua: 0,
+  },
+};
+
+describe('purga de OM · los tres frenos', () => {
+  it('una orden CERRADA no se borra: lleva firma, causa y acción', async () => {
+    const prisma = prismaFalso();
+    prisma.workOrder.findUnique.mockResolvedValue({ ...OM_LIMPIA, status: 'CERRADA', closedById: 'u3' });
+    const s = new PurgaService(prisma, auditFalso());
+
+    const p = await s.vistaPreviaOm('w1');
+    expect(p.sePuedePurgar).toBe(false);
+    expect(p.motivoSiNo).toContain('CERRADA');
+
+    await expect(s.purgarOm('w1', 'OT-2026-0099', 'u1', null)).rejects.toThrow(BadRequestException);
+    expect(prisma.workOrder.delete).not.toHaveBeenCalled();
+  });
+
+  it('SI SALIÓ MATERIAL DEL ALMACÉN, no se borra', async () => {
+    // El freno menos obvio y el más importante. El retiro escribió un
+    // movimiento de stock que NO cuelga de la orden: borrar la orden deja el
+    // almacén diciendo "salieron 3 conectores" sin que nadie sepa para qué.
+    // Y sobre todo: borrar el papel no devuelve los repuestos a la estantería.
+    const prisma = prismaFalso();
+    prisma.workOrder.findUnique.mockResolvedValue({
+      ...OM_LIMPIA,
+      _count: { ...OM_LIMPIA._count, materialItems: 2 },
+    });
+    prisma.workOrderMaterial.count.mockResolvedValue(2);
+    const s = new PurgaService(prisma, auditFalso());
+
+    const p = await s.vistaPreviaOm('w1');
+    expect(p.sePuedePurgar).toBe(false);
+    expect(p.motivoSiNo).toContain('almacén');
+    await expect(s.purgarOm('w1', 'OT-2026-0099', 'u1', null)).rejects.toThrow(BadRequestException);
+  });
+
+  it('material SOLICITADO pero nunca retirado NO bloquea', async () => {
+    // Pedir no es sacar. Una orden con material pedido y sin retirar sigue
+    // siendo un papel en blanco: el almacén no se movió.
+    const prisma = prismaFalso();
+    prisma.workOrder.findUnique.mockResolvedValue({
+      ...OM_LIMPIA,
+      _count: { ...OM_LIMPIA._count, materialItems: 3 },
+    });
+    prisma.workOrderMaterial.count.mockResolvedValue(0); // ninguno con movementId
+    const s = new PurgaService(prisma, auditFalso());
+
+    const p = await s.vistaPreviaOm('w1');
+    expect(p.sePuedePurgar).toBe(true);
+    expect(p.arrastra).toContainEqual({ que: 'líneas de material', n: 3 });
+  });
+
+  it('escribir mal el código no borra', async () => {
+    const prisma = prismaFalso();
+    prisma.workOrder.findUnique.mockResolvedValue(OM_LIMPIA);
+    const s = new PurgaService(prisma, auditFalso());
+    await expect(s.purgarOm('w1', 'OT-2026-0098', 'u1', null)).rejects.toThrow(/código exacto/);
+    expect(prisma.workOrder.delete).not.toHaveBeenCalled();
+  });
+
+  it('lo que NO se borra se declara aparte', async () => {
+    // Si nadie lo avisa, alguien va a creer que borró 12 cámaras.
+    const prisma = prismaFalso();
+    prisma.workOrder.findUnique.mockResolvedValue({
+      ...OM_LIMPIA, type: 'MAPEO',
+      _count: { ...OM_LIMPIA._count, mappedAssets: 12, inspeccionesGrua: 1 },
+    });
+    const s = new PurgaService(prisma, auditFalso());
+    const p = await s.vistaPreviaOm('w1');
+
+    // No cuentan como arrastrados: sobreviven.
+    expect(p.totalArrastrado).toBe(0);
+    expect(p.sobrevive).toEqual([
+      { que: 'activos levantados en esta orden de mapeo', n: 12 },
+      { que: 'inspecciones de grúa', n: 1 },
+    ]);
+    expect(p.sePuedePurgar).toBe(true);
+  });
+
+  it('con el código bien, se borra y se audita antes', async () => {
+    const prisma = prismaFalso();
+    prisma.workOrder.findUnique.mockResolvedValue(OM_LIMPIA);
+    const audit = auditFalso();
+    const orden: string[] = [];
+    audit.record.mockImplementation(async () => { orden.push('audit'); });
+    prisma.workOrder.delete.mockImplementation(async () => { orden.push('delete'); return {}; });
+
+    const s = new PurgaService(prisma, audit);
+    const r = await s.purgarOm('w1', 'ot-2026-0099', 'u1', null);
+
+    expect(r.ok).toBe(true);
+    expect(orden).toEqual(['audit', 'delete']);
+    expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'PURGE_WORKORDER' }));
+  });
+
+  it('sin el cargo de Jefe, tampoco', async () => {
+    const prisma = prismaFalso();
+    prisma.user.findUnique.mockResolvedValue({ active: true, role: { name: 'Supervisor TI' } });
+    const s = new PurgaService(prisma, auditFalso());
+    await expect(s.purgarOm('w1', 'OT-2026-0099', 'u1', null)).rejects.toThrow(ForbiddenException);
+  });
+});
+
+describe('candidatas a basura · una orden esperando parada NO es basura', () => {
+  const base = {
+    type: 'CORRECTIVO', status: 'ABIERTA', createdAt: new Date(),
+    scheduledDate: null, progressPct: 0, asset: null,
+    _count: { progress: 0, evidences: 0, materialItems: 0, checklist: 0 },
+  };
+
+  it('la que tiene avance, material, fotos o checklist no aparece', async () => {
+    const prisma = prismaFalso();
+    prisma.workOrder.findMany.mockResolvedValue([
+      { ...base, id: '1', code: 'OT-1', activity: 'Cambio de cámara del lecho', technicianId: 't1', _count: { progress: 2, evidences: 0, materialItems: 0, checklist: 0 } },
+      { ...base, id: '2', code: 'OT-2', activity: 'x', technicianId: null },
+    ]);
+    const s = new PurgaService(prisma, auditFalso());
+    const r = await s.candidatosOm();
+    expect(r.map((x: any) => x.code)).toEqual(['OT-2']);
+  });
+
+  it('una orden legítima esperando parada, sin nada aún, sale con POCAS señales', async () => {
+    // Aparece —está en blanco— pero con una sola señal, así que queda abajo.
+    // La decisión sigue siendo de la persona: esto ordena, no juzga.
+    const prisma = prismaFalso();
+    prisma.workOrder.findMany.mockResolvedValue([
+      { ...base, id: '1', code: 'OT-10', activity: 'Reemplazo de switch del gabinete R-03', technicianId: 't1', asset: { assetCode: 'AA-SW-003' } },
+      { ...base, id: '2', code: 'OT-11', activity: null, technicianId: null, createdAt: new Date(Date.now() - 60 * 86400000) },
+    ]);
+    const s = new PurgaService(prisma, auditFalso());
+    const r = await s.candidatosOm();
+
+    expect(r[0].code).toBe('OT-11');           // 3 señales
+    expect(r[0].razones.length).toBeGreaterThan(r[1].razones.length);
+    expect(r[1].razones).toEqual([]);          // la legítima, sin señales
+  });
+
+  it('las CERRADAS nunca se consultan siquiera', async () => {
+    const prisma = prismaFalso();
+    const s = new PurgaService(prisma, auditFalso());
+    await s.candidatosOm();
+    expect(prisma.workOrder.findMany.mock.calls[0][0].where.status.notIn).toContain('CERRADA');
   });
 });

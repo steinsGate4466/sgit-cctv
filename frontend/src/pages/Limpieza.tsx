@@ -23,14 +23,15 @@ export default function Limpieza() {
   const { can, user } = useAuth();
   const esJefe = user?.role === 'Jefe de Mantenimiento';
 
-  const [pestana, setPestana] = useState<'activos' | 'usuarios' | 'auditoria'>('activos');
+  const [pestana, setPestana] = useState<'activos' | 'om' | 'usuarios' | 'auditoria'>('activos');
   const [candidatos, setCandidatos] = useState<any[]>([]);
+  const [candidatosOm, setCandidatosOm] = useState<any[]>([]);
   const [usuarios, setUsuarios] = useState<any[]>([]);
   const [cargando, setCargando] = useState(true);
   const [fallo, setFallo] = useState('');
   const [hecho, setHecho] = useState('');
 
-  const [aBorrar, setABorrar] = useState<{ tipo: 'activo' | 'usuario'; id: string } | null>(null);
+  const [aBorrar, setABorrar] = useState<{ tipo: 'activo' | 'om' | 'usuario'; id: string } | null>(null);
   const [confirmacion, setConfirmacion] = useState('');
   const [borrando, setBorrando] = useState(false);
   const [errorModal, setErrorModal] = useState('');
@@ -41,11 +42,13 @@ export default function Limpieza() {
 
   const cargar = useCallback(async () => {
     try {
-      const [c, u] = await Promise.all([
+      const [c, om, u] = await Promise.all([
         api.get('/purga/candidatos').then((r) => r.data).catch(() => []),
+        api.get('/purga/candidatos-om').then((r) => r.data).catch(() => []),
         api.get('/users').then((r) => r.data?.items || r.data || []).catch(() => []),
       ]);
       setCandidatos(c || []);
+      setCandidatosOm(om || []);
       setUsuarios(u || []);
       setFallo('');
     } catch {
@@ -112,6 +115,9 @@ export default function Limpieza() {
         <button className={pestana === 'activos' ? 'act' : ''} onClick={() => setPestana('activos')}>
           Activos sospechosos ({candidatos.length})
         </button>
+        <button className={pestana === 'om' ? 'act' : ''} onClick={() => setPestana('om')}>
+          Órdenes sin usar ({candidatosOm.length})
+        </button>
         <button className={pestana === 'usuarios' ? 'act' : ''} onClick={() => setPestana('usuarios')}>
           Usuarios
         </button>
@@ -157,6 +163,59 @@ export default function Limpieza() {
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       <button className="btn-mini" onClick={() => setABorrar({ tipo: 'activo', id: a.id })}>Revisar y borrar</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )
+      )}
+
+      {/* ---------- ÓRDENES DE MANTENIMIENTO ---------- */}
+      {!cargando && pestana === 'om' && (
+        candidatosOm.length === 0 ? (
+          <div className="card vacio">
+            <h3>No hay órdenes en blanco</h3>
+            <p>
+              Aquí sólo salen las que <strong>no tienen avance, ni material, ni
+              fotos, ni checklist</strong>. Una orden abierta esperando la parada
+              del tren no es basura y no aparece.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="card explica">
+              Estas órdenes <b>no tienen nada registrado</b>: ni avance, ni material,
+              ni fotos, ni checklist. Son papeles en blanco.
+              <div style={{ marginTop: 8 }}>
+                <b>Dos cosas no se borran nunca desde aquí:</b> una orden <b>CERRADA</b>
+                (lleva firma, causa y acción) y una orden de la que <b>salió material
+                del almacén</b> — borrar el papel no devuelve los repuestos a la
+                estantería, y dejaría el movimiento de almacén sin explicación.
+              </div>
+            </div>
+            <table className="tabla">
+              <thead>
+                <tr><th>Código</th><th>Tipo</th><th>Estado</th><th>Equipo</th><th>Creada</th><th>Señales</th><th></th></tr>
+              </thead>
+              <tbody>
+                {candidatosOm.map((o) => (
+                  <tr key={o.id}>
+                    <td>
+                      <strong>{o.code}</strong>
+                      {o.actividad && <div className="muted" style={{ fontSize: 11.5 }}>{o.actividad}</div>}
+                    </td>
+                    <td>{o.tipo}</td>
+                    <td><span className={'badge ' + o.estado}>{o.estado}</span></td>
+                    <td>{o.equipo || <span className="muted">—</span>}</td>
+                    <td className="muted">{new Date(o.creada).toLocaleDateString('es-PE')}</td>
+                    <td>
+                      {o.razones.length === 0 ? <span className="muted">—</span> :
+                        o.razones.map((r: string) => <span key={r} className="chip est-MANTENIMIENTO" style={{ marginRight: 4 }}>{r}</span>)}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <button className="btn-mini" onClick={() => setABorrar({ tipo: 'om', id: o.id })}>Revisar y borrar</button>
                     </td>
                   </tr>
                 ))}
@@ -241,9 +300,10 @@ export default function Limpieza() {
           onCerrar={() => setABorrar(null)}
           onBorrado={(r) => {
             setHecho(
-              aBorrar.tipo === 'activo'
-                ? `Borrado ${r.code} y ${r.arrastrado} registro(s) asociados.`
-                : `Borrado el usuario ${r.email}.`,
+              aBorrar.tipo === 'usuario'
+                ? `Borrado el usuario ${r.email}.`
+                : `Borrado ${r.code} y ${r.arrastrado} registro(s) asociados.`
+                  + (r.conservado ? ` Se conservaron ${r.conservado} registro(s) que no dependen de la orden.` : ''),
             );
             setABorrar(null);
             cargar();

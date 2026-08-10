@@ -28,6 +28,7 @@ acotado a **LAMINACIÓN (Trenes 1, 2 y 3)**.
 | **No borrar archivos que puedan servir** | Aunque parezcan basura. |
 | **Nunca `npm audit fix --force`** | Ni subidas de versión mayores a mitad de proyecto. |
 | **Los scripts se descargan a `$env:USERPROFILE\Downloads`** | Nunca referenciar rutas internas del entorno de trabajo del agente. |
+| **SIEMPRE escribir los comandos completos** | Nunca «el comando de siempre» ni «como antes». Se escriben enteros: el de ejecutar el script Y los de git, cada vez. Se lo he tenido que pedir dos veces. |
 | **Secretos: jamás en el chat ni en capturas** | Token de Telegram, `JWT_SECRET`, cadenas de conexión. |
 
 ### Formato de entrega obligatorio
@@ -45,6 +46,10 @@ Cada entrega lleva, en este orden:
 ### PowerShell — dos cosas que siempre fallan
 
 - **`npm.cmd`, nunca `npm`**: la ExecutionPolicy bloquea `npm.ps1`.
+- **`git --no-pager diff --stat`, nunca `git diff` a secas.** El paginador se
+  traga los comandos que vengan pegados detrás: pasó con `add`, `commit` y
+  `push`, y el usuario creyó que había subido cuando no había subido nada.
+  Los comandos de git se entregan **de uno en uno**, no en bloque.
 - **La ExecutionPolicy también bloquea los `.ps1` sueltos.** Por eso cada
   script se entrega con un `.bat` al lado:
   `powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0<script>.ps1"`.
@@ -114,6 +119,20 @@ significa mantener dos verdades, y la segunda siempre se queda vieja.
 - En un controlador, **las rutas literales van ANTES que los parámetros**:
   `@Get('traducir')` antes de `@Get(':id')`, o Nest lee "traducir" como un id.
 
+### Trampas de producto — funciones a medio terminar
+
+Antes de dar por hecho que algo «existe», comprobar que tiene **puerta de
+entrada**. Este proyecto tuvo dos casos idénticos:
+
+- **El mapa de la red** llevaba semanas construido con su análisis de impacto,
+  y **no había pantalla para declarar qué está conectado con qué**. Salía como
+  cajas sueltas y parecía roto. (Cerrado en 12.1.)
+- **`Document`**: existe el modelo y existen los permisos `document.read` y
+  `document.manage`, pero el módulo es un cascarón vacío. El ingeniero puede
+  otorgar un permiso que no hace nada. **Sigue abierto.**
+
+La regla: *modelo + endpoint ≠ función*. Sin pantalla, no existe.
+
 ### Frontend
 
 - **Los permisos viajan dentro del token de sesión.** Cambiar un rol no surte
@@ -171,7 +190,8 @@ Causas conocidas de falso positivo, ya resueltas:
 
 ## 6. Estado — agosto 2026
 
-**27 módulos · 26 pantallas · 21 migraciones · 375 pruebas · 6 verificadores.**
+**28 módulos · 30 pantallas · 22 migraciones · 375 pruebas · 6 verificadores.**
+16.788 líneas de backend · 13.499 de frontend · 214 endpoints · 52 modelos.
 
 ### Pendiente, por orden
 
@@ -182,12 +202,28 @@ Causas conocidas de falso positivo, ya resueltas:
 3. **Bloque 9** — campañas de mapeo (repartir zonas, medir avance).
 4. **Ámbito en las rutas por identificador** — hoy un usuario del Tren 2 puede
    pedir la foto de un equipo del Tren 1.
-5. **3G-bis** — mapeo de columnas del Excel de SAP. Espera un export real.
+5. **Módulo de documentos** — cerrar el permiso huérfano.
+6. **3G-bis** — mapeo de columnas del Excel de SAP. Espera un export real.
+
+### Hallazgos de seguridad abiertos (auditoría OWASP 2025, 04/08)
+
+| | Riesgo | Estado |
+|---|---|---|
+| **S-01** | **`JWT_SECRET` filtrado sin rotar.** Con él se puede FIRMAR un token con permisos de administrador. No hace falta usuario ni contraseña | 🔴 **Abierto** |
+| **S-02** | Ámbito no aplicado en rutas por identificador (OWASP A01) | 🟠 Abierto |
+| **S-03** | Sin límite de peticiones fuera de login/usuarios/monitoreo. `/exportacion/todo` genera el libro en memoria | 🟠 Abierto |
+| **S-04** | Al desactivar un usuario, su token vive hasta 15 min. La estrategia JWT no consulta la base | 🟡 Conocido |
+| **S-05** | 26 `@Body() dto: any` | 🟡 Abierto |
+| **S-06** | CI no revisa dependencias. `exceljs` arrastró `glob@7`, `rimraf@2`, `fstream` | 🟡 Abierto |
+| **S-07** | Falta CSP | 🟡 Abierto |
+
+**Procedimiento correcto hoy para dar de baja a alguien:** desactivar **y**
+cerrar todas sus sesiones. Si la salida fue conflictiva, rotar `JWT_SECRET`.
 
 ### Deuda técnica conocida
 
-- 92 `catch(() => [])`.
-- 19 `@Body() dto: any`.
+- 50 `catch(() => [])`.
+- 26 `@Body() dto: any`.
 - NestJS 11 sin actualizar (a propósito: no se sube versión mayor a mitad).
 - Restauración del respaldo **nunca probada**.
 
@@ -220,3 +256,99 @@ Causas conocidas de falso positivo, ya resueltas:
   "no existe" son indistinguibles para quien mira.
 - **Cuando el usuario dice que algo no aparece, lo primero es la sesión**, no
   el despliegue.
+
+---
+
+## 9. Bloque 15 — lo que se aprendió aquí
+
+### La MAC del cliente no existe para un servidor web
+
+Se va a volver a preguntar, así que queda escrito:
+
+> La dirección MAC es de **capa 2** y muere en el primer salto. Al servidor le
+> llega la MAC del último router — en planta, la del gateway, **la misma para
+> todos**. Ningún navegador la expone, ninguna cabecera la trae.
+
+Lo que sí se puede, y es lo que se hizo:
+
+1. **IP** normalizada (`src/common/origen.ts`, una sola función para todo el
+   sistema — dos normalizaciones distintas hacen que un filtro por origen no
+   encuentre la mitad de las líneas).
+2. **Registro de equipos conocidos** — la MAC se **declara a mano**, sacada de
+   la reserva DHCP o de la tabla MAC del switch. Editable desde la UI.
+3. **Identificador de aparato** (`X-Dispositivo`) — pista de auditoría, **no**
+   medida de seguridad: se borra limpiando el navegador. Está dicho así en el
+   código para que nadie lo confunda con un control de acceso.
+
+### Borrar: dos operaciones, no una
+
+**BAJA** (soft, conserva historial) ≠ **PURGA** (hard, el registro nunca debió
+existir). La regla que las separa sin preguntar a nadie:
+
+> **Si hay una orden CERRADA, no se purga.** Una orden cerrada lleva firma y
+> materiales retirados. La basura de pruebas nunca tiene órdenes cerradas.
+
+Mismo criterio con personas: quien firmó algo se **desactiva**, nunca se
+borra, o quedan documentos firmados por nadie.
+
+### Reglas nuevas que no se deshacen
+
+- **Dos llaves para lo irreversible:** el guard revisa el **permiso**, el
+  servicio revisa el **rol** (`Jefe de Mantenimiento`). Un permiso se marca
+  por error al crear un rol; el cargo no.
+- **Confirmación escrita a mano**, no `confirm()`. Escribir el código obliga a
+  mirar cuál se borra. El error real es la fila de al lado.
+- **Se audita ANTES de borrar.** Si se anotara después y el borrado fallara a
+  medias, quedaría un registro diciendo que se borró algo que sigue ahí.
+- **La cascada la hace PostgreSQL**, no código a mano: una relación añadida
+  más adelante se olvidaría.
+- **La auditoría se copia, no se enlaza.** `origen` guarda el *nombre* del
+  equipo de ese día. Una auditoría que cambia porque alguien editó otra tabla
+  no es una auditoría.
+- **La purga de auditoría exige 90 días** y **nunca borra los `PURGE_*`**.
+- **Nunca se borra al único Jefe de Mantenimiento activo.**
+
+### Detalle de rendimiento que se repite
+
+La auditoría escribe en **cada petición**. Todo lo que se le cuelgue encima
+—como traducir la IP a nombre de equipo— tiene que ir **cacheado en memoria**
+(un minuto) y **dentro de la promesa**, nunca antes: la respuesta al usuario
+ya se fue.
+
+### El script de entrega cambió de forma
+
+De `.ps1` con base64 se pasó a **ZIP con carpeta `archivos/` + `APLICAR.bat`**.
+Motivo: 29 archivos en base64 dentro de un `.ps1` es un archivo de miles de
+líneas imposible de revisar. El `.ps1` ahora:
+
+1. Comprueba que el proyecto está en el Escritorio.
+2. **Comprueba que los paquetes ANTERIORES están aplicados** y para si no
+   (si no, el build falla con errores que mienten y se pierde media hora).
+3. **Respalda lo que va a pisar** en `_respaldo-antes-<bloque>-<fecha>`.
+4. Copia, regenera Prisma, verifica, compila, prueba.
+5. **Para. Imprime los comandos de git uno a uno. No toca git.**
+
+### Bloque 15.1 — purga de OM, y dos errores míos que costaron un commit sucio
+
+**El freno del almacén.** Una OM de la que salió material **no se purga**. El
+retiro escribió un `StockMovement` que **no cuelga de la orden**: borrar la
+orden se lleva la línea de material y deja el movimiento sin explicación. Y
+borrar el papel no devuelve los repuestos. Primero se devuelve el material por
+el módulo de almacén; después la orden queda limpia.
+
+**Lo que sobrevive hay que decirlo en pantalla.** Al purgar una orden de MAPEO,
+los activos levantados **no se borran** (relación opcional → `SET NULL`). Si
+no se avisa, alguien cree que borró 12 cámaras.
+
+**Error mío 1 — el respaldo acabó dentro del repositorio.** El `.gitignore`
+tenía `_respaldo_*/` y yo nombré la carpeta `_respaldo-antes-...` con guión.
+No coincidía. Se comitearon 14 archivos duplicados.
+**Regla: el respaldo del script va FUERA del proyecto**, al Escritorio. Lo que
+está fuera del repositorio no se puede comitear por accidente, y no depende de
+que un patrón del `.gitignore` esté bien escrito.
+
+**Error mío 2 — `npx` en la consola normal.** El script funciona porque corre
+con `-ExecutionPolicy Bypass`; la consola del usuario no. `npx` es un `.ps1` y
+lo bloquea la política.
+**Regla: los comandos que se le pasan al usuario para pegar en SU consola usan
+`npx.cmd`, nunca `npx`.**
