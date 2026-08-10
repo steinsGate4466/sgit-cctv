@@ -64,6 +64,7 @@ model User {
   sesiones        Sesion[]
 
   @@map("users")
+  inspeccionesGrua InspeccionGrua[] @relation("InspeccionGruaPor")
 }
 
 model Role {
@@ -409,6 +410,7 @@ model Asset {
   spareLinks    SparePartAsset[]
   swapsRemoved   WorkOrderSwap[] @relation("SwapRemoved")
   swapsInstalled WorkOrderSwap[] @relation("SwapInstalled")
+  inspeccionesGrua InspeccionGrua[] @relation("InspeccionGruaAsset")
   preventivePlan PreventivePlan?
   photos        AssetPhoto[]
   // ---- Fichas por tipo (Bloque 2) ----
@@ -862,6 +864,7 @@ model WorkOrder {
   incidentId   String?         // incidencia que originó la OM (opcional)
   incident     Incident?          @relation(fields: [incidentId], references: [id])
   evidences    WorkOrderEvidence[]
+  inspeccionesGrua InspeccionGrua[] @relation("InspeccionGruaWo")
 
   // ---- RECEPCIÓN (Bloque 1) ----
   // Producción crea la orden en SAP y la manda por WhatsApp al ingeniero, que
@@ -1840,4 +1843,144 @@ model ConfiguracionSistema {
   actualizadoPor String?
 
   @@map("configuracion_sistema")
+}
+
+// =============================================================================
+//  INSPECCIÓN DE CÁMARAS DE GRÚA (bloque 14)
+// =============================================================================
+//  POR QUÉ UN MODELO PROPIO Y NO UNA ORDEN NORMAL
+//  Una cámara de grúa no falla como una cámara de pared. Falla por tres cosas
+//  que ninguna otra cámara de la planta tiene:
+//
+//   1. EL CABLE SE ROMPE POR FATIGA. La grúa se mueve todo el día y el cable
+//      viaja en cadena portacables o festón. No se corta de golpe: se van
+//      partiendo hilos y el enlace empieza a caerse "a veces". Ese es el
+//      "se arregla y vuelve a fallar" clásico, y sin registrar los ciclos y
+//      el estado del chicote nadie lo relaciona jamás.
+//
+//   2. LA ANTENA SE DESALINEA. La imagen viaja por radioenlace porque un
+//      cable fijo hasta una grúa en movimiento no existe. Con vibración y
+//      golpes de viento, la antena pierde puntería y la señal cae. Anotar el
+//      dBm en cada visita es lo que convierte "se ve mal" en una curva.
+//
+//   3. NO SE LLEGA SIN MANLIFT. Cada intervención cuesta un equipo caro, un
+//      permiso de altura y a veces parar la grúa. Por eso la inspección se
+//      planifica: hay que subir UNA vez y revisarlo TODO.
+//
+//  De ahí que el formulario sea largo a propósito: subir dos veces cuesta
+//  más que rellenar veinte campos.
+// =============================================================================
+
+model InspeccionGrua {
+  id            String   @id @default(uuid())
+  code          String   @unique // ej: GRU-2026-0001
+
+  /// La cámara inspeccionada. Es el ancla: todo lo demás describe su entorno.
+  assetId       String
+  asset         Asset    @relation("InspeccionGruaAsset", fields: [assetId], references: [id], onDelete: Cascade)
+
+  /// Orden de mantenimiento que la originó, si vino de una. Puede ser null:
+  /// también se registran inspecciones de campaña sin OM previa.
+  workOrderId   String?
+  workOrder     WorkOrder? @relation("InspeccionGruaWo", fields: [workOrderId], references: [id])
+
+  /// Identificación de la grúa en planta. Texto libre a propósito: los
+  /// nombres de grúa los pone Producción y no están en ningún catálogo
+  /// nuestro ("Puente grúa 2", "GRU-107", "la del patio de palanquilla").
+  grua          String
+  posicionEnGrua String?  // cabina, pluma, lecho, gancho, sala eléctrica
+
+  // ---------------- ACCESO ----------------
+  /// Lo primero que hay que saber antes de programar nada.
+  requiereManlift Boolean @default(true)
+  alturaMetros    Float?
+  /// A veces la grúa se puede bajar a piso o llevar a la zona de parqueo, y
+  /// entonces NO hace falta manlift. Es la diferencia entre una intervención
+  /// de una hora y una de un día con permiso de altura.
+  seBajaAPiso     Boolean @default(false)
+  requiereParada  Boolean @default(false) // hay que parar la grúa / coordinar con Producción
+  accessRequestId String?                 // permiso de altura asociado, si se pidió
+
+  // ---------------- CÁMARA ----------------
+  camaraEstado    ComponenteEstado @default(NO_REVISADO)
+  camaraObs       String?
+  lenteSucio      Boolean @default(false)
+  carcasaDanada   Boolean @default(false)
+  soporteFlojo    Boolean @default(false)
+
+  // ---------------- ANTENA / RADIOENLACE ----------------
+  /// La imagen sale de la grúa por radio. Sin esto no hay video.
+  antenaAssetId   String?
+  antenaEstado    ComponenteEstado @default(NO_REVISADO)
+  senalDbm        Int?     // -45 buena, -70 justa, -80 se cae
+  senalDbmAnterior Int?    // se copia de la última inspección para ver la deriva
+  antenaAlineada  Boolean @default(true)
+  antenaObs       String?
+
+  // ---------------- CABLEADO ----------------
+  /// El punto que más falla y el que menos se mira.
+  cableEstado     ComponenteEstado @default(NO_REVISADO)
+  enCadenaPortacables Boolean @default(false)
+  chicoteDanado   Boolean @default(false) // el tramo flexible, el que se fatiga
+  prensaestopaOk  Boolean @default(true)  // si entra agua o polvo, el conector se pica
+  conectorOxidado Boolean @default(false)
+  metrosAproximados Float?
+  cableObs        String?
+
+  // ---------------- ALIMENTACIÓN ----------------
+  alimentacionEstado ComponenteEstado @default(NO_REVISADO)
+  poe             Boolean @default(true)
+  fuenteAssetId   String?
+  alimentacionObs String?
+
+  // ---------------- GRABACIÓN ----------------
+  /// Muchas grúas llevan grabador local porque el radioenlace se cae y la
+  /// grabación no puede depender de él.
+  grabadorLocal   Boolean @default(false)
+  nvrAssetId      String?
+  canalNvr        Int?
+  grabaOk         Boolean @default(true)
+  diasRetencion   Int?
+  grabacionObs    String?
+
+  // ---------------- GABINETE EN LA GRÚA ----------------
+  gabineteEstado  ComponenteEstado @default(NO_REVISADO)
+  gabineteHermetico Boolean @default(true)
+  gabineteObs     String?
+
+  // ---------------- RESULTADO ----------------
+  resultado       ResultadoInspeccion @default(OPERATIVA)
+  hallazgos       String?
+  accionesRealizadas String?
+  requiereSeguimiento Boolean @default(false)
+  proximaRevision DateTime?
+
+  inspeccionadoPorId String?
+  inspeccionadoPor   User?    @relation("InspeccionGruaPor", fields: [inspeccionadoPorId], references: [id])
+  fecha           DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([assetId])
+  @@index([grua])
+  @@index([fecha])
+  @@map("inspecciones_grua")
+}
+
+/// Estado de cada parte revisada. NO_REVISADO es el valor por defecto a
+/// propósito: si el técnico no lo miró, el sistema no debe decir que estaba
+/// bien. "Sin revisar" y "conforme" son cosas distintas y confundirlas es
+/// exactamente cómo se pierde una avería.
+enum ComponenteEstado {
+  NO_REVISADO
+  CONFORME
+  OBSERVADO   // funciona, pero hay que volver
+  NO_CONFORME // hay que intervenir
+}
+
+enum ResultadoInspeccion {
+  OPERATIVA
+  OPERATIVA_CON_OBSERVACIONES
+  FUERA_DE_SERVICIO
+  NO_SE_PUDO_ACCEDER   // faltó manlift, la grúa estaba en producción, etc.
 }

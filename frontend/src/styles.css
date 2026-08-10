@@ -1486,3 +1486,22 @@ label.campo > span,
   font-weight: 600;
   letter-spacing: .1px;
 }
+
+/* =========================================================================
+   BLOQUE 14 — INSPECCIÓN DE CÁMARAS DE GRÚA
+   Formulario largo a propósito. Las casillas van en rejilla para que quepan
+   sin convertir la ventana en un rollo infinito en el móvil.
+   ========================================================================= */
+
+.casillas {
+  display: grid; gap: 6px 14px; margin: 4px 0 12px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+.casilla {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; cursor: pointer; padding: 5px 8px;
+  border: 1px solid var(--border, #dfe3ea); border-radius: 8px; background: #fff;
+}
+.casilla:hover { border-color: #9fb4d4; }
+.casilla input { width: 16px; height: 16px; flex: 0 0 auto; }
+@media (max-width: 560px) { .casillas { grid-template-columns: 1fr; } }

@@ -11,6 +11,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { MonitoreoModule } from './modules/monitoreo/monitoreo.module';
 import { ExportacionModule } from './modules/exportacion/exportacion.module';
+import { GruaModule } from './modules/grua/grua.module';
 import { NotificacionesModule } from './modules/notificaciones/notificaciones.module';
 import { UsersModule } from './modules/users/users.module';
 import { LocationsModule } from './modules/locations/locations.module';
@@ -64,6 +65,7 @@ import { PredictiveModule } from './modules/predictive/predictive.module';
     MonitoreoModule,   // estado observado: montado y en espera de TI (bloque 8)
     NotificacionesModule, // avisos salientes: montado y apagado sin token (4F)
     ExportacionModule,    // descarga a Excel: temas sueltos y libro completo (11.1)
+    GruaModule,           // inspeccion de camaras de grua: antena, cable, manlift (14)
   ],
   controllers: [HealthController],
   providers: [

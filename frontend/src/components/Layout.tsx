@@ -30,6 +30,7 @@ const TITLES: Record<string, string> = {
   '/monitoreo': 'Monitoreo de red',
   '/grabadores': 'Grabadores y canales',
   '/conexiones': 'Conexiones de red',
+  '/gruas': 'Cámaras de grúa',
   '/exportar': 'Exportar a Excel',
   '/avisos': 'Avisos',
 };
@@ -122,12 +123,15 @@ export default function Layout() {
     },
     {
       titulo: 'Mantenimiento',
-      rutas: ['/preventive', '/corrective', '/predictive', '/improvements'],
+      rutas: ['/preventive', '/corrective', '/predictive', '/improvements', '/gruas'],
       items: [
         can('wo.read') && <NavLink key="p" to="/preventive"><Icono n="preventivo" /> Preventivo</NavLink>,
         can('wo.read') && <NavLink key="c" to="/corrective"><Icono n="correctivo" /> Correctivo</NavLink>,
         can('wo.read') && <NavLink key="pr" to="/predictive"><Icono n="predictivo" /> Predictivo</NavLink>,
         can('wo.read') && <NavLink key="me" to="/improvements"><Icono n="mejora" /> Mejora</NavLink>,
+        // Cámaras de grúa: mantenimiento propio porque falla distinto
+        // (cable fatigado, antena desalineada, no se llega sin manlift).
+        can('wo.read') && <NavLink key="gr2" to="/gruas"><Icono n="tren" /> Cámaras de grúa</NavLink>,
       ].filter(Boolean) as ReactNode[],
     },
     {
