@@ -149,19 +149,7 @@ export default function Audit() {
                     <td><span className={'badge ' + badgeOf(e.action)}>{actionEs(e.action)}</span></td>
                     <td className="muted" style={{ fontSize: 12 }}>{entityEs(e.entity)}</td>
                     <td style={{ fontSize: 12 }}>{detailOf(e)}</td>
-                    {/* ORIGEN: tres datos apilados, del más útil al más técnico.
-                        Arriba el sitio ("PC Púlpito T2") cuando la IP está en el
-                        registro de equipos; si no, la IP cruda con un aviso de
-                        que ese equipo no está registrado. */}
-                    <td style={{ fontSize: 11.5, lineHeight: 1.5 }}>
-                      {e.origen
-                        ? <div style={{ fontWeight: 700, color: 'var(--navy)' }}>{e.origen}</div>
-                        : e.ip && e.ip !== 'local (servidor)'
-                          ? <div className="muted" title="Esta IP no está en el registro de equipos conocidos">equipo sin registrar</div>
-                          : null}
-                      <div className="muted" style={{ fontFamily: 'monospace' }}>{e.ip || '—'}</div>
-                      {e.dispositivo && <div className="muted">{e.dispositivo}</div>}
-                    </td>
+                    <td className="muted" style={{ fontFamily: 'monospace', fontSize: 11 }}>{e.ip || '—'}</td>
                   </tr>
                 ))}
                 {!rows.length && (

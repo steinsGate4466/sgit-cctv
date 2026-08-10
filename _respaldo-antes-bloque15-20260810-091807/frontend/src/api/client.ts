@@ -5,50 +5,6 @@ const baseURL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3000
 export const api = axios.create({ baseURL });
 
 /* =========================================================================
-   IDENTIFICADOR DE APARATO — "¿desde qué PC se hizo esto?"
-   -------------------------------------------------------------------------
-   HAY QUE DECIRLO CLARO PORQUE SE PREGUNTA SIEMPRE:
-   **un navegador NO puede leer la MAC de la máquina.** La MAC es de capa 2 y
-   no sale de la red local; ningún sitio web del mundo la ve. Lo que sí se
-   puede es que este navegador se presente siempre con el mismo número.
-
-   Es un número aleatorio que se genera una vez y se queda guardado. No dice
-   quién eres —eso ya lo dice el token— sino SI ES EL MISMO APARATO DE
-   SIEMPRE. Sirve para distinguir "entró desde el PC de siempre" de "entró
-   desde un aparato que nunca habíamos visto", que es la pregunta real
-   cuando algo huele mal.
-
-   NO ES UNA MEDIDA DE SEGURIDAD: se borra limpiando el navegador y se puede
-   falsificar. Es una pista de auditoría, y así está tratado en el servidor.
-   La vinculación de aparato de verdad (bloque 13.1) va aparte y sí bloquea.
-   ========================================================================= */
-const CLAVE_DISPOSITIVO = 'sgit.dispositivo';
-
-function idDeEsteAparato(): string {
-  try {
-    let v = localStorage.getItem(CLAVE_DISPOSITIVO);
-    if (!v || v.length < 8) {
-      // crypto.randomUUID no existe en navegadores viejos ni fuera de HTTPS.
-      v = (globalThis.crypto?.randomUUID?.() ||
-        `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`)
-        .replace(/[^A-Za-z0-9-]/g, '');
-      localStorage.setItem(CLAVE_DISPOSITIVO, v);
-    }
-    return v;
-  } catch {
-    // Navegador con el almacenamiento bloqueado. Sin identificador, y ya está:
-    // el sistema tiene que seguir funcionando igual.
-    return '';
-  }
-}
-
-api.interceptors.request.use((config) => {
-  const id = idDeEsteAparato();
-  if (id) config.headers.set?.('X-Dispositivo', id);
-  return config;
-});
-
-/* =========================================================================
    AVISO DE FALLO — el arreglo de los 92 errores tragados
    -------------------------------------------------------------------------
    EL PROBLEMA

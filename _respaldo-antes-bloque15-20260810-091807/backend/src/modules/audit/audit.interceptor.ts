@@ -2,8 +2,6 @@ import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nes
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { AuditService } from './audit.service';
-import { EquiposService } from '../equipos/equipos.service';
-import { origenDe } from '../../common/origen';
 
 // Mapa método HTTP -> acción de auditoría.
 const ACTIONS: Record<string, string> = {
@@ -30,10 +28,7 @@ const SKIP: RegExp[] = [
  */
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
-  constructor(
-    private readonly audit: AuditService,
-    private readonly equipos: EquiposService,
-  ) {}
+  constructor(private readonly audit: AuditService) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const req = context.switchToHttp().getRequest();
@@ -49,26 +44,15 @@ export class AuditInterceptor implements NestInterceptor {
           (response && typeof response === 'object' && (response as any).id) ||
           req.params?.id ||
           null;
-        const orig = origenDe(req);
         // Fire-and-forget: no bloquea ni afecta la respuesta.
-        // La traducción IP → nombre de equipo va DENTRO de la promesa, no
-        // antes: si el registro de equipos falla o tarda, la petición del
-        // usuario ya se fue hace rato y no se entera.
-        void this.equipos
-          .nombrePorIp(orig.ip)
-          .then((equipo) =>
-            this.audit.record({
-              userId: req.user?.userId ?? null,
-              action,
-              entity: this.entityFromUrl(url),
-              entityId,
-              after: action === 'DELETE' ? undefined : response,
-              ip: orig.ip,
-              dispositivo: orig.dispositivo,
-              dispositivoId: orig.dispositivoId,
-              origen: equipo,
-            }),
-          );
+        void this.audit.record({
+          userId: req.user?.userId ?? null,
+          action,
+          entity: this.entityFromUrl(url),
+          entityId,
+          after: action === 'DELETE' ? undefined : response,
+          ip: (req.headers?.['x-forwarded-for'] as string) || req.ip || null,
+        });
       }),
     );
   }

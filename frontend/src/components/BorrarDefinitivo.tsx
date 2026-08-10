@@ -1,0 +1,128 @@
+import { useEffect, useState } from 'react';
+import { api } from '../api/client';
+import Modal from './Modal';
+
+/**
+ * BORRADO DEFINITIVO — el mismo diálogo en Activos y en Limpieza.
+ *
+ * Existe como componente compartido a propósito: dos diálogos de borrado que
+ * evolucionan por separado acaban con uno de los dos sin la confirmación
+ * escrita, y ese es justo el que alguien va a usar el día malo.
+ *
+ * SIEMPRE: primero se pide la vista previa al servidor y se enseña qué se
+ * lleva por delante; después hay que escribir el código a mano.
+ */
+export default function BorrarDefinitivo({
+  tipo, id, onCerrar, onBorrado,
+}: {
+  tipo: 'activo' | 'usuario';
+  id: string;
+  onCerrar: () => void;
+  onBorrado: (r: any) => void;
+}) {
+  const [previa, setPrevia] = useState<any>(null);
+  const [cargando, setCargando] = useState(true);
+  const [confirmacion, setConfirmacion] = useState('');
+  const [borrando, setBorrando] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let vivo = true;
+    api.get(`/purga/${tipo}/${id}`)
+      .then((r) => { if (vivo) setPrevia(r.data); })
+      .catch((e) => { if (vivo) setError(e?.response?.data?.message || 'No se pudo consultar.'); })
+      .finally(() => { if (vivo) setCargando(false); });
+    return () => { vivo = false; };
+  }, [tipo, id]);
+
+  const esperado = previa
+    ? (tipo === 'activo' ? previa.activo?.code : previa.usuario?.email) || ''
+    : '';
+  const puede = !!previa?.sePuedePurgar && confirmacion.trim() === esperado.trim();
+
+  async function borrar() {
+    setBorrando(true); setError('');
+    try {
+      const r = await api.post(`/purga/${tipo}/${id}`, { confirmacion });
+      onBorrado(r.data);
+    } catch (e: any) {
+      setError(e?.response?.data?.message || 'No se pudo borrar.');
+    } finally { setBorrando(false); }
+  }
+
+  return (
+    <Modal
+      title={tipo === 'activo' ? 'Borrar definitivamente el activo' : 'Borrar definitivamente el usuario'}
+      onClose={onCerrar}
+      acciones={
+        <>
+          <button className="btn-mini" onClick={onCerrar}>Cancelar</button>
+          {previa?.sePuedePurgar && (
+            <button className="btn-peligro" onClick={borrar} disabled={!puede || borrando}>
+              {borrando ? 'Borrando…' : 'Borrar definitivamente'}
+            </button>
+          )}
+        </>
+      }
+    >
+      {cargando && <p className="muted">Comprobando qué se llevaría por delante…</p>}
+      {error && <div className="aviso-error" style={{ marginBottom: 10 }}>{error}</div>}
+
+      {previa && !previa.sePuedePurgar && (
+        <div className="card vacio" style={{ textAlign: 'left', margin: 0 }}>
+          <h3 style={{ color: '#b3261e', marginTop: 0 }}>Esto no se borra</h3>
+          <p style={{ margin: 0 }}>{previa.motivoSiNo}</p>
+          {tipo === 'activo' && (
+            <p style={{ marginBottom: 0, fontSize: 13 }}>
+              Si el equipo salió de planta, lo correcto es <b>darlo de baja</b>:
+              desaparece de los listados y conserva su historial.
+            </p>
+          )}
+        </div>
+      )}
+
+      {previa?.sePuedePurgar && (
+        <>
+          <div className="card peligro" style={{ margin: '0 0 12px' }}>
+            Esto <b>no se puede deshacer</b>. No es dar de baja: el registro
+            desaparece de la base de datos.
+          </div>
+
+          {tipo === 'activo' ? (
+            <>
+              <p style={{ fontSize: 13.5, margin: '0 0 8px' }}>
+                Se borrará <b>{previa.activo.code}</b> ({previa.activo.tipo})
+                {previa.activo.lugar ? <> de <b>{previa.activo.lugar}</b></> : null}.
+              </p>
+              {previa.arrastra?.length > 0 ? (
+                <>
+                  <div className="section-title">Y con él, esto:</div>
+                  <ul style={{ fontSize: 13, lineHeight: 1.8, margin: 0 }}>
+                    {previa.arrastra.map((x: any) => <li key={x.que}><b>{x.n}</b> {x.que}</li>)}
+                  </ul>
+                </>
+              ) : <p className="muted" style={{ fontSize: 13 }}>No arrastra nada: el registro está suelto.</p>}
+            </>
+          ) : (
+            <p style={{ fontSize: 13.5 }}>
+              Se borrará <b>{previa.usuario.nombre}</b> ({previa.usuario.email}).
+              No firmó ningún documento, así que no queda nada huérfano.
+              {previa.ordenesAsignadas > 0 && (
+                <> Tenía <b>{previa.ordenesAsignadas}</b> orden(es) asignada(s): quedarán sin técnico.</>
+              )}
+            </p>
+          )}
+
+          <label className="campo" style={{ marginTop: 14 }}>
+            <span>Escribe <code>{esperado}</code> para confirmar</span>
+            <input value={confirmacion} onChange={(e) => setConfirmacion(e.target.value)}
+                   placeholder="Escríbelo exactamente" autoComplete="off" />
+            <small className="muted">
+              Se pide escribirlo para que no se borre la fila de al lado por un clic.
+            </small>
+          </label>
+        </>
+      )}
+    </Modal>
+  );
+}

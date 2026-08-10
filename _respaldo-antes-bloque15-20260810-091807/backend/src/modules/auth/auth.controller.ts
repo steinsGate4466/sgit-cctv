@@ -18,10 +18,8 @@ export class AuthController {
   @Public()
   @Freno(CUPO_LOGIN)
   @Post('login')
-  login(@Body() dto: LoginDto, @Ip() ip: string, @Headers('user-agent') ua: string) {
-    // El user-agent se guarda en la sesión para que alguien reconozca la suya
-    // en la lista: "Chrome en Windows" dice más que una fecha y una IP.
-    return this.auth.login(dto, ip, ua);
+  login(@Body() dto: LoginDto, @Ip() ip: string) {
+    return this.auth.login(dto, ip);
   }
 
   @Public()

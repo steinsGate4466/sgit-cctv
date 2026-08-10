@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { QueryAuditDto } from './dto/query-audit.dto';
-import { normalizarIp } from '../../common/origen';
 
 export interface AuditEntry {
   userId?: string | null;
@@ -11,13 +10,6 @@ export interface AuditEntry {
   before?: any;
   after?: any;
   ip?: string | null;
-  /// Navegador y sistema, ya resumidos ("Chrome en Windows").
-  dispositivo?: string | null;
-  /// Identificador estable del aparato. Sobrevive al cambio de IP.
-  dispositivoId?: string | null;
-  /// Nombre del equipo conocido al que corresponde la IP, si está registrada.
-  /// Se COPIA: la auditoría no puede cambiar porque alguien renombre un PC.
-  origen?: string | null;
 }
 
 /**
@@ -29,13 +21,22 @@ export class AuditService {
   constructor(private prisma: PrismaService) {}
 
   /**
-   * La normalización vive en `src/common/origen.ts` para que el login, el
-   * interceptor y esto usen exactamente la misma. Dos normalizaciones
-   * distintas de la misma IP hacen que un filtro por origen no encuentre
-   * la mitad de las líneas.
+   * Normaliza la dirección de origen para que la traza sea legible y útil.
+   *  - Node antepone "::ffff:" a las IPv4 (::ffff:190.12.3.4 → 190.12.3.4).
+   *  - "::1" y "127.0.0.1" son accesos desde el propio servidor.
+   *  - Si vienen varias IP separadas por coma (cadena de proxies), la primera
+   *    es la del cliente real.
    */
   private normalizeIp(ip?: string | null): string | null {
-    return normalizarIp(ip);
+    if (!ip) return null;
+    let v = String(ip).trim();
+    if (!v) return null;
+    // Marcas internas del sistema (tareas automáticas): se dejan tal cual.
+    if (v.startsWith('sistema')) return v;
+    if (v.includes(',')) v = v.split(',')[0].trim();
+    if (v.startsWith('::ffff:')) v = v.slice(7);
+    if (v === '::1' || v === '127.0.0.1') return 'local (servidor)';
+    return v;
   }
 
   async record(entry: AuditEntry): Promise<void> {
@@ -49,9 +50,6 @@ export class AuditService {
           before: entry.before ?? undefined,
           after: entry.after ?? undefined,
           ip: this.normalizeIp(entry.ip),
-          dispositivo: entry.dispositivo ?? null,
-          dispositivoId: entry.dispositivoId ?? null,
-          origen: entry.origen ?? null,
         },
       });
     } catch {

@@ -79,14 +79,7 @@ async function bootstrap() {
 
   if (corsEnv && corsEnv.trim()) {
     const origins = corsEnv.split(',').map((o) => o.trim()).filter(Boolean);
-    // `allowedHeaders` explícito: por defecto CORS refleja lo que pida el
-    // navegador, y funciona — hasta el día que alguien lo endurece y la
-    // cabecera de aparato deja de llegar sin que nadie sepa por qué.
-    app.enableCors({
-      origin: origins,
-      credentials: true,
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Dispositivo'],
-    });
+    app.enableCors({ origin: origins, credentials: true });
   } else if (enProduccion) {
     // eslint-disable-next-line no-console
     console.error(

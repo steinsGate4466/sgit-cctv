@@ -4,7 +4,6 @@ import { randomUUID } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../../prisma/prisma.service';
-import { normalizarIp, resumirAgente } from '../../common/origen';
 import { AuditService } from '../audit/audit.service';
 import { LoginDto } from './dto/login.dto';
 
@@ -31,7 +30,7 @@ export class AuthService {
    * Qué recibe: LoginDto. Qué devuelve: { accessToken, refreshToken, user }.
    * Incluye bloqueo por intentos fallidos para frenar fuerza bruta.
    */
-  async login(dto: LoginDto, ip?: string | null, dispositivo?: string | null) {
+  async login(dto: LoginDto, ip?: string | null) {
     const key = dto.email.trim().toLowerCase();
     const now = Date.now();
 
@@ -65,7 +64,7 @@ export class AuthService {
     this.attempts.delete(key);
     await this.prisma.user.update({ where: { id: user!.id }, data: { lastLoginAt: new Date() } });
     await this.audit.record({ userId: user!.id, action: 'LOGIN', entity: 'auth', entityId: user!.id, ip });
-    return this.buildTokens(user, ip, resumirAgente(dispositivo));
+    return this.buildTokens(user, ip);
   }
 
   /** Registra un intento fallido y bloquea la cuenta si se supera el máximo. */
@@ -149,7 +148,7 @@ export class AuthService {
       }).catch(() => null);
     }
 
-    return this.buildTokens(user, ip, resumirAgente(dispositivo));
+    return this.buildTokens(user, ip, dispositivo);
   }
 
   /** Cerrar sesión de verdad: la sesión deja de valer al instante. */
@@ -180,7 +179,7 @@ export class AuthService {
     });
     return filas.map((s) => ({
       id: s.id, creadaEn: s.creadaEn, ultimoUsoEn: s.ultimoUsoEn,
-      ip: s.ip, dispositivo: s.dispositivo, equipo: s.equipo,
+      ip: s.ip, dispositivo: s.dispositivo,
     }));
   }
 
@@ -215,7 +214,7 @@ export class AuthService {
         id: jti,
         userId: user.id,
         expiraEn: new Date(Date.now() + dias * 86400000),
-        ip: normalizarIp(ip),
+        ip: ip?.slice(0, 60) || null,
         dispositivo: dispositivo?.slice(0, 120) || null,
       },
     }).catch(() => null);

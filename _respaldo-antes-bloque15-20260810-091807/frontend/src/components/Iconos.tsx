@@ -22,11 +22,6 @@ const D: Record<string, string> = {
   cableado: 'M7 3v6a5 5 0 005 5 5 5 0 015 5v2M9 3v3M5 6h4M15 22v-3M13 19h4',
   mapeo: 'M9 4h6v3H9zM7 4H5v16h14V4h-2M9 12l2 2 4-4',
   acceso: 'M12 3l8 4v5c0 5-3.4 8.4-8 9-4.6-.6-8-4-8-9V7z M9 12l2 2 4-4',
-  // Monitor con peana: el registro de PCs conocidos.
-  pc: 'M3 4h18v11H3zM9 19h6M12 15v4M7 19h10',
-  // Escoba: limpieza de datos. No es una papelera a propósito —la papelera
-  // sugiere que se puede recuperar, y de aquí no se recupera nada.
-  escoba: 'M7 21l4-8M17 21l-4-8M9 13h6l2-9-4 1-1-3-1 3-4-1z',
   // Operación
   incidencia: 'M12 3l9 16H3zM12 10v4M12 17h.01',
   orden: 'M14.5 3.5a5 5 0 00-6.6 6.2L3 14.6 5.4 17l4.9-4.9a5 5 0 006.2-6.6L13.6 8 11 5.4z',

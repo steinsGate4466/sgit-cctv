@@ -12,8 +12,6 @@ import { RolesModule } from './modules/roles/roles.module';
 import { MonitoreoModule } from './modules/monitoreo/monitoreo.module';
 import { ExportacionModule } from './modules/exportacion/exportacion.module';
 import { GruaModule } from './modules/grua/grua.module';
-import { PurgaModule } from './modules/purga/purga.module';
-import { EquiposModule } from './modules/equipos/equipos.module';
 import { NotificacionesModule } from './modules/notificaciones/notificaciones.module';
 import { UsersModule } from './modules/users/users.module';
 import { LocationsModule } from './modules/locations/locations.module';
@@ -68,8 +66,6 @@ import { PredictiveModule } from './modules/predictive/predictive.module';
     NotificacionesModule, // avisos salientes: montado y apagado sin token (4F)
     ExportacionModule,    // descarga a Excel: temas sueltos y libro completo (11.1)
     GruaModule,           // inspeccion de camaras de grua: antena, cable, manlift (14)
-    EquiposModule,        // registro de PCs conocidos: traduce IP -> sitio (15)
-    PurgaModule,          // borrado definitivo de basura, solo el Jefe (15)
   ],
   controllers: [HealthController],
   providers: [

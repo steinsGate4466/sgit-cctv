@@ -1427,19 +1427,9 @@ model AuditLog {
   before    Json?
   after     Json?
   ip        String?
-  /// Navegador y sistema, resumidos: "Chrome en Windows".
-  dispositivo   String?
-  /// Identificador del aparato que manda el navegador. Sobrevive al cambio de IP.
-  dispositivoId String?
-  /// Nombre del equipo conocido AL QUE CORRESPONDÍA LA IP ESE DÍA.
-  /// Copiado, no enlazado: si el registro se edita o se borra, el histórico
-  /// tiene que seguir diciendo lo mismo.
-  origen        String?
   createdAt DateTime @default(now())
 
   @@index([entity, entityId])
-  @@index([dispositivoId])
-  @@index([createdAt])
   @@map("audit_logs")
 }
 
@@ -1818,10 +1808,6 @@ model Sesion {
   /// Navegador o aparato, recortado. Sirve para que alguien reconozca su
   /// propia sesión en la lista: "Chrome en Windows" dice más que un id.
   dispositivo      String?
-  /// Identificador estable del aparato (ver src/common/origen.ts).
-  dispositivoId    String?
-  /// Nombre del equipo conocido, si la IP estaba en el registro.
-  equipo           String?
 
   @@index([userId])
   @@index([expiraEn])
@@ -1997,38 +1983,4 @@ enum ResultadoInspeccion {
   OPERATIVA_CON_OBSERVACIONES
   FUERA_DE_SERVICIO
   NO_SE_PUDO_ACCEDER   // faltó manlift, la grúa estaba en producción, etc.
-}
-
-// =====================================================================
-//  EQUIPOS CONOCIDOS — el diccionario de "¿desde qué PC?"
-//
-//  POR QUÉ LA MAC SE ESCRIBE A MANO Y NO SE DETECTA
-//  Porque no se puede detectar. La MAC es de capa 2 y no pasa del primer
-//  router: al servidor le llega la del gateway, la misma para toda la planta.
-//  El técnico de redes la saca de la reserva DHCP o de la tabla MAC del
-//  switch —que es donde vive— y la escribe aquí. Declarada, no adivinada.
-//
-//  Con esto, una línea de auditoría deja de decir "10.20.3.14" y pasa a decir
-//  "PC Púlpito Tren 2", que es lo que alguien necesita para ir a mirar.
-// =====================================================================
-model EquipoConocido {
-  id          String   @id @default(uuid())
-  /// "PC Púlpito Tren 2", "Laptop de mantenimiento", "Celular del supervisor".
-  nombre      String
-  /// IP fija o reservada por DHCP. Única: si se repite, la traducción miente.
-  ip          String?  @unique
-  /// Se escribe a mano. Ver el comentario de arriba.
-  mac         String?  @unique
-  /// PC | LAPTOP | CELULAR | TABLET | SERVIDOR | OTRO
-  tipo        String   @default("PC")
-  area        String?
-  ubicacion   String?
-  responsable String?
-  notas       String?
-  activo      Boolean  @default(true)
-  creadoEn    DateTime @default(now())
-  editadoEn   DateTime @default(now()) @updatedAt
-
-  @@index([activo])
-  @@map("equipos_conocidos")
 }

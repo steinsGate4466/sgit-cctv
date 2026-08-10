@@ -9,7 +9,6 @@ import { useAutoOcultar } from '../auth/useInactivity';
 import AssetSpecFields, { FICHA_DE } from '../components/AssetSpecFields';
 import AssetPhotoPicker, { FotoPendiente } from '../components/AssetPhotoPicker';
 import HistorialActivo from '../components/HistorialActivo';
-import BorrarDefinitivo from '../components/BorrarDefinitivo';
 
 const TYPES = ['CAMERA', 'NVR', 'SWITCH', 'WIRELESS', 'DECODER', 'PANTALLA', 'PC', 'ROUTER', 'FIREWALL', 'SERVER', 'UPS', 'FIBER', 'CABINET', 'OTHER'];
 const STATES = ['OPERATIVO', 'FUERA_SERVICIO', 'MANTENIMIENTO', 'BAJA', 'STOCK'];
@@ -61,11 +60,6 @@ export default function Assets() {
   const [cabinets, setCabinets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<any>(null);
-  // Borrado DEFINITIVO. No es la baja: la baja retira un equipo real y le
-  // conserva el historial; esto es para el registro que nunca debió existir
-  // (una prueba, un duplicado, un código mal tecleado). Sólo el Jefe.
-  const [aPurgar, setAPurgar] = useState<string | null>(null);
-  const [msg, setMsg] = useState('');
   const [creds, setCreds] = useState<any[]>([]);
   const [revealed, setRevealed] = useState<any>({});
 
@@ -507,9 +501,6 @@ export default function Assets() {
         </div>
       )}
 
-      {msg && (
-        <div className="aviso-ok" onClick={() => setMsg('')} title="Pulsa para cerrar">{msg}</div>
-      )}
       <AvisoAmbito valor={ambito} total={meta?.total} />
 
       <div className="filters">
@@ -632,18 +623,12 @@ export default function Assets() {
 
       {detail && (
         <Modal title={detail.assetCode} onClose={() => setDetail(null)}>
-          <div className="acciones-ficha">
+          <div style={{ marginBottom: 10, textAlign: 'right', display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
             <button className="btn-mini" onClick={() => openQr(detail)}>🏷️ QR</button>
             <button className="btn-mini" onClick={() => descargarInforme(detail)}>📄 Informe del equipo (PDF)</button>
             {can('credential.read') && <button className="btn-mini" onClick={() => openEdit(detail)}>✏️ Editar activo (firmado)</button>}
             {can('asset.delete') && (
               <button className="btn-mini btn-danger" onClick={() => removeAsset(detail)}>🗑️ Dar de baja</button>
-            )}
-            {/* Sólo el Jefe de Mantenimiento. El servidor lo vuelve a comprobar:
-                esconder un botón no protege nada, sólo evita la confusión. */}
-            {can('asset.delete') && user?.role === 'Jefe de Mantenimiento' && (
-              <button className="btn-mini btn-peligro" title="Para basura: pruebas, duplicados, códigos mal tecleados"
-                      onClick={() => setAPurgar(detail.id)}>🧹 Borrar definitivamente</button>
             )}
           </div>
           <Frow k="Tipo" v={tEs(detail.type)} />
@@ -921,20 +906,6 @@ export default function Assets() {
             {formErr && <div className="error">{formErr}</div>}
           </form>
         </Modal>
-      )}
-
-      {aPurgar && (
-        <BorrarDefinitivo
-          tipo="activo"
-          id={aPurgar}
-          onCerrar={() => setAPurgar(null)}
-          onBorrado={(r) => {
-            setAPurgar(null);
-            setDetail(null);
-            setMsg(`Borrado ${r.code} y ${r.arrastrado} registro(s) asociados.`);
-            loadAssets();
-          }}
-        />
       )}
 
       {qrFor && (

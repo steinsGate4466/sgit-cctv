@@ -32,8 +32,6 @@ const TITLES: Record<string, string> = {
   '/conexiones': 'Conexiones de red',
   '/gruas': 'Cámaras de grúa',
   '/documentos': 'Manuales y planos',
-  '/limpieza': 'Limpieza de datos',
-  '/equipos': 'Equipos conocidos',
   '/exportar': 'Exportar a Excel',
   '/avisos': 'Avisos',
 };
@@ -149,7 +147,7 @@ export default function Layout() {
     },
     {
       titulo: 'Sistema',
-      rutas: ['/users', '/roles', '/audit', '/avisos', '/equipos', '/limpieza'],
+      rutas: ['/users', '/roles', '/audit', '/avisos'],
       items: [
         can('audit.read') && <NavLink key="au" to="/audit"><Icono n="auditoria" /> Auditoría</NavLink>,
         // Avisos lo ve CUALQUIERA: todo el mundo puede vincular su Telegram.
@@ -157,12 +155,6 @@ export default function Layout() {
         <NavLink key="av" to="/avisos"><Icono n="alerta" /> Avisos</NavLink>,
         can('user.manage') && <NavLink key="us" to="/users"><Icono n="usuarios" /> Usuarios</NavLink>,
         can('role.manage') && <NavLink key="ro" to="/roles"><Icono n="candado" /> Roles y permisos</NavLink>,
-        // Traduce la IP de la auditoría en un sitio de la planta. Va aquí, al
-        // lado de Auditoría, porque es la pantalla que la hace legible.
-        can('asset.read') && <NavLink key="eq" to="/equipos"><Icono n="pc" /> Equipos conocidos</NavLink>,
-        // Borrado definitivo. Último de la lista a propósito: no es un sitio
-        // al que se entre por costumbre.
-        can('asset.delete') && <NavLink key="li" to="/limpieza"><Icono n="escoba" /> Limpieza de datos</NavLink>,
       ].filter(Boolean) as ReactNode[],
     },
   ];
