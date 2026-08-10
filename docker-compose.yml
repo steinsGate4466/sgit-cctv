@@ -16,7 +16,15 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sgit_pass}
       POSTGRES_DB: ${POSTGRES_DB:-sgit_cctv}
     volumes:
-      - db_data:/var/lib/postgresql/data
+      # OJO CON LA RUTA: PostgreSQL 18 cambio la convencion.
+      # Hasta la 17 el volumen se montaba en /var/lib/postgresql/DATA.
+      # Desde la 18 la imagen quiere el volumen UN NIVEL MAS ARRIBA y ella
+      # coloca los datos en un subdirectorio con el numero de version
+      # (/var/lib/postgresql/18/docker), para poder hacer `pg_upgrade --link`
+      # sin cruzar el limite del punto de montaje.
+      # Con la ruta antigua el contenedor arranca y MUERE con un error largo
+      # que habla de pg_ctlcluster. Paso aqui al subir de 16 a 18.
+      - db_data:/var/lib/postgresql
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     healthcheck:
@@ -81,9 +89,32 @@ services:
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change_me_refresh}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
       CREDENTIAL_ENC_KEY: ${CREDENTIAL_ENC_KEY:-dev-credential-key-change-me}
+      # SIN ESTO EL API NO ARRANCA. `main.ts` falla en cerrado cuando
+      # NODE_ENV=production y no hay lista blanca de origenes — a proposito,
+      # porque un servidor que levanta con CORS abierto no se nota nunca.
+      # Aqui se declaran los origenes del frontend local.
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080,http://localhost,http://localhost:5173}
       PORT: 3000
     ports:
       - "${API_PORT:-3000}:3000"
+    networks: [sgit_net]
+
+  web:
+    # El frontend. Vite "hornea" la URL de la API EN TIEMPO DE BUILD, no la
+    # lee al arrancar: por eso va como argumento de build y no como variable
+    # de entorno. Cambiarla obliga a reconstruir la imagen, no a reiniciarla.
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3000/api/v1}
+    container_name: sgit_web
+    restart: unless-stopped
+    depends_on: [api]
+    environment:
+      PORT: 8080
+    ports:
+      - "${WEB_PORT:-8080}:8080"
     networks: [sgit_net]
 
   nginx:

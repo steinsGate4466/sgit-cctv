@@ -1,19 +1,23 @@
 import { Module } from '@nestjs/common';
+import { DocumentsService } from './documents.service';
+import { DocumentsController } from './documents.controller';
+import { StorageModule } from '../storage/storage.module';
+import { AuditModule } from '../audit/audit.module';
 
 /**
- * MÓDULO DE GESTIÓN DOCUMENTAL — reservado para la fase F8.
+ * DOCUMENTOS (bloque 12.7).
  *
- * Su modelo YA existe en el esquema de datos (schema.prisma):
- *   · Document → archivo en MinIO con categoría, versión y vínculo a activo o ubicación
- *     (MANUAL · DIAGRAMA · PLANO · FOTO · CONFIG · BACKUP)
+ * Este módulo era un `@Module({})` VACÍO mientras los permisos
+ * `document.read` y `document.manage` ya existían en el catálogo de roles.
+ * El ingeniero podía otorgar un permiso que no hacía nada.
  *
- * Qué resolverá cuando se implemente:
- *   - Planos de planta y diagramas de red asociados a cada activo o zona.
- *   - Manuales de equipos Hikvision, Fortinet y Ubiquiti al alcance del técnico.
- *   - Respaldos de configuración de switches y NVR, con control de versión.
- *   - Carga restringida al Jefe de Mantenimiento (requisito ya definido).
- *
- * Se mantiene declarado para conservar la estructura del dominio ya modelada.
+ * Manuales, planos, fichas y configuraciones, colgando de un equipo o de una
+ * ubicación. Con versionado: subir un plano nuevo NO borra el anterior.
  */
-@Module({})
+@Module({
+  imports: [StorageModule, AuditModule],
+  controllers: [DocumentsController],
+  providers: [DocumentsService],
+  exports: [DocumentsService],
+})
 export class DocumentsModule {}

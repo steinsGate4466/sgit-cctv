@@ -31,6 +31,7 @@ const TITLES: Record<string, string> = {
   '/grabadores': 'Grabadores y canales',
   '/conexiones': 'Conexiones de red',
   '/gruas': 'Cámaras de grúa',
+  '/documentos': 'Manuales y planos',
   '/exportar': 'Exportar a Excel',
   '/avisos': 'Avisos',
 };
@@ -95,7 +96,7 @@ export default function Layout() {
     },
     {
       titulo: 'Infraestructura',
-      rutas: ['/assets', '/cabinets', '/locations', '/access', '/cableado', '/mapeo', '/grabadores', '/conexiones', '/topologia', '/monitoreo'],
+      rutas: ['/assets', '/cabinets', '/locations', '/access', '/cableado', '/mapeo', '/grabadores', '/conexiones', '/topologia', '/monitoreo', '/documentos'],
       items: [
         can('asset.read') && <NavLink key="a" to="/assets"><Icono n="activos" /> Activos</NavLink>,
         can('asset.read') && <NavLink key="g" to="/cabinets"><Icono n="gabinete" /> Gabinetes</NavLink>,
@@ -108,6 +109,9 @@ export default function Layout() {
         // Conexiones va ANTES de Puntos críticos: primero se declara la red,
         // y sólo entonces el análisis de impacto tiene algo que analizar.
         can('asset.read') && <NavLink key="cx" to="/conexiones"><Icono n="cableado" /> Conexiones</NavLink>,
+        // 12.7 — cierra el permiso huerfano: `document.read` existia desde F0
+        // y no habia pantalla que lo usara.
+        can('document.read') && <NavLink key="dc" to="/documentos"><Icono n="etiqueta" /> Manuales y planos</NavLink>,
         can('asset.read') && <NavLink key="tp" to="/topologia"><Icono n="predictivo" /> Puntos críticos</NavLink>,
         can('monitor.read') && <NavLink key="mo" to="/monitoreo"><Icono n="reloj" /> Monitoreo</NavLink>,
         can('access.read') && <NavLink key="ac" to="/access"><Icono n="acceso" /> Accesibilidad</NavLink>,
