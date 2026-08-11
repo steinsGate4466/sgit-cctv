@@ -299,19 +299,33 @@ export class PurgaService {
       { que: 'inspecciones de grúa', n: c.inspeccionesGrua },
     ].filter((x) => x.n > 0);
 
+    /* ANTES ESTO ERA UNA PROHIBICIÓN. AHORA ES UN AVISO.
+       -------------------------------------------------------------------
+       Me equivoqué de escenario. Yo protegí el sistema EN OPERACIÓN, donde
+       una orden cerrada es un documento firmado y no se toca. Pero el
+       sistema todavía NO está en operación: lo que hay dentro son pruebas,
+       y hacen falta las secciones VACÍAS para llenarlas con datos reales.
+       Una regla que impide vaciar datos de prueba antes del estreno no
+       protege nada: obliga a estrenar con basura dentro.
+
+       Así que los frenos siguen, pero como AVISO con llave aparte. Se puede
+       pasar por encima, y cuando se pasa queda escrito en la auditoría con
+       la marca `forzado`. Eso es lo correcto: no impedir la operación, sino
+       dejar rastro de quién la hizo. */
     const cerrada = om.status === 'CERRADA';
-    let motivo: string | null = null;
+    const avisos: string[] = [];
     if (cerrada) {
-      motivo =
-        `Esta orden está CERRADA: lleva firma de quien la cerró, causa y acción. ` +
-        `Es el documento que responde "qué se hizo aquel día" y no se borra. ` +
-        `Si sólo estorba en la lista, fíltrala por estado.`;
-    } else if (conRetiro > 0) {
-      motivo =
-        `De esta orden salió material del almacén (${conRetiro} línea(s) con retiro firmado). ` +
-        `Borrar la orden NO devuelve los repuestos a la estantería, y deja el movimiento ` +
-        `de almacén sin explicación. Devuelve primero el material desde el módulo de ` +
-        `almacén; después la orden queda limpia y se puede borrar.`;
+      avisos.push(
+        `Está CERRADA: lleva firma de quien la cerró, causa y acción. ` +
+        `Si esto fuera trabajo real, sería un documento y no se borraría.`,
+      );
+    }
+    if (conRetiro > 0) {
+      avisos.push(
+        `Salió material del almacén (${conRetiro} línea(s) con retiro firmado). ` +
+        `Borrarla NO devuelve los repuestos a la estantería y deja el movimiento ` +
+        `de almacén sin explicación.`,
+      );
     }
 
     return {
@@ -325,16 +339,33 @@ export class PurgaService {
       totalArrastrado: arrastra.reduce((s, x) => s + x.n, 0),
       sobrevive,
       materialesConRetiro: conRetiro,
-      sePuedePurgar: !cerrada && conRetiro === 0,
-      motivoSiNo: motivo,
+      // Siempre se puede. Lo que cambia es si hace falta la segunda llave.
+      sePuedePurgar: true,
+      // Si hay avisos, la pantalla exige marcar la casilla de forzar.
+      exigeForzar: avisos.length > 0,
+      avisos,
+      motivoSiNo: null as string | null,
     };
   }
 
-  async purgarOm(id: string, confirmacion: string, userId?: string | null, ip?: string | null) {
+  async purgarOm(
+    id: string,
+    confirmacion: string,
+    userId?: string | null,
+    ip?: string | null,
+    forzar = false,
+  ) {
     await this.exigirJefe(userId);
 
     const previa = await this.vistaPreviaOm(id);
-    if (!previa.sePuedePurgar) throw new BadRequestException(previa.motivoSiNo!);
+
+    // La segunda llave. No impide nada: obliga a decir "sé lo que hay dentro".
+    if (previa.exigeForzar && !forzar) {
+      throw new BadRequestException(
+        `Esta orden tiene avisos y hay que confirmar que se borra igual:\n\n· ` +
+        previa.avisos.join('\n· '),
+      );
+    }
 
     if ((confirmacion || '').trim().toUpperCase() !== previa.om.code.toUpperCase()) {
       throw new BadRequestException(
@@ -353,6 +384,9 @@ export class PurgaService {
         arrastrado: previa.arrastra,
         total: previa.totalArrastrado,
         conservado: previa.sobrevive,
+        // Si se pasó por encima de un aviso, queda escrito CUÁL.
+        forzado: previa.exigeForzar || undefined,
+        avisos: previa.exigeForzar ? previa.avisos : undefined,
       },
     });
 
@@ -374,8 +408,10 @@ export class PurgaService {
    * sin avance, sin material, sin fotos, sin checklist. Un papel en blanco.
    */
   async candidatosOm() {
+    /* Ya no se excluyen las CERRADAS. Antes de estrenar, las cerradas de
+       prueba son justo las que estorban. Salen marcadas con su estado y con
+       sus avisos: la persona decide mirando, no la regla por ella. */
     const oms = await this.prisma.workOrder.findMany({
-      where: { status: { notIn: ['CERRADA'] } },
       select: {
         id: true, code: true, type: true, status: true, createdAt: true,
         activity: true, technicianId: true, scheduledDate: true, progressPct: true,
@@ -391,11 +427,6 @@ export class PurgaService {
     const HACE_30 = Date.now() - 30 * 86_400_000;
 
     return oms
-      .filter((o) => {
-        const c = o._count;
-        return c.progress === 0 && c.evidences === 0 && c.materialItems === 0 && c.checklist === 0
-          && o.progressPct === 0;
-      })
       .map((o) => {
         const razones: string[] = [];
         if (!o.asset) razones.push('sin equipo');
@@ -403,13 +434,89 @@ export class PurgaService {
         if (!o.activity || o.activity.trim().length < 8) razones.push('sin descripción');
         if (o.createdAt.getTime() < HACE_30) razones.push('más de 30 días sin tocar');
         if (o.status === 'CANCELADA') razones.push('cancelada');
+        const c = o._count;
+        const enBlanco = c.progress === 0 && c.evidences === 0
+          && c.materialItems === 0 && c.checklist === 0 && o.progressPct === 0;
+        if (enBlanco) razones.push('sin nada registrado');
         return {
           id: o.id, code: o.code, tipo: o.type as string, estado: o.status as string,
           equipo: o.asset?.assetCode ?? null, actividad: o.activity,
-          creada: o.createdAt, razones, sospecha: razones.length,
+          creada: o.createdAt, razones, enBlanco,
+          // La cerrada exige la segunda llave, y se avisa desde la lista.
+          exigeForzar: o.status === 'CERRADA' || c.materialItems > 0,
+          sospecha: razones.length,
         };
       })
       .sort((a, b) => b.sospecha - a.sospecha || (a.code > b.code ? 1 : -1));
+  }
+
+  /**
+   * VACIAR TODAS LAS ÓRDENES — el botón de "esto es de prueba, fuera".
+   *
+   * ===========================================================================
+   *  POR QUÉ EXISTE Y POR QUÉ ES SEGURO QUE EXISTA
+   * ===========================================================================
+   *  El sistema todavía no ha estrenado. Lo que hay en Órdenes son pruebas de
+   *  desarrollo, y hace falta la sección EN BLANCO para empezar a llenarla con
+   *  trabajo real. Borrarlas de una en una son cien clics y cien confirmaciones
+   *  escritas: al clic treinta, alguien deja de leer lo que escribe. Un botón
+   *  que hace explícito "voy a vaciar TODO" es más seguro que cien que dicen
+   *  "voy a borrar una".
+   *
+   *  LOS FRENOS QUE SÍ TIENE
+   *   · Rol Jefe de Mantenimiento.
+   *   · Hay que escribir la frase completa, no una palabra.
+   *   · Se anota en la auditoría CUÁNTAS y CUÁLES (los códigos), antes de borrar.
+   *   · Nunca borra activos: los levantados en mapeo sobreviven (SET NULL).
+   *
+   *  LO QUE **NO** HACE, Y HAY QUE SABERLO
+   *   Los movimientos de almacén de los retiros SE QUEDAN. El stock ya se movió
+   *   y esto no lo revierte. Si el almacén también es de prueba, se cuadra desde
+   *   Inventario. Se dice aquí y se dice en pantalla.
+   */
+  async vaciarOrdenes(confirmacion: string, userId?: string | null, ip?: string | null) {
+    await this.exigirJefe(userId);
+
+    const FRASE = 'VACIAR TODAS LAS ORDENES';
+    if ((confirmacion || '').trim().toUpperCase().replace(/\s+/g, ' ') !== FRASE) {
+      throw new BadRequestException(`Escribe exactamente: ${FRASE}`);
+    }
+
+    const todas = await this.prisma.workOrder.findMany({
+      select: { id: true, code: true, status: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    if (todas.length === 0) throw new BadRequestException('No hay órdenes que borrar.');
+
+    const cerradas = todas.filter((o) => o.status === 'CERRADA').length;
+
+    // Se anota ANTES, con los códigos. Si mañana falta una orden, el registro
+    // dice quién vació, cuándo y qué había.
+    await this.audit.record({
+      userId: userId || null, action: 'PURGE_ALL_WORKORDERS', entity: 'work-orders', entityId: null, ip,
+      before: {
+        total: todas.length,
+        cerradas,
+        codigos: todas.map((o) => o.code),
+      },
+    });
+
+    const r = await this.prisma.workOrder.deleteMany({});
+    return { ok: true, borradas: r.count, cerradas };
+  }
+
+  /** Cuántas hay y de qué tipo, para enseñarlo antes de vaciar. */
+  async resumenOrdenes() {
+    const [total, porEstado, conMaterial] = await Promise.all([
+      this.prisma.workOrder.count(),
+      this.prisma.workOrder.groupBy({ by: ['status'], _count: { _all: true } }),
+      this.prisma.workOrderMaterial.count({ where: { movementId: { not: null } } }),
+    ]);
+    return {
+      total,
+      porEstado: porEstado.map((e) => ({ estado: e.status as string, n: e._count._all })),
+      lineasConRetiro: conMaterial,
+    };
   }
 
   /* ==================== USUARIOS ==================== */

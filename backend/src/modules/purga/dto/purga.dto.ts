@@ -1,4 +1,4 @@
-import { IsISO8601, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsISO8601, IsOptional, IsString, MaxLength } from 'class-validator';
 
 /**
  * La confirmación escrita a mano es el freno contra el clic accidental.
@@ -7,6 +7,12 @@ import { IsISO8601, IsString, MaxLength } from 'class-validator';
  */
 export class PurgarDto {
   @IsString() @MaxLength(160) confirmacion!: string;
+  /**
+   * Segunda llave para lo que trae avisos (orden cerrada, material retirado).
+   * No desbloquea nada nuevo: obliga a decir "sé lo que hay dentro", y deja
+   * la marca `forzado` en la auditoría.
+   */
+  @IsOptional() @IsBoolean() forzar?: boolean;
 }
 
 export class PurgarAuditoriaDto {

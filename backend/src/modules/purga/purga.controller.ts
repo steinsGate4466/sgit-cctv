@@ -60,7 +60,23 @@ export class PurgaController {
   @Post('om/:id')
   @RequirePermissions('wo.approve')
   purgarOm(@Param('id') id: string, @Body() dto: PurgarDto, @CurrentUser() u: any, @Ip() ip: string) {
-    return this.purga.purgarOm(id, dto.confirmacion, u?.userId, ip);
+    return this.purga.purgarOm(id, dto.confirmacion, u?.userId, ip, !!dto.forzar);
+  }
+
+  /**
+   * VACIAR TODAS LAS ÓRDENES. Ruta literal y separada de `:id` a propósito:
+   * que no se pueda llegar aquí por accidente desde la ruta de una sola.
+   */
+  @Get('resumen-om')
+  @RequirePermissions('wo.approve')
+  resumenOm() {
+    return this.purga.resumenOrdenes();
+  }
+
+  @Post('vaciar-om')
+  @RequirePermissions('wo.approve')
+  vaciarOm(@Body() dto: PurgarDto, @CurrentUser() u: any, @Ip() ip: string) {
+    return this.purga.vaciarOrdenes(dto.confirmacion, u?.userId, ip);
   }
 
   @Get('usuario/:id')

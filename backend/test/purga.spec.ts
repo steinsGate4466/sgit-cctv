@@ -34,6 +34,8 @@ function prismaFalso(over: any = {}) {
       findUnique: jest.fn(),
       findMany: jest.fn().mockResolvedValue([]),
       delete: jest.fn().mockResolvedValue({}),
+      deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+      groupBy: jest.fn().mockResolvedValue([]),
     },
     workOrderMaterial: { count: jest.fn().mockResolvedValue(0) },
     accessRequest: { count: jest.fn().mockResolvedValue(0) },
@@ -288,65 +290,95 @@ const OM_LIMPIA = {
   },
 };
 
-describe('purga de OM · los tres frenos', () => {
-  it('una orden CERRADA no se borra: lleva firma, causa y acción', async () => {
+describe('purga de OM · los avisos y la segunda llave', () => {
+  /* CAMBIÓ EL DISEÑO A MITAD DE CAMINO, Y LAS PRUEBAS LO REFLEJAN.
+     Al principio una orden CERRADA no se podía borrar nunca. Estaba pensado
+     para el sistema EN OPERACIÓN. Pero el sistema todavía no ha estrenado y
+     lo que hay dentro son pruebas: una regla que impide vaciar datos de
+     prueba obliga a estrenar con basura. Ahora el freno es un AVISO con
+     segunda llave, y forzarlo queda escrito en la auditoría. */
+
+  it('una orden CERRADA avisa y exige la segunda llave', async () => {
     const prisma = prismaFalso();
     prisma.workOrder.findUnique.mockResolvedValue({ ...OM_LIMPIA, status: 'CERRADA', closedById: 'u3' });
     const s = new PurgaService(prisma, auditFalso());
 
     const p = await s.vistaPreviaOm('w1');
-    expect(p.sePuedePurgar).toBe(false);
-    expect(p.motivoSiNo).toContain('CERRADA');
+    expect(p.sePuedePurgar).toBe(true);
+    expect(p.exigeForzar).toBe(true);
+    expect(p.avisos[0]).toContain('CERRADA');
 
+    // Sin forzar: se rechaza y NO se borra.
     await expect(s.purgarOm('w1', 'OT-2026-0099', 'u1', null)).rejects.toThrow(BadRequestException);
     expect(prisma.workOrder.delete).not.toHaveBeenCalled();
+
+    // Con forzar: se borra.
+    await expect(s.purgarOm('w1', 'OT-2026-0099', 'u1', null, true)).resolves.toMatchObject({ ok: true });
+    expect(prisma.workOrder.delete).toHaveBeenCalled();
   });
 
-  it('SI SALIÓ MATERIAL DEL ALMACÉN, no se borra', async () => {
-    // El freno menos obvio y el más importante. El retiro escribió un
-    // movimiento de stock que NO cuelga de la orden: borrar la orden deja el
-    // almacén diciendo "salieron 3 conectores" sin que nadie sepa para qué.
-    // Y sobre todo: borrar el papel no devuelve los repuestos a la estantería.
+  it('forzar queda MARCADO en la auditoría, con los avisos que se saltaron', async () => {
+    // Es lo que hace que esto sea aceptable: no se impide la operación, se
+    // deja rastro de quién la hizo y de qué se pasó por alto.
+    const prisma = prismaFalso();
+    prisma.workOrder.findUnique.mockResolvedValue({ ...OM_LIMPIA, status: 'CERRADA' });
+    const audit = auditFalso();
+    const s = new PurgaService(prisma, audit);
+
+    await s.purgarOm('w1', 'OT-2026-0099', 'u1', null, true);
+    const registro = audit.record.mock.calls[0][0];
+    expect(registro.action).toBe('PURGE_WORKORDER');
+    expect(registro.before.forzado).toBe(true);
+    expect(registro.before.avisos[0]).toContain('CERRADA');
+  });
+
+  it('el material RETIRADO también avisa', async () => {
     const prisma = prismaFalso();
     prisma.workOrder.findUnique.mockResolvedValue({
-      ...OM_LIMPIA,
-      _count: { ...OM_LIMPIA._count, materialItems: 2 },
+      ...OM_LIMPIA, _count: { ...OM_LIMPIA._count, materialItems: 2 },
     });
     prisma.workOrderMaterial.count.mockResolvedValue(2);
     const s = new PurgaService(prisma, auditFalso());
 
     const p = await s.vistaPreviaOm('w1');
-    expect(p.sePuedePurgar).toBe(false);
-    expect(p.motivoSiNo).toContain('almacén');
-    await expect(s.purgarOm('w1', 'OT-2026-0099', 'u1', null)).rejects.toThrow(BadRequestException);
+    expect(p.exigeForzar).toBe(true);
+    expect(p.avisos.join(' ')).toContain('almacén');
   });
 
-  it('material SOLICITADO pero nunca retirado NO bloquea', async () => {
-    // Pedir no es sacar. Una orden con material pedido y sin retirar sigue
-    // siendo un papel en blanco: el almacén no se movió.
+  it('material SOLICITADO pero nunca retirado NO avisa', async () => {
+    // Pedir no es sacar. El almacén no se movió.
     const prisma = prismaFalso();
     prisma.workOrder.findUnique.mockResolvedValue({
-      ...OM_LIMPIA,
-      _count: { ...OM_LIMPIA._count, materialItems: 3 },
+      ...OM_LIMPIA, _count: { ...OM_LIMPIA._count, materialItems: 3 },
     });
-    prisma.workOrderMaterial.count.mockResolvedValue(0); // ninguno con movementId
+    prisma.workOrderMaterial.count.mockResolvedValue(0);
     const s = new PurgaService(prisma, auditFalso());
 
     const p = await s.vistaPreviaOm('w1');
-    expect(p.sePuedePurgar).toBe(true);
+    expect(p.exigeForzar).toBe(false);
     expect(p.arrastra).toContainEqual({ que: 'líneas de material', n: 3 });
   });
 
-  it('escribir mal el código no borra', async () => {
+  it('una orden limpia no pide segunda llave', async () => {
     const prisma = prismaFalso();
     prisma.workOrder.findUnique.mockResolvedValue(OM_LIMPIA);
     const s = new PurgaService(prisma, auditFalso());
-    await expect(s.purgarOm('w1', 'OT-2026-0098', 'u1', null)).rejects.toThrow(/código exacto/);
+    const p = await s.vistaPreviaOm('w1');
+    expect(p.exigeForzar).toBe(false);
+    await expect(s.purgarOm('w1', 'OT-2026-0099', 'u1', null)).resolves.toMatchObject({ ok: true });
+  });
+
+  it('forzar NO salta la confirmación escrita', async () => {
+    // Las dos cosas son independientes: forzar dice "sé lo que hay dentro",
+    // el código escrito dice "sé CUÁL estoy borrando".
+    const prisma = prismaFalso();
+    prisma.workOrder.findUnique.mockResolvedValue({ ...OM_LIMPIA, status: 'CERRADA' });
+    const s = new PurgaService(prisma, auditFalso());
+    await expect(s.purgarOm('w1', 'OT-2026-0098', 'u1', null, true)).rejects.toThrow(/código exacto/);
     expect(prisma.workOrder.delete).not.toHaveBeenCalled();
   });
 
   it('lo que NO se borra se declara aparte', async () => {
-    // Si nadie lo avisa, alguien va a creer que borró 12 cámaras.
     const prisma = prismaFalso();
     prisma.workOrder.findUnique.mockResolvedValue({
       ...OM_LIMPIA, type: 'MAPEO',
@@ -355,36 +387,78 @@ describe('purga de OM · los tres frenos', () => {
     const s = new PurgaService(prisma, auditFalso());
     const p = await s.vistaPreviaOm('w1');
 
-    // No cuentan como arrastrados: sobreviven.
     expect(p.totalArrastrado).toBe(0);
     expect(p.sobrevive).toEqual([
       { que: 'activos levantados en esta orden de mapeo', n: 12 },
       { que: 'inspecciones de grúa', n: 1 },
     ]);
-    expect(p.sePuedePurgar).toBe(true);
   });
 
-  it('con el código bien, se borra y se audita antes', async () => {
-    const prisma = prismaFalso();
-    prisma.workOrder.findUnique.mockResolvedValue(OM_LIMPIA);
-    const audit = auditFalso();
-    const orden: string[] = [];
-    audit.record.mockImplementation(async () => { orden.push('audit'); });
-    prisma.workOrder.delete.mockImplementation(async () => { orden.push('delete'); return {}; });
-
-    const s = new PurgaService(prisma, audit);
-    const r = await s.purgarOm('w1', 'ot-2026-0099', 'u1', null);
-
-    expect(r.ok).toBe(true);
-    expect(orden).toEqual(['audit', 'delete']);
-    expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'PURGE_WORKORDER' }));
-  });
-
-  it('sin el cargo de Jefe, tampoco', async () => {
+  it('sin el cargo de Jefe, ni forzando', async () => {
     const prisma = prismaFalso();
     prisma.user.findUnique.mockResolvedValue({ active: true, role: { name: 'Supervisor TI' } });
     const s = new PurgaService(prisma, auditFalso());
-    await expect(s.purgarOm('w1', 'OT-2026-0099', 'u1', null)).rejects.toThrow(ForbiddenException);
+    await expect(s.purgarOm('w1', 'OT-2026-0099', 'u1', null, true)).rejects.toThrow(ForbiddenException);
+  });
+});
+
+describe('vaciar TODAS las órdenes · el botón de antes del estreno', () => {
+  const TRES = [
+    { id: '1', code: 'OT-1', status: 'ABIERTA' },
+    { id: '2', code: 'OT-2', status: 'CERRADA' },
+    { id: '3', code: 'OT-3', status: 'CANCELADA' },
+  ];
+
+  it('la frase tiene que estar completa', async () => {
+    const prisma = prismaFalso();
+    const s = new PurgaService(prisma, auditFalso());
+    await expect(s.vaciarOrdenes('VACIAR', 'u1', null)).rejects.toThrow(/VACIAR TODAS LAS ORDENES/);
+    await expect(s.vaciarOrdenes('vaciar todas', 'u1', null)).rejects.toThrow();
+    expect(prisma.workOrder.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('acepta la frase en minúsculas y con espacios de más', async () => {
+    const prisma = prismaFalso();
+    prisma.workOrder.findMany.mockResolvedValue(TRES);
+    prisma.workOrder.deleteMany.mockResolvedValue({ count: 3 });
+    const s = new PurgaService(prisma, auditFalso());
+    const r = await s.vaciarOrdenes('  vaciar   todas las ordenes ', 'u1', null);
+    expect(r).toMatchObject({ ok: true, borradas: 3, cerradas: 1 });
+  });
+
+  it('guarda los CÓDIGOS en la auditoría antes de borrar', async () => {
+    // Si mañana falta una orden, el registro dice quién vació y qué había.
+    const prisma = prismaFalso();
+    prisma.workOrder.findMany.mockResolvedValue(TRES);
+    prisma.workOrder.deleteMany.mockResolvedValue({ count: 3 });
+    const audit = auditFalso();
+    const orden: string[] = [];
+    audit.record.mockImplementation(async () => { orden.push('audit'); });
+    prisma.workOrder.deleteMany.mockImplementation(async () => { orden.push('delete'); return { count: 3 }; });
+
+    const s = new PurgaService(prisma, audit);
+    await s.vaciarOrdenes('VACIAR TODAS LAS ORDENES', 'u1', null);
+
+    expect(orden).toEqual(['audit', 'delete']);
+    const reg = audit.record.mock.calls[0][0];
+    expect(reg.action).toBe('PURGE_ALL_WORKORDERS');
+    expect(reg.before.codigos).toEqual(['OT-1', 'OT-2', 'OT-3']);
+    expect(reg.before.cerradas).toBe(1);
+  });
+
+  it('si no hay órdenes, lo dice en vez de fingir que hizo algo', async () => {
+    const prisma = prismaFalso();
+    prisma.workOrder.findMany.mockResolvedValue([]);
+    const s = new PurgaService(prisma, auditFalso());
+    await expect(s.vaciarOrdenes('VACIAR TODAS LAS ORDENES', 'u1', null)).rejects.toThrow(/No hay órdenes/);
+  });
+
+  it('sin el cargo de Jefe, no', async () => {
+    const prisma = prismaFalso();
+    prisma.user.findUnique.mockResolvedValue({ active: true, role: { name: 'Técnico' } });
+    const s = new PurgaService(prisma, auditFalso());
+    await expect(s.vaciarOrdenes('VACIAR TODAS LAS ORDENES', 'u1', null)).rejects.toThrow(ForbiddenException);
+    expect(prisma.workOrder.deleteMany).not.toHaveBeenCalled();
   });
 });
 
@@ -395,7 +469,9 @@ describe('candidatas a basura · una orden esperando parada NO es basura', () =>
     _count: { progress: 0, evidences: 0, materialItems: 0, checklist: 0 },
   };
 
-  it('la que tiene avance, material, fotos o checklist no aparece', async () => {
+  it('salen TODAS, pero se marca cuál está en blanco', async () => {
+    // Antes se filtraban. Ahora no: para vaciar la sección antes del estreno
+    // hay que poder ver y borrar también las que tienen cosas dentro.
     const prisma = prismaFalso();
     prisma.workOrder.findMany.mockResolvedValue([
       { ...base, id: '1', code: 'OT-1', activity: 'Cambio de cámara del lecho', technicianId: 't1', _count: { progress: 2, evidences: 0, materialItems: 0, checklist: 0 } },
@@ -403,7 +479,10 @@ describe('candidatas a basura · una orden esperando parada NO es basura', () =>
     ]);
     const s = new PurgaService(prisma, auditFalso());
     const r = await s.candidatosOm();
-    expect(r.map((x: any) => x.code)).toEqual(['OT-2']);
+
+    expect(r.map((x: any) => x.code).sort()).toEqual(['OT-1', 'OT-2']);
+    expect(r.find((x: any) => x.code === 'OT-1').enBlanco).toBe(false);
+    expect(r.find((x: any) => x.code === 'OT-2').enBlanco).toBe(true);
   });
 
   it('una orden legítima esperando parada, sin nada aún, sale con POCAS señales', async () => {
@@ -417,15 +496,19 @@ describe('candidatas a basura · una orden esperando parada NO es basura', () =>
     const s = new PurgaService(prisma, auditFalso());
     const r = await s.candidatosOm();
 
-    expect(r[0].code).toBe('OT-11');           // 3 señales
+    expect(r[0].code).toBe('OT-11');
     expect(r[0].razones.length).toBeGreaterThan(r[1].razones.length);
-    expect(r[1].razones).toEqual([]);          // la legítima, sin señales
+    // La legítima sólo trae la señal de estar en blanco; ninguna más.
+    expect(r[1].razones).toEqual(['sin nada registrado']);
   });
 
-  it('las CERRADAS nunca se consultan siquiera', async () => {
+  it('una CERRADA aparece marcada para pedir segunda llave', async () => {
     const prisma = prismaFalso();
+    prisma.workOrder.findMany.mockResolvedValue([
+      { ...base, id: '1', code: 'OT-9', status: 'CERRADA', activity: 'algo', technicianId: 't1' },
+    ]);
     const s = new PurgaService(prisma, auditFalso());
-    await s.candidatosOm();
-    expect(prisma.workOrder.findMany.mock.calls[0][0].where.status.notIn).toContain('CERRADA');
+    const r = await s.candidatosOm();
+    expect(r[0].exigeForzar).toBe(true);
   });
 });

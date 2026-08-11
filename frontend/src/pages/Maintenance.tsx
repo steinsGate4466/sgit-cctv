@@ -404,13 +404,15 @@ export default function Maintenance() {
                     title="Materiales previstos/usados y reemplazo de equipo"
                     onClick={() => setMatsFor(w)}>📦 Materiales</button>
                   <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => downloadReport(w)}>Informe</button>
-                  {/* Sólo el Jefe, y sólo si la orden no está cerrada. El
-                      servidor lo vuelve a comprobar —esconder un botón no
-                      protege nada— pero enseñarlo en una orden cerrada sería
-                      prometer algo que va a fallar. */}
-                  {w.status !== 'CERRADA' && can('wo.approve') && user?.role === 'Jefe de Mantenimiento' && (
+                  {/* Sólo el Jefe. También en las CERRADAS: antes del estreno,
+                      las cerradas de prueba son justo las que estorban. El
+                      diálogo pide una segunda confirmación y lo marca como
+                      forzado en la auditoría. */}
+                  {can('wo.approve') && user?.role === 'Jefe de Mantenimiento' && (
                     <button className="btn-mini btn-peligro" style={{ marginLeft: 4 }}
-                      title="Borrar definitivamente: para órdenes de prueba o duplicadas"
+                      title={w.status === 'CERRADA'
+                        ? 'Borrar definitivamente (está cerrada: pedirá segunda confirmación)'
+                        : 'Borrar definitivamente: para órdenes de prueba o duplicadas'}
                       onClick={() => setOmAPurgar(w)}>🧹</button>
                   )}
                 </td>

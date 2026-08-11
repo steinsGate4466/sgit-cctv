@@ -26,6 +26,9 @@ export default function Limpieza() {
   const [pestana, setPestana] = useState<'activos' | 'om' | 'usuarios' | 'auditoria'>('activos');
   const [candidatos, setCandidatos] = useState<any[]>([]);
   const [candidatosOm, setCandidatosOm] = useState<any[]>([]);
+  const [resumenOm, setResumenOm] = useState<any>(null);
+  const [vaciando, setVaciando] = useState(false);
+  const [fraseVaciar, setFraseVaciar] = useState('');
   const [usuarios, setUsuarios] = useState<any[]>([]);
   const [cargando, setCargando] = useState(true);
   const [fallo, setFallo] = useState('');
@@ -42,13 +45,15 @@ export default function Limpieza() {
 
   const cargar = useCallback(async () => {
     try {
-      const [c, om, u] = await Promise.all([
+      const [c, om, res, u] = await Promise.all([
         api.get('/purga/candidatos').then((r) => r.data).catch(() => []),
         api.get('/purga/candidatos-om').then((r) => r.data).catch(() => []),
+        api.get('/purga/resumen-om').then((r) => r.data).catch(() => null),
         api.get('/users').then((r) => r.data?.items || r.data || []).catch(() => []),
       ]);
       setCandidatos(c || []);
       setCandidatosOm(om || []);
+      setResumenOm(res);
       setUsuarios(u || []);
       setFallo('');
     } catch {
@@ -57,6 +62,18 @@ export default function Limpieza() {
   }, []);
 
   useEffect(() => { setCargando(true); cargar().finally(() => setCargando(false)); }, [cargar]);
+
+  async function vaciarOrdenes() {
+    setVaciando(true); setErrorModal('');
+    try {
+      const r = await api.post('/purga/vaciar-om', { confirmacion: fraseVaciar });
+      setHecho(`Borradas ${r.data.borradas} órdenes (${r.data.cerradas} estaban cerradas). La sección quedó vacía.`);
+      setFraseVaciar('');
+      await cargar();
+    } catch (e: any) {
+      setErrorModal(e?.response?.data?.message || 'No se pudo vaciar.');
+    } finally { setVaciando(false); }
+  }
 
   async function verPreviaAudit() {
     if (!antesDe) return;
@@ -186,15 +203,44 @@ export default function Limpieza() {
         ) : (
           <>
             <div className="card explica">
-              Estas órdenes <b>no tienen nada registrado</b>: ni avance, ni material,
-              ni fotos, ni checklist. Son papeles en blanco.
-              <div style={{ marginTop: 8 }}>
-                <b>Dos cosas no se borran nunca desde aquí:</b> una orden <b>CERRADA</b>
-                (lleva firma, causa y acción) y una orden de la que <b>salió material
-                del almacén</b> — borrar el papel no devuelve los repuestos a la
-                estantería, y dejaría el movimiento de almacén sin explicación.
-              </div>
+              Aquí salen <b>todas</b> las órdenes, incluidas las cerradas. Las que
+              llevan firma o material retirado se pueden borrar igual, pero piden
+              una <b>segunda confirmación</b> y quedan marcadas como forzadas en
+              la auditoría.
             </div>
+
+            {/* VACIAR TODO — antes del estreno, borrar de una en una son cien
+                clics, y al clic treinta nadie lee lo que escribe. */}
+            {resumenOm && resumenOm.total > 0 && (
+              <div className="card peligro">
+                <b>Vaciar la sección entera ({resumenOm.total} órdenes)</b>
+                <div style={{ marginTop: 6, fontSize: 13, lineHeight: 1.6 }}>
+                  Para dejar Órdenes <b>en blanco</b> y empezar a llenarla con trabajo
+                  real. Se van <b>todas</b>, incluidas las{' '}
+                  {resumenOm.porEstado.map((e: any) => `${e.n} ${e.estado}`).join(', ')}.
+                  <div style={{ marginTop: 6 }}>
+                    <b>Los activos NO se borran</b>: los levantados en órdenes de mapeo
+                    siguen ahí, sólo pierden el enlace.
+                  </div>
+                  {resumenOm.lineasConRetiro > 0 && (
+                    <div style={{ marginTop: 6 }}>
+                      Hay <b>{resumenOm.lineasConRetiro}</b> línea(s) con material retirado.
+                      Los <b>movimientos de almacén se quedan</b>: esto no revierte el stock.
+                      Si el almacén también es de prueba, cuádralo desde Inventario.
+                    </div>
+                  )}
+                </div>
+                <label className="campo" style={{ marginTop: 10, maxWidth: 420 }}>
+                  <span>Escribe <code>VACIAR TODAS LAS ORDENES</code></span>
+                  <input value={fraseVaciar} onChange={(e) => setFraseVaciar(e.target.value)}
+                         autoComplete="off" placeholder="La frase completa" />
+                </label>
+                <button className="btn-peligro" onClick={vaciarOrdenes}
+                        disabled={vaciando || fraseVaciar.trim().toUpperCase().replace(/\s+/g, ' ') !== 'VACIAR TODAS LAS ORDENES'}>
+                  {vaciando ? 'Vaciando…' : `Vaciar las ${resumenOm.total} órdenes`}
+                </button>
+              </div>
+            )}
             <table className="tabla">
               <thead>
                 <tr><th>Código</th><th>Tipo</th><th>Estado</th><th>Equipo</th><th>Creada</th><th>Señales</th><th></th></tr>
@@ -215,7 +261,11 @@ export default function Limpieza() {
                         o.razones.map((r: string) => <span key={r} className="chip est-MANTENIMIENTO" style={{ marginRight: 4 }}>{r}</span>)}
                     </td>
                     <td style={{ textAlign: 'right' }}>
-                      <button className="btn-mini" onClick={() => setABorrar({ tipo: 'om', id: o.id })}>Revisar y borrar</button>
+                      <button className={o.exigeForzar ? 'btn-mini btn-danger' : 'btn-mini'}
+                              title={o.exigeForzar ? 'Tiene avisos: pedirá una segunda confirmación' : undefined}
+                              onClick={() => setABorrar({ tipo: 'om', id: o.id })}>
+                        Revisar y borrar
+                      </button>
                     </td>
                   </tr>
                 ))}

@@ -25,6 +25,8 @@ export default function BorrarDefinitivo({
   const [confirmacion, setConfirmacion] = useState('');
   const [borrando, setBorrando] = useState(false);
   const [error, setError] = useState('');
+  // Segunda llave para lo que trae avisos (orden cerrada, material retirado).
+  const [forzar, setForzar] = useState(false);
 
   useEffect(() => {
     let vivo = true;
@@ -40,12 +42,14 @@ export default function BorrarDefinitivo({
       : tipo === 'om' ? previa.om?.code
       : previa.usuario?.email) || ''
     : '';
-  const puede = !!previa?.sePuedePurgar && confirmacion.trim() === esperado.trim();
+  const puede = !!previa?.sePuedePurgar
+    && confirmacion.trim() === esperado.trim()
+    && (!previa?.exigeForzar || forzar);
 
   async function borrar() {
     setBorrando(true); setError('');
     try {
-      const r = await api.post(`/purga/${tipo}/${id}`, { confirmacion });
+      const r = await api.post(`/purga/${tipo}/${id}`, { confirmacion, forzar });
       onBorrado(r.data);
     } catch (e: any) {
       setError(e?.response?.data?.message || 'No se pudo borrar.');
@@ -152,6 +156,25 @@ export default function BorrarDefinitivo({
                 <> Tenía <b>{previa.ordenesAsignadas}</b> orden(es) asignada(s): quedarán sin técnico.</>
               )}
             </p>
+          )}
+
+          {previa.exigeForzar && (
+            <div className="card peligro" style={{ margin: '14px 0 0' }}>
+              <b>Lee esto antes:</b>
+              <ul style={{ margin: '6px 0 10px', fontSize: 13, lineHeight: 1.65 }}>
+                {previa.avisos.map((a: string) => <li key={a}>{a}</li>)}
+              </ul>
+              <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', margin: 0 }}>
+                <input type="checkbox" checked={forzar} onChange={(e) => setForzar(e.target.checked)}
+                       style={{ width: 18, height: 18, minHeight: 18, marginTop: 2 }} />
+                <span style={{ margin: 0, fontSize: 13, color: '#8c1414', fontWeight: 600 }}>
+                  Lo he leído y quiero borrarla igual.
+                  <small className="muted" style={{ display: 'block', fontWeight: 400 }}>
+                    Quedará marcado en la auditoría que se forzó, y por qué avisos.
+                  </small>
+                </span>
+              </label>
+            </div>
           )}
 
           <label className="campo" style={{ marginTop: 14 }}>
