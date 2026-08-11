@@ -26,6 +26,10 @@ const D: Record<string, string> = {
   pc: 'M3 4h18v11H3zM9 19h6M12 15v4M7 19h10',
   // Escoba: limpieza de datos. No es una papelera a propósito —la papelera
   // sugiere que se puede recuperar, y de aquí no se recupera nada.
+  // Reloj con barra: la ventana de parada.
+  parada: 'M12 3a9 9 0 100 18 9 9 0 000-18zM12 7v5l3 2M3 12h2M19 12h2',
+  // Llave y tornillo: instalar algo nuevo.
+  instalar: 'M4 20l6-6M9 5l4 4M11 3l6 6-2 2-6-6zM6 15l3 3-2 2-3-3z',
   escoba: 'M7 21l4-8M17 21l-4-8M9 13h6l2-9-4 1-1-3-1 3-4-1z',
   // Operación
   incidencia: 'M12 3l9 16H3zM12 10v4M12 17h.01',

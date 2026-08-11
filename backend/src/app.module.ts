@@ -14,6 +14,8 @@ import { ExportacionModule } from './modules/exportacion/exportacion.module';
 import { GruaModule } from './modules/grua/grua.module';
 import { PurgaModule } from './modules/purga/purga.module';
 import { EquiposModule } from './modules/equipos/equipos.module';
+import { ParadasModule } from './modules/paradas/paradas.module';
+import { InstalacionModule } from './modules/instalacion/instalacion.module';
 import { NotificacionesModule } from './modules/notificaciones/notificaciones.module';
 import { UsersModule } from './modules/users/users.module';
 import { LocationsModule } from './modules/locations/locations.module';
@@ -69,6 +71,8 @@ import { PredictiveModule } from './modules/predictive/predictive.module';
     ExportacionModule,    // descarga a Excel: temas sueltos y libro completo (11.1)
     GruaModule,           // inspeccion de camaras de grua: antena, cable, manlift (14)
     EquiposModule,        // registro de PCs conocidos: traduce IP -> sitio (15)
+    ParadasModule,        // ventanas de parada: manuales, se mueven (16 / F8-F)
+    InstalacionModule,    // instalar equipo nuevo por tipo de sitio (16)
     PurgaModule,          // borrado definitivo de basura, solo el Jefe (15)
   ],
   controllers: [HealthController],

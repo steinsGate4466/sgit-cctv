@@ -198,6 +198,7 @@ model Location {
   sapLocationCode  String?
   costCenter       String?
   responsibleArea  String?
+  instalaciones    Instalacion[]
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
@@ -432,6 +433,8 @@ model Asset {
   mappedInWorkOrderId String?
   mappedInWorkOrder   WorkOrder? @relation("AssetMappedInWo", fields: [mappedInWorkOrderId], references: [id])
   accessRequests AccessRequest[]
+  /// Instalaciones que dieron origen a este activo (normalmente una).
+  instalacionesOrigen Instalacion[] @relation("AssetDeInstalacion")
 
   @@index([type])
   @@index([status])
@@ -962,6 +965,14 @@ model WorkOrder {
   checklist     WorkOrderChecklist[]
   swaps         WorkOrderSwap[]
 
+  /// Ventana de parada en la que se va a hacer. OPCIONAL: hay trabajo que no
+  /// necesita que el tren pare (púlpito, oficina, sala de control).
+  paradaId      String?
+  parada        VentanaParada?  @relation(fields: [paradaId], references: [id])
+  /// Instalaciones que se ejecutan con esta orden. Lado inverso obligatorio:
+  /// Prisma exige el campo en AMBOS modelos aunque sólo uno lleve la clave.
+  instalaciones Instalacion[]
+
   @@index([assetId])
   @@index([locationId])
   @@index([status])
@@ -971,6 +982,7 @@ model WorkOrder {
   /// CI lo vea como un índice "de más" en cada comprobación.
   @@index([detailedAt])
   @@index([rootCauseCode])
+  @@index([paradaId])
   @@map("work_orders")
 }
 
@@ -2031,4 +2043,248 @@ model EquipoConocido {
 
   @@index([activo])
   @@map("equipos_conocidos")
+}
+
+// =====================================================================
+//  VENTANAS DE PARADA (F8-F)  —  desbloqueado: SON MANUALES
+//
+//  LA RESPUESTA QUE FALTABA
+//  Las paradas NO salen de SAP ni de un sistema de Producción. Producción
+//  AVISA, muchas veces a última hora, y la hora se mueve. Por eso el modelo
+//  separa DOS cosas que un diseño ingenuo mezclaría en una:
+//
+//    · lo PREVISTO  — lo que dijo Producción. Cambia.
+//    · lo REAL      — lo que pasó. Lo escribe el técnico en campo.
+//
+//  Y por eso cada cambio de hora se guarda en `CambioParada`. Sin ese
+//  registro, cuando la ventana se mueve tres veces y el trabajo no se hace,
+//  no hay forma de demostrar que no fue culpa de mantenimiento. Con él, la
+//  desviación entre previsto y real es un dato, no una discusión.
+// =====================================================================
+enum EstadoParada {
+  ANUNCIADA    // Producción avisó. La hora todavía se mueve.
+  CONFIRMADA   // Confirmada por radio, ya se puede movilizar gente.
+  EN_CURSO
+  TERMINADA
+  CANCELADA
+}
+
+enum OrigenParada {
+  PRODUCCION     // la pide Producción (cambio de canal, de producto)
+  MANTENIMIENTO  // la pide mantenimiento mecánico/eléctrico
+  FALLA          // parada no programada
+  PROGRAMADA     // parada mayor de calendario
+}
+
+model VentanaParada {
+  id              String        @id @default(uuid())
+  tren            PlantTrain
+  estado          EstadoParada  @default(ANUNCIADA)
+  origen          OrigenParada  @default(PRODUCCION)
+
+  /// Lo que dijo Producción. Se mueve, y por eso está aparte de lo real.
+  inicioPrevisto  DateTime
+  finPrevisto     DateTime?
+  duracionPrevMin Int?
+
+  /// Lo que pasó de verdad. Lo escribe quien está en campo.
+  inicioReal      DateTime?
+  finReal         DateTime?
+
+  motivo          String?
+  /// Quién avisó y por dónde. En planta esto llega por radio o WhatsApp:
+  /// dejarlo por escrito es lo que convierte un recado en un dato.
+  avisadoPor      String?
+  canalAviso      String?
+  notas           String?
+
+  creadoPorId     String?
+  creadoEn        DateTime      @default(now())
+  editadoEn       DateTime      @default(now()) @updatedAt
+
+  cambios         CambioParada[]
+  ordenes         WorkOrder[]
+
+  @@index([tren, estado])
+  @@index([inicioPrevisto])
+  @@map("ventanas_parada")
+}
+
+/// Cada vez que se mueve la hora, queda escrito quién, cuándo y por qué.
+model CambioParada {
+  id            String        @id @default(uuid())
+  paradaId      String
+  parada        VentanaParada @relation(fields: [paradaId], references: [id], onDelete: Cascade)
+  campo         String
+  valorAntes    String?
+  valorDespues  String?
+  motivo        String?
+  porId         String?
+  en            DateTime      @default(now())
+
+  @@index([paradaId])
+  @@map("cambios_parada")
+}
+
+// =====================================================================
+//  INSTALACIONES (Bloque 16)
+//
+//  POR QUÉ NO ES UNA ORDEN DE MANTENIMIENTO
+//  Una OM arregla algo que existe. Una instalación pone algo que NO existe,
+//  y las preguntas son otras: ¿hay corriente ahí? ¿llega la red? ¿cuántos
+//  metros de cable? ¿se puede subir sin manlift? ¿quién autoriza entrar?
+//  Meter eso en la OM habría llenado el formulario de mantenimiento de
+//  cuarenta campos que no aplican al 95 % de las órdenes.
+//
+//  EL FORMULARIO CAMBIA SEGÚN EL SITIO, Y ESO ES LO IMPORTANTE
+//  Instalar en un PÚLPITO y en una GRÚA no se parecen en nada:
+//
+//    PÚLPITO / OFICINA  → ¿falso techo? ¿canaleta? ¿climatizado? ¿qué
+//                         pantalla hay? ¿quién autoriza entrar en turno?
+//    GRÚA               → ¿manlift? ¿la grúa se detiene? ¿va por la cadena
+//                         portacables o por antena? ¿hay línea de vista?
+//    SALA ELÉCTRICA     → ¿permiso eléctrico? ¿bloqueo LOTO? ¿riesgo de arco?
+//    PATIO / INTEMPERIE → ¿gabinete estanco? ¿qué grado IP?
+//
+//  Todos los campos son OPCIONALES en la base a propósito: la pantalla
+//  enseña sólo los que aplican al tipo de sitio, y el servicio exige los
+//  que ese tipo necesita. Hacerlos obligatorios en el esquema habría
+//  obligado a rellenar "¿necesita manlift?" para una cámara de oficina.
+//
+//  TERMINA CREANDO EL ACTIVO. Ése es el remate: cuando la instalación pasa
+//  a INSTALADA, nace el registro en el inventario, con su ubicación y su
+//  ficha. Sin eso, el equipo queda puesto en la pared y fuera del sistema.
+// =====================================================================
+enum TipoSitio {
+  OFICINA
+  PULPITO
+  GRUA
+  SALA_ELECTRICA
+  NAVE
+  PATIO
+  ALMACEN
+  CASETA
+  SUBESTACION
+  LABORATORIO
+  OTRO
+}
+
+enum EstadoInstalacion {
+  SOLICITADA     // alguien la pide
+  EN_EVALUACION  // asignada a un técnico para visita
+  EVALUADA       // se fue, midió y llenó las condiciones del sitio
+  APROBADA       // el Jefe la aprueba
+  RECHAZADA
+  EN_EJECUCION   // hay OM abierta
+  INSTALADA      // hecha, y con el activo creado
+  CANCELADA
+}
+
+model Instalacion {
+  id             String            @id @default(uuid())
+  codigo         String            @unique // INS-2026-0001
+  estado         EstadoInstalacion @default(SOLICITADA)
+
+  tipoSitio      TipoSitio
+  tipoEquipo     AssetType
+  cantidad       Int               @default(1)
+  tren           PlantTrain?
+  locationId     String?
+  location       Location?         @relation(fields: [locationId], references: [id])
+  /// Dónde exactamente, en texto llano: "columna 14, junto a la escalera norte".
+  referenciaSitio String?
+  comoLlegar     String?
+  justificacion  String
+  solicitadaPor  String?
+  areaSolicitante String?
+
+  // ---- Condiciones del sitio: SE MIDEN EN LA VISITA ----
+  hayEnergia      Boolean?
+  tipoEnergia     String?   // 220V tomacorriente / PoE / 24VDC / tablero
+  hayPuntoRed     Boolean?
+  gabineteCercano String?
+  metrosCable     Float?
+  rutaCable       String?
+  necesitaPoe     Boolean?
+  switchDestinoId String?
+  nvrDestinoId    String?
+  canalNvr        Int?
+
+  // ---- Acceso y seguridad ----
+  alturaMetros            Float?
+  necesitaManlift         Boolean?
+  necesitaAndamio         Boolean?
+  /// ¿Hay que parar el tren para hacerlo? Enlaza con las ventanas de parada.
+  necesitaParada          Boolean?
+  necesitaLoto            Boolean?
+  necesitaPermisoAltura   Boolean?
+  necesitaPermisoCaliente Boolean?
+  riesgos                 String?
+  quienAutoriza           String?
+
+  // ---- Sólo GRÚA ----
+  gruaNombre           String?
+  gruaSeDetiene        Boolean?
+  porCadenaPortacables Boolean?
+  porAntena            Boolean?
+  antenaModelo         String?
+  distanciaEnlaceM     Float?
+  hayLineaVista        Boolean?
+
+  // ---- Sólo OFICINA / PÚLPITO ----
+  hayFalsoTecho     Boolean?
+  hayCanaleta       Boolean?
+  esClimatizado     Boolean?
+  pantallaExistente String?
+  puestoOperador    String?
+
+  // ---- Ambiente ----
+  ambiente                 Environment?
+  necesitaGabineteEstanco  Boolean?
+  gradoIpRequerido         String?
+
+  materialesEstimados String?
+  costoEstimado       Float?
+  moneda              String?  @default("PEN")
+
+  evaluadaPorId   String?
+  evaluadaEn      DateTime?
+  aprobadaPorId   String?
+  aprobadaEn      DateTime?
+  motivoRechazo   String?
+
+  workOrderId     String?
+  workOrder       WorkOrder? @relation(fields: [workOrderId], references: [id])
+  /// El activo que nació de esta instalación. El remate del ciclo.
+  assetCreadoId   String?
+  assetCreado     Asset?     @relation("AssetDeInstalacion", fields: [assetCreadoId], references: [id])
+  instaladaEn     DateTime?
+
+  notas           String?
+  creadoPorId     String?
+  creadoEn        DateTime  @default(now())
+  editadoEn       DateTime  @default(now()) @updatedAt
+
+  fotos           FotoInstalacion[]
+
+  @@index([estado])
+  @@index([tipoSitio])
+  @@index([tren])
+  @@index([locationId])
+  @@map("instalaciones")
+}
+
+/// Fotos del sitio. Una foto del techo del púlpito ahorra la segunda visita.
+model FotoInstalacion {
+  id            String      @id @default(uuid())
+  instalacionId String
+  instalacion   Instalacion @relation(fields: [instalacionId], references: [id], onDelete: Cascade)
+  fileId        String
+  descripcion   String?
+  /// ANTES | DURANTE | DESPUES
+  momento       String      @default("ANTES")
+  creadoEn      DateTime    @default(now())
+
+  @@index([instalacionId])
+  @@map("fotos_instalacion")
 }

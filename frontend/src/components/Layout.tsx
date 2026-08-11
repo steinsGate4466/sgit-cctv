@@ -34,6 +34,8 @@ const TITLES: Record<string, string> = {
   '/documentos': 'Manuales y planos',
   '/limpieza': 'Limpieza de datos',
   '/equipos': 'Equipos conocidos',
+  '/paradas': 'Ventanas de parada',
+  '/instalaciones': 'Instalaciones',
   '/exportar': 'Exportar a Excel',
   '/avisos': 'Avisos',
 };
@@ -98,9 +100,12 @@ export default function Layout() {
     },
     {
       titulo: 'Infraestructura',
-      rutas: ['/assets', '/cabinets', '/locations', '/access', '/cableado', '/mapeo', '/grabadores', '/conexiones', '/topologia', '/monitoreo', '/documentos'],
+      rutas: ['/assets', '/cabinets', '/locations', '/access', '/cableado', '/mapeo', '/grabadores', '/conexiones', '/topologia', '/monitoreo', '/documentos', '/instalaciones'],
       items: [
         can('asset.read') && <NavLink key="a" to="/assets"><Icono n="activos" /> Activos</NavLink>,
+        // Instalaciones va junto a Activos porque es de donde salen: una
+        // instalación terminada crea el activo.
+        can('asset.read') && <NavLink key="ins" to="/instalaciones"><Icono n="instalar" /> Instalaciones</NavLink>,
         can('asset.read') && <NavLink key="g" to="/cabinets"><Icono n="gabinete" /> Gabinetes</NavLink>,
         can('asset.read') && <NavLink key="u" to="/locations"><Icono n="ubicacion" /> Ubicaciones</NavLink>,
         can('asset.read') && <NavLink key="cb" to="/cableado"><Icono n="cableado" /> Cableado</NavLink>,
@@ -121,10 +126,12 @@ export default function Layout() {
     },
     {
       titulo: 'Operación',
-      rutas: ['/incidents', '/maintenance'],
+      rutas: ['/incidents', '/maintenance', '/paradas'],
       items: [
         can('incident.read') && <NavLink key="i" to="/incidents"><Icono n="incidencia" /> Incidencias</NavLink>,
         can('wo.read') && <NavLink key="m" to="/maintenance"><Icono n="orden" /> Órdenes (OM)</NavLink>,
+        // Las paradas van con las órdenes: es cuándo se puede trabajar.
+        can('wo.read') && <NavLink key="pa" to="/paradas"><Icono n="parada" /> Ventanas de parada</NavLink>,
       ].filter(Boolean) as ReactNode[],
     },
     {

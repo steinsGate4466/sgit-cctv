@@ -352,3 +352,133 @@ con `-ExecutionPolicy Bypass`; la consola del usuario no. `npx` es un `.ps1` y
 lo bloquea la política.
 **Regla: los comandos que se le pasan al usuario para pegar en SU consola usan
 `npx.cmd`, nunca `npx`.**
+
+---
+
+## 10. Bloque 16 — paradas e instalaciones
+
+### DESBLOQUEADO: de dónde salen las paradas
+
+**MANUALES.** Producción avisa —radio, WhatsApp, de boca— y **la hora se mueve,
+muchas veces a última hora**. No hay integración con SAP ni con Producción.
+
+Dos decisiones que salen de ahí y no se deshacen:
+
+1. **`inicioPrevisto` ≠ `inicioReal`.** Un diseño ingenuo guarda «hora de la
+   parada» y la sobrescribe: entonces la desviación desaparece. Restar los dos
+   ES el dato.
+2. **Cada movimiento de hora se guarda, con motivo OBLIGATORIO.** Sin registro,
+   cuando la ventana se mueve tres veces y el trabajo no se hace, parece culpa
+   de mantenimiento.
+
+**No se valida que la hora sea futura**, a propósito: media planta se entera
+cuando ya empezó. Un formulario que rechaza la realidad se deja de usar.
+
+### Instalaciones: el formulario cambia según el sitio
+
+`requisitos-sitio.ts` es **la fuente de verdad** y la usan los dos lados: el
+frontend para enseñar campos, el servicio para exigirlos. Si se duplicaran, un
+día el formulario pediría algo que el servidor no valida — o al revés, que es
+peor: el técnico no puede guardar y no sabe por qué.
+
+Hay una prueba que verifica que **todo campo obligatorio esté entre los
+visibles** de su perfil. Ese es el fallo exacto que caza.
+
+Otras reglas del módulo:
+
+- **Se puede guardar a medias.** El técnico está en el sitio con guantes. Sólo
+  al cerrar la visita se exige lo del perfil.
+- **`false` es una respuesta, `''` no.** «No necesita manlift» tiene que dejar
+  cerrar la visita. La comprobación es contra `null | undefined | ''`, nunca
+  contra falsy.
+- **No se aprueba sin visita.** Aprobar sin medir es firmar sin saber si son 20
+  metros de cable o 200.
+- **Al cerrar NACE EL ACTIVO**, en la misma transacción que el cambio de
+  estado. Si se crearan por separado y fallara la segunda, mañana alguien
+  vuelve a ejecutar y el equipo sale duplicado.
+- Lo medido en la visita (`referenciaSitio`, `ambiente`) **viaja a la ficha del
+  activo**: ese conocimiento se pierde si sólo vive en la instalación.
+
+### De la auditoría QA
+
+- Los 8 «await olvidados» eran `$transaction([...])` — recibe promesas SIN
+  resolver a propósito — o fuego-y-olvido con `.catch()`. **Antes de reportar
+  un await que falta, mirar si está dentro de una transacción.**
+- El `ValidationPipe` corre con `whitelist` **y** `forbidNonWhitelisted`, así
+  que `data: {...dto}` es seguro **si hay clase DTO**. Con `@Body(): any` no
+  hay metadatos y no valida nada: ahí sí es un agujero.
+- Sigue abierto el único hallazgo rojo: **41 rutas `:id` sin ámbito de tren**
+  (OWASP A01). Es el bloque 12.3.
+
+### Bloque 16.1 — el fallo que se me escapó, y el verificador 8
+
+**Qué pasó.** Declaré en `Instalacion`:
+
+```
+workOrderId  String?
+workOrder    WorkOrder? @relation(fields: [workOrderId], references: [id])
+```
+
+y me olvidé de `instalaciones Instalacion[]` en `WorkOrder`. **Prisma exige el
+campo en LOS DOS modelos**, aunque sólo uno lleve la clave foránea.
+
+Puse el lado inverso en `Location` y en `Asset`, y me salté `WorkOrder`. Los
+verificadores no lo miraban, así que el paquete salió «verificado» y reventó
+con **P1012 en el paso 5**, en la máquina del usuario, con los 22 archivos ya
+escritos.
+
+**Lo que importa no es el error: es CUÁNDO apareció.** Por eso existe ahora
+`scripts/verificar-relaciones.js` (verificador 8). Recorre cada campo con
+`@relation(fields: [...])` y comprueba que el modelo apuntado tenga la vuelta,
+emparejando por nombre de relación cuando lo hay. Probado reintroduciendo el
+bug a propósito: sale código 1 y dice qué línea falta y dónde ponerla.
+
+**Regla que queda: `npx prisma generate` NO se puede correr aquí** (el espejo
+del sandbox no tiene el binario), así que toda validación del esquema tiene
+que ser un verificador de texto. Cada vez que Prisma falle con un error que un
+verificador podría haber cazado, se escribe el verificador antes de reenviar.
+
+**Y sobre P3005 al migrar en local:** ya pasó una vez y la causa fue distinta.
+Antes de tocar nada, `npx.cmd prisma migrate status` — dice si falta la tabla
+`_prisma_migrations` (hay que hacer baseline) o si simplemente hay migraciones
+pendientes. **Nunca `migrate reset` contra una base con datos.**
+
+### Bloque 16.2 — dos errores más, y el verificador 9
+
+**`Asset` no tiene campo `environment`.** Escribí `environment: i.ambiente` al
+crear el activo desde una instalación. El ambiente **se deduce del árbol de
+ubicaciones**, igual que el tren y la criticidad. Copiarlo al activo habría
+creado una segunda verdad que se desincroniza el día que alguien corrija la
+etapa. TS2353.
+
+**`_count` NO es opción de primer nivel.** Va dentro de `select` o de
+`include`. Suelto, TypeScript lo tipa como `never` y revientan de golpe todas
+las llamadas que lo usan — cinco, con un mensaje que no menciona `_count`
+hasta la tercera línea. **Excepciones donde SÍ va arriba:** primer argumento
+de `groupBy`/`aggregate`/`count`, y dentro de `orderBy:`/`having:`.
+
+Los dos los caza ahora `scripts/verificar-escrituras.js` (verificador 9).
+
+#### Lo que costó escribirlo bien, y por qué importa
+
+La primera versión usaba expresiones regulares con una ventana de 3.000
+caracteres: **45 falsos positivos**. Se comía el `data:` de la llamada
+siguiente, leía claves de objetos anidados y confundía `null` con un campo.
+
+**Un verificador que grita cuando no pasa nada se ignora a la semana**, y
+entonces no sirve el día que grita de verdad. Ya pasó con `_count` en el
+verificador 6. La versión buena:
+
+1. **Limpia** cadenas, plantillas y comentarios antes de contar llaves.
+2. Localiza el paréntesis de la llamada y **recorre contando llaves**; sólo
+   mira claves a **un nivel exacto** de profundidad.
+3. Para `_count` mira **el objeto donde está escrito**, no la llamada —
+   porque el caso real viajaba en un `...spread`:
+   `private incluir = { _count: ... }` y luego `findMany({ ...this.incluir })`.
+   Desde la llamada es invisible.
+4. **Probado reintroduciendo los dos bugs**: los caza y sale con código 1.
+
+**Regla de proceso:** cada vez que Prisma o TypeScript fallen en la máquina
+del usuario con algo que un verificador de texto podría haber visto, se
+escribe el verificador **antes** de reenviar el paquete. Y se prueba
+reintroduciendo el fallo, no sólo comprobando que pasa en verde.
