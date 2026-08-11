@@ -184,6 +184,21 @@ function leerMigraciones() {
 const S = leerSchema();
 const M = leerMigraciones();
 const problemas = [];
+/**
+ * Los problemas de ÍNDICE van APARTE, y esta separación tiene una historia.
+ *
+ * El nombre mal escrito de `ventanas_parada_inicioPrevisto_idx` llegó a la CI
+ * porque en la copia donde se preparó el bloque faltaba la carpeta del
+ * baseline. Sin ella, este script salía por la puerta de "falta historial"
+ * ANTES de mirar los índices — y el fallo, que no dependía del historial
+ * para nada, viajó hasta GitHub.
+ *
+ * Los índices se comparan por NOMBRE contra el esquema. Eso no necesita saber
+ * qué tablas existían antes: sólo hace falta ver las migraciones que hay. Así
+ * que ahora se avisan SIEMPRE, incluso cuando el resto de la comparación no
+ * se puede hacer.
+ */
+const problemasIndice = [];
 // Se declara aquí arriba porque la comprobación de índices ya lo usa.
 const sobran = [];
 
@@ -215,10 +230,14 @@ for (const [tabla, cols] of S.tablas) {
       const esperado = `${tabla}_${cols.join('_')}_${sufijo}`;
       const enMig = [...M.indices.keys()].includes(esperado);
       if (!enMig) {
-        problemas.push(
-          `Índice "${esperado}" (${tabla}: ${cols.join(', ')}) está en schema.prisma ` +
-          'pero ninguna migración lo crea con ESE nombre.',
-        );
+        // Se guarda la TABLA además del mensaje: cuando falta historial hay
+        // que poder quedarse sólo con las tablas cuyo CREATE TABLE sí se ha
+        // leído. Los índices del baseline no son un fallo, es que no está.
+        problemasIndice.push({
+          tabla,
+          texto: `Índice "${esperado}" (${tabla}: ${cols.join(', ')}) está en schema.prisma ` +
+            'pero ninguna migración lo crea con ESE nombre.',
+        });
       }
     }
   }
@@ -280,12 +299,32 @@ const faltanDelNucleo = NUCLEO.filter(
   (t) => S.tablas.has(t) && (!M.tablas.has(t) || !M.tablas.get(t).has('id')),
 );
 if (faltanDelNucleo.length >= 3) {
-  console.error('  NO SE PUEDEN COMPARAR: falta historial de migraciones.\n');
+  console.error('  NO SE PUEDEN COMPARAR TABLAS NI COLUMNAS: falta historial.\n');
   console.error(`    Ninguna migración crea (con su clave primaria): ${faltanDelNucleo.join(', ')}.`);
   console.error('    Eso no es un desfase: son las tablas del núcleo, y existen');
   console.error('    desde el principio. Lo que falta es la migración que las creó.\n');
   console.error('    Comprueba que está la carpeta del baseline en prisma/migrations,');
   console.error('    y que la copia del repositorio está completa.\n');
+
+  // LOS ÍNDICES SÍ SE PUEDEN COMPARAR AUNQUE FALTE EL HISTORIAL: se miran por
+  // nombre contra las migraciones que hay. Salir sin decirlo fue exactamente
+  // lo que dejó pasar el nombre mal escrito hasta la CI.
+  /* Sólo las tablas que ALGUNA migración disponible crea de verdad (con su
+     clave primaria). Las del baseline se saltan: sus índices existen, lo que
+     no está es el archivo que los crea. Sin este filtro salían 27 avisos
+     falsos y el mensaje útil quedaba enterrado — que es justo cómo muere un
+     verificador. */
+  const comparables = problemasIndice.filter(
+    (p) => M.tablas.has(p.tabla) && M.tablas.get(p.tabla).has('id'),
+  );
+  if (comparables.length) {
+    console.error('  PERO LOS ÍNDICES DE LAS TABLAS NUEVAS SÍ SE HAN COMPARADO:\n');
+    comparables.forEach((p) => console.error('    · ' + p.texto));
+    console.error('\n  Prisma nombra los índices como <tabla>_<campos>_idx, con el nombre');
+    console.error('  COMPLETO del campo. Abreviarlo al escribir el SQL a mano hace que');
+    console.error('  `prisma migrate dev` crea que falta el índice y lo duplique.\n');
+    process.exit(1);
+  }
   process.exit(2);
 }
 
@@ -295,9 +334,10 @@ if (sobran.length) {
   console.log('');
 }
 
-if (problemas.length) {
+const todos = [...problemas, ...problemasIndice.map((p) => p.texto)];
+if (todos.length) {
   console.error('  DESFASE — la CI va a fallar en "Migraciones":\n');
-  problemas.forEach((p) => console.error('    · ' + p));
+  todos.forEach((p) => console.error('    · ' + p));
   console.error('\n  Solucion: cd backend && npx prisma migrate dev --name <nombre-del-cambio>');
   console.error('  O escribe la migracion a mano, si prefieres controlar el SQL.\n');
   process.exit(1);

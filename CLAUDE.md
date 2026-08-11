@@ -515,3 +515,38 @@ Probado quitando uno a propósito.
 **21 pruebas, y siempre las DOS:** el propio pasa y el ajeno no. Sólo con la
 primera se puede tener un guard que deja pasar todo; sólo con la segunda, uno
 que no deja pasar nada.
+
+### Bloque 16.3 — el nombre del índice, y por qué llegó a la CI
+
+**El fallo.** Escribí a mano `CREATE INDEX "ventanas_parada_inicioPrev_idx"`,
+abreviando el campo. **Prisma nombra SIEMPRE `<tabla>_<campos>_idx` con el
+nombre COMPLETO**: `ventanas_parada_inicioPrevisto_idx`.
+
+A PostgreSQL el nombre le da igual, pero el día que alguien corra
+`prisma migrate dev`, Prisma cree que falta el índice, **lo vuelve a crear**, y
+quedan dos índices iguales sobre la misma columna. Cada escritura paga los dos.
+
+**Se arregla con una migración NUEVA, no editando la anterior.** La de antes ya
+se aplicó —local y Railway— y una migración aplicada es inmutable. El SQL es
+idempotente (`ALTER INDEX IF EXISTS ... RENAME` + `CREATE INDEX IF NOT EXISTS`)
+para que valga tanto en una base que ya lo tiene como en una nueva.
+
+#### Por qué se me escapó, que es lo que de verdad importa
+
+`verificar-migraciones.js` lo habría cazado. **No lo cazó aquí porque a mi copia
+del repositorio le falta la carpeta del baseline**, y el script salía por la
+puerta de «falta historial» —código 2— ANTES de mirar los índices. El fallo no
+dependía del historial para nada, y viajó hasta GitHub.
+
+**Arreglado:** cuando falta historial, el script sigue comparando los índices,
+pero **sólo de las tablas cuyo `CREATE TABLE` sí ha leído**. Sin ese filtro
+salían 27 avisos falsos (los índices del baseline) y el útil quedaba enterrado
+— que es exactamente cómo muere un verificador.
+
+**Regla de proceso, la tercera vez que aparece la misma:** un verificador que
+no puede correr aquí es un verificador que no existe. Si sale con código 2 por
+falta de datos, hay que ver **qué parte SÍ se podía comprobar** y comprobarla,
+en vez de callarse entero.
+
+**Y la regla de contenido:** los índices escritos a mano en SQL llevan el
+nombre **exacto** que generaría Prisma. Nada de abreviar el campo.
