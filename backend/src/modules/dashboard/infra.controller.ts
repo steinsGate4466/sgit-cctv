@@ -4,6 +4,7 @@ import { InfraService } from './infra.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { SinAmbito } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 /**
@@ -41,6 +42,7 @@ export class InfraController {
   }
 
   /** Tablero completo de un tren. Acepta el id o el código de la ubicación. */
+  @SinAmbito()  // el tablero ya filtra por ámbito en el servicio
   @Get('tren/:idOrCode')
   @RequirePermissions('dashboard.read')
   detalle(@Param('idOrCode') idOrCode: string, @CurrentUser() user: any) {

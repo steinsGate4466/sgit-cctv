@@ -4,6 +4,7 @@ import { PurgaService } from './purga.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { SinAmbito } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { PurgarDto, PurgarAuditoriaDto } from './dto/purga.dto';
 
@@ -39,24 +40,28 @@ export class PurgaController {
     return this.purga.candidatosOm();
   }
 
+  @SinAmbito()  // purga: ya exige el rol Jefe de Mantenimiento, que lo ve todo
   @Get('activo/:id')
   @RequirePermissions('asset.delete')
   previaActivo(@Param('id') id: string) {
     return this.purga.vistaPreviaActivo(id);
   }
 
+  @SinAmbito()  // purga: ya exige el rol Jefe de Mantenimiento, que lo ve todo
   @Post('activo/:id')
   @RequirePermissions('asset.delete')
   purgarActivo(@Param('id') id: string, @Body() dto: PurgarDto, @CurrentUser() u: any, @Ip() ip: string) {
     return this.purga.purgarActivo(id, dto.confirmacion, u?.userId, ip);
   }
 
+  @SinAmbito()  // purga: ya exige el rol Jefe de Mantenimiento, que lo ve todo
   @Get('om/:id')
   @RequirePermissions('wo.approve')
   previaOm(@Param('id') id: string) {
     return this.purga.vistaPreviaOm(id);
   }
 
+  @SinAmbito()  // purga: ya exige el rol Jefe de Mantenimiento, que lo ve todo
   @Post('om/:id')
   @RequirePermissions('wo.approve')
   purgarOm(@Param('id') id: string, @Body() dto: PurgarDto, @CurrentUser() u: any, @Ip() ip: string) {
@@ -79,12 +84,14 @@ export class PurgaController {
     return this.purga.vaciarOrdenes(dto.confirmacion, u?.userId, ip);
   }
 
+  @SinAmbito()  // purga: ya exige el rol Jefe de Mantenimiento, que lo ve todo
   @Get('usuario/:id')
   @RequirePermissions('user.manage')
   previaUsuario(@Param('id') id: string) {
     return this.purga.vistaPreviaUsuario(id);
   }
 
+  @SinAmbito()  // purga: ya exige el rol Jefe de Mantenimiento, que lo ve todo
   @Post('usuario/:id')
   @RequirePermissions('user.manage')
   purgarUsuario(@Param('id') id: string, @Body() dto: PurgarDto, @CurrentUser() u: any, @Ip() ip: string) {

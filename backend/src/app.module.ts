@@ -6,6 +6,7 @@ import { HealthController } from './common/health.controller';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
 import { RitmoGuard } from './common/guards/ritmo.guard';
+import { AmbitoGuard } from './common/guards/ambito.guard';
 
 import { AuthModule } from './modules/auth/auth.module';
 import { RolesModule } from './modules/roles/roles.module';
@@ -86,6 +87,11 @@ import { PredictiveModule } from './modules/predictive/predictive.module';
     { provide: APP_GUARD, useClass: RitmoGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
+    // 3) AmbitoGuard: el ÚLTIMO a propósito. Sólo tiene sentido preguntarse
+    //    "¿este activo es de tu tren?" cuando ya se sabe quién eres y que
+    //    tienes permiso para leer activos. Consultar la base antes de eso
+    //    sería trabajo tirado en cada petición sin token.
+    { provide: APP_GUARD, useClass: AmbitoGuard },
   ],
 })
 export class AppModule {}

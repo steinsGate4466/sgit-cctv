@@ -482,3 +482,36 @@ verificador 6. La versión buena:
 del usuario con algo que un verificador de texto podría haber visto, se
 escribe el verificador **antes** de reenviar el paquete. Y se prueba
 reintroduciendo el fallo, no sólo comprobando que pasa en verde.
+
+### Bloque 12.3 — ámbito por identificador (el último agujero rojo)
+
+**Cerrado.** 116 rutas con parámetro: 66 con `@AmbitoDe(...)`, 50 con
+`@SinAmbito()` y su motivo escrito al lado, **0 sin declarar**.
+
+**Decorador y no guard adivino.** Un guard que deduce el modelo de la URL
+funciona hasta la primera ruta que no siga el patrón, y entonces **falla
+abriendo**. Un fallo de seguridad silencioso es el peor tipo.
+
+**404 y no 403.** Un 403 confirma que el registro existe: con eso se recorren
+identificadores y se dibuja el inventario del vecino sin leer un campo.
+
+**Las tres reglas que evitan romper trabajo legítimo** (cerrar de más se nota
+tarde, cuando alguien está en planta y no puede abrir su orden):
+
+1. Ámbito vacío = todos los trenes. Hoy **todos** lo tienen vacío, así que no
+   cambia el comportamiento de nadie. Camino rápido: ni consulta la entidad.
+2. Registro **sin ubicación pasa** — STOCK, mapeo sin equipo. Bloquearlo
+   dejaría el almacén invisible.
+3. **Si la comprobación falla, pasa.** Defensa en profundidad, no única capa.
+   Este guard no puede tumbar el sistema.
+
+**Orden de los guards:** Ritmo → Jwt → Permissions → **Ambito, el último**.
+Preguntar «¿es de tu tren?» antes de saber quién eres es trabajo tirado.
+
+**Verificador 10** (`verificar-ambito.js`): un decorador que hay que acordarse
+de poner es un agujero con fecha. Ahora el olvido es un fallo de la entrega.
+Probado quitando uno a propósito.
+
+**21 pruebas, y siempre las DOS:** el propio pasa y el ajeno no. Sólo con la
+primera se puede tener un guard que deja pasar todo; sólo con la segunda, uno
+que no deja pasar nada.

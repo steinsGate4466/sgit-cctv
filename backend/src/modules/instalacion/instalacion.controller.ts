@@ -4,6 +4,7 @@ import { InstalacionService } from './instalacion.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { AmbitoDe } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import {
   CrearInstalacionDto, DecidirInstalacionDto, EvaluarInstalacionDto, InstaladaDto,
@@ -35,6 +36,7 @@ export class InstalacionController {
     return this.inst.listar(q || {});
   }
 
+  @AmbitoDe('instalacion')
   @Get(':id')
   @RequirePermissions('asset.read')
   detalle(@Param('id') id: string) {
@@ -49,6 +51,7 @@ export class InstalacionController {
   }
 
   /** Guardar la visita. Lo hace quien va al sitio. */
+  @AmbitoDe('instalacion')
   @Patch(':id/evaluar')
   @RequirePermissions('asset.update')
   evaluar(@Param('id') id: string, @Body() dto: EvaluarInstalacionDto, @CurrentUser() u: any, @Ip() ip: string) {
@@ -56,12 +59,14 @@ export class InstalacionController {
   }
 
   /** Aprobar o rechazar: del Jefe, como el cierre de OM. */
+  @AmbitoDe('instalacion')
   @Patch(':id/decidir')
   @RequirePermissions('wo.approve')
   decidir(@Param('id') id: string, @Body() dto: DecidirInstalacionDto, @CurrentUser() u: any, @Ip() ip: string) {
     return this.inst.decidir(id, dto, u?.userId, ip);
   }
 
+  @AmbitoDe('instalacion')
   @Post(':id/orden')
   @RequirePermissions('wo.create')
   generarOrden(@Param('id') id: string, @CurrentUser() u: any, @Ip() ip: string) {
@@ -69,12 +74,14 @@ export class InstalacionController {
   }
 
   /** Cerrar el ciclo: nace el activo. Exige poder crear activos. */
+  @AmbitoDe('instalacion')
   @Post(':id/instalada')
   @RequirePermissions('asset.create')
   instalada(@Param('id') id: string, @Body() dto: InstaladaDto, @CurrentUser() u: any, @Ip() ip: string) {
     return this.inst.marcarInstalada(id, dto, u?.userId, ip);
   }
 
+  @AmbitoDe('instalacion')
   @Patch(':id/cancelar')
   @RequirePermissions('asset.update')
   cancelar(@Param('id') id: string, @Body() dto: DecidirInstalacionDto, @CurrentUser() u: any, @Ip() ip: string) {

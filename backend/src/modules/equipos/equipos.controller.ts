@@ -4,6 +4,7 @@ import { EquiposService } from './equipos.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { SinAmbito } from '../../common/ambito.decorator';
 import { CrearEquipoDto, EditarEquipoDto } from './dto/equipo.dto';
 
 /**
@@ -37,12 +38,14 @@ export class EquiposController {
     return this.equipos.crear(dto);
   }
 
+  @SinAmbito()  // PCs de oficina y planta: no cuelgan de un tren
   @Patch(':id')
   @RequirePermissions('asset.update')
   editar(@Param('id') id: string, @Body() dto: EditarEquipoDto) {
     return this.equipos.editar(id, dto);
   }
 
+  @SinAmbito()  // PCs de oficina y planta: no cuelgan de un tren
   @Delete(':id')
   @RequirePermissions('asset.update')
   borrar(@Param('id') id: string) {

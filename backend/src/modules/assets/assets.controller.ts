@@ -14,6 +14,7 @@ import { QueryAssetDto } from './dto/query-asset.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { AmbitoDe } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('assets')
@@ -72,6 +73,7 @@ export class AssetsController {
     return this.assets.options();
   }
 
+  @AmbitoDe('asset')
   @Get(':id')
   @RequirePermissions('asset.read')
   findOne(@Param('id') id: string, @CurrentUser() user: any) {
@@ -87,6 +89,7 @@ export class AssetsController {
    * rodeando la protección de PATCH /assets/:id/edit. Ahora es una ruta
    * explícita que solo admite el estado.
    */
+  @AmbitoDe('asset')
   @Patch(':id/status')
   @RequirePermissions('asset.update')
   updateStatus(
@@ -99,6 +102,7 @@ export class AssetsController {
   }
 
   // Edición FIRMADA (completa): solo Jefe, Supervisor TI y Técnico de Red (credential.read).
+  @AmbitoDe('asset')
   @Patch(':id/edit')
   @RequirePermissions('credential.read')
   editSigned(@Param('id') id: string, @Body() dto: SignedUpdateAssetDto, @Ip() ip: string) {
@@ -106,6 +110,7 @@ export class AssetsController {
   }
 
   // Editar datos de red sensibles (IP): solo Jefe de Mantenimiento y Técnico de Red.
+  @AmbitoDe('asset')
   @Patch(':id/network')
   @RequirePermissions('credential.manage')
   updateNetwork(@Param('id') id: string, @Body() dto: UpdateNetworkDto, @CurrentUser() user: any, @Ip() ip: string) {
@@ -113,6 +118,7 @@ export class AssetsController {
   }
 
   // Baja de activo (lógica y auditada). Solo Jefe de Mantenimiento (asset.delete).
+  @AmbitoDe('asset')
   @Delete(':id')
   @RequirePermissions('asset.delete')
   remove(@Param('id') id: string, @CurrentUser() user: any, @Ip() ip: string) {
@@ -132,6 +138,7 @@ export class AssetsController {
   }
 
   // QR individual (PNG) del activo.
+  @AmbitoDe('asset')
   @Get(':id/qr')
   @RequirePermissions('asset.read')
   async qr(@Param('id') id: string, @Res() res: Response) {
@@ -141,6 +148,7 @@ export class AssetsController {
   }
 
   // ---------- Fotografías del activo ----------
+  @AmbitoDe('asset')
   @Post(':id/photos')
   @RequirePermissions('asset.update')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 12 * 1024 * 1024 } }))
@@ -148,6 +156,7 @@ export class AssetsController {
     return this.assets.addPhoto(id, file, kind, caption);
   }
 
+  @AmbitoDe('asset')
   @Get(':id/photos')
   @RequirePermissions('asset.read')
   listPhotos(@Param('id') id: string) {
@@ -163,12 +172,14 @@ export class AssetsController {
    * Es la retroalimentación que faltaba: hasta ahora todo esto se guardaba y
    * nadie lo volvía a mirar antes de intervenir.
    */
+  @AmbitoDe('asset')
   @Get(':id/historial')
   @RequirePermissions('asset.read')
   historial(@Param('id') id: string) {
     return this.history.delActivo(id);
   }
 
+  @AmbitoDe('asset')
   @Get(':id/report')
   @RequirePermissions('asset.read')
   async report(@Param('id') id: string, @Res() res: Response) {
@@ -178,6 +189,7 @@ export class AssetsController {
     res.send(buffer);
   }
 
+  @AmbitoDe('asset', 'photoId')
   @Get('photos/:photoId/file')
   @RequirePermissions('asset.read')
   async photoFile(@Param('photoId') photoId: string, @Res() res: Response) {
@@ -186,6 +198,7 @@ export class AssetsController {
     res.send(buffer);
   }
 
+  @AmbitoDe('asset', 'photoId')
   @Delete('photos/:photoId')
   @RequirePermissions('asset.update')
   removePhoto(@Param('photoId') photoId: string) {

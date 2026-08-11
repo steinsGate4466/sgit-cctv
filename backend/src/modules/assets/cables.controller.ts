@@ -5,6 +5,7 @@ import { CreateCableDto, UpdateCableDto, QueryCableDto } from './dto/cable.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { AmbitoDe } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 /**
@@ -40,6 +41,7 @@ export class CablesController {
     return this.cables.create(dto, user?.userId, ip);
   }
 
+  @AmbitoDe('assetCable')
   @Patch(':id')
   @RequirePermissions('asset.update')
   update(
@@ -52,6 +54,7 @@ export class CablesController {
   }
 
   /** Marca el tramo como retirado. No se borra: sigue explicando fallas pasadas. */
+  @AmbitoDe('assetCable')
   @Delete(':id')
   @RequirePermissions('asset.update')
   retirar(@Param('id') id: string, @CurrentUser() user: any, @Ip() ip: string) {

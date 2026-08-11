@@ -4,6 +4,7 @@ import { CatalogosService } from './catalogos.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { SinAmbito } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 /**
@@ -28,6 +29,7 @@ export class CatalogosController {
     return this.cat.todos();
   }
 
+  @SinAmbito()  // catálogos de planta: son globales, no de un tren
   @Get(':kind')
   @RequirePermissions('wo.read')
   listar(@Param('kind') kind: string, @Query('todas') todas?: string) {
@@ -40,6 +42,7 @@ export class CatalogosController {
     return this.cat.crear(body, user?.userId, ip);
   }
 
+  @SinAmbito()  // catálogos de planta: son globales, no de un tren
   @Patch(':id')
   @RequirePermissions('location.manage')
   actualizar(@Param('id') id: string, @Body() body: any, @CurrentUser() user: any, @Ip() ip: string) {
@@ -47,6 +50,7 @@ export class CatalogosController {
   }
 
   /** Desactiva. Nunca borra: el histórico tiene que seguir leyéndose. */
+  @SinAmbito()  // catálogos de planta: son globales, no de un tren
   @Delete(':id')
   @RequirePermissions('location.manage')
   desactivar(@Param('id') id: string, @CurrentUser() user: any, @Ip() ip: string) {

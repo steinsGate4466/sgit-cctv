@@ -4,6 +4,7 @@ import { GrabadoresService } from './grabadores.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { SinAmbito } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { EnlazarCamaraDto } from './dto/enlazar-camara.dto';
 
@@ -31,24 +32,28 @@ export class GrabadoresController {
     return this.grabadores.traducir(user?.userId, q || '');
   }
 
+  @SinAmbito()  // grabadores: el ámbito se aplica en el servicio
   @Get(':id/rejilla')
   @RequirePermissions('asset.read')
   rejilla(@Param('id') id: string) {
     return this.grabadores.rejilla(id);
   }
 
+  @SinAmbito()  // grabadores: el ámbito se aplica en el servicio
   @Get(':id/candidatas')
   @RequirePermissions('asset.read')
   candidatas(@Param('id') id: string, @Query('q') q?: string) {
     return this.grabadores.candidatas(id, q);
   }
 
+  @SinAmbito()  // grabadores: el ámbito se aplica en el servicio
   @Post(':id/enlazar')
   @RequirePermissions('asset.update')
   enlazar(@Param('id') id: string, @Body() dto: EnlazarCamaraDto) {
     return this.grabadores.enlazar(id, dto);
   }
 
+  @SinAmbito()  // grabadores: el ámbito se aplica en el servicio
   @Delete(':id/camaras/:assetId')
   @RequirePermissions('asset.update')
   desenlazar(@Param('id') id: string, @Param('assetId') assetId: string) {

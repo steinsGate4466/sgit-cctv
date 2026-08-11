@@ -8,6 +8,7 @@ import { ConfiguracionService } from './configuracion.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { SinAmbito } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('avisos')
@@ -105,6 +106,7 @@ export class NotificacionesController {
   }
 
   /** Reintentar un aviso que se dio por fallido. */
+  @SinAmbito()  // avisos: son del usuario, no del tren
   @Post(':id/reintentar')
   @RequirePermissions('notify.manage')
   async reintentar(@Param('id') id: string) {

@@ -4,6 +4,7 @@ import { ParadasService } from './paradas.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { AmbitoDe } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { CrearParadaDto, EstadoParadaDto, LigarOrdenDto, MoverParadaDto } from './dto/parada.dto';
 
@@ -34,6 +35,7 @@ export class ParadasController {
     return this.paradas.listar(q || {});
   }
 
+  @AmbitoDe('ventanaParada')
   @Get(':id')
   @RequirePermissions('wo.read')
   detalle(@Param('id') id: string) {
@@ -47,18 +49,21 @@ export class ParadasController {
     return this.paradas.crear(dto, u?.userId, ip);
   }
 
+  @AmbitoDe('ventanaParada')
   @Patch(':id/mover')
   @RequirePermissions('wo.update')
   mover(@Param('id') id: string, @Body() dto: MoverParadaDto, @CurrentUser() u: any, @Ip() ip: string) {
     return this.paradas.mover(id, dto, u?.userId, ip);
   }
 
+  @AmbitoDe('ventanaParada')
   @Patch(':id/estado')
   @RequirePermissions('wo.update')
   estado(@Param('id') id: string, @Body() dto: EstadoParadaDto, @CurrentUser() u: any, @Ip() ip: string) {
     return this.paradas.cambiarEstado(id, dto, u?.userId, ip);
   }
 
+  @AmbitoDe('ventanaParada')
   @Post(':id/orden')
   @RequirePermissions('wo.update')
   ligar(@Param('id') id: string, @Body() dto: LigarOrdenDto, @CurrentUser() u: any, @Ip() ip: string) {

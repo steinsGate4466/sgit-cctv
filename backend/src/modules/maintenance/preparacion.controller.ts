@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Ip, Param, Patch, Post, Query } from '@n
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PreparacionService } from './preparacion.service';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { AmbitoDe } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 /**
@@ -59,12 +60,14 @@ export class PreparacionController {
     return this.prep.agregarMaterial(id, body, user?.userId, ip);
   }
 
+  @AmbitoDe('workOrder', 'materialId')
   @Patch('materials/:materialId')
   @RequirePermissions('wo.update')
   actualizarMaterial(@Param('materialId') materialId: string, @Body() body: any) {
     return this.prep.actualizarMaterial(materialId, body);
   }
 
+  @AmbitoDe('workOrder', 'materialId')
   @Delete('materials/:materialId')
   @RequirePermissions('wo.update')
   quitarMaterial(@Param('materialId') materialId: string) {
@@ -105,6 +108,7 @@ export class PreparacionController {
   }
 
   /** No se autoriza una línea. El motivo es obligatorio. */
+  @AmbitoDe('workOrder', 'materialId')
   @Post('materials/:materialId/rechazar')
   @RequirePermissions('inventory.manage')
   rechazarMaterial(

@@ -5,6 +5,7 @@ import { CreateStageDto, UpdateStageDto } from './dto/stage.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { SinAmbito } from '../../common/ambito.decorator';
 
 /**
  * Etapas del proceso de laminación — parte del módulo de Ubicaciones.
@@ -45,6 +46,7 @@ export class StagesController {
     return this.stages.create(dto);
   }
 
+  @SinAmbito()  // etapas del proceso: catálogo global
   @Patch(':id')
   @RequirePermissions('location.manage')
   update(@Param('id') id: string, @Body() dto: UpdateStageDto) {
@@ -52,6 +54,7 @@ export class StagesController {
   }
 
   /** Cuelga la etapa de un tren concreto (crea la ubicación de tipo ETAPA). */
+  @SinAmbito()  // etapas del proceso: catálogo global
   @Post(':id/trenes/:trenId')
   @RequirePermissions('location.manage')
   instanciar(@Param('id') id: string, @Param('trenId') trenId: string) {
@@ -59,6 +62,7 @@ export class StagesController {
   }
 
   /** Desactiva (no borra: conservaría el historial de mantenimiento). */
+  @SinAmbito()  // etapas del proceso: catálogo global
   @Delete(':id')
   @RequirePermissions('location.manage')
   deactivate(@Param('id') id: string) {

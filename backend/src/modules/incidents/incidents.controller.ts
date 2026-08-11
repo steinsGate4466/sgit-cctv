@@ -11,6 +11,7 @@ import { UpdateIncidentDto } from './dto/update-incident.dto';
 import { QueryIncidentDto } from './dto/query-incident.dto';
 import { ResolveIncidentDto } from './dto/resolve-incident.dto';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { AmbitoDe } from '../../common/ambito.decorator';
 
 @ApiTags('incidents')
 @ApiBearerAuth()
@@ -31,6 +32,7 @@ export class IncidentsController {
   }
 
   // Descargar imagen de evidencia (previsualización).
+  @AmbitoDe('incident', 'evidenceId')
   @Get('evidence/:evidenceId/file')
   @RequirePermissions('incident.read')
   async evidenceFile(@Param('evidenceId') evidenceId: string, @Res() res: Response) {
@@ -39,12 +41,14 @@ export class IncidentsController {
     res.send(buffer);
   }
 
+  @AmbitoDe('incident')
   @Get(':id')
   @RequirePermissions('incident.read')
   findOne(@Param('id') id: string) {
     return this.incidents.findOne(id);
   }
 
+  @AmbitoDe('incident')
   @Patch(':id')
   @RequirePermissions('incident.update')
   update(@Param('id') id: string, @Body() dto: UpdateIncidentDto) {
@@ -53,6 +57,7 @@ export class IncidentsController {
 
   // Resolver/cerrar con firma. SOLO el Jefe de Mantenimiento (incident.close).
   // El técnico registra y avanza estados, pero el cierre lo firma el Jefe.
+  @AmbitoDe('incident')
   @Post(':id/resolve')
   @RequirePermissions('incident.close')
   resolve(@Param('id') id: string, @Body() dto: ResolveIncidentDto, @Ip() ip: string) {
@@ -60,6 +65,7 @@ export class IncidentsController {
   }
 
   // Subir fotografía de campo.
+  @AmbitoDe('incident')
   @Post(':id/evidence')
   @RequirePermissions('incident.update')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 12 * 1024 * 1024 } }))
@@ -67,6 +73,7 @@ export class IncidentsController {
     return this.incidents.addEvidence(id, file, caption);
   }
 
+  @AmbitoDe('incident')
   @Get(':id/evidence')
   @RequirePermissions('incident.read')
   listEvidence(@Param('id') id: string) {
@@ -74,6 +81,7 @@ export class IncidentsController {
   }
 
   // Informe PDF de la incidencia (con fotos).
+  @AmbitoDe('incident')
   @Get(':id/report')
   @RequirePermissions('incident.read')
   async report(@Param('id') id: string, @Res() res: Response) {

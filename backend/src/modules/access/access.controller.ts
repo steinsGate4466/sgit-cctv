@@ -11,6 +11,7 @@ import {
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { AmbitoDe } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('access')
@@ -33,6 +34,7 @@ export class AccessController {
   }
 
   // Foto de sustento (previsualización).
+  @AmbitoDe('accessRequest', 'photoId')
   @Get('photos/:photoId/file')
   @RequirePermissions('access.read')
   async photoFile(@Param('photoId') photoId: string, @Res() res: Response) {
@@ -41,6 +43,7 @@ export class AccessController {
     res.send(buffer);
   }
 
+  @AmbitoDe('accessRequest')
   @Get(':id')
   @RequirePermissions('access.read')
   findOne(@Param('id') id: string) {
@@ -48,6 +51,7 @@ export class AccessController {
   }
 
   // Documento sustentado en PDF (para presentar la solicitud de manlift).
+  @AmbitoDe('accessRequest')
   @Get(':id/report')
   @RequirePermissions('access.read')
   async report(@Param('id') id: string, @Res() res: Response) {
@@ -64,12 +68,14 @@ export class AccessController {
     return this.access.create(dto, user?.userId, ip);
   }
 
+  @AmbitoDe('accessRequest')
   @Patch(':id')
   @RequirePermissions('access.request')
   update(@Param('id') id: string, @Body() dto: UpdateAccessRequestDto, @CurrentUser() user: any, @Ip() ip: string) {
     return this.access.update(id, dto, user?.userId, ip);
   }
 
+  @AmbitoDe('accessRequest')
   @Post(':id/photos')
   @RequirePermissions('access.request')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 12 * 1024 * 1024 } }))
@@ -77,6 +83,7 @@ export class AccessController {
     return this.access.addPhoto(id, file, caption);
   }
 
+  @AmbitoDe('accessRequest')
   @Get(':id/photos')
   @RequirePermissions('access.read')
   listPhotos(@Param('id') id: string) {
@@ -84,6 +91,7 @@ export class AccessController {
   }
 
   // Aprobar / rechazar: SOLO el Jefe de Mantenimiento (access.approve), con firma.
+  @AmbitoDe('accessRequest')
   @Post(':id/decide')
   @RequirePermissions('access.approve')
   decide(@Param('id') id: string, @Body() dto: DecideAccessRequestDto, @Ip() ip: string) {

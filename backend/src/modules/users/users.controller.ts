@@ -8,6 +8,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { SetPinDto, VerifyPinDto } from './dto/pin.dto';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { SinAmbito } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('users')
@@ -61,6 +62,7 @@ export class UsersController {
     return this.users.listRoles();
   }
 
+  @SinAmbito()  // usuarios: configuración del sistema
   @Get(':id')
   @RequirePermissions('user.read')
   findOne(@Param('id') id: string) {
@@ -73,12 +75,14 @@ export class UsersController {
     return this.users.create(dto);
   }
 
+  @SinAmbito()  // usuarios: configuración del sistema
   @Patch(':id')
   @RequirePermissions('user.manage')
   update(@Param('id') id: string, @Body() dto: UpdateUserDto, @CurrentUser() user: any) {
     return this.users.update(id, dto, user?.userId);
   }
 
+  @SinAmbito()  // usuarios: configuración del sistema
   @Delete(':id')
   @RequirePermissions('user.manage')
   deactivate(@Param('id') id: string, @CurrentUser() user: any) {

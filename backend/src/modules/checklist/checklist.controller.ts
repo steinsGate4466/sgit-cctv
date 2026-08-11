@@ -4,6 +4,7 @@ import { ChecklistService } from './checklist.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { SinAmbito } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 /**
@@ -34,18 +35,21 @@ export class ChecklistController {
     return this.chk.crearPlantilla(body, user?.userId, ip);
   }
 
+  @SinAmbito()  // plantillas de checklist: globales
   @Patch('plantillas/:id')
   @RequirePermissions('location.manage')
   actualizarPlantilla(@Param('id') id: string, @Body() body: any) {
     return this.chk.actualizarPlantilla(id, body);
   }
 
+  @SinAmbito()  // plantillas de checklist: globales
   @Post('plantillas/:id/puntos')
   @RequirePermissions('location.manage')
   agregarPunto(@Param('id') id: string, @Body() body: any, @CurrentUser() user: any, @Ip() ip: string) {
     return this.chk.agregarPunto(id, body, user?.userId, ip);
   }
 
+  @SinAmbito()  // plantillas de checklist: globales
   @Patch('puntos/:id')
   @RequirePermissions('location.manage')
   actualizarPunto(@Param('id') id: string, @Body() body: any) {
@@ -53,6 +57,7 @@ export class ChecklistController {
   }
 
   /** Desactiva el punto. No lo borra: las órdenes cerradas lo respondieron. */
+  @SinAmbito()  // plantillas de checklist: globales
   @Delete('puntos/:id')
   @RequirePermissions('location.manage')
   quitarPunto(@Param('id') id: string) {
@@ -61,12 +66,14 @@ export class ChecklistController {
 
   // ---- La rutina dentro de una orden ----
 
+  @SinAmbito()  // plantillas de checklist: globales
   @Get('orden/:woId')
   @RequirePermissions('wo.read')
   rutina(@Param('woId') woId: string) {
     return this.chk.rutinaDeOrden(woId);
   }
 
+  @SinAmbito()  // plantillas de checklist: globales
   @Post('orden/:woId')
   @RequirePermissions('wo.update')
   responder(@Param('woId') woId: string, @Body() body: any, @CurrentUser() user: any, @Ip() ip: string) {

@@ -9,6 +9,7 @@ import { CreateLocationDto, UpdateLocationDto } from './dto/location.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { AmbitoDe } from '../../common/ambito.decorator';
 
 @ApiTags('locations')
 @ApiBearerAuth()
@@ -36,6 +37,7 @@ export class LocationsController {
     return this.locations.create(dto);
   }
 
+  @AmbitoDe('location')
   @Patch(':id')
   @RequirePermissions('asset.update')
   update(@Param('id') id: string, @Body() dto: UpdateLocationDto) {
@@ -43,6 +45,7 @@ export class LocationsController {
   }
 
   // Foto de referencia de la ubicación.
+  @AmbitoDe('location')
   @Get(':id/photo')
   @RequirePermissions('location.read')
   async photo(@Param('id') id: string, @Res() res: Response) {
@@ -51,6 +54,7 @@ export class LocationsController {
     res.send(buffer);
   }
 
+  @AmbitoDe('location')
   @Post(':id/photo')
   @RequirePermissions('asset.update')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 12 * 1024 * 1024 } }))

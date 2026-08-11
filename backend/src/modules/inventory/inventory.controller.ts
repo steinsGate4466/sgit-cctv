@@ -12,6 +12,7 @@ import { MovementDto } from './dto/movement.dto';
 import { CheckDto } from './dto/check.dto';
 import { LinkAssetDto } from './dto/link-asset.dto';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { SinAmbito } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('inventory')
@@ -102,12 +103,14 @@ export class InventoryController {
     return this.inv.crearHerramienta(dto);
   }
 
+  @SinAmbito()  // almacén: es uno solo para toda la planta
   @Patch('tools/:toolId')
   @RequirePermissions('inventory.manage')
   actualizarHerramienta(@Param('toolId') toolId: string, @Body() dto: any) {
     return this.inv.actualizarHerramienta(toolId, dto);
   }
 
+  @SinAmbito()  // almacén: es uno solo para toda la planta
   @Delete('tools/:toolId')
   @RequirePermissions('inventory.manage')
   desactivarHerramienta(@Param('toolId') toolId: string) {
@@ -123,10 +126,12 @@ export class InventoryController {
   findAll(@Query() q: QuerySpareDto) { return this.inv.findAll(q); }
 
   // Repuestos compatibles con un activo (por vínculo o modelo).
+  @SinAmbito()  // almacén: es uno solo para toda la planta
   @Get('for-asset/:assetId')
   @RequirePermissions('inventory.read')
   forAsset(@Param('assetId') assetId: string) { return this.inv.sparesForAsset(assetId); }
 
+  @SinAmbito()  // almacén: es uno solo para toda la planta
   @Get(':id')
   @RequirePermissions('inventory.read')
   findOne(@Param('id') id: string) { return this.inv.findOne(id); }
@@ -135,23 +140,28 @@ export class InventoryController {
   @RequirePermissions('inventory.manage')
   create(@Body() dto: CreateSpareDto) { return this.inv.create(dto); }
 
+  @SinAmbito()  // almacén: es uno solo para toda la planta
   @Patch(':id')
   @RequirePermissions('inventory.manage')
   update(@Param('id') id: string, @Body() dto: UpdateSpareDto) { return this.inv.update(id, dto); }
 
+  @SinAmbito()  // almacén: es uno solo para toda la planta
   @Delete(':id')
   @RequirePermissions('inventory.manage')
   remove(@Param('id') id: string) { return this.inv.remove(id); }
 
+  @SinAmbito()  // almacén: es uno solo para toda la planta
   @Post(':id/link')
   @RequirePermissions('inventory.manage')
   link(@Param('id') id: string, @Body() dto: LinkAssetDto) { return this.inv.linkAsset(id, dto); }
 
+  @SinAmbito()  // almacén: es uno solo para toda la planta
   @Delete(':id/link/:assetId')
   @RequirePermissions('inventory.manage')
   unlink(@Param('id') id: string, @Param('assetId') assetId: string) { return this.inv.unlinkAsset(id, assetId); }
 
   // Movimiento de stock (ingreso/retiro/ajuste) — retiro por código SAP.
+  @SinAmbito()  // almacén: es uno solo para toda la planta
   @Post(':id/movement')
   @RequirePermissions('inventory.check')
   movement(@Param('id') id: string, @Body() dto: MovementDto, @CurrentUser() user: any) {
@@ -159,6 +169,7 @@ export class InventoryController {
   }
 
   // Comprobación física (control diario del almacén).
+  @SinAmbito()  // almacén: es uno solo para toda la planta
   @Post(':id/check')
   @RequirePermissions('inventory.check')
   check(@Param('id') id: string, @Body() dto: CheckDto, @CurrentUser() user: any) {

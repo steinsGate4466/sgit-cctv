@@ -5,6 +5,7 @@ import { NetworkService } from './network.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { SinAmbito } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { GuardarPuertoDto, CrearEnlaceDto } from './dto/conexiones.dto';
 
@@ -42,6 +43,7 @@ export class ConexionesController {
     return this.conexiones.guardarPuerto(dto);
   }
 
+  @SinAmbito()  // conexiones: el ámbito se aplica en el servicio
   @Delete('puertos/:id')
   @RequirePermissions('asset.update')
   vaciarPuerto(@Param('id') id: string) {
@@ -59,6 +61,7 @@ export class ConexionesController {
     return this.red.crearEnlace(dto);
   }
 
+  @SinAmbito()  // conexiones: el ámbito se aplica en el servicio
   @Delete('enlaces/:id')
   @RequirePermissions('asset.update')
   borrarEnlace(@Param('id') id: string) {

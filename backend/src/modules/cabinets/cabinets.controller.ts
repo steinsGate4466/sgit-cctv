@@ -9,6 +9,7 @@ import { CreateCabinetDto, UpdateCabinetDto } from './dto/cabinet.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { AmbitoDe } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('cabinets')
@@ -38,6 +39,7 @@ export class CabinetsController {
     res.send(buffer);
   }
 
+  @AmbitoDe('cabinet')
   @Get(':id/qr')
   @RequirePermissions('asset.read')
   async qr(@Param('id') id: string, @Res() res: Response) {
@@ -48,12 +50,14 @@ export class CabinetsController {
   }
 
   /** Lo que se ve al escanear la etiqueta del gabinete. */
+  @AmbitoDe('cabinet')
   @Get(':id/ficha')
   @RequirePermissions('asset.read')
   ficha(@Param('id') id: string) {
     return this.cabinets.fichaRapida(id);
   }
 
+  @AmbitoDe('cabinet')
   @Get(':id/photo')
   @RequirePermissions('asset.read')
   async photo(@Param('id') id: string, @Res() res: Response) {
@@ -62,6 +66,7 @@ export class CabinetsController {
     res.send(buffer);
   }
 
+  @AmbitoDe('cabinet')
   @Get(':id')
   @RequirePermissions('asset.read')
   findOne(@Param('id') id: string) {
@@ -74,18 +79,21 @@ export class CabinetsController {
     return this.cabinets.create(dto, user?.userId, ip);
   }
 
+  @AmbitoDe('cabinet')
   @Patch(':id')
   @RequirePermissions('asset.update')
   update(@Param('id') id: string, @Body() dto: UpdateCabinetDto, @CurrentUser() user: any, @Ip() ip: string) {
     return this.cabinets.update(id, dto, user?.userId, ip);
   }
 
+  @AmbitoDe('cabinet')
   @Delete(':id')
   @RequirePermissions('asset.update')
   remove(@Param('id') id: string) {
     return this.cabinets.remove(id);
   }
 
+  @AmbitoDe('cabinet')
   @Post(':id/photo')
   @RequirePermissions('asset.update')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 12 * 1024 * 1024 } }))

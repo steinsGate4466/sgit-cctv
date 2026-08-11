@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CredentialsService } from './credentials.service';
 import { CreateCredentialDto } from './dto/create-credential.dto';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { SinAmbito } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('credentials')
@@ -27,12 +28,14 @@ export class CredentialsController {
   // Revela el secreto descifrado (permiso elevado + auditado).
   // Revelar (auditado): permitido a los 3 roles con acceso a datos sensibles
   // (Jefe de Mantenimiento, Supervisor TI, Técnico de Red) → permiso credential.read.
+  @SinAmbito()  // la credencial ya la protege el permiso credential.read y su auditoría
   @Get(':id/reveal')
   @RequirePermissions('credential.read')
   reveal(@Param('id') id: string, @CurrentUser() user: any, @Ip() ip: string) {
     return this.credentials.reveal(id, user?.userId, ip);
   }
 
+  @SinAmbito()  // la credencial ya la protege el permiso credential.read y su auditoría
   @Delete(':id')
   @RequirePermissions('credential.manage')
   remove(@Param('id') id: string) {

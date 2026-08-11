@@ -4,6 +4,7 @@ import { NetworkService } from './network.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { SinAmbito } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('red')
@@ -27,6 +28,7 @@ export class NetworkController {
     return this.red.mapa(user?.userId, tren);
   }
 
+  @SinAmbito()  // red: el ámbito se aplica en el servicio
   @Get('impacto/:assetId')
   @RequirePermissions('asset.read')
   impacto(@Param('assetId') assetId: string) {
@@ -39,6 +41,7 @@ export class NetworkController {
     return this.red.crearEnlace(dto);
   }
 
+  @SinAmbito()  // red: el ámbito se aplica en el servicio
   @Delete('enlaces/:id')
   @RequirePermissions('asset.update')
   borrar(@Param('id') id: string) {

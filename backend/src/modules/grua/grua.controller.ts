@@ -4,6 +4,7 @@ import { GruaService } from './grua.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { AmbitoDe } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { CrearInspeccionGruaDto } from './dto/inspeccion-grua.dto';
 
@@ -27,12 +28,14 @@ export class GruaController {
     return this.gruas.porGrua(u?.userId);
   }
 
+  @AmbitoDe('inspeccionGrua', 'assetId')
   @Get('historial/:assetId')
   @RequirePermissions('wo.read')
   historial(@Param('assetId') assetId: string) {
     return this.gruas.historial(assetId);
   }
 
+  @AmbitoDe('inspeccionGrua')
   @Get(':id')
   @RequirePermissions('wo.read')
   detalle(@Param('id') id: string) {

@@ -13,6 +13,7 @@ import { CloseWorkOrderDto } from './dto/close-work-order.dto';
 import { OpenWorkOrderDto } from './dto/open-work-order.dto';
 import { ProgressWorkOrderDto } from './dto/progress-work-order.dto';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { AmbitoDe } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('maintenance')
@@ -48,6 +49,7 @@ export class MaintenanceController {
   }
 
   /** Convertir una incidencia en orden, con lo que la incidencia ya sabe. */
+  @AmbitoDe('workOrder', 'incidentId')
   @Post('desde-incidencia/:incidentId')
   @RequirePermissions('wo.create')
   desdeIncidencia(
@@ -64,6 +66,7 @@ export class MaintenanceController {
    * Pide 'wo.update' y no 'wo.create': no está creando trabajo, lo está
    * completando.
    */
+  @AmbitoDe('workOrder')
   @Patch(':id/detallar')
   @RequirePermissions('wo.update')
   detallar(@Param('id') id: string, @Body() body: any, @CurrentUser() user: any, @Ip() ip: string) {
@@ -71,6 +74,7 @@ export class MaintenanceController {
   }
 
   /** Cuánto suele tardar este trabajo en este equipo, según lo ya ejecutado. */
+  @AmbitoDe('workOrder')
   @Get(':id/duracion-tipica')
   @RequirePermissions('wo.read')
   async duracionTipica(@Param('id') id: string) {
@@ -78,6 +82,7 @@ export class MaintenanceController {
     return this.wo.duracionTipica(wo.assetId, wo.type);
   }
 
+  @AmbitoDe('workOrder', 'evidenceId')
   @Get('evidence/:evidenceId/file')
   @RequirePermissions('wo.read')
   async evidenceFile(@Param('evidenceId') evidenceId: string, @Res() res: Response) {
@@ -86,12 +91,14 @@ export class MaintenanceController {
     res.send(buffer);
   }
 
+  @AmbitoDe('workOrder')
   @Get(':id')
   @RequirePermissions('wo.read')
   findOne(@Param('id') id: string) {
     return this.wo.findOne(id);
   }
 
+  @AmbitoDe('workOrder')
   @Patch(':id')
   @RequirePermissions('wo.update')
   update(@Param('id') id: string, @Body() dto: UpdateWorkOrderDto) {
@@ -104,6 +111,7 @@ export class MaintenanceController {
    * Permiso wo.update (no wo.approve): el que abre y ejecuta es el técnico,
    * no el Jefe. El cierre sí queda reservado al Jefe.
    */
+  @AmbitoDe('workOrder')
   @Post(':id/open')
   @RequirePermissions('wo.update')
   open(@Param('id') id: string, @Body() dto: OpenWorkOrderDto, @Ip() ip: string) {
@@ -114,6 +122,7 @@ export class MaintenanceController {
    * Reporte de AVANCE. No cierra la orden: la deja en proceso con el
    * porcentaje y el motivo. Sin firma —es un parte, no una decisión—.
    */
+  @AmbitoDe('workOrder')
   @Post(':id/progress')
   @RequirePermissions('wo.update')
   progress(
@@ -126,6 +135,7 @@ export class MaintenanceController {
   }
 
   /** Historial de avance, para que el Jefe vea la secuencia completa. */
+  @AmbitoDe('workOrder')
   @Get(':id/progress')
   @RequirePermissions('wo.read')
   progressList(@Param('id') id: string) {
@@ -133,6 +143,7 @@ export class MaintenanceController {
   }
 
   // Cierre firmado: SOLO Jefe de Mantenimiento (permiso wo.approve).
+  @AmbitoDe('workOrder')
   @Post(':id/close')
   @RequirePermissions('wo.approve')
   close(@Param('id') id: string, @Body() dto: CloseWorkOrderDto, @Ip() ip: string) {
@@ -140,6 +151,7 @@ export class MaintenanceController {
   }
 
   // Subir fotografía de la intervención (el técnico documenta el trabajo).
+  @AmbitoDe('workOrder')
   @Post(':id/evidence')
   @RequirePermissions('wo.update')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 12 * 1024 * 1024 } }))
@@ -148,6 +160,7 @@ export class MaintenanceController {
   }
 
   // Listar evidencias (metadatos) de una OM.
+  @AmbitoDe('workOrder')
   @Get(':id/evidence')
   @RequirePermissions('wo.read')
   listEvidence(@Param('id') id: string) {
@@ -155,6 +168,7 @@ export class MaintenanceController {
   }
 
   // Informe PDF de la OM bajo demanda (con las fotos incrustadas).
+  @AmbitoDe('workOrder')
   @Get(':id/report')
   @RequirePermissions('wo.read')
   async report(@Param('id') id: string, @Res() res: Response) {
