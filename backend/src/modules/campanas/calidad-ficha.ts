@@ -58,6 +58,8 @@ export interface ActivoParaRevisar {
   serialNumber?: string | null;
   locationId?: string | null;
   cabinetId?: string | null;
+  /** Montado dentro de un tablero eléctrico (los switches pequeños). */
+  tableroId?: string | null;
   referencePlace?: string | null;
   isDraft?: boolean | null;
   ipAddress?: string | null;
@@ -104,8 +106,12 @@ export function revisarFicha(a: ActivoParaRevisar): Defecto[] {
     b('assetCode', `El código "${a.assetCode}" no sigue el patrón AA-TIPO-...  Suele ser un tecleo de prueba.`);
   }
 
-  if (EN_RACK.has(a.type) && !a.cabinetId) {
-    b('cabinetId', `Un ${a.type} va montado en rack: sin gabinete no se sabe en cuál está.`);
+  /* GABINETE **O** TABLERO. En planta hay tableros eléctricos con switches
+     pequeños atornillados dentro; ese switch no está en ningún gabinete de
+     comunicaciones y exigírselo obligaría a inventar un gabinete falso. Lo
+     que hay que saber es DÓNDE ESTÁ MONTADO, no en qué tipo de caja. */
+  if (EN_RACK.has(a.type) && !a.cabinetId && !a.tableroId) {
+    b('cabinetId', `Un ${a.type} va montado en algún sitio: di en qué gabinete o en qué tablero eléctrico está.`);
   }
 
   if (EXIGEN_FOTO.has(a.type) && a.fotos === 0) {

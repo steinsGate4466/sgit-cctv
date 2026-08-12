@@ -200,6 +200,7 @@ model Location {
   responsibleArea  String?
   instalaciones    Instalacion[]
   zonasCampana     ZonaCampana[]
+  tablerosElectricos TableroElectrico[]
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
@@ -328,6 +329,10 @@ enum AssetType {
   /// propia orden de mantenimiento y su propio historial.
   /// Va al final: PostgreSQL añade los valores nuevos de un enum al final.
   PANTALLA
+  /// Tablero eléctrico. Es un activo propio porque se inspecciona, se
+  /// termografía y falla — y porque de él cuelga la alimentación de las
+  /// cámaras: cuando salta una llave, hay que saber qué se apagó.
+  TABLERO_ELECTRICO
 }
 
 enum AssetStatus {
@@ -384,6 +389,13 @@ model Asset {
   locationId    String?
   location      Location?   @relation(fields: [locationId], references: [id])
   cabinetId     String?     // gabinete donde está montado (NVR, switch, etc.)
+  /// MONTADO DENTRO DE UN TABLERO ELÉCTRICO.
+  /// En planta hay tableros que llevan dentro switches pequeños. Ese switch
+  /// no está en un gabinete de comunicaciones: está atornillado ahí dentro.
+  /// Crear un "gabinete" falso por cada tablero daría dos registros para una
+  /// sola cosa física, y a los tres meses uno se actualiza y el otro no.
+  tableroId     String?
+  tableroMontaje TableroElectrico? @relation("EquiposEnTablero", fields: [tableroId], references: [id])
   cabinet       Cabinet?    @relation(fields: [cabinetId], references: [id])
   // ---- Campos SAP-ready ----
   sapId         String?     @unique
@@ -439,11 +451,16 @@ model Asset {
   /// Campaña de mapeo en la que se levantó. Permite revisar por lotes.
   campanaId     String?
   campana       CampanaMapeo? @relation(fields: [campanaId], references: [id])
+  /// De qué circuito(s) se alimenta. Contesta "¿qué llave le corta la luz?".
+  alimentadoPor AlimentacionActivo[]
+  /// Si este activo ES un tablero eléctrico.
+  tableroElectrico TableroElectrico[]
 
   @@index([type])
   @@index([status])
   @@index([locationId])
   @@index([campanaId])
+  @@index([tableroId])
   @@index([cabinetId])
   @@index([train])
   observacion     AssetObservation?
@@ -2043,6 +2060,14 @@ model EquipoConocido {
   responsable String?
   notas       String?
   activo      Boolean  @default(true)
+  /// Si se marca, este equipo exige que el acceso venga de él: su IP tiene
+  /// que coincidir. Ver `acceso-dispositivo.guard.ts` para lo que esto puede
+  /// y NO puede hacer.
+  soloDesdeAqui Boolean @default(false)
+  /// Red permitida en notación CIDR, ej. `10.20.3.0/24`. Sirve para la
+  /// planta entera, que sale por una sola IP pública.
+  redPermitida  String?
+  dispositivos  DispositivoAutorizado[]
   creadoEn    DateTime @default(now())
   editadoEn   DateTime @default(now()) @updatedAt
 
@@ -2380,4 +2405,207 @@ model ZonaCampana {
   @@index([estado])
   @@index([asignadoAId])
   @@map("zonas_campana")
+}
+
+// =====================================================================
+//  ACCESO POR DISPOSITIVO (bloque 18)
+//
+//  LO QUE SE PUEDE Y LO QUE NO — hay que decirlo antes de nada
+//
+//  · Por MAC: IMPOSIBLE. La MAC es de capa 2 y no llega al servidor. El
+//    filtrado por MAC se hace en el SWITCH (802.1X o port-security), no
+//    aquí. Cualquier cosa que diga lo contrario está mintiendo.
+//
+//  · Por IP: SÓLO sirve para la red de planta, que sale por una IP pública
+//    fija. NO sirve para los técnicos con DATOS MÓVILES: el operador les
+//    cambia la IP constantemente (CGNAT). Un filtro estricto por IP dejaría
+//    fuera justo a quien más lo necesita.
+//
+//  · Por DISPOSITIVO: esto sí. El navegador se presenta con un identificador
+//    estable que sobrevive al cambio de IP. El Jefe aprueba los aparatos una
+//    vez y los demás no entran. Es lo que de verdad contesta la pregunta
+//    "¿sólo desde los equipos que yo diga?".
+//
+//  NO ES INFALIBLE, y así está tratado: el identificador se puede copiar si
+//  alguien tiene acceso al navegador de un aparato aprobado. Es UNA CAPA MÁS
+//  sobre la contraseña y el token, no un sustituto.
+// =====================================================================
+enum EstadoDispositivo {
+  PENDIENTE  // se vio por primera vez y espera decisión
+  APROBADO
+  BLOQUEADO
+}
+
+model DispositivoAutorizado {
+  id              String            @id @default(uuid())
+  /// El identificador que manda el navegador en `X-Dispositivo`.
+  dispositivoId   String            @unique
+  estado          EstadoDispositivo @default(PENDIENTE)
+  /// Nombre que le pone el Jefe: "Celular de Juan", "PC del púlpito T2".
+  nombre          String?
+  equipoConocidoId String?
+  equipoConocido  EquipoConocido?   @relation(fields: [equipoConocidoId], references: [id])
+  userAgent       String?
+  ultimaIp        String?
+  /// Últimas IP distintas desde las que se vio, separadas por coma. Sirve
+  /// para distinguir un PC fijo de un celular que salta de red.
+  ipsVistas       String?
+  /// Último usuario que entró desde aquí. Un aparato compartido es normal.
+  usuarioId       String?
+  primerVistoEn   DateTime          @default(now())
+  ultimoVistoEn   DateTime          @default(now())
+  vistas          Int               @default(1)
+  aprobadoPorId   String?
+  aprobadoEn      DateTime?
+  motivo          String?
+
+  @@index([estado])
+  @@map("dispositivos_autorizados")
+}
+
+// =====================================================================
+//  ELECTRICIDAD (bloque 18)
+//
+//  POR QUÉ UN MÓDULO ELÉCTRICO EN UN SISTEMA DE CCTV
+//  Porque la causa número uno de "se cayeron ocho cámaras de golpe" no es
+//  la red ni las cámaras: es que saltó una llave. Y hoy nadie puede
+//  contestar "¿qué se apagó cuando saltó el térmico 12 del MCC-T2?".
+//
+//  La tabla que importa es `AlimentacionActivo`: qué equipo cuelga de qué
+//  circuito. Con eso, el análisis de impacto que ya existe puede contestar
+//  la pregunta de verdad, y el técnico sabe QUÉ llave levantar antes de
+//  subirse a mirar la cámara.
+// =====================================================================
+enum TipoTablero {
+  MCC
+  DISTRIBUCION
+  CONTROL
+  ILUMINACION
+  UPS
+  TRANSFORMADOR
+  OTRO
+}
+
+enum TipoProteccion {
+  TERMOMAGNETICO
+  DIFERENCIAL
+  FUSIBLE
+  GUARDAMOTOR
+  SECCIONADOR
+  OTRO
+}
+
+enum EstadoCircuito {
+  ACTIVO
+  FUERA_SERVICIO
+  RESERVA
+  DESCONOCIDO
+}
+
+model TableroElectrico {
+  id            String       @id @default(uuid())
+  codigo        String       @unique // TAB-T2-MCC-01
+  nombre        String
+  tipo          TipoTablero  @default(DISTRIBUCION)
+  locationId    String?
+  location      Location?    @relation(fields: [locationId], references: [id])
+  tren          PlantTrain?
+  referencia    String?
+  comoLlegar    String?
+  tensionV      Int?
+  fases         Int?
+  corrienteNominalA Float?
+  /// De qué tablero cuelga éste. Permite seguir la cadena hacia arriba:
+  /// si cae el general, cae todo lo que hay debajo.
+  alimentadoDeId String?
+  alimentadoDe  TableroElectrico?  @relation("CadenaTableros", fields: [alimentadoDeId], references: [id])
+  alimenta      TableroElectrico[] @relation("CadenaTableros")
+  /// Si además está dado de alta como activo, para tener su historial de OM.
+  assetId       String?
+  asset         Asset?       @relation(fields: [assetId], references: [id])
+  fotoFileId    String?
+  riesgos       String?
+  /// Casi siempre sí: un tablero se abre con permiso eléctrico y bloqueo.
+  requierePermiso Boolean    @default(true)
+  notas         String?
+  creadoPorId   String?
+  creadoEn      DateTime     @default(now())
+  editadoEn     DateTime     @default(now()) @updatedAt
+
+  circuitos     CircuitoElectrico[]
+  mediciones    MedicionElectrica[]
+  /// Equipos atornillados DENTRO del tablero (switches pequeños, fuentes).
+  /// Distinto de `alimenta`: eso es lo que cuelga eléctricamente y puede
+  /// estar a cien metros. Esto es lo que está físicamente aquí dentro.
+  equiposMontados Asset[]         @relation("EquiposEnTablero")
+
+  @@index([locationId])
+  @@index([tren])
+  @@map("tableros_electricos")
+}
+
+model CircuitoElectrico {
+  id          String           @id @default(uuid())
+  tableroId   String
+  tablero     TableroElectrico @relation(fields: [tableroId], references: [id], onDelete: Cascade)
+  /// Como está rotulado en la puerta del tablero: "12", "Q-04", "F3".
+  numero      String
+  designacion String?
+  proteccion  TipoProteccion   @default(TERMOMAGNETICO)
+  amperajeA   Float?
+  curva       String?
+  polos       Int?
+  tensionV    Int?
+  estado      EstadoCircuito   @default(ACTIVO)
+  /// Marca los circuitos que alimentan CCTV. Es el filtro que usa el
+  /// técnico de red cuando busca por qué se le cayó media nave.
+  esCctv      Boolean          @default(false)
+  notas       String?
+  creadoEn    DateTime         @default(now())
+  editadoEn   DateTime         @default(now()) @updatedAt
+
+  alimenta    AlimentacionActivo[]
+  mediciones  MedicionElectrica[]
+
+  @@unique([tableroId, numero])
+  @@index([tableroId])
+  @@index([esCctv])
+  @@map("circuitos_electricos")
+}
+
+/// QUÉ EQUIPO CUELGA DE QUÉ LLAVE. La tabla que hace útil todo lo demás.
+model AlimentacionActivo {
+  id         String            @id @default(uuid())
+  circuitoId String
+  circuito   CircuitoElectrico @relation(fields: [circuitoId], references: [id], onDelete: Cascade)
+  assetId    String
+  asset      Asset             @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  /// La cámara no cuelga del breaker: cuelga del switch PoE, que sí. Marcarlo
+  /// evita que alguien vaya a buscar un enchufe que no existe.
+  viaPoe     Boolean           @default(false)
+  notas      String?
+  creadoEn   DateTime          @default(now())
+
+  @@unique([circuitoId, assetId])
+  @@index([assetId])
+  @@map("alimentacion_activo")
+}
+
+model MedicionElectrica {
+  id           String             @id @default(uuid())
+  circuitoId   String?
+  circuito     CircuitoElectrico? @relation(fields: [circuitoId], references: [id], onDelete: Cascade)
+  tableroId    String?
+  tablero      TableroElectrico?  @relation(fields: [tableroId], references: [id], onDelete: Cascade)
+  fecha        DateTime           @default(now())
+  tensionV     Float?
+  corrienteA   Float?
+  /// Termografía. Un borne a 80 grados es una avería con fecha.
+  temperaturaC Float?
+  observacion  String?
+  medidoPorId  String?
+
+  @@index([circuitoId])
+  @@index([tableroId])
+  @@map("mediciones_electricas")
 }

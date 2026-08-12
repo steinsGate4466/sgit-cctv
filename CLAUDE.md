@@ -566,3 +566,34 @@ arreglarlo, y sólo aparece al compilar — o sea, en la máquina del usuario.
 (que es el de trampas de TypeScript), y sólo avisa si al array se le hace
 `push` después: un array vacío que nadie toca es inofensivo. Probado
 reintroduciendo el fallo.
+
+### Bloque 18.1 — `re.sub` interpreta los escapes del reemplazo
+
+**El fallo.** Generé `Equipos.tsx` con `re.sub` de Python y el texto de
+reemplazo llevaba `\n`. **`re.sub` procesa los escapes del reemplazo**, así
+que ese `\n` se convirtió en un **salto de línea real** dentro de una cadena
+de comillas simples. En JavaScript eso no existe: `Unterminated string
+literal` en el build, en la máquina del usuario, tras 19 archivos escritos y
+8 verificadores en verde.
+
+**Regla: para sustituir texto en archivos se usa `str.replace`, NUNCA
+`re.sub`,** salvo que se necesite de verdad una expresión regular — y
+entonces el reemplazo va con `re.escape` o como función.
+
+#### El verificador, y por qué la primera versión no valía
+
+Escribí uno que contaba comillas por línea. **5 falsos positivos** al primer
+intento, todos legítimos: `http://` dentro de una cadena parecía un
+comentario, texto JSX repartido en dos líneas, expresiones regulares con
+comillas dentro.
+
+La versión buena **no adivina**: le pasa cada archivo a **esbuild**, el mismo
+analizador que usa Vite. Si esbuild lo acepta, es válido. Si no, dice la línea
+exacta. Y si esbuild no está disponible, **sale en verde** en vez de romper:
+un verificador que revienta por una dependencia acaba borrado del script.
+
+Probado reintroduciendo el fallo exacto.
+
+**Y lo más útil de todo esto:** ahora sí se puede comprobar la sintaxis del
+frontend desde aquí. Antes el único filtro era el build en la máquina del
+usuario, y por eso los errores de sintaxis siempre llegaban a él.

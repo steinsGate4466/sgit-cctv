@@ -12,7 +12,7 @@ import AssetPhotoPicker, { FotoPendiente } from '../components/AssetPhotoPicker'
 import HistorialActivo from '../components/HistorialActivo';
 import BorrarDefinitivo from '../components/BorrarDefinitivo';
 
-const TYPES = ['CAMERA', 'NVR', 'SWITCH', 'WIRELESS', 'DECODER', 'PANTALLA', 'PC', 'ROUTER', 'FIREWALL', 'SERVER', 'UPS', 'FIBER', 'CABINET', 'OTHER'];
+const TYPES = ['CAMERA', 'NVR', 'SWITCH', 'WIRELESS', 'DECODER', 'PANTALLA', 'PC', 'ROUTER', 'FIREWALL', 'SERVER', 'UPS', 'FIBER', 'CABINET', 'TABLERO_ELECTRICO', 'OTHER'];
 const STATES = ['OPERATIVO', 'FUERA_SERVICIO', 'MANTENIMIENTO', 'BAJA', 'STOCK'];
 const CRITS = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
 // Tipos montados en rack: es obligatorio indicar en qué gabinete están.
@@ -60,6 +60,8 @@ export default function Assets() {
   const [rows, setRows] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
   const [cabinets, setCabinets] = useState<any[]>([]);
+  // Tableros eléctricos: en planta hay switches pequeños atornillados dentro.
+  const [tableros, setTableros] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<any>(null);
   // Borrado DEFINITIVO. No es la baja: la baja retira un equipo real y le
@@ -147,7 +149,10 @@ export default function Assets() {
       api.get('/locations').then((r) => r.data).catch(() => []),
       api.get('/cabinets').then((r) => r.data).catch(() => []),
       api.get('/assets/options').then((r) => r.data).catch(() => []),
-    ]).then(([l, c, o]) => { setLocations(l || []); setCabinets(c || []); setOpciones(o || []); });
+      api.get('/electricidad/tableros').then((r) => r.data).catch(() => []),
+    ]).then(([l, c, o, t]) => {
+      setLocations(l || []); setCabinets(c || []); setOpciones(o || []); setTableros(t || []);
+    });
   }, []);
 
   // Recarga al cambiar filtros o página. El retardo de 350 ms evita disparar
@@ -178,7 +183,7 @@ export default function Assets() {
     setTries(5);
     setSpec({});
     setFotosNuevas([]);
-    setForm({ assetCode: '', type: 'CAMERA', brand: '', model: '', serialNumber: '', ipAddress: '', devicePass: '', status: 'OPERATIVO', criticality: 'MEDIA', locationId: '', cabinetId: '', referencePlace: '', sapId: '', responsibleArea: '', email: user?.email || '', password: '' });
+    setForm({ assetCode: '', type: 'CAMERA', brand: '', model: '', serialNumber: '', ipAddress: '', devicePass: '', status: 'OPERATIVO', criticality: 'MEDIA', locationId: '', cabinetId: '', tableroId: '', referencePlace: '', sapId: '', responsibleArea: '', email: user?.email || '', password: '' });
   }
   function openEdit(a: any) {
     setFormErr(''); setTries(5); setDetail(null); setFotosNuevas([]);
@@ -195,7 +200,7 @@ export default function Assets() {
     setForm({
       id: a.id, assetCode: a.assetCode || '', type: a.type || 'CAMERA', brand: a.brand || '', model: a.model || '',
       serialNumber: a.serialNumber || '', ipAddress: a.ipAddress || '', status: a.status || 'OPERATIVO',
-      criticality: a.criticality || 'MEDIA', locationId: a.locationId || '', cabinetId: a.cabinetId || '', referencePlace: a.referencePlace || '', sapId: a.sapId || '',
+      criticality: a.criticality || 'MEDIA', locationId: a.locationId || '', cabinetId: a.cabinetId || '', tableroId: a.tableroId || '', referencePlace: a.referencePlace || '', sapId: a.sapId || '',
       responsibleArea: a.responsibleArea || '', devicePass: '', email: user?.email || '', password: '',
     });
   }
@@ -208,7 +213,7 @@ export default function Assets() {
         assetCode: form.assetCode, type: form.type, status: form.status, criticality: form.criticality,
         brand: form.brand || undefined, model: form.model || undefined, serialNumber: form.serialNumber || undefined,
         ipAddress: form.ipAddress || undefined, referencePlace: form.referencePlace || undefined,
-        locationId: form.locationId || undefined, cabinetId: form.cabinetId || undefined, sapId: form.sapId || undefined, responsibleArea: form.responsibleArea || undefined,
+        locationId: form.locationId || undefined, cabinetId: form.cabinetId || undefined, tableroId: form.tableroId || undefined, sapId: form.sapId || undefined, responsibleArea: form.responsibleArea || undefined,
         email: form.email, password: form.password,
       };
       // Vínculo con la orden de mapeo, si se llegó desde ella.
@@ -922,12 +927,37 @@ export default function Assets() {
               {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
             <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>¿No está la ubicación? Regístrala primero en el menú “Ubicaciones”.</div>
-            <label>Gabinete{CABINET_REQUIRED.includes(form.type) ? ' (obligatorio para este tipo)' : ''}</label>
-            <select value={form.cabinetId} onChange={(e) => setForm({ ...form, cabinetId: e.target.value })} required={CABINET_REQUIRED.includes(form.type)}>
+            {/* DÓNDE ESTÁ MONTADO: gabinete O tablero eléctrico.
+                En planta hay tableros que llevan dentro switches pequeños.
+                Ese switch no está en ningún gabinete de comunicaciones, y
+                obligar a inventar uno daría dos registros para una sola cosa
+                física. Se elige uno de los dos, no los dos. */}
+            <label>Gabinete{CABINET_REQUIRED.includes(form.type) && !form.tableroId ? ' (obligatorio para este tipo)' : ''}</label>
+            <select value={form.cabinetId}
+              onChange={(e) => setForm({ ...form, cabinetId: e.target.value, tableroId: e.target.value ? '' : form.tableroId })}
+              disabled={!!form.tableroId}
+              required={CABINET_REQUIRED.includes(form.type) && !form.tableroId}>
               <option value="">— sin gabinete —</option>
               {cabinets.map((c) => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
             </select>
-            {CABINET_REQUIRED.includes(form.type) && <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>Este tipo va montado en rack: indica el gabinete para ubicarlo rápido en planta.</div>}
+
+            <label>…o dentro de un tablero eléctrico</label>
+            <select value={form.tableroId}
+              onChange={(e) => setForm({ ...form, tableroId: e.target.value, cabinetId: e.target.value ? '' : form.cabinetId })}
+              disabled={!!form.cabinetId}>
+              <option value="">— no está en un tablero —</option>
+              {tableros.map((t: any) => <option key={t.id} value={t.id}>{t.codigo} — {t.nombre}</option>)}
+            </select>
+            <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+              Para los switches pequeños atornillados dentro de un tablero. Se elige
+              gabinete <b>o</b> tablero, no los dos: son dos sitios distintos y el
+              equipo sólo está en uno.
+            </div>
+            {CABINET_REQUIRED.includes(form.type) && !form.cabinetId && !form.tableroId && (
+              <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+                Este tipo va montado en algún sitio: di en cuál, para poder encontrarlo en planta.
+              </div>
+            )}
             <label>Lugar de referencia (texto libre)</label>
             <input value={form.referencePlace} onChange={(e) => setForm({ ...form, referencePlace: e.target.value })} placeholder="Ej: Púlpito Tren 1, poste 3 lado norte" />
             <div style={{ display: 'flex', gap: 10 }}>

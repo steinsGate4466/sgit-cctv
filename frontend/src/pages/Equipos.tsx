@@ -30,6 +30,10 @@ const VACIO = {
 
 export default function Equipos() {
   const { can } = useAuth();
+  // Pestaña de dispositivos: qué APARATOS pueden entrar al sistema.
+  const [pestana, setPestana] = useState<'equipos' | 'dispositivos'>('equipos');
+  const [disp, setDisp] = useState<any[]>([]);
+  const [acceso, setAcceso] = useState<any>(null);
   const puedeEditar = can('asset.update');
 
   const [lista, setLista] = useState<any[]>([]);
@@ -40,6 +44,30 @@ export default function Equipos() {
   const [error, setError] = useState('');
   const [msg, setMsg] = useState('');
   const [guardando, setGuardando] = useState(false);
+
+  const cargarDispositivos = useCallback(async () => {
+    const [d, a] = await Promise.all([
+      api.get('/acceso-dispositivos').then((r) => r.data).catch(() => []),
+      api.get('/acceso-dispositivos/resumen').then((r) => r.data).catch(() => null),
+    ]);
+    setDisp(d || []); setAcceso(a);
+  }, []);
+
+  async function decidirDispositivo(id: string, estado: string, nombre?: string) {
+    try {
+      await api.patch(`/acceso-dispositivos/${id}`, { estado, nombre });
+      setMsg(estado === 'APROBADO' ? 'Aparato autorizado.' : estado === 'BLOQUEADO' ? 'Aparato bloqueado.' : 'Vuelto a pendiente.');
+      await cargarDispositivos();
+    } catch (e: any) { setError(e?.response?.data?.message || 'No se pudo cambiar.'); }
+  }
+
+  async function cambiarModo(modo: string) {
+    try {
+      await api.post('/acceso-dispositivos/modo', { modo });
+      setMsg(`Modo de acceso: ${modo}.`);
+      await cargarDispositivos();
+    } catch (e: any) { setError(e?.response?.data?.message || 'No se pudo cambiar el modo.'); }
+  }
 
   const cargar = useCallback(async (texto: string) => {
     const [l, h] = await Promise.all([
@@ -93,6 +121,24 @@ export default function Equipos() {
 
   return (
     <div className="page">
+      <div className="pestanas">
+        <button className={pestana === 'equipos' ? 'act' : ''} onClick={() => setPestana('equipos')}>
+          Equipos conocidos ({lista.length})
+        </button>
+        <button className={pestana === 'dispositivos' ? 'act' : ''}
+          onClick={() => { setPestana('dispositivos'); cargarDispositivos(); }}>
+          Quién puede entrar
+        </button>
+      </div>
+
+      {pestana === 'dispositivos' ? (
+        <DispositivosPanel
+          disp={disp} acceso={acceso} msg={msg} error={error}
+          setMsg={setMsg} setError={setError}
+          decidir={decidirDispositivo} cambiarModo={cambiarModo}
+        />
+      ) : (
+      <>
       <div className="card explica">
         <b>Para qué sirve esta pantalla.</b> Traduce una IP en un sitio de la planta.
         Sin ella, la auditoría dice <code>10.20.3.14</code>; con ella dice
@@ -275,6 +321,148 @@ export default function Equipos() {
           </div>
         </Modal>
       )}
+      </>
+      )}
     </div>
+  );
+}
+
+/**
+ * QUIÉN PUEDE ENTRAR — el panel de dispositivos.
+ *
+ * Está aparte para que la pantalla de equipos no se convierta en un archivo
+ * de 700 líneas donde nadie encuentra nada.
+ */
+function DispositivosPanel({ disp, acceso, msg, error, setMsg, setError, decidir, cambiarModo }: any) {
+  const MODO_TXT: Record<string, string> = {
+    LIBRE: 'Libre — no se comprueba nada. Es como está hoy.',
+    AVISAR: 'Avisar — se apunta qué aparatos entran, pero NO se bloquea a nadie.',
+    ESTRICTO: 'Estricto — sólo entran los aprobados.',
+  };
+
+  return (
+    <>
+      <div className="card explica">
+        <b>Lo primero, porque si no habría que inventarlo:</b>
+        <div style={{ marginTop: 6, lineHeight: 1.6 }}>
+          <b>Por MAC no se puede.</b> La dirección MAC no llega al servidor: muere en
+          el primer router. El filtrado por MAC existe, pero se hace <b>en el switch</b>
+          {' '}(802.1X o port-security), no en una web.
+          <div style={{ marginTop: 6 }}>
+            <b>Por IP, sólo a medias.</b> Sirve para la red de planta, que sale por una
+            IP fija. No sirve para los técnicos con datos móviles: el operador les
+            cambia la IP todo el rato.
+          </div>
+          <div style={{ marginTop: 6 }}>
+            <b>Por APARATO, sí.</b> Cada navegador se presenta con un identificador
+            estable que sobrevive al cambio de red. Apruebas los aparatos una vez y
+            los demás no entran. Es lo que de verdad contesta tu pregunta.
+          </div>
+        </div>
+      </div>
+
+      {msg && <div className="aviso-ok" onClick={() => setMsg('')}>{msg}</div>}
+      {error && <div className="aviso-error" onClick={() => setError('')}>{error}</div>}
+
+      {acceso && (
+        <div className="card">
+          <div className="section-title" style={{ marginTop: 0 }}>Modo de acceso</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+            {['LIBRE', 'AVISAR', 'ESTRICTO'].map((m) => (
+              <button key={m} className={acceso.modo === m ? 'btn-primary' : 'btn-mini'}
+                onClick={() => cambiarModo(m)}>{m}</button>
+            ))}
+          </div>
+          <div style={{ fontSize: 13.5 }}>{MODO_TXT[acceso.modo]}</div>
+
+          <div className="card peligro" style={{ marginTop: 12 }}>
+            <b>Empieza SIEMPRE por AVISAR.</b> Déjalo una semana, mira la lista de
+            abajo, aprueba los aparatos que reconozcas, y sólo entonces pon ESTRICTO.
+            Encenderlo sin eso es quedarte fuera tú también, un lunes a las seis, con
+            la planta parada.
+            <div style={{ marginTop: 6, fontSize: 12.5 }}>
+              Seguros que puse: sin ningún aparato aprobado el modo estricto <b>no
+              bloquea</b>; el <b>login nunca</b> se bloquea; y la variable de entorno
+              {' '}<code>ACCESO_DISPOSITIVO_OFF=1</code> lo apaga entero sin tocar la base.
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', marginTop: 10 }}>
+            <div><b style={{ fontSize: 22, color: 'var(--ok)' }}>{acceso.aprobados}</b><div className="muted" style={{ fontSize: 12 }}>aprobados</div></div>
+            <div><b style={{ fontSize: 22, color: 'var(--warn)' }}>{acceso.pendientes}</b><div className="muted" style={{ fontSize: 12 }}>esperando decisión</div></div>
+            <div><b style={{ fontSize: 22, color: 'var(--crit)' }}>{acceso.bloqueados}</b><div className="muted" style={{ fontSize: 12 }}>bloqueados</div></div>
+          </div>
+          {acceso.modo === 'ESTRICTO' && !acceso.estrictoEfectivo && (
+            <div className="aviso-error" style={{ marginTop: 10 }}>
+              El modo está en ESTRICTO pero <b>no hay ningún aparato aprobado</b>, así que
+              no se está bloqueando a nadie. Aprueba al menos uno.
+            </div>
+          )}
+          {acceso.apagadoPorEntorno && (
+            <div className="aviso-error" style={{ marginTop: 10 }}>
+              Está apagado por la variable <code>ACCESO_DISPOSITIVO_OFF=1</code>.
+            </div>
+          )}
+        </div>
+      )}
+
+      {disp.length === 0 ? (
+        <div className="card vacio">
+          <h3>Todavía no se ha visto ningún aparato</h3>
+          <p>
+            Pon el modo en <b>AVISAR</b> y entra desde los equipos de planta. Cada uno
+            aparecerá aquí y podrás autorizarlo.
+          </p>
+        </div>
+      ) : (
+        <table className="tabla">
+          <thead><tr><th>Aparato</th><th>Navegador</th><th>IP</th>
+            <th className="num">Veces</th><th>Último acceso</th><th>Estado</th><th></th></tr></thead>
+          <tbody>
+            {disp.map((d: any) => (
+              <tr key={d.id}>
+                <td>
+                  <strong>{d.nombre || 'Sin nombre'}</strong>
+                  <div className="muted" style={{ fontSize: 11, fontFamily: 'monospace' }}>
+                    {String(d.dispositivoId).slice(0, 12)}…
+                  </div>
+                  {d.equipoConocido && <div className="muted" style={{ fontSize: 11.5 }}>{d.equipoConocido.nombre}</div>}
+                </td>
+                <td style={{ fontSize: 12.5 }}>{d.userAgent || <span className="muted">—</span>}</td>
+                <td style={{ fontFamily: 'monospace', fontSize: 12 }}>
+                  {d.ultimaIp || <span className="muted">—</span>}
+                  {d.ipsVistas && d.ipsVistas.split(',').length > 1 && (
+                    <div className="muted" style={{ fontSize: 11 }}>
+                      {d.ipsVistas.split(',').length} IP distintas (celular)
+                    </div>
+                  )}
+                </td>
+                <td className="num">{d.vistas}</td>
+                <td className="muted" style={{ fontSize: 12 }}>
+                  {new Date(d.ultimoVistoEn).toLocaleString('es-PE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                </td>
+                <td><span className={'badge ' + d.estado}>{d.estado}</span></td>
+                <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                  {d.estado !== 'APROBADO' && (
+                    <button className="btn-mini" onClick={() => {
+                      const n = window.prompt(
+                        '¿Cómo se llama este aparato?\n\nEj: «PC púlpito T2», «Celular de Juan».',
+                        d.nombre || '',
+                      );
+                      if (n === null) return;
+                      decidir(d.id, 'APROBADO', n || undefined);
+                    }}>Autorizar</button>
+                  )}
+                  {d.estado !== 'BLOQUEADO' && (
+                    <button className="btn-mini btn-danger" style={{ marginLeft: 4 }}
+                      onClick={() => decidir(d.id, 'BLOQUEADO')}>Bloquear</button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </>
   );
 }

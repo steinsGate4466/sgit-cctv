@@ -7,6 +7,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
 import { RitmoGuard } from './common/guards/ritmo.guard';
 import { AmbitoGuard } from './common/guards/ambito.guard';
+import { AccesoDispositivoGuard } from './modules/acceso/acceso-dispositivo.guard';
 
 import { AuthModule } from './modules/auth/auth.module';
 import { RolesModule } from './modules/roles/roles.module';
@@ -18,6 +19,8 @@ import { EquiposModule } from './modules/equipos/equipos.module';
 import { ParadasModule } from './modules/paradas/paradas.module';
 import { InstalacionModule } from './modules/instalacion/instalacion.module';
 import { CampanasModule } from './modules/campanas/campanas.module';
+import { AccesoModule } from './modules/acceso/acceso.module';
+import { ElectricidadModule } from './modules/electricidad/electricidad.module';
 import { NotificacionesModule } from './modules/notificaciones/notificaciones.module';
 import { UsersModule } from './modules/users/users.module';
 import { LocationsModule } from './modules/locations/locations.module';
@@ -76,6 +79,8 @@ import { PredictiveModule } from './modules/predictive/predictive.module';
     ParadasModule,        // ventanas de parada: manuales, se mueven (16 / F8-F)
     InstalacionModule,    // instalar equipo nuevo por tipo de sitio (16)
     CampanasModule,       // campanas de mapeo: control de calidad del levantamiento (12.5)
+    AccesoModule,         // que aparatos pueden entrar al sistema (18)
+    ElectricidadModule,   // tableros, circuitos y que alimenta cada llave (18)
     PurgaModule,          // borrado definitivo de basura, solo el Jefe (15)
   ],
   controllers: [HealthController],
@@ -94,6 +99,9 @@ import { PredictiveModule } from './modules/predictive/predictive.module';
     //    tienes permiso para leer activos. Consultar la base antes de eso
     //    sería trabajo tirado en cada petición sin token.
     { provide: APP_GUARD, useClass: AmbitoGuard },
+    // 4) AccesoDispositivoGuard: ¿este APARATO puede entrar? Va el último y
+    //    falla ABRIENDO a propósito — ver el comentario largo del guard.
+    { provide: APP_GUARD, useClass: AccesoDispositivoGuard },
   ],
 })
 export class AppModule {}

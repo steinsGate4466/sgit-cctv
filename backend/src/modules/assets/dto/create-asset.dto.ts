@@ -22,6 +22,8 @@ export class CreateAssetDto {
   // se podía crear un activo colgado del Tren 2 y declararlo como TREN_1.
   @IsOptional() @IsString() locationId?: string;
   @IsOptional() @IsString() cabinetId?: string;
+  /** Montado DENTRO de un tablero eléctrico (switches pequeños de planta). */
+  @IsOptional() @IsString() tableroId?: string;
   @IsOptional() @IsString() sapId?: string;
   @IsOptional() @IsString() costCenter?: string;
   @IsOptional() @IsString() responsibleArea?: string;

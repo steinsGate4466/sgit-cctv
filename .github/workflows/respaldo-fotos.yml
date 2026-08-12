@@ -1,0 +1,118 @@
+# =============================================================================
+#  SGIT-CCTV - Respaldo de FOTOS Y PDF (MinIO)
+#  Aceros Arequipa - Planta Pisco
+#
+#  EL AGUJERO QUE ESTO TAPA
+#  --------------------------------------------------------------------------
+#  Los respaldos de Railway y el PITR cubren la BASE DE DATOS. Las fotos de
+#  los activos y los informes de OM firmados NO estan ahi: viven en MinIO, en
+#  un volumen aparte. Si ese volumen se pierde, la base sigue diciendo
+#  "asset/xxx/foto.jpg" y el archivo ya no existe.
+#
+#  Eso es peor que perder la foto: la ficha AFIRMA que hay una foto y no la
+#  hay. Y los informes de OM llevan firma: son el documento que respalda un
+#  trabajo hecho.
+#
+#  COMO FUNCIONA
+#  --------------------------------------------------------------------------
+#  `mc mirror` copia el bucket entero a un almacenamiento S3 externo. Es
+#  INCREMENTAL: solo sube lo que cambio, asi que la segunda vez tarda
+#  segundos aunque haya 20 GB.
+#
+#  DONDE COPIARLO - la decision practica:
+#    · Cloudflare R2      -> 10 GB gratis y SIN coste de salida. La mejor
+#                            opcion para esto: recuperar no cuesta dinero.
+#    · Backblaze B2       -> 10 GB gratis, salida barata.
+#    · Cualquier S3       -> tambien vale.
+#  El coste de SALIDA importa porque el dia que haya que restaurar se
+#  descargan los 20 GB de golpe, y con AWS eso se paga.
+#
+#  REQUISITO (una sola vez)
+#  Repositorio > Settings > Secrets and variables > Actions:
+#    MINIO_ENDPOINT_URL   https://minio-tuservicio.up.railway.app
+#    MINIO_ACCESS_KEY     (Railway > MinIO > Variables)
+#    MINIO_SECRET_KEY     (idem)
+#    MINIO_BUCKET         sgit-evidences
+#    RESPALDO_S3_URL      https://<cuenta>.r2.cloudflarestorage.com
+#    RESPALDO_S3_KEY      la clave del bucket de respaldo
+#    RESPALDO_S3_SECRET   el secreto
+#    RESPALDO_S3_BUCKET   sgit-fotos-respaldo
+#
+#  IMPORTANTE: el MinIO de Railway tiene que ser alcanzable desde fuera para
+#  que esto funcione. Si esta en red privada, hay que exponerlo o hacer el
+#  espejo desde dentro. Si no lo esta, este trabajo avisa y termina bien.
+# =============================================================================
+name: Respaldo de fotos y PDF
+
+on:
+  schedule:
+    # Domingo 07:00 UTC = 02:00 del domingo en Peru. Semanal basta: las fotos
+    # no cambian todos los dias y el espejo es incremental.
+    - cron: '0 7 * * 0'
+  workflow_dispatch: # a mano, antes de tocar el volumen
+
+jobs:
+  espejo:
+    name: Copiar MinIO a almacenamiento externo
+    runs-on: ubuntu-latest
+
+    steps:
+      # Igual que en el respaldo de la base: si falta configuracion, el
+      # trabajo TERMINA BIEN. Asi no llegan correos de error cada domingo
+      # hasta que alguien lo configure.
+      - name: Comprobar que estan los secretos
+        id: chequeo
+        run: |
+          FALTAN=""
+          [ -z "${{ secrets.MINIO_ENDPOINT_URL }}" ] && FALTAN="$FALTAN MINIO_ENDPOINT_URL"
+          [ -z "${{ secrets.MINIO_ACCESS_KEY }}" ]   && FALTAN="$FALTAN MINIO_ACCESS_KEY"
+          [ -z "${{ secrets.RESPALDO_S3_URL }}" ]    && FALTAN="$FALTAN RESPALDO_S3_URL"
+          [ -z "${{ secrets.RESPALDO_S3_KEY }}" ]    && FALTAN="$FALTAN RESPALDO_S3_KEY"
+          if [ -n "$FALTAN" ]; then
+            echo "::warning::Falta configurar:$FALTAN. No se hizo el espejo de fotos."
+            echo "seguir=no" >> $GITHUB_OUTPUT
+          else
+            echo "seguir=si" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Instalar el cliente de MinIO
+        if: steps.chequeo.outputs.seguir == 'si'
+        run: |
+          curl -sSL https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc
+          chmod +x /usr/local/bin/mc
+          mc --version
+
+      - name: Conectar los dos extremos
+        if: steps.chequeo.outputs.seguir == 'si'
+        env:
+          MC_HOST_origen: ${{ secrets.MINIO_ENDPOINT_URL }}
+        run: |
+          # Las credenciales van por variable de entorno, NUNCA en la linea de
+          # comandos: lo que se escribe en `run` acaba en el registro publico
+          # de la ejecucion.
+          mc alias set origen  "${{ secrets.MINIO_ENDPOINT_URL }}" "${{ secrets.MINIO_ACCESS_KEY }}" "${{ secrets.MINIO_SECRET_KEY }}" --api S3v4
+          mc alias set destino "${{ secrets.RESPALDO_S3_URL }}"    "${{ secrets.RESPALDO_S3_KEY }}"  "${{ secrets.RESPALDO_S3_SECRET }}" --api S3v4
+
+      - name: Espejo incremental
+        if: steps.chequeo.outputs.seguir == 'si'
+        run: |
+          ORIGEN="origen/${{ secrets.MINIO_BUCKET || 'sgit-evidences' }}"
+          DESTINO="destino/${{ secrets.RESPALDO_S3_BUCKET || 'sgit-fotos-respaldo' }}"
+
+          # SIN --remove, y esto es la decision importante:
+          # si alguien borra una foto por error en produccion, el espejo NO la
+          # borra tambien. Un espejo que replica los borrados no es un
+          # respaldo: es una copia del desastre, hecha mas rapido.
+          mc mirror --overwrite "$ORIGEN" "$DESTINO"
+
+      - name: Contar lo que hay a los dos lados
+        if: steps.chequeo.outputs.seguir == 'si'
+        run: |
+          echo "### Respaldo de fotos y PDF" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "ORIGEN  (MinIO en Railway):" >> $GITHUB_STEP_SUMMARY
+          mc du "origen/${{ secrets.MINIO_BUCKET || 'sgit-evidences' }}"   >> $GITHUB_STEP_SUMMARY
+          echo "DESTINO (copia externa):"    >> $GITHUB_STEP_SUMMARY
+          mc du "destino/${{ secrets.RESPALDO_S3_BUCKET || 'sgit-fotos-respaldo' }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "Si los dos tamanos no se parecen, algo no se copio. Miralo." >> $GITHUB_STEP_SUMMARY

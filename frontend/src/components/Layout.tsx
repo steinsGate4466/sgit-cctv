@@ -37,6 +37,7 @@ const TITLES: Record<string, string> = {
   '/paradas': 'Ventanas de parada',
   '/instalaciones': 'Instalaciones',
   '/campanas': 'Campañas de mapeo',
+  '/electricidad': 'Electricidad',
   '/exportar': 'Exportar a Excel',
   '/avisos': 'Avisos',
 };
@@ -101,7 +102,7 @@ export default function Layout() {
     },
     {
       titulo: 'Infraestructura',
-      rutas: ['/assets', '/cabinets', '/locations', '/access', '/cableado', '/mapeo', '/grabadores', '/conexiones', '/topologia', '/monitoreo', '/documentos', '/instalaciones', '/campanas'],
+      rutas: ['/assets', '/cabinets', '/locations', '/access', '/cableado', '/mapeo', '/grabadores', '/conexiones', '/topologia', '/monitoreo', '/documentos', '/instalaciones', '/campanas', '/electricidad'],
       items: [
         can('asset.read') && <NavLink key="a" to="/assets"><Icono n="activos" /> Activos</NavLink>,
         // Instalaciones va junto a Activos porque es de donde salen: una
@@ -110,6 +111,9 @@ export default function Layout() {
         can('asset.read') && <NavLink key="g" to="/cabinets"><Icono n="gabinete" /> Gabinetes</NavLink>,
         can('asset.read') && <NavLink key="u" to="/locations"><Icono n="ubicacion" /> Ubicaciones</NavLink>,
         can('asset.read') && <NavLink key="cb" to="/cableado"><Icono n="cableado" /> Cableado</NavLink>,
+        // Electricidad va con la infraestructura: de los tableros cuelga la
+        // alimentación de las cámaras, y ahí empieza media caída.
+        can('asset.read') && <NavLink key="el" to="/electricidad"><Icono n="electricidad" /> Electricidad</NavLink>,
         can('asset.read') && <NavLink key="mp" to="/mapeo"><Icono n="mapeo" /> Avance del mapeo</NavLink>,
         // Campañas va junto al avance: uno cuenta, el otro CONTROLA la calidad.
         can('asset.read') && <NavLink key="cmp" to="/campanas"><Icono n="ok" /> Campañas de mapeo</NavLink>,

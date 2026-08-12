@@ -22,6 +22,8 @@ const D: Record<string, string> = {
   cableado: 'M7 3v6a5 5 0 005 5 5 5 0 015 5v2M9 3v3M5 6h4M15 22v-3M13 19h4',
   mapeo: 'M9 4h6v3H9zM7 4H5v16h14V4h-2M9 12l2 2 4-4',
   acceso: 'M12 3l8 4v5c0 5-3.4 8.4-8 9-4.6-.6-8-4-8-9V7z M9 12l2 2 4-4',
+  // Rayo dentro de un tablero: electricidad.
+  electricidad: 'M5 3h14v18H5zM13 7l-4 5h3l-1 5 4-5h-3z',
   // Monitor con peana: el registro de PCs conocidos.
   pc: 'M3 4h18v11H3zM9 19h6M12 15v4M7 19h10',
   // Escoba: limpieza de datos. No es una papelera a propósito —la papelera

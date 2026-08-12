@@ -133,7 +133,7 @@ export class CampanasService {
       where: { locationId: z.locationId, deletedAt: null },
       select: {
         id: true, assetCode: true, type: true, brand: true, model: true,
-        serialNumber: true, locationId: true, cabinetId: true,
+        serialNumber: true, locationId: true, cabinetId: true, tableroId: true,
         referencePlace: true, isDraft: true, ipAddress: true,
         _count: { select: { photos: true } },
       },
@@ -143,7 +143,7 @@ export class CampanasService {
     const paraRevisar: ActivoParaRevisar[] = activos.map((a) => ({
       id: a.id, assetCode: a.assetCode, type: a.type as string,
       brand: a.brand, model: a.model, serialNumber: a.serialNumber,
-      locationId: a.locationId, cabinetId: a.cabinetId,
+      locationId: a.locationId, cabinetId: a.cabinetId, tableroId: a.tableroId,
       referencePlace: a.referencePlace, isDraft: a.isDraft,
       ipAddress: a.ipAddress, fotos: a._count.photos,
     }));
