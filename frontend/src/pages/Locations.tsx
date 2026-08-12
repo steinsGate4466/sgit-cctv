@@ -1,5 +1,6 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { api } from '../api/client';
+import BotonPurgar from '../components/BotonPurgar';
 import CatalogosEditables from '../components/CatalogosEditables';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
@@ -193,6 +194,8 @@ export default function Locations() {
                   {can('asset.update') && (
                     <td style={{ whiteSpace: 'nowrap' }}>
                       <button className="btn-mini" onClick={() => openEdit(l)}>Editar</button>
+                      {/* Borrado definitivo. Solo lo pinta si eres Jefe de Mantenimiento. */}
+                      <BotonPurgar recurso="ubicacion" id={l.id} onBorrado={() => load()} />
                       <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => { setPhotoFor(l); setPhotoFile(null); }}>Foto</button>
                     </td>
                   )}

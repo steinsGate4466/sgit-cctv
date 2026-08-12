@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import AsignarOm from '../components/AsignarOm';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, AvisoAmbito } from '../components/FiltroAmbito';
 import Modal from '../components/Modal';
+import BotonPurgar from '../components/BotonPurgar';
 import { useAuth } from '../auth/AuthContext';
 
 // Categorías agrupadas para el selector (CCTV/NVR, Red/energía, Entorno de planta).
@@ -296,6 +297,9 @@ export default function Incidents() {
                     </button>
                   )}
                   <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => downloadReport(i)}>Informe</button>
+                
+                  {/* Borrado definitivo. Solo lo pinta si eres Jefe de Mantenimiento. */}
+                  <BotonPurgar recurso="incidencia" id={i.id} onBorrado={() => load()} />
                 </td>
               </tr>
             ))}

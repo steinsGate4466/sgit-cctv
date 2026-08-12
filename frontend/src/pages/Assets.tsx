@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
+import { enviarConRespaldo, TEXTO_PENDIENTE } from '../envio-seguro';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, conAmbito, AvisoAmbito } from '../components/FiltroAmbito';
 import Modal from '../components/Modal';
 import AccessRequestForm, { MEANS_ES, STATUS_ES as ACC_STATUS_ES, STATUS_BADGE as ACC_BADGE } from '../components/AccessRequestForm';
@@ -223,9 +224,38 @@ export default function Assets() {
         }
         if (Object.keys(limpia).length) body[bloqueFicha] = limpia;
       }
+      /* SIN SEÑAL NO SE PIERDE LO ESCRITO.
+         Este es EL formulario del mapeo: el que se va a usar 300 veces dentro
+         de una nave de estructura metálica con datos móviles. Hasta ahora era
+         justo el que NO tenía red de seguridad — la cola existía y sólo la
+         usaban dos pantallas de ejemplo.
+         `enviarConRespaldo` guarda en el teléfono si no hay red o si el
+         servidor falla, y RELANZA si el servidor rechazó el contenido (4xx):
+         eso hay que corregirlo, no encolarlo. */
       let assetId = form.id;
-      if (form.id) { await api.patch('/assets/' + form.id + '/edit', body); }
-      else { const res = await api.post('/assets', body); assetId = res.data?.id; }
+      const r = form.id
+        ? await enviarConRespaldo('patch', '/assets/' + form.id + '/edit', body,
+            `Editar activo ${form.assetCode || form.id}`)
+        : await enviarConRespaldo('post', '/assets', body,
+            `Alta de activo ${form.assetCode || '(sin código)'}`);
+
+      if (r.pendiente) {
+        // Las fotos NO se encolan: pesan y el aviso tiene que ser honesto.
+        setForm(null); setSpec({});
+        if (fotosNuevas.length) {
+          window.alert(
+            TEXTO_PENDIENTE +
+            `\n\nLas ${fotosNuevas.length} foto(s) NO se guardaron: tendrás que ` +
+            'volver a tomarlas desde la ficha cuando el activo suba.',
+          );
+        } else {
+          window.alert(TEXTO_PENDIENTE);
+        }
+        setFotosNuevas([]);
+        setSaving(false);
+        return;
+      }
+      assetId = form.id || (r.datos as any)?.id;
       if (form.devicePass && assetId) {
         await api.post('/credentials', { assetId, username: 'admin', secret: form.devicePass, type: 'equipo' }).catch(() => {});
       }

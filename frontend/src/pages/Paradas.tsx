@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client';
 import Modal from '../components/Modal';
+import BotonPurgar from '../components/BotonPurgar';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
 
@@ -234,6 +235,9 @@ export default function Paradas() {
                 <td className="num">{p.ordenes || <span className="muted">—</span>}</td>
                 <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                   <button className="btn-mini" onClick={() => abrirDetalle(p.id)}>Ver</button>
+                  {/* Borrado definitivo. Solo lo pinta si eres Jefe de Mantenimiento. */}
+                  <BotonPurgar recurso="parada" id={p.id}
+                    onBorrado={() => { setMsg('Parada borrada.'); cargar(fTren, fEstado); }} />
                   {puede && p.estado !== 'TERMINADA' && p.estado !== 'CANCELADA' && (
                     <button className="btn-mini" style={{ marginLeft: 4 }}
                       onClick={() => { setError(''); setMover({ id: p.id, inicioPrevisto: paraInput(p.inicioPrevisto), finPrevisto: paraInput(p.finPrevisto), motivo: '' }); }}>

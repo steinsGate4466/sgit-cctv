@@ -85,6 +85,40 @@ export class PurgaController {
   }
 
   @SinAmbito()  // purga: ya exige el rol Jefe de Mantenimiento, que lo ve todo
+  /* ---------- BORRADO GENÉRICO, CUALQUIER MÓDULO ----------
+     Una sola pareja de rutas para los quince recursos. El permiso concreto
+     de cada uno lo comprueba el servicio contra la tabla `RECURSOS`; aquí
+     se exige el mínimo común (`asset.read`) porque sin ver nada no tiene
+     sentido llegar hasta aquí, y ADEMÁS el servicio exige el rol de Jefe.
+     Repetir quince rutas con quince @RequirePermissions distintos habría
+     sido quince sitios donde equivocarse. */
+  @Get('recursos')
+  @RequirePermissions('asset.read')
+  recursos() {
+    return this.purga.recursosDisponibles();
+  }
+
+  @SinAmbito()  // el borrado definitivo ya exige el rol Jefe, que lo ve todo
+  @Get('r/:clave/:id')
+  @RequirePermissions('asset.read')
+  previaRecurso(@Param('clave') clave: string, @Param('id') id: string) {
+    return this.purga.vistaPreviaRecurso(clave, id);
+  }
+
+  @SinAmbito()  // idem
+  @Post('r/:clave/:id')
+  @RequirePermissions('asset.read')
+  purgarRecurso(
+    @Param('clave') clave: string,
+    @Param('id') id: string,
+    @Body() dto: PurgarDto,
+    @CurrentUser() u: any,
+    @Ip() ip: string,
+  ) {
+    return this.purga.purgarRecurso(clave, id, dto.confirmacion, u?.userId, ip, !!dto.forzar);
+  }
+
+  @SinAmbito()  // purga: ya exige el rol Jefe de Mantenimiento, que lo ve todo
   @Get('usuario/:id')
   @RequirePermissions('user.manage')
   previaUsuario(@Param('id') id: string) {

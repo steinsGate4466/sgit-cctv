@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, FormEvent } from 'react';
 import { api } from '../api/client';
+import BotonPurgar from '../components/BotonPurgar';
 import Paginacion from '../components/Paginacion';
 import { useNavigate } from 'react-router-dom';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, conAmbito, AvisoAmbito } from '../components/FiltroAmbito';
@@ -234,6 +235,8 @@ export default function Cableado() {
                 {can('asset.update') && (
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <button className="btn-mini" onClick={() => editar(c)}>Editar</button>
+                    {/* Borrado definitivo. Solo lo pinta si eres Jefe de Mantenimiento. */}
+                    <BotonPurgar recurso="cable" id={c.id} onBorrado={() => load()} />
                     {/* ABRIR ORDEN DESDE EL TRAMO.
                         El hallazgo más caro que produce este sistema —un tramo
                         por encima de la norma— moría en esta tabla. Ahora sale

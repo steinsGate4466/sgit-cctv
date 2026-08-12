@@ -44,6 +44,7 @@ const Limpieza = lazyConReintento(() => import('./pages/Limpieza'));
 const Equipos = lazyConReintento(() => import('./pages/Equipos'));
 const Paradas = lazyConReintento(() => import('./pages/Paradas'));
 const Instalaciones = lazyConReintento(() => import('./pages/Instalaciones'));
+const Campanas = lazyConReintento(() => import('./pages/Campanas'));
 const Avisos = lazyConReintento(() => import('./pages/Avisos'));
 const Incidents = lazyConReintento(() => import('./pages/Incidents'));
 const Maintenance = lazyConReintento(() => import('./pages/Maintenance'));
@@ -101,6 +102,7 @@ export default function App() {
           <Route path="/equipos" element={<Equipos />} />
           <Route path="/paradas" element={<Paradas />} />
           <Route path="/instalaciones" element={<Instalaciones />} />
+          <Route path="/campanas" element={<Campanas />} />
           <Route path="/avisos" element={<Avisos />} />
           <Route path="/incidents" element={<Incidents />} />
           <Route path="/maintenance" element={<Maintenance />} />

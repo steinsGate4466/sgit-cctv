@@ -199,6 +199,7 @@ model Location {
   costCenter       String?
   responsibleArea  String?
   instalaciones    Instalacion[]
+  zonasCampana     ZonaCampana[]
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
@@ -435,10 +436,14 @@ model Asset {
   accessRequests AccessRequest[]
   /// Instalaciones que dieron origen a este activo (normalmente una).
   instalacionesOrigen Instalacion[] @relation("AssetDeInstalacion")
+  /// Campaña de mapeo en la que se levantó. Permite revisar por lotes.
+  campanaId     String?
+  campana       CampanaMapeo? @relation(fields: [campanaId], references: [id])
 
   @@index([type])
   @@index([status])
   @@index([locationId])
+  @@index([campanaId])
   @@index([cabinetId])
   @@index([train])
   observacion     AssetObservation?
@@ -2287,4 +2292,92 @@ model FotoInstalacion {
 
   @@index([instalacionId])
   @@map("fotos_instalacion")
+}
+
+// =====================================================================
+//  CAMPAÑAS DE MAPEO (12.5) — el control de calidad del levantamiento
+//
+//  POR QUÉ ESTO NO ES UNA BARRA DE PROGRESO
+//  Contra un dato mal cargado NINGÚN respaldo sirve: el respaldo devuelve
+//  fielmente el dato equivocado. Y un mapeo de 300 cámaras hecho a prisa,
+//  con el teléfono, en una nave a 40 grados, va a traer códigos repetidos,
+//  fichas a medias y equipos sin ubicación.
+//
+//  LA REGLA QUE LO CONVIERTE EN CONTROL DE CALIDAD:
+//    **quien revisa NO puede ser quien cargó.**
+//  Sin eso es una casilla que se marca sola, y el error entra igual.
+//
+//  Y LA SEGUNDA: una zona con defectos BLOQUEANTES no se aprueba. No es un
+//  aviso que se pueda ignorar pulsando dos veces.
+// =====================================================================
+enum EstadoCampana {
+  PLANIFICADA
+  EN_CURSO
+  EN_REVISION
+  CERRADA
+  CANCELADA
+}
+
+enum EstadoZona {
+  PENDIENTE   // repartida, nadie ha ido
+  EN_CAMPO    // el técnico está levantando
+  CARGADA     // dice que terminó
+  EN_REVISION // otra persona la está mirando
+  APROBADA    // revisada y sin defectos bloqueantes
+  DEVUELTA    // revisada y con cosas que corregir
+}
+
+model CampanaMapeo {
+  id             String        @id @default(uuid())
+  codigo         String        @unique // CAM-2026-01
+  nombre         String
+  estado         EstadoCampana @default(PLANIFICADA)
+  tren           PlantTrain?
+  descripcion    String?
+  responsableId  String?
+  inicioPrevisto DateTime?
+  finPrevisto    DateTime?
+  cerradaEn      DateTime?
+  creadoPorId    String?
+  creadoEn       DateTime      @default(now())
+  editadoEn      DateTime      @default(now()) @updatedAt
+
+  zonas          ZonaCampana[]
+  activos        Asset[]
+
+  @@index([estado])
+  @@index([tren])
+  @@map("campanas_mapeo")
+}
+
+/// Una zona repartida a una persona. Es la unidad que se revisa y se aprueba.
+model ZonaCampana {
+  id            String       @id @default(uuid())
+  campanaId     String
+  campana       CampanaMapeo @relation(fields: [campanaId], references: [id], onDelete: Cascade)
+  locationId    String
+  location      Location     @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  estado        EstadoZona   @default(PENDIENTE)
+  asignadoAId   String?
+  /// Cuántos equipos se esperan aquí. Si el ingeniero no lo sabe, se deja
+  /// vacío: NO se inventa un número, porque después alguien lo daría por
+  /// bueno y "faltan 3" sería una alarma falsa.
+  esperados     Int?
+  notas         String?
+
+  /// Quién dijo "terminé" y quién lo revisó. Tienen que ser distintos.
+  cargadaPorId  String?
+  cargadaEn     DateTime?
+  revisadaPorId String?
+  revisadaEn    DateTime?
+  observaciones String?
+
+  creadoEn      DateTime     @default(now())
+  editadoEn     DateTime     @default(now()) @updatedAt
+
+  @@unique([campanaId, locationId])
+  @@index([campanaId])
+  @@index([estado])
+  @@index([asignadoAId])
+  @@map("zonas_campana")
 }

@@ -36,6 +36,7 @@ const TITLES: Record<string, string> = {
   '/equipos': 'Equipos conocidos',
   '/paradas': 'Ventanas de parada',
   '/instalaciones': 'Instalaciones',
+  '/campanas': 'Campañas de mapeo',
   '/exportar': 'Exportar a Excel',
   '/avisos': 'Avisos',
 };
@@ -100,7 +101,7 @@ export default function Layout() {
     },
     {
       titulo: 'Infraestructura',
-      rutas: ['/assets', '/cabinets', '/locations', '/access', '/cableado', '/mapeo', '/grabadores', '/conexiones', '/topologia', '/monitoreo', '/documentos', '/instalaciones'],
+      rutas: ['/assets', '/cabinets', '/locations', '/access', '/cableado', '/mapeo', '/grabadores', '/conexiones', '/topologia', '/monitoreo', '/documentos', '/instalaciones', '/campanas'],
       items: [
         can('asset.read') && <NavLink key="a" to="/assets"><Icono n="activos" /> Activos</NavLink>,
         // Instalaciones va junto a Activos porque es de donde salen: una
@@ -110,6 +111,8 @@ export default function Layout() {
         can('asset.read') && <NavLink key="u" to="/locations"><Icono n="ubicacion" /> Ubicaciones</NavLink>,
         can('asset.read') && <NavLink key="cb" to="/cableado"><Icono n="cableado" /> Cableado</NavLink>,
         can('asset.read') && <NavLink key="mp" to="/mapeo"><Icono n="mapeo" /> Avance del mapeo</NavLink>,
+        // Campañas va junto al avance: uno cuenta, el otro CONTROLA la calidad.
+        can('asset.read') && <NavLink key="cmp" to="/campanas"><Icono n="ok" /> Campañas de mapeo</NavLink>,
         // Va junto a Puntos críticos porque son la misma conversación: uno
         // dice qué se cae, el otro traduce lo que grita el púlpito.
         can('asset.read') && <NavLink key="gr" to="/grabadores"><Icono n="gabinete" /> Grabadores</NavLink>,

@@ -550,3 +550,19 @@ en vez de callarse entero.
 
 **Y la regla de contenido:** los índices escritos a mano en SQL llevan el
 nombre **exacto** que generaría Prisma. Nada de abreviar el campo.
+
+### Bloque 17.1 — `const x = []` es `never[]`
+
+Un array literal vacío **sin anotar** lo infiere TypeScript como `never[]`. El
+primer `push` falla con:
+
+    Argument of type '{...cuarenta campos...}' is not assignable to
+    parameter of type 'never'
+
+...que **no menciona el array por ningún lado**. Cuesta más leer el error que
+arreglarlo, y sólo aparece al compilar — o sea, en la máquina del usuario.
+
+**Siempre `const x: any[] = []`.** Añadido al verificador de constructores
+(que es el de trampas de TypeScript), y sólo avisa si al array se le hace
+`push` después: un array vacío que nadie toca es inofensivo. Probado
+reintroduciendo el fallo.

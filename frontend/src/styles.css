@@ -1610,3 +1610,118 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   .acciones-ficha .btn-mini, .acciones-ficha .btn-peligro { width: 100%; margin-left: 0; }
   .tabla td { padding-top: 12px; padding-bottom: 12px; }
 }
+
+/* =========================================================================
+   PASE DE UX — 17
+   -------------------------------------------------------------------------
+   Todo aditivo. Si algo se ve raro, se borra este bloque y el sistema vuelve
+   exactamente a como estaba.
+
+   LO QUE SE ARREGLA, Y POR QUÉ, MIRANDO A QUIÉN LO USA
+   -------------------------------------------------------------------------
+   Quien abre esto no es alguien sentado con un ratón: es un técnico de pie,
+   con casco, guantes y un teléfono a contraluz, o el ingeniero con veinte
+   pestañas abiertas buscando una cosa. Todo lo de aquí sale de eso.
+   ========================================================================= */
+
+/* ---- 1. JERARQUÍA: que se vea QUÉ mirar primero -------------------------
+   El problema real de las pantallas llenas no es que falte información: es
+   que toda pesa igual y el ojo no sabe dónde posarse. */
+.page > .card.explica:first-child { border-left: 3px solid var(--steel); }
+.tabla td:first-child { font-weight: 500; }
+.tabla td strong, .tabla th:first-child { color: var(--navy); }
+.muted { color: #71809a; }
+
+/* ---- 2. ESTADOS: se distinguen sin leer ---------------------------------
+   Antes había que leer la palabra. Con color + peso se distingue de un
+   vistazo, que es como se mira una lista de 200 filas. */
+.badge, .chip {
+  display: inline-block; font-weight: 700; letter-spacing: .2px;
+  border-radius: 20px; padding: 3px 9px; font-size: 11px; white-space: nowrap;
+}
+.badge.OPERATIVO, .badge.APROBADA, .badge.CERRADA, .badge.INSTALADA,
+.badge.TERMINADA, .badge.RESUELTA { background: #e7f7ee; color: #14663a; }
+.badge.FUERA_SERVICIO, .badge.CRITICA, .badge.RECHAZADA, .badge.DEVUELTA,
+.badge.CANCELADA { background: #fdecec; color: #8c1414; }
+.badge.MANTENIMIENTO, .badge.EN_PROCESO, .badge.EN_CURSO, .badge.EN_EJECUCION,
+.badge.EN_EVALUACION, .badge.EN_REVISION, .badge.EN_CAMPO { background: #fff4e5; color: #9a5b00; }
+.badge.ABIERTA, .badge.SOLICITADA, .badge.PENDIENTE, .badge.ANUNCIADA,
+.badge.PLANIFICADA { background: #eef2f9; color: #2e5496; }
+.badge.BAJA, .badge.STOCK { background: #f1f3f7; color: #6b7688; }
+
+/* ---- 3. LO QUE ESPERA UNA DECISIÓN, DELANTE -----------------------------
+   Una tarjeta de aviso que no se distingue de una tarjeta informativa
+   consigue que ninguna de las dos se lea. */
+.card.explica { border-left: 3px solid var(--steel); background: #f8fafd; }
+.card.peligro { animation: aparece .18s ease-out; }
+@keyframes aparece { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; } }
+
+/* ---- 4. EL PULGAR: todo lo pulsable, alcanzable -------------------------
+   En planta se usa con una mano y con guante. 44 px es el mínimo cómodo. */
+.btn-mini { min-height: 34px; padding: 7px 12px; }
+.btn-primary { min-height: 42px; }
+@media (max-width: 720px) {
+  .btn-mini { min-height: 42px; padding: 10px 14px; font-size: 13.5px; }
+  /* Las acciones de fila, apiladas y anchas: se dejan de pulsar por error. */
+  .tabla td:last-child { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+  .filters { flex-direction: column; align-items: stretch; }
+  .filters > div, .filters input, .filters select, .filters button { width: 100%; }
+}
+
+/* ---- 5. TABLAS LARGAS: no perder el hilo -------------------------------- */
+.tabla tbody tr { border-bottom: 1px solid #eef1f6; }
+.tabla tbody tr:hover { background: #eef3fb; box-shadow: inset 3px 0 0 var(--steel); }
+.tabla td { vertical-align: top; }
+/* Fila alterna muy suave: ayuda a seguir el renglón sin ensuciar. */
+.tabla tbody tr:nth-child(even) { background: #fcfdff; }
+.tabla tbody tr:nth-child(even):hover { background: #eef3fb; }
+
+/* ---- 6. FORMULARIOS: que se entienda antes de equivocarse ---------------
+   La ayuda debajo del campo y no en un `title`: en el celular el `title` no
+   existe, y ahí es donde más falta hace. */
+.campo small.muted { color: #71809a; font-size: 11.5px; }
+.campo > span:first-child { display: flex; align-items: baseline; gap: 4px; }
+.campo-req { font-size: 13px; }
+input:invalid, .campo-error input { border-color: var(--crit); }
+/* Un campo deshabilitado tiene que PARECER deshabilitado, no roto. */
+input:disabled, select:disabled, textarea:disabled {
+  background: #f4f6fa; color: #8c97a8; cursor: not-allowed;
+}
+
+/* ---- 7. VACÍOS QUE ENSEÑAN --------------------------------------------
+   "No hay datos" no ayuda a nadie. Cada vacío dice qué es esto y qué hacer,
+   y por eso el texto se lee cómodo en vez de quedar centrado y apretado. */
+.card.vacio p { line-height: 1.65; }
+.card.vacio h3 { font-size: 16px; }
+
+/* ---- 8. MODALES: el pie siempre alcanzable ----------------------------- */
+.modal-pie { position: sticky; bottom: 0; background: var(--card);
+  border-top: 1px solid var(--border); padding: 12px 16px; display: flex;
+  gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.modal-body { padding-bottom: 4px; }
+@media (max-width: 720px) {
+  .modal-pie { flex-direction: column-reverse; }
+  .modal-pie > button { width: 100%; }
+}
+
+/* ---- 9. FOCO VISIBLE SIEMPRE ------------------------------------------
+   Se navega con teclado más de lo que parece, y con guantes el teclado del
+   celular es más fiable que el dedo. */
+:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(46,84,150,.28); border-radius: 6px; }
+
+/* ---- 10. IMPRIMIR ------------------------------------------------------
+   Media planta va a imprimir listas para llevárselas al campo. Sin esto sale
+   el menú, los botones y el fondo gris. */
+@media print {
+  .sidebar, .topbar, .filters, .btn-mini, .btn-primary, .btn-peligro,
+  .modal-overlay, .pestanas { display: none !important; }
+  .page, .card { box-shadow: none !important; border: none !important; }
+  body { background: #fff; }
+  .tabla { font-size: 11px; }
+  .tabla thead { display: table-header-group; }  /* la cabecera, en cada hoja */
+  .tabla tr { break-inside: avoid; }
+}
+
+/* ---- 11. MENOS RUIDO --------------------------------------------------- */
+.section-title { color: #46536b; }
+.card { border-color: #e8ecf3; }

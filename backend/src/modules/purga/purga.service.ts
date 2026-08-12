@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { porClave, RECURSOS } from './recursos-purgables';
 import { AuditService } from '../audit/audit.service';
 
 /**
@@ -516,6 +517,148 @@ export class PurgaService {
       total,
       porEstado: porEstado.map((e) => ({ estado: e.status as string, n: e._count._all })),
       lineasConRetiro: conMaterial,
+    };
+  }
+
+
+  /* ============ BORRADO GENÉRICO, UN RECURSO CUALQUIERA ============ */
+
+  /**
+   * EL MISMO DIÁLOGO PARA LOS QUINCE MÓDULOS.
+   *
+   * Antes había un par `vistaPreviaX`/`purgarX` por recurso. Al llevar el
+   * borrado a todos los módulos eso serían quince copias: quince sitios donde
+   * puede faltar la confirmación escrita, quince donde puede faltar la
+   * auditoría, y quince que hay que tocar el día que cambie una regla.
+   *
+   * Aquí la tabla `RECURSOS` declara lo particular de cada uno —su código,
+   * qué arrastra, qué lo bloquea— y estas dos funciones aplican a todos lo
+   * mismo: rol de Jefe, confirmación escrita, auditoría ANTES de borrar y
+   * cascada de PostgreSQL.
+   */
+  recursosDisponibles() {
+    return RECURSOS.map((r) => ({
+      clave: r.clave, etiqueta: r.etiqueta, permiso: r.permiso, campoCodigo: r.campoCodigo,
+    }));
+  }
+
+  async vistaPreviaRecurso(clave: string, id: string) {
+    const R = porClave(clave);
+    if (!R) throw new BadRequestException(`No sé borrar "${clave}".`);
+    const p: any = this.prisma;
+
+    const select: any = { id: true };
+    for (const c of R.camposResumen) select[c] = true;
+    if (!select[R.campoCodigo] && R.campoCodigo !== 'id') select[R.campoCodigo] = true;
+    const claves = Object.keys(R.arrastra ?? {});
+    const clavesVivas = Object.keys(R.sobrevive ?? {});
+    if (claves.length || clavesVivas.length) {
+      select._count = { select: Object.fromEntries([...claves, ...clavesVivas].map((k) => [k, true])) };
+    }
+
+    const reg = await p[R.modelo].findUnique({ where: { id }, select });
+    if (!reg) throw new NotFoundException(`Ese registro (${R.etiqueta}) no existe.`);
+
+    const arrastra = claves
+      .map((k) => ({ que: R.arrastra![k], n: reg._count?.[k] ?? 0 }))
+      .filter((x) => x.n > 0);
+    const sobrevive = clavesVivas
+      .map((k) => ({ que: R.sobrevive![k], n: reg._count?.[k] ?? 0 }))
+      .filter((x) => x.n > 0);
+
+    /* LOS AVISOS. No prohíben: exigen la segunda llave.
+       Es la misma decisión que en las OM: el sistema no ha estrenado y una
+       prohibición dura obligaría a estrenar con basura dentro. Forzar queda
+       marcado en la auditoría con el aviso concreto que se saltó. */
+    const avisos: string[] = [];
+    for (const av of R.avisos ?? []) {
+      if (av.contar) {
+        const n = await p[av.contar.modelo].count({ where: av.contar.donde(id) }).catch(() => 0);
+        if (n > 0) avisos.push(av.texto(n));
+      } else if (av.campo) {
+        if (reg[av.campo] === av.valorPeligroso) avisos.push(av.texto(1));
+      }
+    }
+
+    const codigo = R.campoCodigo === 'id' ? reg.id : String(reg[R.campoCodigo] ?? reg.id);
+    const { _count, ...resumen } = reg;
+
+    return {
+      recurso: { clave: R.clave, etiqueta: R.etiqueta, campoCodigo: R.campoCodigo },
+      registro: resumen,
+      codigo,
+      arrastra,
+      totalArrastrado: arrastra.reduce((s: number, x: any) => s + x.n, 0),
+      sobrevive,
+      avisos,
+      exigeForzar: avisos.length > 0,
+      sePuedePurgar: true,
+      motivoSiNo: null as string | null,
+    };
+  }
+
+  async purgarRecurso(
+    clave: string,
+    id: string,
+    confirmacion: string,
+    userId?: string | null,
+    ip?: string | null,
+    forzar = false,
+  ) {
+    await this.exigirJefe(userId);
+    const R = porClave(clave);
+    if (!R) throw new BadRequestException(`No sé borrar "${clave}".`);
+
+    const previa = await this.vistaPreviaRecurso(clave, id);
+
+    if (previa.exigeForzar && !forzar) {
+      throw new BadRequestException(
+        `Esto tiene avisos y hay que confirmar que se borra igual:\n\n· ${previa.avisos.join('\n· ')}`,
+      );
+    }
+
+    /* La confirmación escrita, igual para todos. Cuando el código es el
+       identificador interno —una parada, un plan preventivo— se acepta la
+       palabra BORRAR: nadie va a teclear un uuid de 36 caracteres, y pedirlo
+       sólo consigue que se copie y se pegue sin mirar, que es justo lo
+       contrario de lo que este freno busca. */
+    const esperado = R.campoCodigo === 'id' ? 'BORRAR' : previa.codigo;
+    const escrito = (confirmacion || '').trim();
+    const coincide = R.campoCodigo === 'id'
+      ? escrito.toUpperCase() === 'BORRAR'
+      : escrito.toUpperCase() === String(esperado).toUpperCase();
+    if (!coincide) {
+      throw new BadRequestException(
+        `Para borrar definitivamente hay que escribir exactamente: ${esperado}`,
+      );
+    }
+
+    await this.audit.record({
+      userId: userId || null,
+      action: 'PURGE_' + R.clave.toUpperCase().replace(/-/g, '_'),
+      entity: R.modelo,
+      entityId: id,
+      ip,
+      before: {
+        etiqueta: R.etiqueta,
+        codigo: previa.codigo,
+        registro: previa.registro,
+        arrastrado: previa.arrastra,
+        conservado: previa.sobrevive,
+        forzado: previa.exigeForzar || undefined,
+        avisos: previa.exigeForzar ? previa.avisos : undefined,
+      },
+    });
+
+    const p: any = this.prisma;
+    await p[R.modelo].delete({ where: { id } });
+
+    return {
+      ok: true,
+      etiqueta: R.etiqueta,
+      codigo: previa.codigo,
+      arrastrado: previa.totalArrastrado,
+      conservado: previa.sobrevive.reduce((s: number, x: any) => s + x.n, 0),
     };
   }
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client';
 import Modal from '../components/Modal';
+import BotonPurgar from '../components/BotonPurgar';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
 
@@ -313,6 +314,10 @@ export default function Instalaciones() {
                 </td>
                 <td style={{ textAlign: 'right' }}>
                   <button className="btn-mini" onClick={() => abrir(i.id)}>Abrir</button>
+                
+                  {/* Borrado definitivo. Solo lo pinta si eres Jefe de Mantenimiento. */}
+                  <BotonPurgar recurso="instalacion" id={i.id}
+                    onBorrado={(r) => { setMsg(`Borrada ${r.codigo}.`); cargar(fEstado, fSitio, texto); }} />
                 </td>
               </tr>
             ))}

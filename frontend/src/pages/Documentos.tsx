@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client';
 import Modal from '../components/Modal';
+import BotonPurgar from '../components/BotonPurgar';
 import Icono from '../components/Iconos';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
@@ -179,6 +180,9 @@ export default function Documentos() {
                     <button className="btn-mini" style={{ marginLeft: 6 }}
                             onClick={() => borrar(d.id, d.title, d.version)}>Borrar</button>
                   )}
+                
+                  {/* Borrado definitivo. Solo lo pinta si eres Jefe de Mantenimiento. */}
+                  <BotonPurgar recurso="documento" id={d.id} onBorrado={() => cargar()} />
                 </td>
               </tr>
             ))}

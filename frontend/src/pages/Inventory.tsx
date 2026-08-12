@@ -2,6 +2,7 @@ import { useEffect, useState, FormEvent, ReactNode } from 'react';
 import { api } from '../api/client';
 import Paginacion from '../components/Paginacion';
 import Modal from '../components/Modal';
+import BotonPurgar from '../components/BotonPurgar';
 import { useAuth } from '../auth/AuthContext';
 import InventarioHerramientas from '../components/InventarioHerramientas';
 import InventarioImportar from '../components/InventarioImportar';
@@ -253,6 +254,9 @@ export default function Inventory() {
                   {can('inventory.read') && <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => openCompat(r)}>Compat.</button>}
                   {can('inventory.manage') && <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => openEdit(r)}>Editar</button>}
                   {can('inventory.manage') && <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => del(r)}>✕</button>}
+                
+                  {/* Borrado definitivo. Solo lo pinta si eres Jefe de Mantenimiento. */}
+                  <BotonPurgar recurso="repuesto" id={r.id} onBorrado={() => load()} />
                 </td>
               </tr>
             ))}

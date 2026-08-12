@@ -70,4 +70,48 @@ if (fallos) {
   console.error(`\n${fallos} constructor(es) que van a fallar en ejecución.\n`);
   process.exit(1);
 }
+
+/* ---------------------------------------------------------------------------
+   TRAMPA 2 — `const x = [];`  ->  TypeScript lo infiere como `never[]`
+   ---------------------------------------------------------------------------
+   Un array literal vacío sin anotar es `never[]`. El primer `push` falla con:
+
+       Argument of type '{...cuarenta campos...}' is not assignable to
+       parameter of type 'never'
+
+   ...que no menciona el array por ningún lado. Cuesta más leer el error que
+   arreglarlo, y sólo aparece al compilar — o sea, en la máquina del usuario.
+
+   Costó una entrega en el bloque 17 (`const creadas = []` en campañas).
+   Se caza aquí, que es gratis.
+
+   NO se marca si en la misma línea ya hay un tipo (`: any[]`, `: string[]`),
+   ni si es un `let` que se reasigna entero después.
+--------------------------------------------------------------------------- */
+{
+  const sinTipo = [];
+  for (const archivo of archivos(path.join(__dirname, '..', 'src'))) {
+    const texto = fs.readFileSync(archivo, 'utf8');
+    const rel = path.relative(path.join(__dirname, '..'), archivo);
+    const lineas = texto.split('\n');
+    lineas.forEach((linea, i) => {
+      const m = linea.match(/^\s*const\s+(\w+)\s*=\s*\[\]\s*;/);
+      if (!m) return;
+      // ¿Se le hace push más adelante? Si no, es un array vacío inofensivo.
+      const resto = lineas.slice(i + 1).join('\n');
+      if (!new RegExp('\\b' + m[1] + '\\.push\\s*\\(').test(resto)) return;
+      sinTipo.push({ archivo: rel, linea: i + 1, nombre: m[1] });
+    });
+  }
+  if (sinTipo.length) {
+    console.error('\n  ARRAYS VACÍOS SIN TIPO A LOS QUE SE LES HACE push\n');
+    for (const x of sinTipo) {
+      console.error(`    ${x.archivo}:${x.linea}   const ${x.nombre} = [];`);
+      console.error(`      TypeScript lo infiere como never[] y el push no compila.`);
+      console.error(`      Escríbelo así:  const ${x.nombre}: any[] = [];\n`);
+    }
+    process.exit(1);
+  }
+}
+
 console.log('Constructores verificados: ningún `new` sobre un espacio de nombres.');
