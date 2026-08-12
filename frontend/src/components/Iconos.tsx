@@ -22,6 +22,18 @@ const D: Record<string, string> = {
   cableado: 'M7 3v6a5 5 0 005 5 5 5 0 015 5v2M9 3v3M5 6h4M15 22v-3M13 19h4',
   mapeo: 'M9 4h6v3H9zM7 4H5v16h14V4h-2M9 12l2 2 4-4',
   acceso: 'M12 3l8 4v5c0 5-3.4 8.4-8 9-4.6-.6-8-4-8-9V7z M9 12l2 2 4-4',
+  // Persona con casco: 'Mi tren' es la vista personal, no la de la planta.
+  mitren: 'M12 3a4 4 0 014 4v1H8V7a4 4 0 014-4zM6 10h12v2H6zM5 21v-4a4 4 0 014-4h6a4 4 0 014 4v4',
+  // Disco apilado: grabador (NVR). Antes compartia icono con Gabinetes.
+  grabador: 'M3 6h18v5H3zM3 13h18v5H3zM7 8.5h.01M7 15.5h.01M11 8.5h6M11 15.5h6',
+  // Puertos en fila: conexiones de red. Antes compartia con Cableado.
+  puertos: 'M3 9h18v6H3zM6 9v6M10 9v6M14 9v6M18 9v6',
+  // Gancho de grua puente. Antes compartia con Tren.
+  grua: 'M4 4h14l3 4M6 4v14M4 20h16M6 8h8M14 8v5l-2 2M12 15h.01',
+  // Flecha a un archivo: exportar. Antes compartia con Mi bandeja.
+  exportar: 'M12 3v10M8 9l4 4 4-4M4 17v3h16v-3',
+  // Diana: puntos criticos. Antes compartia con Predictivo.
+  critico: 'M12 3a9 9 0 100 18 9 9 0 000-18zM12 8a4 4 0 100 8 4 4 0 000-8zM12 12h.01',
   // Rayo dentro de un tablero: electricidad.
   electricidad: 'M5 3h14v18H5zM13 7l-4 5h3l-1 5 4-5h-3z',
   // Monitor con peana: el registro de PCs conocidos.

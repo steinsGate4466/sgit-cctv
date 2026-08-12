@@ -1725,3 +1725,57 @@ input:disabled, select:disabled, textarea:disabled {
 /* ---- 11. MENOS RUIDO --------------------------------------------------- */
 .section-title { color: #46536b; }
 .card { border-color: #e8ecf3; }
+
+/* =========================================================================
+   BUSCADOR RÁPIDO (Ctrl+K)
+   -------------------------------------------------------------------------
+   Con 34 entradas en el menú, escribir «parada» es más rápido que recordar
+   en qué sección vive. Y en una demo se nota: es la diferencia entre buscar
+   a tientas delante de la gente y llegar en dos teclas.
+   ========================================================================= */
+.buscador-fondo {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(16,24,40,.42); backdrop-filter: blur(2px);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 12vh 16px 16px;
+}
+.buscador {
+  width: 100%; max-width: 620px; background: var(--card);
+  border-radius: 14px; border: 1px solid var(--border);
+  box-shadow: 0 18px 50px rgba(16,24,40,.28); overflow: hidden;
+  animation: buscadorEntra .12s ease-out;
+}
+@keyframes buscadorEntra { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; } }
+
+.buscador input {
+  width: 100%; border: none; border-bottom: 1px solid var(--border);
+  padding: 16px 18px; font-size: 16px; border-radius: 0; background: transparent;
+}
+.buscador input:focus { outline: none; box-shadow: none; }
+
+.buscador-lista { list-style: none; margin: 0; padding: 6px; max-height: 52vh; overflow-y: auto; }
+.buscador-lista li {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding: 11px 13px; border-radius: 9px; cursor: pointer; font-size: 14.5px;
+}
+/* La fila elegida se marca con la franja de la izquierda además del fondo:
+   con el proyector de una sala de reuniones, sólo el fondo no se ve. */
+.buscador-lista li.sel {
+  background: #eef3fb; box-shadow: inset 3px 0 0 var(--steel); font-weight: 600;
+}
+.buscador-lista li small { font-size: 11.5px; white-space: nowrap; }
+
+.buscador-vacio { padding: 22px 18px; font-size: 13.5px; color: var(--muted); line-height: 1.6; }
+
+.buscador-pie {
+  display: flex; gap: 16px; padding: 9px 16px;
+  border-top: 1px solid var(--border); background: #fafbfe;
+  font-size: 11.5px; color: var(--muted);
+}
+.buscador-pie b { color: var(--navy); font-family: monospace; }
+
+@media (max-width: 720px) {
+  .buscador-fondo { padding: 8vh 10px 10px; }
+  /* En el celular no hay Ctrl+K, así que el pie sobra y quita sitio. */
+  .buscador-pie { display: none; }
+}

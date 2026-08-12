@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import MiPin from './MiPin';
 import Icono from './Iconos';
+import BuscadorRapido from './BuscadorRapido';
 import AvisoRed from './AvisoRed';
 import AvisoPendientes from './AvisoPendientes';
 import ErrorBoundary from './ErrorBoundary';
@@ -92,11 +93,11 @@ export default function Layout() {
         // 'Mi tren' sólo aparece si el usuario TIENE ámbito. A quien lo ve
         // todo no le aporta nada: ya tiene Estado por Tren con los tres.
         (user?.ambitoTrenes?.length ?? 0) > 0 && can('dashboard.read') &&
-          <NavLink key="mt" to="/mi-tren"><Icono n="tren" /> Mi tren</NavLink>,
+          <NavLink key="mt" to="/mi-tren"><Icono n="mitren" /> Mi tren</NavLink>,
         can('dashboard.read') && <NavLink key="bd" to="/bandeja"><Icono n="bandeja" /> Mi bandeja</NavLink>,
         can('dashboard.read') && <NavLink key="d" to="/dashboard"><Icono n="tablero" /> Dashboard</NavLink>,
         // Exportar vive junto al Dashboard: los dos son "mirar y llevarse".
-        can('dashboard.read') && <NavLink key="xl" to="/exportar"><Icono n="bandeja" /> Exportar</NavLink>,
+        can('dashboard.read') && <NavLink key="xl" to="/exportar"><Icono n="exportar" /> Exportar</NavLink>,
         can('dashboard.read') && <NavLink key="t" to="/trains"><Icono n="tren" /> Estado por Tren</NavLink>,
       ].filter(Boolean) as ReactNode[],
     },
@@ -119,14 +120,14 @@ export default function Layout() {
         can('asset.read') && <NavLink key="cmp" to="/campanas"><Icono n="ok" /> Campañas de mapeo</NavLink>,
         // Va junto a Puntos críticos porque son la misma conversación: uno
         // dice qué se cae, el otro traduce lo que grita el púlpito.
-        can('asset.read') && <NavLink key="gr" to="/grabadores"><Icono n="gabinete" /> Grabadores</NavLink>,
+        can('asset.read') && <NavLink key="gr" to="/grabadores"><Icono n="grabador" /> Grabadores</NavLink>,
         // Conexiones va ANTES de Puntos críticos: primero se declara la red,
         // y sólo entonces el análisis de impacto tiene algo que analizar.
-        can('asset.read') && <NavLink key="cx" to="/conexiones"><Icono n="cableado" /> Conexiones</NavLink>,
+        can('asset.read') && <NavLink key="cx" to="/conexiones"><Icono n="puertos" /> Conexiones</NavLink>,
         // 12.7 — cierra el permiso huerfano: `document.read` existia desde F0
         // y no habia pantalla que lo usara.
         can('document.read') && <NavLink key="dc" to="/documentos"><Icono n="etiqueta" /> Manuales y planos</NavLink>,
-        can('asset.read') && <NavLink key="tp" to="/topologia"><Icono n="predictivo" /> Puntos críticos</NavLink>,
+        can('asset.read') && <NavLink key="tp" to="/topologia"><Icono n="critico" /> Puntos críticos</NavLink>,
         can('monitor.read') && <NavLink key="mo" to="/monitoreo"><Icono n="reloj" /> Monitoreo</NavLink>,
         can('access.read') && <NavLink key="ac" to="/access"><Icono n="acceso" /> Accesibilidad</NavLink>,
       ].filter(Boolean) as ReactNode[],
@@ -151,7 +152,7 @@ export default function Layout() {
         can('wo.read') && <NavLink key="me" to="/improvements"><Icono n="mejora" /> Mejora</NavLink>,
         // Cámaras de grúa: mantenimiento propio porque falla distinto
         // (cable fatigado, antena desalineada, no se llega sin manlift).
-        can('wo.read') && <NavLink key="gr2" to="/gruas"><Icono n="tren" /> Cámaras de grúa</NavLink>,
+        can('wo.read') && <NavLink key="gr2" to="/gruas"><Icono n="grua" /> Cámaras de grúa</NavLink>,
       ].filter(Boolean) as ReactNode[],
     },
     {
@@ -183,6 +184,10 @@ export default function Layout() {
 
   return (
     <div className="app">
+      {/* Ctrl+K para saltar a cualquier pantalla. Con 34 entradas en el
+          menú, escribir «parada» es más rápido que recordar en qué sección
+          vive. */}
+      <BuscadorRapido />
       <aside className="sidebar">
         <div className="brand">
           <MarcaSGIT size={30} />
