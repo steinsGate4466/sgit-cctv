@@ -201,6 +201,7 @@ model Location {
   instalaciones    Instalacion[]
   zonasCampana     ZonaCampana[]
   tablerosElectricos TableroElectrico[]
+  subredes         Subred[]
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
@@ -455,6 +456,8 @@ model Asset {
   alimentadoPor AlimentacionActivo[]
   /// Si este activo ES un tablero eléctrico.
   tableroElectrico TableroElectrico[]
+  /// Reservas de IP declaradas para este equipo.
+  reservasIp    ReservaIp[]
 
   @@index([type])
   @@index([status])
@@ -2608,4 +2611,90 @@ model MedicionElectrica {
   @@index([circuitoId])
   @@index([tableroId])
   @@map("mediciones_electricas")
+}
+
+// =====================================================================
+//  DIRECCIONAMIENTO IP — IPAM (bloque 20)
+//
+//  LA PREGUNTA QUE HOY NADIE PUEDE CONTESTAR
+//  «Voy a instalar una cámara. ¿Qué IP le pongo?»
+//
+//  Hoy se contesta mirando un Excel desactualizado o, peor, haciendo ping y
+//  usando la que no responde. Eso funciona hasta el día que el equipo que la
+//  tenía estaba apagado por mantenimiento — y entonces hay dos equipos con la
+//  misma IP tumbándose entre ellos de forma intermitente. Es el fallo más
+//  difícil de diagnosticar de una red, porque funciona a ratos.
+//
+//  LA OCUPACIÓN NO SE LEE SÓLO DE AQUÍ. Se cruza con `assets.ipAddress`: un
+//  equipo puede tener IP configurada y no estar reservada en esta tabla, y
+//  eso es justamente lo que hay que sacar a la luz, no esconder.
+// =====================================================================
+enum PropositoSubred {
+  CCTV
+  GESTION      // gestión de switches, NVR, UPS
+  CORPORATIVA
+  PROCESO      // PLC, HMI — no se toca sin Automatización
+  WIFI
+  OTRO
+}
+
+enum TipoAsignacion {
+  ESTATICA      // configurada a mano en el equipo
+  RESERVA_DHCP  // el DHCP siempre le da la misma, por MAC
+  DHCP          // dinámica del pool
+  RESERVADA     // apartada para algo futuro
+  LIBRE
+}
+
+model Subred {
+  id          String          @id @default(uuid())
+  /// Notación CIDR: 10.20.4.0/24
+  cidr        String          @unique
+  nombre      String
+  proposito   PropositoSubred @default(CCTV)
+  vlan        Int?
+  gateway     String?
+  dns1        String?
+  dns2        String?
+  tren        PlantTrain?
+  locationId  String?
+  location    Location?       @relation(fields: [locationId], references: [id])
+  /// Rango que gestiona el DHCP. Fuera de ahí van las estáticas: declararlo
+  /// evita que alguien ponga una estática dentro del pool y el servidor la
+  /// entregue a otro equipo la semana siguiente.
+  dhcpDesde   String?
+  dhcpHasta   String?
+  descripcion String?
+  activa      Boolean         @default(true)
+  creadoPorId String?
+  creadoEn    DateTime        @default(now())
+  editadoEn   DateTime        @default(now()) @updatedAt
+
+  reservas    ReservaIp[]
+
+  @@index([tren])
+  @@map("subredes")
+}
+
+model ReservaIp {
+  id          String         @id @default(uuid())
+  ip          String         @unique
+  subredId    String?
+  subred      Subred?        @relation(fields: [subredId], references: [id])
+  tipo        TipoAsignacion @default(ESTATICA)
+  assetId     String?
+  asset       Asset?         @relation(fields: [assetId], references: [id])
+  hostname    String?
+  /// Se escribe a mano, igual que en Equipos conocidos: la MAC no llega al
+  /// servidor. Sale de la reserva DHCP o de la tabla MAC del switch.
+  mac         String?
+  descripcion String?
+  notas       String?
+  creadoPorId String?
+  creadoEn    DateTime       @default(now())
+  editadoEn   DateTime       @default(now()) @updatedAt
+
+  @@index([subredId])
+  @@index([assetId])
+  @@map("reservas_ip")
 }

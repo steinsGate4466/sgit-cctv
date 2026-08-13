@@ -39,6 +39,7 @@ const TITLES: Record<string, string> = {
   '/instalaciones': 'Instalaciones',
   '/campanas': 'Campañas de mapeo',
   '/electricidad': 'Electricidad',
+  '/ipam': 'Direccionamiento IP',
   '/exportar': 'Exportar a Excel',
   '/avisos': 'Avisos',
 };
@@ -103,7 +104,7 @@ export default function Layout() {
     },
     {
       titulo: 'Infraestructura',
-      rutas: ['/assets', '/cabinets', '/locations', '/access', '/cableado', '/mapeo', '/grabadores', '/conexiones', '/topologia', '/monitoreo', '/documentos', '/instalaciones', '/campanas', '/electricidad'],
+      rutas: ['/assets', '/cabinets', '/locations', '/access', '/cableado', '/mapeo', '/grabadores', '/conexiones', '/topologia', '/monitoreo', '/documentos', '/instalaciones', '/campanas', '/electricidad', '/ipam'],
       items: [
         can('asset.read') && <NavLink key="a" to="/assets"><Icono n="activos" /> Activos</NavLink>,
         // Instalaciones va junto a Activos porque es de donde salen: una
@@ -124,6 +125,9 @@ export default function Layout() {
         // Conexiones va ANTES de Puntos críticos: primero se declara la red,
         // y sólo entonces el análisis de impacto tiene algo que analizar.
         can('asset.read') && <NavLink key="cx" to="/conexiones"><Icono n="puertos" /> Conexiones</NavLink>,
+        // Va con Conexiones: primero se declara la red física, después el
+        // direccionamiento que corre por encima.
+        can('asset.read') && <NavLink key="ip" to="/ipam"><Icono n="ipam" /> Direccionamiento IP</NavLink>,
         // 12.7 — cierra el permiso huerfano: `document.read` existia desde F0
         // y no habia pantalla que lo usara.
         can('document.read') && <NavLink key="dc" to="/documentos"><Icono n="etiqueta" /> Manuales y planos</NavLink>,

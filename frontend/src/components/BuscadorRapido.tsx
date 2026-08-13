@@ -48,6 +48,7 @@ const DESTINOS: Destino[] = [
   { ruta: '/campanas', nombre: 'Campañas de mapeo', seccion: 'Infraestructura', alias: 'revisar zona calidad aprobar levantamiento reparto', permiso: 'asset.read' },
   { ruta: '/grabadores', nombre: 'Grabadores', seccion: 'Infraestructura', alias: 'nvr dvr canales grabacion disco', permiso: 'asset.read' },
   { ruta: '/conexiones', nombre: 'Conexiones de red', seccion: 'Infraestructura', alias: 'puerto switch enlace fibra anillo poe vlan', permiso: 'asset.read' },
+  { ruta: '/ipam', nombre: 'Direccionamiento IP', seccion: 'Infraestructura', alias: 'ip subred vlan dhcp gateway que ip le pongo duplicada cidr', permiso: 'asset.read' },
   { ruta: '/topologia', nombre: 'Puntos críticos', seccion: 'Infraestructura', alias: 'impacto que se cae si falla mapa red', permiso: 'asset.read' },
   { ruta: '/monitoreo', nombre: 'Monitoreo', seccion: 'Infraestructura', alias: 'ping en linea caida disponible', permiso: 'monitor.read' },
   { ruta: '/documentos', nombre: 'Manuales y planos', seccion: 'Infraestructura', alias: 'pdf ficha manual plano documento', permiso: 'document.read' },

@@ -46,6 +46,7 @@ const Paradas = lazyConReintento(() => import('./pages/Paradas'));
 const Instalaciones = lazyConReintento(() => import('./pages/Instalaciones'));
 const Campanas = lazyConReintento(() => import('./pages/Campanas'));
 const Electricidad = lazyConReintento(() => import('./pages/Electricidad'));
+const Ipam = lazyConReintento(() => import('./pages/Ipam'));
 const Avisos = lazyConReintento(() => import('./pages/Avisos'));
 const Incidents = lazyConReintento(() => import('./pages/Incidents'));
 const Maintenance = lazyConReintento(() => import('./pages/Maintenance'));
@@ -105,6 +106,7 @@ export default function App() {
           <Route path="/instalaciones" element={<Instalaciones />} />
           <Route path="/campanas" element={<Campanas />} />
           <Route path="/electricidad" element={<Electricidad />} />
+          <Route path="/ipam" element={<Ipam />} />
           <Route path="/avisos" element={<Avisos />} />
           <Route path="/incidents" element={<Incidents />} />
           <Route path="/maintenance" element={<Maintenance />} />

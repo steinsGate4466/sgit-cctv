@@ -34,6 +34,8 @@ const D: Record<string, string> = {
   exportar: 'M12 3v10M8 9l4 4 4-4M4 17v3h16v-3',
   // Diana: puntos criticos. Antes compartia con Predictivo.
   critico: 'M12 3a9 9 0 100 18 9 9 0 000-18zM12 8a4 4 0 100 8 4 4 0 000-8zM12 12h.01',
+  // Nodos enlazados: direccionamiento IP.
+  ipam: 'M5 6h6v4H5zM13 14h6v4h-6zM8 10v4h5M8 14h.01',
   // Rayo dentro de un tablero: electricidad.
   electricidad: 'M5 3h14v18H5zM13 7l-4 5h3l-1 5 4-5h-3z',
   // Monitor con peana: el registro de PCs conocidos.
