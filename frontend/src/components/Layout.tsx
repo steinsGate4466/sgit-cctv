@@ -41,6 +41,7 @@ const TITLES: Record<string, string> = {
   '/electricidad': 'Electricidad',
   '/ipam': 'Direccionamiento IP',
   '/mi-cuenta': 'Mi cuenta',
+  '/indicadores': 'Indicadores de gestión',
   '/exportar': 'Exportar a Excel',
   '/avisos': 'Avisos',
 };
@@ -139,6 +140,9 @@ export default function Layout() {
           <NavLink key="mt" to="/mi-tren"><Icono n="mitren" /> Mi tren</NavLink>,
         can('dashboard.read') && <NavLink key="bd" to="/bandeja"><Icono n="bandeja" /> Mi bandeja</NavLink>,
         can('dashboard.read') && <NavLink key="d" to="/dashboard"><Icono n="tablero" /> Dashboard</NavLink>,
+        // Indicadores va junto al tablero: uno dice qué pasa hoy, el otro si
+        // vamos mejorando o empeorando.
+        can('dashboard.read') && <NavLink key="ind" to="/indicadores"><Icono n="indicadores" /> Indicadores</NavLink>,
         // Exportar vive junto al Dashboard: los dos son "mirar y llevarse".
         can('dashboard.read') && <NavLink key="xl" to="/exportar"><Icono n="exportar" /> Exportar</NavLink>,
         can('dashboard.read') && <NavLink key="t" to="/trains"><Icono n="tren" /> Estado por Tren</NavLink>,

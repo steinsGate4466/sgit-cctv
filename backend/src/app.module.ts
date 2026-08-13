@@ -22,6 +22,7 @@ import { CampanasModule } from './modules/campanas/campanas.module';
 import { AccesoModule } from './modules/acceso/acceso.module';
 import { ElectricidadModule } from './modules/electricidad/electricidad.module';
 import { IpamModule } from './modules/ipam/ipam.module';
+import { IndicadoresModule } from './modules/indicadores/indicadores.module';
 import { NotificacionesModule } from './modules/notificaciones/notificaciones.module';
 import { UsersModule } from './modules/users/users.module';
 import { LocationsModule } from './modules/locations/locations.module';
@@ -83,6 +84,7 @@ import { PredictiveModule } from './modules/predictive/predictive.module';
     AccesoModule,         // que aparatos pueden entrar al sistema (18)
     ElectricidadModule,   // tableros, circuitos y que alimenta cada llave (18)
     IpamModule,           // direccionamiento IP: que IP le pongo, y que esta mal (20)
+    IndicadoresModule,    // MTTR, MTBF, disponibilidad, backlog (22)
     PurgaModule,          // borrado definitivo de basura, solo el Jefe (15)
   ],
   controllers: [HealthController],

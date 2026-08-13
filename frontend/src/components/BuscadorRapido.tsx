@@ -33,6 +33,7 @@ interface Destino {
 
 const DESTINOS: Destino[] = [
   { ruta: '/dashboard', nombre: 'Dashboard', seccion: 'General', alias: 'tablero indicadores kpi resumen inicio', permiso: 'dashboard.read' },
+  { ruta: '/indicadores', nombre: 'Indicadores de gestión', seccion: 'General', alias: 'mttr mtbf disponibilidad kpi backlog cumplimiento comite gerencia', permiso: 'dashboard.read' },
   { ruta: '/bandeja', nombre: 'Mi bandeja', seccion: 'General', alias: 'pendientes hoy tareas que hago primero', permiso: 'dashboard.read' },
   { ruta: '/mi-tren', nombre: 'Mi tren', seccion: 'General', alias: 'mi linea mi zona' },
   { ruta: '/trains', nombre: 'Estado por Tren', seccion: 'General', alias: 't1 t2 t3 linea laminacion', permiso: 'dashboard.read' },
