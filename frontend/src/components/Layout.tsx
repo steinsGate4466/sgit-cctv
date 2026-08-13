@@ -45,6 +45,12 @@ const TITLES: Record<string, string> = {
   '/indicadores': 'Indicadores de gestión',
   '/exportar': 'Exportar a Excel',
   '/avisos': 'Avisos',
+  // Faltaban tres. Sin entrada aquí la cabecera decía «SGIT-CCTV» y la
+  // pantalla tenía que repetir su propio título para que se supiera dónde
+  // estabas. Con esto el título vive en UN solo sitio.
+  '/bandeja': 'Mi bandeja',
+  '/mapeo': 'Avance del mapeo',
+  '/cableado': 'Cableado',
 };
 
 /**
@@ -310,7 +316,10 @@ export default function Layout() {
 
       <div>
         <header className="topbar">
-          <div className="title">{title}</div>
+          {/* Es el <h1> de la pantalla. Antes era un <div> y cada página
+              repetía su propio título debajo: el mismo texto dos veces,
+              ochenta píxeles de alto tirados. */}
+          <h1 className="title">{title}</h1>
           <div className="user">
             <div style={{ textAlign: 'right' }}>
               <div style={{ color: 'var(--text)', fontWeight: 600 }}>{user?.fullName}</div>
