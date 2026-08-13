@@ -236,7 +236,11 @@ export default function Layout() {
   ];
 
   return (
-    <div className="app">
+    /* La clase de «barra estrecha» va AQUÍ, en el contenedor, no sólo en el
+       <aside>. La rejilla que reparte la pantalla vive en `.app`: si sólo se
+       entera el aside, éste encoge a 60 px pero la columna se queda en 236 y
+       el contenido no se mueve. Era el «estrecho el menú y no se reajusta». */
+    <div className={'app' + (estrecha ? ' app-estrecha' : '')}>
       {/* Ctrl+K para saltar a cualquier pantalla. Con 34 entradas en el
           menú, escribir «parada» es más rápido que recordar en qué sección
           vive. */}
@@ -277,7 +281,10 @@ export default function Layout() {
               // Si la pantalla actual está DENTRO de esta sección, se abre
               // aunque estuviera plegada: si no, el usuario no vería dónde está.
               const contieneActual = s.rutas?.some((r) => loc.pathname.startsWith(r));
-              const oculta = plegada && !contieneActual;
+              // En modo estrecho NO se pliega nada: sin rótulos de sección, un
+              // grupo plegado se ve como un hueco sin explicación y el usuario
+              // no tiene dónde pulsar para abrirlo.
+              const oculta = plegada && !contieneActual && !estrecha;
               return (
                 <div key={i} className={'nav-group' + (oculta ? ' plegada' : '')}>
                   {plegable && (

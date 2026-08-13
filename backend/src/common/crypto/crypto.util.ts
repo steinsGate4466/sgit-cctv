@@ -2,10 +2,35 @@ import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'crypt
 
 const ALGO = 'aes-256-gcm';
 
-// Deriva una clave de 32 bytes desde CREDENTIAL_ENC_KEY (variable de entorno).
+const CLAVE_DE_DESARROLLO = 'dev-credential-key-change-me';
+
+/**
+ * Deriva una clave de 32 bytes desde CREDENTIAL_ENC_KEY.
+ *
+ * OJO CON LA CLAVE POR DEFECTO.
+ * Antes, si la variable no estaba puesta, esto seguía adelante cifrando con
+ * una clave que está ESCRITA EN EL CÓDIGO y por tanto en el repositorio.
+ * El sistema arrancaba, las contraseñas de los grabadores se guardaban
+ * "cifradas", y nadie se enteraba de que cualquiera con acceso al código
+ * podía descifrarlas. Un fallo así no da la cara: da la cara el día de la
+ * auditoría.
+ *
+ * En producción ahora revienta al primer uso. Es preferible que no arranque
+ * a que arranque dando una seguridad que no tiene.
+ */
 function getKey(): Buffer {
-  const secret = process.env.CREDENTIAL_ENC_KEY || 'dev-credential-key-change-me';
-  return scryptSync(secret, 'sgit-cctv-cred-salt', 32);
+  const secret = process.env.CREDENTIAL_ENC_KEY;
+  const enProduccion = process.env.NODE_ENV === 'production';
+
+  if (enProduccion && (!secret || secret === CLAVE_DE_DESARROLLO)) {
+    throw new Error(
+      'CREDENTIAL_ENC_KEY no está configurada (o sigue siendo la de desarrollo). ' +
+      'Las credenciales de los grabadores no se pueden cifrar con una clave pública. ' +
+      'Define la variable en el entorno antes de arrancar.',
+    );
+  }
+
+  return scryptSync(secret || CLAVE_DE_DESARROLLO, 'sgit-cctv-cred-salt', 32);
 }
 
 /**
