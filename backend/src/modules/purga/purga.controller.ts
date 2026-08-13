@@ -101,8 +101,10 @@ export class PurgaController {
   @SinAmbito()  // el borrado definitivo ya exige el rol Jefe, que lo ve todo
   @Get('r/:clave/:id')
   @RequirePermissions('asset.read')
-  previaRecurso(@Param('clave') clave: string, @Param('id') id: string) {
-    return this.purga.vistaPreviaRecurso(clave, id);
+  previaRecurso(@Param('clave') clave: string, @Param('id') id: string, @CurrentUser() u: any) {
+    // Se le pasan los permisos del token: la ruta es una para los dieciséis
+    // recursos, así que el permiso concreto lo comprueba el servicio.
+    return this.purga.vistaPreviaRecurso(clave, id, u?.permissions || [], u?.role);
   }
 
   @SinAmbito()  // idem

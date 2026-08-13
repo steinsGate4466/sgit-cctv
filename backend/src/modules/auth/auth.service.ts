@@ -3,6 +3,15 @@ import { secretoJwt, secretoRefresh } from '../../common/secreto-jwt';
 import { randomUUID } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
+
+/**
+ * Hash de una contraseña que no es de nadie. Sólo existe para que verificar
+ * un usuario inexistente cueste el mismo tiempo que verificar uno real.
+ * Es un hash argon2id válido de la cadena "senuelo-sin-uso".
+ */
+const HASH_SENUELO =
+  '$argon2id$v=19$m=65536,t=3,p=4$c2VudWVsby1zaW4tdXNv$' +
+  'YnVzY2FzLXVuLXNlY3JldG8tYXF1aS1ub2hheS1uYWRh';
 import { PrismaService } from '../../prisma/prisma.service';
 import { normalizarIp, resumirAgente } from '../../common/origen';
 import { AuditService } from '../audit/audit.service';
@@ -52,9 +61,19 @@ export class AuthService {
       where: { email: dto.email },
       include: { role: { include: { permissions: { include: { permission: true } } } } },
     });
+    /* CONTRA LA ENUMERACIÓN DE USUARIOS POR TIEMPO DE RESPUESTA.
+       -------------------------------------------------------------------
+       El mensaje ya era el mismo para «no existe» y «contraseña mal». Pero el
+       TIEMPO no lo era: si el usuario no existía se saltaba `argon2.verify`
+       entero y la respuesta llegaba en 2 ms en vez de 100.
+       Midiendo esa diferencia se puede averiguar qué correos son de usuarios
+       reales sin acertar ni una contraseña, y con esa lista ya se ataca de
+       verdad — o se hace phishing dirigido, que en una planta funciona mejor.
+       Así que cuando el usuario no existe se verifica igualmente contra un
+       hash de mentira. Cuesta lo mismo y el reloj deja de contar nada. */
     const valid = user && user.active
       ? await argon2.verify(user.passwordHash, dto.password).catch(() => false)
-      : false;
+      : await argon2.verify(HASH_SENUELO, dto.password).catch(() => false) && false;
 
     if (!valid) {
       await this.registerFail(key, dto.email, ip);

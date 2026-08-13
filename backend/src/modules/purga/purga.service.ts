@@ -542,9 +542,26 @@ export class PurgaService {
     }));
   }
 
-  async vistaPreviaRecurso(clave: string, id: string) {
+  async vistaPreviaRecurso(clave: string, id: string, permisos?: string[], rol?: string | null) {
     const R = porClave(clave);
     if (!R) throw new BadRequestException(`No sé borrar "${clave}".`);
+
+    /* EL PERMISO SE COMPRUEBA AQUÍ, NO EN LA RUTA.
+       -------------------------------------------------------------------
+       El controlador tiene UNA ruta para los dieciséis recursos, así que su
+       `@RequirePermissions` sólo puede exigir el mínimo común (`asset.read`).
+       Eso dejaba que alguien con permiso de lectura de activos viera la vista
+       previa de un REPUESTO —que exige `inventory.manage`— y con ella los
+       valores de sus campos.
+       No es un agujero grave, pero es exactamente la clase de detalle que una
+       auditoría encuentra: el permiso que se exige no es el del recurso que
+       se está tocando. Como la ruta no puede saberlo, lo comprueba el
+       servicio, que sí sabe qué recurso es. */
+    if (permisos && !permisos.includes(R.permiso) && rol !== ROL_QUE_PUEDE_PURGAR) {
+      throw new ForbiddenException(
+        `Para ver o borrar ${R.etiqueta.toLowerCase()} hace falta el permiso "${R.permiso}".`,
+      );
+    }
     const p: any = this.prisma;
 
     const select: any = { id: true };
@@ -609,6 +626,8 @@ export class PurgaService {
     const R = porClave(clave);
     if (!R) throw new BadRequestException(`No sé borrar "${clave}".`);
 
+    // Ya se comprobó el rol de Jefe arriba, así que la previa no repite la
+    // comprobación de permiso: el Jefe los tiene todos por definición.
     const previa = await this.vistaPreviaRecurso(clave, id);
 
     if (previa.exigeForzar && !forzar) {
