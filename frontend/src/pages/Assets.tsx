@@ -10,6 +10,7 @@ import { useAutoOcultar } from '../auth/useInactivity';
 import AssetSpecFields, { FICHA_DE } from '../components/AssetSpecFields';
 import AssetPhotoPicker, { FotoPendiente } from '../components/AssetPhotoPicker';
 import HistorialActivo from '../components/HistorialActivo';
+import RepuestosDelActivo from '../components/RepuestosDelActivo';
 import BorrarDefinitivo from '../components/BorrarDefinitivo';
 
 const TYPES = ['CAMERA', 'NVR', 'SWITCH', 'WIRELESS', 'DECODER', 'PANTALLA', 'PC', 'ROUTER', 'FIREWALL', 'SERVER', 'UPS', 'FIBER', 'CABINET', 'TABLERO_ELECTRICO', 'OTHER'];
@@ -695,6 +696,11 @@ export default function Assets() {
           )}
           {/* Retroalimentación: qué le ha pasado antes a este equipo.
               Va ARRIBA porque es lo que hay que leer antes de decidir algo. */}
+          {/* Qué repuestos sirven para este equipo y si hay en almacén.
+              Se pregunta CON EL EQUIPO DELANTE: el técnico está arriba y
+              necesita saber si bajar o no. */}
+          <RepuestosDelActivo assetId={detail.id} />
+
           <HistorialActivo assetId={detail.id} />
 
           {detail.completitud && detail.completitud.faltanClave?.length > 0 && (

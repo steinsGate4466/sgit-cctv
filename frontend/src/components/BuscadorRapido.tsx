@@ -66,6 +66,7 @@ const DESTINOS: Destino[] = [
 
   { ruta: '/inventory', nombre: 'Inventario', seccion: 'Almacén', alias: 'repuesto stock almacen sap retiro herramienta', permiso: 'inventory.read' },
 
+  { ruta: '/mi-cuenta', nombre: 'Mi cuenta', seccion: 'Sistema', alias: 'mis sesiones cerrar sesion me robaron el celular contrasena' },
   { ruta: '/audit', nombre: 'Auditoría', seccion: 'Sistema', alias: 'quien hizo que historial registro trazabilidad', permiso: 'audit.read' },
   { ruta: '/avisos', nombre: 'Avisos', seccion: 'Sistema', alias: 'telegram notificacion alerta mensaje' },
   { ruta: '/users', nombre: 'Usuarios', seccion: 'Sistema', alias: 'personas cuentas alta baja contrasena', permiso: 'user.manage' },

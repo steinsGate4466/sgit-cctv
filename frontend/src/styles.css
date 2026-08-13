@@ -1779,3 +1779,77 @@ input:disabled, select:disabled, textarea:disabled {
   /* En el celular no hay Ctrl+K, así que el pie sobra y quita sitio. */
   .buscador-pie { display: none; }
 }
+
+/* =========================================================================
+   BARRA ESTRECHA Y ACCESOS RECIENTES — 21
+   -------------------------------------------------------------------------
+   EL PROBLEMA QUE APARECE AL CRECER
+   Con 38 entradas, el plegado por secciones ya no basta. El problema deja
+   de ser el ALTO y pasa a ser el ANCHO: la barra se come 240 px de una
+   pantalla de 1366 —la que hay en los púlpitos— y las tablas de activos
+   salen apretadas, con scroll horizontal.
+
+   Dos respuestas, ninguna quita nada:
+     · La barra se puede estrechar a 60 px. Al pasar el ratón se despliega,
+       así que no se pierde acceso: sólo deja de ocupar sitio.
+     · «Lo último» sube arriba las cuatro pantallas que esa persona usa de
+       verdad. De 38, cada uno usa cinco.
+   ========================================================================= */
+
+.sidebar { transition: width .16s ease; position: relative; }
+
+/* ---- Botón de estrechar ---- */
+.sidebar-ancho {
+  position: absolute; top: 10px; right: 8px; z-index: 3;
+  width: 22px; height: 22px; padding: 0; line-height: 1;
+  border: 1px solid rgba(255,255,255,.18); border-radius: 6px;
+  background: rgba(255,255,255,.08); color: #cbd7ea;
+  cursor: pointer; font-size: 12px;
+}
+.sidebar-ancho:hover { background: rgba(255,255,255,.18); color: #fff; }
+
+/* ---- Modo estrecho ---- */
+.sidebar.estrecha { width: 60px; overflow: visible; }
+.sidebar.estrecha .brand > div,
+.sidebar.estrecha .nav-titulo,
+.sidebar.estrecha .nav a span,
+.sidebar.estrecha .recientes-nav { display: none; }
+
+/* El texto del enlace se oculta, el icono se queda centrado. */
+.sidebar.estrecha .nav a {
+  justify-content: center; padding: 11px 0; gap: 0;
+  font-size: 0;                 /* oculta el texto suelto del NavLink */
+}
+.sidebar.estrecha .nav a svg { font-size: initial; flex: none; }
+.sidebar.estrecha .nav-group { border: none; }
+
+/* AL PASAR EL RATÓN SE DESPLIEGA. Esto es lo que hace que estrechar no
+   cueste nada: se recupera el menú entero sin pulsar. */
+.sidebar.estrecha:hover { width: 240px; box-shadow: 6px 0 24px rgba(16,24,40,.28); }
+.sidebar.estrecha:hover .brand > div,
+.sidebar.estrecha:hover .nav-titulo,
+.sidebar.estrecha:hover .nav a span { display: initial; }
+.sidebar.estrecha:hover .nav a { justify-content: flex-start; padding: 9px 14px; gap: 10px; font-size: 13.5px; }
+
+/* ---- Lo último ---- */
+.recientes-nav {
+  padding: 4px 0 10px; margin-bottom: 6px;
+  border-bottom: 1px solid rgba(255,255,255,.10);
+}
+.recientes-nav .reciente {
+  display: block; padding: 6px 14px 6px 26px; font-size: 12.5px;
+  color: #a9bad4; text-decoration: none; border-radius: 7px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.recientes-nav .reciente:hover { background: rgba(255,255,255,.08); color: #fff; }
+/* Punto a la izquierda: se distingue de una opción normal del menú sin
+   necesidad de leer la cabecera. */
+.recientes-nav .reciente::before {
+  content: '·'; position: absolute; margin-left: -12px; opacity: .5;
+}
+
+/* En el celular la barra ya es un cajón: estrecharla no aplica. */
+@media (max-width: 900px) {
+  .sidebar.estrecha { width: auto; }
+  .sidebar-ancho { display: none; }
+}

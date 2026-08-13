@@ -597,3 +597,37 @@ Probado reintroduciendo el fallo exacto.
 **Y lo más útil de todo esto:** ahora sí se puede comprobar la sintaxis del
 frontend desde aquí. Antes el único filtro era el build en la máquina del
 usuario, y por eso los errores de sintaxis siempre llegaban a él.
+
+### Bloque 21 — cerrar lo que estaba a medias, antes de añadir nada
+
+El usuario pidió módulos nuevos y a mitad se corrigió: **«empieza primero
+terminando el software»**. Tenía razón, y la auditoría lo confirmó.
+
+**Cómo se buscó lo incompleto, que es lo reutilizable de esto:** en vez de ir
+por intuición, se comparó cada uno de los **298 endpoints** contra todo el
+código del frontend. Salieron 31 sin usar. Descontando falsos positivos
+—rutas construidas con plantilla, y las del agente de monitoreo, que no las
+llama el navegador— quedaron **cuatro huecos reales**:
+
+| Hueco | Qué pasaba |
+|---|---|
+| `POST /electricidad/mediciones` | **El peor, y mío.** El tablero enseñaba los puntos calientes de termografía y **no había forma de cargarlos**. Un indicador que nadie puede alimentar siempre dice cero, y a la tercera vez que se mira vacío se deja de mirar |
+| `GET /auth/sesiones` + `cerrar-todas` | El botón de «me robaron el teléfono» estaba **construido y apagado**: revoca de verdad en el servidor, y no había pantalla para usarlo |
+| `GET /inventory/for-asset/:id` | Qué repuestos sirven para este equipo. Se pregunta **con el equipo delante**, así que va en la ficha del activo, no en Almacén |
+| `GET /paradas/proximas` | Se calculaba y no se enseñaba. Es la pregunta de la mañana: «¿cuándo puedo tocar la línea?» |
+
+**La regla que ya estaba escrita y volvió a fallar:** *modelo + endpoint ≠
+función. Sin pantalla, no existe.* Ahora hay una forma barata de comprobarlo
+—el barrido de endpoints contra el frontend— y conviene repetirla cada dos o
+tres bloques.
+
+### Lo visual al crecer: el problema cambia de eje
+
+Con 38 entradas el plegado por secciones ya no basta. **El problema deja de
+ser el alto y pasa a ser el ancho**: la barra se come 240 px de una pantalla
+de 1366 —la de los púlpitos— y las tablas salen con scroll horizontal.
+
+- **Barra estrecha a 60 px**, que se despliega al pasar el ratón. Estrecharla
+  no cuesta nada porque no se pierde acceso.
+- **«Lo último»**: de 38 pantallas cada persona usa cinco. Las últimas
+  visitadas suben arriba. Se ajusta solo a cada uno, sin configurar nada.

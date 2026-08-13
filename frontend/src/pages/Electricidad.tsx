@@ -47,6 +47,7 @@ export default function Electricidad() {
   const [nuevoCircuito, setNuevoCircuito] = useState<any>(null);
   const [colgando, setColgando] = useState<any>(null);
   const [impacto, setImpacto] = useState<any>(null);
+  const [midiendo, setMidiendo] = useState<any>(null);
   const [candidatos, setCandidatos] = useState<any[]>([]);
   const [ubicaciones, setUbicaciones] = useState<any[]>([]);
   const [ocupado, setOcupado] = useState(false);
@@ -108,6 +109,33 @@ export default function Electricidad() {
       setMsg('Equipo colgado del circuito.');
       setColgando(null); setCandidatos([]); await abrir(detalle.id);
     } catch (e: any) { setError(e?.response?.data?.message || 'No se pudo colgar.'); }
+    finally { setOcupado(false); }
+  }
+
+  /* HUECO QUE ESTABA ABIERTO: el tablero de arriba enseña los puntos
+     calientes de termografía... y no había forma de cargarlos. El endpoint
+     existía desde el bloque 18 y ninguna pantalla lo llamaba. Un indicador
+     que nadie puede alimentar es un indicador que siempre dice cero, y a la
+     tercera vez que alguien lo mira vacío deja de mirarlo. */
+  async function guardarMedicion() {
+    setOcupado(true); setError('');
+    try {
+      await api.post('/electricidad/mediciones', {
+        circuitoId: midiendo.circuitoId || undefined,
+        tableroId: midiendo.circuitoId ? undefined : midiendo.tableroId,
+        tensionV: midiendo.tensionV || undefined,
+        corrienteA: midiendo.corrienteA || undefined,
+        temperaturaC: midiendo.temperaturaC || undefined,
+        observacion: midiendo.observacion || undefined,
+      });
+      const t = Number(midiendo.temperaturaC);
+      setMsg(t >= 60
+        ? `Medición guardada. ${t} °C está por encima del umbral: sale como punto caliente.`
+        : 'Medición guardada.');
+      setMidiendo(null);
+      await cargar(texto, fTren);
+      if (detalle) await abrir(detalle.id);
+    } catch (e: any) { setError(e?.response?.data?.message || 'No se pudo guardar.'); }
     finally { setOcupado(false); }
   }
 
@@ -234,10 +262,16 @@ export default function Electricidad() {
       {detalle && (
         <Modal title={`${detalle.codigo} · ${detalle.nombre}`} onClose={() => setDetalle(null)} ancho
           acciones={puedeEditar ? (
-            <button className="btn-primary" onClick={() => {
-              setError('');
-              setNuevoCircuito({ tableroId: detalle.id, numero: '', designacion: '', proteccion: 'TERMOMAGNETICO', amperajeA: '', polos: '', estado: 'ACTIVO', esCctv: false });
-            }}>+ Declarar circuito</button>
+            <>
+              <button className="btn-mini" onClick={() => {
+                setError('');
+                setMidiendo({ circuitoId: '', numero: '', tableroId: detalle.id, tensionV: '', corrienteA: '', temperaturaC: '', observacion: '' });
+              }}>Medir el tablero</button>
+              <button className="btn-primary" onClick={() => {
+                setError('');
+                setNuevoCircuito({ tableroId: detalle.id, numero: '', designacion: '', proteccion: 'TERMOMAGNETICO', amperajeA: '', polos: '', estado: 'ACTIVO', esCctv: false });
+              }}>+ Declarar circuito</button>
+            </>
           ) : undefined}>
 
           {detalle.requierePermiso && (
@@ -262,6 +296,34 @@ export default function Electricidad() {
 
           {/* Lo que está atornillado DENTRO. Distinto de lo que alimenta:
               eso puede estar a cien metros. */}
+          {detalle.mediciones?.length > 0 && (
+            <>
+              <div className="section-title">Últimas mediciones</div>
+              <table className="tabla">
+                <thead><tr><th>Fecha</th><th>Dónde</th><th className="num">Tensión</th>
+                  <th className="num">Corriente</th><th className="num">Temperatura</th><th>Observación</th></tr></thead>
+                <tbody>
+                  {detalle.mediciones.map((m: any) => (
+                    <tr key={m.id}>
+                      <td className="muted">{new Date(m.fecha).toLocaleDateString('es-PE')}</td>
+                      <td>{m.circuitoId
+                        ? (detalle.circuitos.find((c: any) => c.id === m.circuitoId)?.numero
+                            ? `circuito ${detalle.circuitos.find((c: any) => c.id === m.circuitoId).numero}`
+                            : 'circuito')
+                        : 'el tablero'}</td>
+                      <td className="num">{m.tensionV != null ? `${m.tensionV} V` : '—'}</td>
+                      <td className="num">{m.corrienteA != null ? `${m.corrienteA} A` : '—'}</td>
+                      <td className="num" style={{ color: m.temperaturaC >= 60 ? 'var(--crit)' : undefined, fontWeight: m.temperaturaC >= 60 ? 700 : 400 }}>
+                        {m.temperaturaC != null ? `${m.temperaturaC} °C` : '—'}
+                      </td>
+                      <td className="muted" style={{ fontSize: 12.5 }}>{m.observacion || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+
           <div className="section-title">Equipos montados dentro del tablero</div>
           {(!detalle.equiposMontados || detalle.equiposMontados.length === 0) ? (
             <p className="muted" style={{ fontSize: 13 }}>
@@ -322,6 +384,12 @@ export default function Electricidad() {
                     </td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                       <button className="btn-mini" onClick={() => verImpacto(c.id)}>¿Qué se apaga?</button>
+                      {puedeEditar && (
+                        <button className="btn-mini" style={{ marginLeft: 4 }} title="Termografía y medidas"
+                          onClick={() => { setError(''); setMidiendo({ circuitoId: c.id, numero: c.numero, tableroId: detalle.id, tensionV: '', corrienteA: '', temperaturaC: '', observacion: '' }); }}>
+                          Medir
+                        </button>
+                      )}
                       {puedeEditar && (
                         <button className="btn-mini" style={{ marginLeft: 4 }}
                           onClick={() => { setColgando({ circuitoId: c.id, numero: c.numero, q: '' }); setCandidatos([]); }}>
@@ -398,6 +466,47 @@ export default function Electricidad() {
               ))}
             </ul>
           )}
+        </Modal>
+      )}
+
+      {/* ---------- MEDICIÓN / TERMOGRAFÍA ---------- */}
+      {midiendo && (
+        <Modal
+          title={midiendo.circuitoId ? `Medir el circuito ${midiendo.numero}` : 'Medir el tablero'}
+          onClose={() => setMidiendo(null)}
+          acciones={<>
+            <button className="btn-mini" onClick={() => setMidiendo(null)}>Cancelar</button>
+            <button className="btn-primary" onClick={guardarMedicion}
+              disabled={ocupado || (!midiendo.tensionV && !midiendo.corrienteA && !midiendo.temperaturaC)}>
+              {ocupado ? 'Guardando…' : 'Guardar medición'}
+            </button>
+          </>}>
+          {error && <div className="aviso-error">{error}</div>}
+          <div className="card explica" style={{ marginTop: 0 }}>
+            <b>La temperatura es la que más avisa.</b> Un borne por encima de 60 °C no
+            es un riesgo: es una avería con fecha. Se aprieta o se cambia antes de que
+            se abra el circuito solo, casi siempre de madrugada.
+            <div style={{ marginTop: 6 }}>
+              Basta con rellenar uno de los tres. No hay que medirlo todo cada vez.
+            </div>
+          </div>
+          <div className="form-grid">
+            <label className="campo"><span>Tensión (V)</span>
+              <input type="number" step="any" value={midiendo.tensionV}
+                onChange={(e) => setMidiendo({ ...midiendo, tensionV: e.target.value })} /></label>
+            <label className="campo"><span>Corriente (A)</span>
+              <input type="number" step="any" value={midiendo.corrienteA}
+                onChange={(e) => setMidiendo({ ...midiendo, corrienteA: e.target.value })} /></label>
+            <label className="campo"><span>Temperatura (°C)</span>
+              <input type="number" step="any" value={midiendo.temperaturaC}
+                onChange={(e) => setMidiendo({ ...midiendo, temperaturaC: e.target.value })}
+                placeholder="Del termógrafo" />
+              <small className="muted">Desde 60 °C sale marcado como punto caliente.</small></label>
+            <label className="campo campo-ancho"><span>Observación</span>
+              <textarea value={midiendo.observacion}
+                onChange={(e) => setMidiendo({ ...midiendo, observacion: e.target.value })}
+                placeholder="Borne del polo R más caliente que los otros dos." /></label>
+          </div>
         </Modal>
       )}
 

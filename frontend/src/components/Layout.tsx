@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import MiPin from './MiPin';
@@ -40,6 +40,7 @@ const TITLES: Record<string, string> = {
   '/campanas': 'Campañas de mapeo',
   '/electricidad': 'Electricidad',
   '/ipam': 'Direccionamiento IP',
+  '/mi-cuenta': 'Mi cuenta',
   '/exportar': 'Exportar a Excel',
   '/avisos': 'Avisos',
 };
@@ -76,6 +77,47 @@ export default function Layout() {
       return ahora;
     });
   };
+  /* BARRA ESTRECHA (bloque 21).
+     -------------------------------------------------------------------
+     El plegado por secciones ayudó, pero con 38 entradas el problema ya no
+     es el alto: es el ANCHO. La barra se come 240 px de una pantalla de
+     1366, que es la que hay en los púlpitos, y las tablas de activos salen
+     apretadas con scroll horizontal.
+
+     En modo estrecho la barra pasa a 60 px y deja sólo los iconos. Al pasar
+     el ratón por encima se despliega, así que no se pierde nada: sólo deja
+     de ocupar sitio mientras no se usa.
+
+     Se recuerda, porque quien la estrecha la quiere estrecha siempre. */
+  const [estrecha, setEstrecha] = useState<boolean>(() => {
+    try { return localStorage.getItem('sgit:menu-estrecho') === '1'; } catch { return false; }
+  });
+  const alternarAncho = () => {
+    setEstrecha((v) => {
+      try { localStorage.setItem('sgit:menu-estrecho', v ? '0' : '1'); } catch { /* sin persistencia */ }
+      return !v;
+    });
+  };
+
+  /* LO ÚLTIMO QUE USASTE.
+     -------------------------------------------------------------------
+     De 38 pantallas, cada persona usa cinco. El técnico de campo vive en
+     Activos, Incidencias y Órdenes; el ingeniero en Bandeja y Paradas.
+     En vez de obligar a todos a recorrer el mismo menú, las últimas cuatro
+     visitadas suben arriba del todo. Es la lista que se ajusta sola a cada
+     uno sin que nadie configure nada. */
+  const [recientes, setRecientes] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('sgit:recientes') || '[]'); } catch { return []; }
+  });
+  useEffect(() => {
+    if (!TITLES[loc.pathname]) return;
+    setRecientes((antes) => {
+      const ahora = [loc.pathname, ...antes.filter((r) => r !== loc.pathname)].slice(0, 4);
+      try { localStorage.setItem('sgit:recientes', JSON.stringify(ahora)); } catch { /* sin persistencia */ }
+      return ahora;
+    });
+  }, [loc.pathname]);
+
   const title = TITLES[loc.pathname] || 'SGIT-CCTV';
   const initials = (user?.fullName || 'U')
     .split(' ')
@@ -168,12 +210,15 @@ export default function Layout() {
     },
     {
       titulo: 'Sistema',
-      rutas: ['/users', '/roles', '/audit', '/avisos', '/equipos', '/limpieza'],
+      rutas: ['/users', '/roles', '/audit', '/avisos', '/equipos', '/limpieza', '/mi-cuenta'],
       items: [
         can('audit.read') && <NavLink key="au" to="/audit"><Icono n="auditoria" /> Auditoría</NavLink>,
         // Avisos lo ve CUALQUIERA: todo el mundo puede vincular su Telegram.
         // La bandeja de salida de dentro sí exige permiso.
         <NavLink key="av" to="/avisos"><Icono n="alerta" /> Avisos</NavLink>,
+        // Mi cuenta lo ve CUALQUIERA: son sus propias sesiones. Ahí está el
+        // botón de "me robaron el teléfono", que revoca de verdad.
+        <NavLink key="mc" to="/mi-cuenta"><Icono n="usuarios" /> Mi cuenta</NavLink>,
         can('user.manage') && <NavLink key="us" to="/users"><Icono n="usuarios" /> Usuarios</NavLink>,
         can('role.manage') && <NavLink key="ro" to="/roles"><Icono n="candado" /> Roles y permisos</NavLink>,
         // Traduce la IP de la auditoría en un sitio de la planta. Va aquí, al
@@ -192,7 +237,14 @@ export default function Layout() {
           menú, escribir «parada» es más rápido que recordar en qué sección
           vive. */}
       <BuscadorRapido />
-      <aside className="sidebar">
+      <aside className={'sidebar' + (estrecha ? ' estrecha' : '')}>
+        {/* Estrechar / ensanchar. Va arriba y pequeño: se usa una vez y se
+            olvida, no tiene que competir con el menú por la atención. */}
+        <button className="sidebar-ancho" onClick={alternarAncho}
+          title={estrecha ? 'Ensanchar el menú' : 'Estrechar el menú y ganar sitio para las tablas'}
+          aria-label={estrecha ? 'Ensanchar el menú' : 'Estrechar el menú'}>
+          {estrecha ? '»' : '«'}
+        </button>
         <div className="brand">
           <MarcaSGIT size={30} />
           <div>
@@ -201,6 +253,16 @@ export default function Layout() {
           </div>
         </div>
         <nav className="nav">
+          {/* LO ÚLTIMO QUE USASTE. De 38 pantallas cada persona usa cinco:
+              esto las sube arriba sin que nadie configure nada. */}
+          {recientes.length > 1 && !estrecha && (
+            <div className="recientes-nav">
+              <div className="nav-titulo" style={{ cursor: 'default' }}>Lo último</div>
+              {recientes.filter((r) => r !== loc.pathname).slice(0, 3).map((r) => (
+                <NavLink key={r} to={r} className="reciente">{TITLES[r]}</NavLink>
+              ))}
+            </div>
+          )}
           {secciones
             .filter((s) => s.items.length > 0)
             .map((s, i) => {

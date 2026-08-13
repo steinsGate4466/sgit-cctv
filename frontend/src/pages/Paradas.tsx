@@ -47,6 +47,7 @@ export default function Paradas() {
 
   const [lista, setLista] = useState<any[]>([]);
   const [fiab, setFiab] = useState<any>(null);
+  const [proximas, setProximas] = useState<any[]>([]);
   const [fTren, setFTren] = useState('');
   const [fEstado, setFEstado] = useState('');
   const [cargando, setCargando] = useState(true);
@@ -59,13 +60,20 @@ export default function Paradas() {
   const [guardando, setGuardando] = useState(false);
 
   const cargar = useCallback(async (tren: string, estado: string) => {
-    const [l, f] = await Promise.all([
+    const [l, f, p] = await Promise.all([
       api.get('/paradas', { params: { tren: tren || undefined, estado: estado || undefined } })
         .then((r) => r.data).catch(() => []),
       api.get('/paradas/fiabilidad').then((r) => r.data).catch(() => null),
+      // ESTO YA SE CALCULABA Y NO SE ENSEÑABA: el endpoint existía desde el
+      // bloque 16 y ninguna vista lo llamaba. Es lo primero que mira el
+      // ingeniero por la mañana, y estaba enterrado entre las 200 de la
+      // tabla de abajo.
+      api.get('/paradas/proximas', { params: { tren: tren || undefined } })
+        .then((r) => r.data).catch(() => []),
     ]);
     setLista(l || []);
     setFiab(f);
+    setProximas(p || []);
   }, []);
 
   useEffect(() => {
@@ -146,6 +154,50 @@ export default function Paradas() {
 
       {msg && <div className="aviso-ok" onClick={() => setMsg('')}>{msg}</div>}
       {error && <div className="aviso-error" onClick={() => setError('')}>{error}</div>}
+
+      {/* LO QUE VIENE. Va arriba del todo porque es la pregunta de la mañana:
+          «¿cuándo puedo tocar la línea?» */}
+      {proximas.length > 0 && (
+        <div className="card">
+          <div className="section-title" style={{ marginTop: 0 }}>Lo que viene</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 10 }}>
+            {proximas.map((p) => {
+              const faltan = Math.round((new Date(p.inicioPrevisto).getTime() - Date.now()) / 3600000);
+              return (
+                <div key={p.id} className="card" style={{ margin: 0, padding: 12, cursor: 'pointer' }}
+                  onClick={() => abrirDetalle(p.id)}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <b style={{ fontSize: 17, color: 'var(--navy)' }}>{p.tren}</b>
+                    <span className={'badge ' + p.estado}>{ESTADO_ES[p.estado]}</span>
+                  </div>
+                  <div style={{ fontSize: 14, marginTop: 4 }}>{fh(p.inicioPrevisto)}</div>
+                  <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>
+                    {p.estado === 'EN_CURSO' ? 'en curso ahora'
+                      : faltan < 0 ? 'debería haber empezado'
+                      : faltan < 24 ? `en ${faltan} h`
+                      : `en ${Math.round(faltan / 24)} días`}
+                    {p.duracionPrevistaMin ? ` · dura ${dur(p.duracionPrevistaMin)}` : ''}
+                  </div>
+                  <div style={{ fontSize: 12.5, marginTop: 6 }}>
+                    {p.ordenes > 0
+                      ? <><b>{p.ordenes}</b> orden(es) colgada(s)</>
+                      : <span className="muted">sin trabajo colgado todavía</span>}
+                    {p.vecesMovida > 0 && (
+                      <span className="chip est-MANTENIMIENTO" style={{ marginLeft: 6 }}>
+                        movida {p.vecesMovida}×
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>
+            Las que están anunciadas, confirmadas o en curso. Si una no tiene trabajo
+            colgado, es una ventana que se va a desaprovechar.
+          </div>
+        </div>
+      )}
 
       {/* El número para la reunión. */}
       {fiab && fiab.trenes.length > 0 && (
