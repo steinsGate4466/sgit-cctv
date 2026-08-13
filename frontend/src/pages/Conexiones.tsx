@@ -229,7 +229,7 @@ export default function Conexiones() {
                       onClick={puedeEditar ? () => abrirPuerto(sw, n, p) : undefined}
                       role={puedeEditar ? 'button' : undefined}
                     >
-                      <div className="p-num">{n}{p?.poe && <span className="p-poe" title="PoE">⚡</span>}</div>
+                      <div className="p-num">{n}{p?.poe && <span className="p-poe" title="Puerto con PoE">PoE</span>}</div>
                       {eq ? (
                         <>
                           <div className="p-code">{eq.code}</div>

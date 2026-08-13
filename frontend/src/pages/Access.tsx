@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import Modal from '../components/Modal';
 import AccessRequestForm, { MEANS_ES, STATUS_ES, STATUS_BADGE } from '../components/AccessRequestForm';
 import { useAuth } from '../auth/AuthContext';
+import Icono from '../components/Iconos';
 
 /**
  * Bandeja de Accesibilidad y Trabajo en Altura.
@@ -168,7 +169,7 @@ export default function Access() {
         </div>
       </div>
 
-      <Tabla data={pendientes} titulo="⏳ Pendientes de revisión" resaltar />
+      <Tabla data={pendientes} titulo="Pendientes de revisión" resaltar />
       <Tabla data={resueltas} titulo="✓ Resueltas" />
 
       {showNew && (
@@ -194,7 +195,7 @@ export default function Access() {
           </div>
 
           <div className="detail-sec">
-            <h4>🦺 Seguridad (SSOMA)</h4>
+            <h4><Icono n="seguridad" size={15} /> Seguridad (SSOMA)</h4>
             <div className="frow"><span className="k">PETAR</span><span className="v">{detail.requiresPetar ? 'Sí' : 'No'}</span></div>
             <div className="frow"><span className="k">IPERC</span><span className="v">{detail.hasIperc ? 'Sí' : 'No'}</span></div>
             <div className="frow"><span className="k">ATS</span><span className="v">{detail.hasAts ? 'Sí' : 'No'}</span></div>
@@ -204,7 +205,7 @@ export default function Access() {
           </div>
 
           <div className="detail-sec">
-            <h4>📷 Evidencia ({photos.length})</h4>
+            <h4><Icono n="camara" size={15} /> Evidencia ({photos.length})</h4>
             {photos.length ? photos.map((ph) => (
               <div key={ph.id} className="frow">
                 <span className="v" style={{ fontSize: 12 }}>{ph.caption || '(sin descripción)'}</span>
@@ -222,7 +223,7 @@ export default function Access() {
           )}
 
           <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-            <button className="btn-mini" onClick={() => downloadReport(detail)}>📄 Informe</button>
+            <button className="btn-mini" onClick={() => downloadReport(detail)}><Icono n="pdf" size={14} /> Informe</button>
             {can('access.approve') && pendiente(detail) && (
               <>
                 <button className="btn-mini" onClick={() => openDecide(detail, 'APROBADO')}>✓ Aprobar</button>
@@ -244,7 +245,7 @@ export default function Access() {
             <label>{decide.status === 'APROBADO' ? 'Condiciones / indicaciones' : 'Motivo del rechazo'}</label>
             <textarea value={decide.decisionNotes} onChange={(e) => setDecide({ ...decide, decisionNotes: e.target.value })}
               rows={3} style={{ width: '100%', resize: 'vertical' }} />
-            <h4 style={{ marginTop: 12, marginBottom: 4 }}>🔏 Firma del Jefe de Mantenimiento</h4>
+            <h4 style={{ marginTop: 12, marginBottom: 4 }}><Icono n="firma" size={15} /> Firma del Jefe de Mantenimiento</h4>
             <label>Correo</label>
             <input type="email" value={decide.email} onChange={(e) => setDecide({ ...decide, email: e.target.value })} required />
             <label>Contraseña</label>

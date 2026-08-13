@@ -5,6 +5,7 @@ import FiltroAmbito, { Ambito, AMBITO_VACIO, AvisoAmbito } from '../components/F
 import Modal from '../components/Modal';
 import BotonPurgar from '../components/BotonPurgar';
 import { useAuth } from '../auth/AuthContext';
+import Icono from '../components/Iconos';
 
 // Categorías agrupadas para el selector (CCTV/NVR, Red/energía, Entorno de planta).
 const CATEGORY_GROUPS: { label: string; items: string[] }[] = [
@@ -285,7 +286,7 @@ export default function Incidents() {
                   {can('incident.update') && <button className="btn-mini" onClick={() => openPhotos(i.id)}>Fotos</button>}
                   {can('incident.update') && openIssue(i) && (
                     <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => openProposal(i)}>
-                      {i.proposal ? '📝 Propuesta ✓' : '📝 Propuesta'}
+                      <><Icono n="nota" size={13} /> {i.proposal ? 'Propuesta ✓' : 'Propuesta'}</>
                     </button>
                   )}
                   {can('incident.close') && openIssue(i) && <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => openResolve(i.id)}>Resolver</button>}
@@ -377,7 +378,7 @@ export default function Incidents() {
             <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>{evidence.length} foto(s) registradas</div>
             {evidence.map((ev) => (
               <div key={ev.id} style={{ fontSize: 12, padding: '4px 0', borderTop: '1px solid #eee' }}>
-                📷 {ev.caption || '(sin descripción)'} <span className="muted">· {new Date(ev.createdAt).toLocaleString()}</span>
+                <Icono n="camara" size={14} /> {ev.caption || '(sin descripción)'} <span className="muted">· {new Date(ev.createdAt).toLocaleString()}</span>
               </div>
             ))}
             {!evidence.length && <div className="muted" style={{ fontSize: 12 }}>Aún no hay fotos.</div>}
@@ -409,7 +410,7 @@ export default function Incidents() {
               <input type="checkbox" checked={!!rf.lineManagerNotified} onChange={(e) => setRf({ ...rf, lineManagerNotified: e.target.checked })} style={{ width: 'auto' }} />
               El jefe de línea está enterado del problema
             </label>
-            <h4 style={{ marginTop: 12, marginBottom: 4 }}>🔏 Firma</h4>
+            <h4 style={{ marginTop: 12, marginBottom: 4 }}><Icono n="firma" size={15} /> Firma</h4>
             <label>Correo</label>
             <input type="email" value={rf.email} onChange={(e) => setRf({ ...rf, email: e.target.value })} required />
             <label>Contraseña</label>

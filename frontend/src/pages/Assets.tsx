@@ -12,6 +12,7 @@ import AssetPhotoPicker, { FotoPendiente } from '../components/AssetPhotoPicker'
 import HistorialActivo from '../components/HistorialActivo';
 import RepuestosDelActivo from '../components/RepuestosDelActivo';
 import BorrarDefinitivo from '../components/BorrarDefinitivo';
+import Icono from '../components/Iconos';
 
 const TYPES = ['CAMERA', 'NVR', 'SWITCH', 'WIRELESS', 'DECODER', 'PANTALLA', 'PC', 'ROUTER', 'FIREWALL', 'SERVER', 'UPS', 'FIBER', 'CABINET', 'TABLERO_ELECTRICO', 'OTHER'];
 const STATES = ['OPERATIVO', 'FUERA_SERVICIO', 'MANTENIMIENTO', 'BAJA', 'STOCK'];
@@ -529,7 +530,7 @@ export default function Assets() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button className="btn-mini" onClick={downloadQrSheet}>🏷️ Etiquetas QR (PDF)</button>
+          <button className="btn-mini" onClick={downloadQrSheet}><Icono n="qr" size={14} /> Etiquetas QR (PDF)</button>
           {can('asset.create') && <button className="btn-primary" onClick={openNew}>+ Nuevo activo</button>}
         </div>
       </div>
@@ -621,7 +622,7 @@ export default function Assets() {
                   {/* El informe se ofrece desde la tabla: antes solo existía
                       dentro de la ficha y nadie sabía que estaba. */}
                   <button className="btn-mini" title="Informe del equipo en PDF"
-                    onClick={(e) => { e.stopPropagation(); descargarInforme(a); }}>📄 PDF</button>
+                    onClick={(e) => { e.stopPropagation(); descargarInforme(a); }}><Icono n="pdf" size={14} /> PDF</button>
                   {can('credential.read') && (
                     <button className="btn-mini" style={{ marginLeft: 4 }}
                       onClick={(e) => { e.stopPropagation(); openQuickEdit(a); }}>Editar</button>
@@ -669,17 +670,17 @@ export default function Assets() {
       {detail && (
         <Modal title={detail.assetCode} onClose={() => setDetail(null)}>
           <div className="acciones-ficha">
-            <button className="btn-mini" onClick={() => openQr(detail)}>🏷️ QR</button>
-            <button className="btn-mini" onClick={() => descargarInforme(detail)}>📄 Informe del equipo (PDF)</button>
-            {can('credential.read') && <button className="btn-mini" onClick={() => openEdit(detail)}>✏️ Editar activo (firmado)</button>}
+            <button className="btn-mini" onClick={() => openQr(detail)}><Icono n="qr" size={14} /> Código QR</button>
+            <button className="btn-mini" onClick={() => descargarInforme(detail)}><Icono n="pdf" size={14} /> Informe (PDF)</button>
+            {can('credential.read') && <button className="btn-mini" onClick={() => openEdit(detail)}><Icono n="editar" size={14} /> Editar activo</button>}
             {can('asset.delete') && (
-              <button className="btn-mini btn-danger" onClick={() => removeAsset(detail)}>🗑️ Dar de baja</button>
+              <button className="btn-mini btn-danger" onClick={() => removeAsset(detail)}><Icono n="alerta" size={14} /> Dar de baja</button>
             )}
             {/* Sólo el Jefe de Mantenimiento. El servidor lo vuelve a comprobar:
                 esconder un botón no protege nada, sólo evita la confusión. */}
             {can('asset.delete') && user?.role === 'Jefe de Mantenimiento' && (
-              <button className="btn-mini btn-peligro" title="Para basura: pruebas, duplicados, códigos mal tecleados"
-                      onClick={() => setAPurgar(detail.id)}>🧹 Borrar definitivamente</button>
+              <button className="btn-mini btn-peligro" title="Elimina el registro de la base de datos. Para pruebas, duplicados y códigos mal tecleados. No se recupera."
+                      onClick={() => setAPurgar(detail.id)}><Icono n="papelera" size={14} /> Eliminar definitivamente</button>
             )}
           </div>
           <Frow k="Tipo" v={tEs(detail.type)} />
@@ -746,7 +747,7 @@ export default function Assets() {
 
           {can('asset.update') && (
             <div className="detail-sec">
-              <h4>🔄 Actualizar estado</h4>
+              <h4><Icono n="refrescar" size={15} /> Actualizar estado</h4>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} style={{ flex: 1 }}>
                   {STATES.map((t) => <option key={t} value={t}>{sEs(t)}</option>)}
@@ -761,7 +762,7 @@ export default function Assets() {
 
           {detail.workOrders && detail.workOrders.length > 0 && (
             <div className="detail-sec">
-              <h4>🔧 Historial de mantenimiento</h4>
+              <h4><Icono n="llaveInglesa" size={15} /> Historial de mantenimiento</h4>
               {detail.workOrders.map((w: any) => (
                 <div key={w.code} className="frow">
                   <span className="v">{w.code} <span className="muted" style={{ fontWeight: 400, fontSize: 11 }}>({w.type})</span></span>
@@ -772,7 +773,7 @@ export default function Assets() {
           )}
 
           <div className="detail-sec">
-            <h4>🦺 Accesibilidad del equipo</h4>
+            <h4><Icono n="seguridad" size={15} /> Accesibilidad del equipo</h4>
             {detail.accessRequests && detail.accessRequests.length > 0 ? (
               <>
                 {detail.accessRequests.map((ar: any) => (
@@ -797,13 +798,13 @@ export default function Assets() {
             )}
             {can('access.request') && (
               <button className="btn-mini" style={{ marginTop: 8 }} onClick={() => setAccessFor(detail)}>
-                🦺 Marcar activo inaccesible (solicitar acceso especial)
+                <Icono n="seguridad" size={14} /> Marcar activo inaccesible (solicitar acceso especial)
               </button>
             )}
           </div>
 
           <div className="detail-sec">
-            <h4>📷 Fotografías del equipo</h4>
+            <h4><Icono n="camara" size={15} /> Fotografías del equipo</h4>
             {photos.length ? photos.map((ph) => (
               <div key={ph.id} className="frow">
                 <span className="v">{PHOTO_KIND_ES[ph.kind] || ph.kind}{ph.caption ? ' — ' + ph.caption : ''}</span>
@@ -827,7 +828,7 @@ export default function Assets() {
 
           {can('credential.read') ? (
             <div className="detail-sec">
-              <h4>🔒 Red y accesos</h4>
+              <h4><Icono n="candado" size={15} /> Red y accesos</h4>
               {can('credential.manage') ? (
                 <div style={{ marginBottom: 8 }}>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
@@ -883,7 +884,7 @@ export default function Assets() {
             </div>
           ) : (
             <div className="sign-note" style={{ marginTop: 14 }}>
-              🔒 Datos de red y accesos ocultos — requiere permiso de red (Jefe de Mantenimiento, Supervisor TI o Técnico de Red).
+              <Icono n="candado" size={14} /> Datos de red y accesos ocultos — requiere permiso de red (Jefe de Mantenimiento, Supervisor TI o Técnico de Red).
             </div>
           )}
         </Modal>
@@ -979,7 +980,7 @@ export default function Assets() {
 
             <AssetPhotoPicker fotos={fotosNuevas} onChange={setFotosNuevas} />
 
-            <h4 style={{ marginTop: 14, marginBottom: 4 }}>🔏 Firma electrónica</h4>
+            <h4 style={{ marginTop: 14, marginBottom: 4 }}><Icono n="firma" size={15} /> Firma electrónica</h4>
             <label>Correo</label>
             <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
             <label>Contraseña</label>

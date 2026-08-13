@@ -1,5 +1,6 @@
 import { useState, FormEvent } from 'react';
 import { api } from '../api/client';
+import Icono from './Iconos';
 
 /**
  * Formulario de solicitud de acceso especial (activo inaccesible / trabajo en altura).
@@ -146,7 +147,7 @@ export default function AccessRequestForm({ assetId, assetCode, assets, onDone }
           </div>
           {photos.map((p) => (
             <div key={p.id} style={{ fontSize: 12, padding: '4px 0', borderTop: '1px solid #eee' }}>
-              📷 {p.caption || '(sin descripción)'}
+              <Icono n="camara" size={14} /> {p.caption || '(sin descripción)'}
             </div>
           ))}
           {!photos.length && (
@@ -223,7 +224,7 @@ export default function AccessRequestForm({ assetId, assetCode, assets, onDone }
       <input value={f.accessRoute} onChange={(e) => setF({ ...f, accessRoute: e.target.value })}
         placeholder="Ej: ingreso por nave 2; coordinar detención del puente grúa" />
 
-      <h4 style={{ marginTop: 16, marginBottom: 6 }}>🦺 Seguridad (SSOMA)</h4>
+      <h4 style={{ marginTop: 16, marginBottom: 6 }}><Icono n="seguridad" size={15} /> Seguridad (SSOMA)</h4>
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 400, margin: 0 }}>
           <input type="checkbox" checked={!!f.requiresPetar} onChange={(e) => setF({ ...f, requiresPetar: e.target.checked })} style={{ width: 'auto' }} />

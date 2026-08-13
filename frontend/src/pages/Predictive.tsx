@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
+import Icono from '../components/Iconos';
 
 /**
  * Mantenimiento Predictivo — alerta temprana por condición.
@@ -139,7 +140,7 @@ export default function Predictive() {
 
           {can('wo.create') && (
             <button className="btn" disabled={creating} onClick={() => crearOM(detail)}>
-              {creating ? 'Creando…' : '🔧 Crear OM predictiva'}
+              {creating ? 'Creando…' : <><Icono n="llaveInglesa" size={15} /> Crear OM predictiva</>}
             </button>
           )}
         </Modal>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api } from '../api/client';
 import Modal from './Modal';
+import Icono from './Iconos';
 import { useAuth } from '../auth/AuthContext';
 
 /**
@@ -88,12 +89,19 @@ export default function BotonPurgar({
 
   return (
     <>
+      {/* EL BOTÓN DICE LO QUE HACE.
+          Antes era una escoba (🧹) y nada más. Un dibujo suelto obliga a
+          adivinar, y aquí adivinar mal significa borrar un registro que no
+          se recupera. Ahora pone «Eliminar», que es la palabra que el
+          técnico busca, con la papelera al lado para encontrarlo de un
+          vistazo en una fila llena de botones. */}
       <button
         className={compacto ? 'btn-mini btn-peligro' : 'btn-peligro'}
-        title="Borrar definitivamente (sólo Jefe de Mantenimiento)"
+        title="Eliminar definitivamente. No se recupera. Sólo Jefe de Mantenimiento."
         onClick={(e) => { e.stopPropagation(); abrir(); }}
       >
-        {etiquetaBoton ?? (compacto ? '🧹' : '🧹 Borrar definitivamente')}
+        <Icono n="papelera" size={compacto ? 14 : 16} />
+        {etiquetaBoton ?? (compacto ? 'Eliminar' : 'Eliminar definitivamente')}
       </button>
 
       {abierto && (
@@ -105,7 +113,7 @@ export default function BotonPurgar({
               <button className="btn-mini" onClick={() => setAbierto(false)}>Cancelar</button>
               {previa && (
                 <button className="btn-peligro" onClick={borrar} disabled={!puede || borrando}>
-                  {borrando ? 'Borrando…' : 'Borrar definitivamente'}
+                  {borrando ? 'Eliminando…' : 'Eliminar definitivamente'}
                 </button>
               )}
             </>

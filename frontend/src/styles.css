@@ -1234,7 +1234,12 @@ textarea { resize: vertical; }
 .puerto.libre { background: repeating-linear-gradient(45deg, #fafbfd, #fafbfd 6px, #f2f4f8 6px, #f2f4f8 12px); }
 .puerto.ocupado { background: #fff; border-color: #c9d4e6; }
 .p-num { font-size: 11px; font-weight: 700; color: var(--muted, #6b7280); letter-spacing: .4px; }
-.p-poe { margin-left: 4px; color: #d97706; }
+.p-poe {
+  margin-left: 4px; color: #92400e; background: #fef3c7;
+  border: 1px solid #fcd34d; border-radius: 4px;
+  padding: 0 4px; font-size: 9.5px; font-weight: 800; letter-spacing: .3px;
+  vertical-align: middle;
+}
 .p-code { font-size: 11.5px; font-weight: 600; word-break: break-all; line-height: 1.25; }
 .p-tipo { font-size: 10.5px; color: var(--muted, #6b7280); }
 .p-libre { margin-top: auto; font-size: 11px; color: #97a0ad; }
@@ -1885,3 +1890,47 @@ th, td { padding: 10px var(--e3); }
    distintos en vez de una elección. */
 .modal-pie .btn, .modal-pie .btn-primary,
 .filters .btn, .filters .btn-primary { width: auto; margin-top: 0; }
+
+/* =========================================================================
+   BLOQUE 24.1 — LA ALTURA DE LA PÁGINA LA MANDA EL CONTENIDO
+   -------------------------------------------------------------------------
+   El menú tiene 38 entradas: mide más de 1.400 px. Como era una columna
+   normal de la rejilla, ESTIRABA EL DOCUMENTO ENTERO. Una pantalla con cuatro
+   filas heredaba el alto del menú y dejaba un kilómetro de blanco debajo.
+   Sumado a que el scroll no se reiniciaba al navegar, entrabas a un módulo y
+   aterrizabas en ese blanco: parecía que no había nada.
+
+   Con la barra pegada y con su propio scroll, el alto de la página es el del
+   CONTENIDO. Si la pantalla tiene cuatro filas, la página mide cuatro filas.
+   ========================================================================= */
+@media (min-width: 781px) {
+  .sidebar {
+    position: sticky; top: 0; align-self: start;
+    height: 100vh; height: 100dvh;
+  }
+}
+
+/* ---- Botones con icono ----
+   `.btn`, `.btn-primary`, `.btn-mini` y `.logout` ya eran flex. El que
+   faltaba era el de peligro, justo el que ahora lleva la papelera: sin esto
+   el <svg> se apoya en la línea base del texto y queda dos píxeles bajo. */
+.btn-peligro {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 6px; vertical-align: middle;
+}
+.btn-mini .ico, .btn-peligro .ico { flex: none; opacity: .9; }
+
+/* Fila de acciones dentro de una tabla: los botones no se pegan entre sí ni
+   se salen por la derecha en un celular. */
+.card-acciones { display: flex; flex-wrap: wrap; gap: 6px; }
+td .btn-mini + .btn-mini, td .btn-mini + .btn-peligro { margin-left: 6px; }
+
+/* ---- Celular: dos cosas pegadas arriba se tapan ----
+   La tira de módulos y la cabecera estaban las dos con `top: 0`. La tira
+   tiene más z-index, así que el título quedaba DEBAJO, invisible, y encima
+   robaba 60 px de alto en un teléfono donde sobran cuatro filas.
+   Se queda pegada la tira —que es lo que se usa— y la cabecera se va con el
+   scroll como cualquier otro contenido. */
+@media (max-width: 780px) {
+  .topbar { position: static; }
+}

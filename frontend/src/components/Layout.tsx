@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import MiPin from './MiPin';
 import Icono from './Iconos';
 import BuscadorRapido from './BuscadorRapido';
+import RestaurarScroll from './RestaurarScroll';
 import AvisoRed from './AvisoRed';
 import AvisoPendientes from './AvisoPendientes';
 import ErrorBoundary from './ErrorBoundary';
@@ -245,6 +246,8 @@ export default function Layout() {
           menú, escribir «parada» es más rápido que recordar en qué sección
           vive. */}
       <BuscadorRapido />
+      {/* Al entrar a un módulo, arriba. Con ATRÁS, donde estabas. */}
+      <RestaurarScroll />
       <aside className={'sidebar' + (estrecha ? ' estrecha' : '')}>
         {/* Estrechar / ensanchar. Va arriba y pequeño: se usa una vez y se
             olvida, no tiene que competir con el menú por la atención. */}

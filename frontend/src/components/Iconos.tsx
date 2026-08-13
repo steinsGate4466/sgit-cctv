@@ -71,6 +71,24 @@ const D: Record<string, string> = {
   reloj: 'M12 3a9 9 0 100 18 9 9 0 000-18zM12 7v5l3 2',
   alerta: 'M12 3l9 16H3zM12 10v4M12 17h.01',
   ok: 'M20 6L9 17l-5-5',
+  /* ---- Acciones de fila. Antes eran emojis (🧹 🗑️ ✏️ 📄 🏷️) y ese es
+     justo el error que esta cabecera avisa de no cometer: el emoji lo dibuja
+     el sistema operativo, así que la escoba de Windows no es la de Android y
+     en algún aparato sale un cuadrado vacío. Estos son trazos nuestros. */
+  papelera: 'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
+  editar: 'M4 20h4L19 9l-4-4L4 16zM14 6l4 4',
+  pdf: 'M7 3h7l4 4v14H7zM14 3v5h5M10 13h1.5a1.5 1.5 0 010 3H10zm0 0v5',
+  qr: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z',
+  llaveInglesa: 'M14.5 3.5a5 5 0 00-6.6 6.2L3 14.6 5.4 17l4.9-4.9a5 5 0 006.2-6.6L13.6 8 11 5.4z',
+  camara: 'M3 7h4l2-2h6l2 2h4v12H3zM12 16a3.5 3.5 0 100-7 3.5 3.5 0 000 7z',
+  /* Casco con visera: SSOMA. El chaleco (🦺) no se distingue a 18 px. */
+  seguridad: 'M4 15a8 8 0 0116 0M3 15h18v3H3zM12 4a5 5 0 00-5 5v2h10V9a5 5 0 00-5-5z',
+  firma: 'M3 17c3 0 3-9 6-9s3 9 6 9 3-4 6-4M4 21h16',
+  nota: 'M6 3h9l4 4v14H6zM14 3v5h5M9 12h7M9 16h5',
+  refrescar: 'M20 12a8 8 0 11-2.6-5.9M20 3v5h-5',
+  pausa: 'M9 5v14M15 5v14',
+  /* Engranaje: lo que hace el sistema solo, sin que nadie pulse nada. */
+  automatico: 'M12 9a3 3 0 100 6 3 3 0 000-6zM12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1',
 };
 
 export type NombreIcono = keyof typeof D;

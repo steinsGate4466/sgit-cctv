@@ -11,6 +11,7 @@ import AsignarOm from '../components/AsignarOm';
 import DetallarOm from '../components/DetallarOm';
 import OmMateriales from '../components/OmMateriales';
 import { WO_TYPES, WO_TYPE_ES, CANALES, CANAL_ES, CAUSA_ES } from './omCatalogos';
+import Icono from '../components/Iconos';
 
 const TYPES = WO_TYPES; // incluye MAPEO: el levantamiento también es una OM
 // Estados que el técnico puede fijar al registrar la intervención (el cierre lo hace el Jefe).
@@ -402,7 +403,7 @@ export default function Maintenance() {
                   )}
                   <button className="btn-mini" style={{ marginLeft: 4 }}
                     title="Materiales previstos/usados y reemplazo de equipo"
-                    onClick={() => setMatsFor(w)}>📦 Materiales</button>
+                    onClick={() => setMatsFor(w)}><Icono n="inventario" size={14} /> Materiales</button>
                   <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => downloadReport(w)}>Informe</button>
                   {/* Sólo el Jefe. También en las CERRADAS: antes del estreno,
                       las cerradas de prueba son justo las que estorban. El
@@ -413,7 +414,7 @@ export default function Maintenance() {
                       title={w.status === 'CERRADA'
                         ? 'Borrar definitivamente (está cerrada: pedirá segunda confirmación)'
                         : 'Borrar definitivamente: para órdenes de prueba o duplicadas'}
-                      onClick={() => setOmAPurgar(w)}>🧹</button>
+                      onClick={() => setOmAPurgar(w)}><Icono n="papelera" size={14} /> Eliminar</button>
                   )}
                 </td>
               </tr>
@@ -608,7 +609,7 @@ export default function Maintenance() {
             <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>{evidence.length} foto(s) registradas</div>
             {evidence.map((ev) => (
               <div key={ev.id} style={{ fontSize: 12, padding: '4px 0', borderTop: '1px solid #eee' }}>
-                📷 {ev.caption || '(sin descripción)'} <span className="muted">· {new Date(ev.createdAt).toLocaleString()}</span>
+                <Icono n="camara" size={14} /> {ev.caption || '(sin descripción)'} <span className="muted">· {new Date(ev.createdAt).toLocaleString()}</span>
               </div>
             ))}
             {!evidence.length && <div className="muted" style={{ fontSize: 12 }}>Aún no hay fotos.</div>}

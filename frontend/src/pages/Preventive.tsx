@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import RutinasEditor from '../components/RutinasEditor';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
+import Icono from '../components/Iconos';
 
 // Estado del plan -> clase de badge existente.
 const PLAN_BADGE: Record<string, string> = {
@@ -141,14 +142,14 @@ export default function Preventive() {
         <div className="sign-note" style={{ marginBottom: 16 }}>
           {auto.enabled ? (
             <>
-              🤖 <b>Generación automática activa</b> — el sistema crea solo las OM <b>preventivas</b> vencidas cada día a las {String(auto.hour).padStart(2, '0')}:00 (hora de planta).
+              <Icono n="automatico" size={15} /> <b>Generación automática activa</b> — el sistema crea solo las OM <b>preventivas</b> vencidas cada día a las {String(auto.hour).padStart(2, '0')}:00 (hora de planta).
               {auto.lastRunAt
                 ? <> Última ejecución: {new Date(auto.lastRunAt).toLocaleString()} ({auto.lastRunGenerated ?? 0} generadas).</>
                 : <> Aún sin ejecuciones registradas.</>}
               <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>Correctivo, mejora y predictivo NO se generan solos: nacen de una incidencia o del análisis del equipo.</div>
             </>
           ) : (
-            <>⏸️ Generación automática desactivada. Las OM preventivas se crean con el botón “Generar OM vencidas”.</>
+            <><Icono n="pausa" size={15} /> Generación automática desactivada. Las OM preventivas se crean con el botón “Generar OM vencidas”.</>
           )}
         </div>
       )}
