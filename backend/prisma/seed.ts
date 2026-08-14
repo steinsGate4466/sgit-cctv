@@ -24,6 +24,9 @@ const PERMISSIONS = [
   'inventory.read', 'inventory.manage', 'inventory.check',
   // Accesibilidad / trabajo en altura (manlift, izaje) — SSOMA
   'access.read', 'access.request', 'access.approve',
+  // Bloque 26 — PRODUCCIÓN declara qué zonas son vitales. TI y Mantenimiento
+  // lo LEEN con 'location.read'; declararlo es de quien conoce el proceso.
+  'zona.criticidad',
 ];
 
 // ---- Roles y sus permisos ----
@@ -66,11 +69,21 @@ const ROLES: Record<string, string[]> = {
     'inventory.read', 'inventory.check',
     'access.read', 'access.request',
   ],
-  // Consultor Externo / Jefe de Producción: SOLO lectura del avance del proceso.
+  // Consultor Externo: SOLO lectura del avance del proceso.
   'Consultor Externo': [
     'dashboard.read', 'incident.read', 'wo.read',
     'troubleshooting.read', 'asset.read', 'location.read',
     'inventory.read', 'access.read',
+  ],
+  /* JEFE DE PRODUCCIÓN (bloque 26). Antes compartía rol con el consultor
+     externo, que es sólo mirar. Pero Producción no viene a mirar: viene a
+     DECIR qué zonas no pueden quedarse sin vista. Ése es su único permiso de
+     escritura, y es el que integra a las tres áreas. */
+  'Jefe de Producción': [
+    'dashboard.read', 'incident.read', 'incident.create', 'wo.read',
+    'troubleshooting.read', 'asset.read', 'location.read',
+    'inventory.read', 'access.read',
+    'zona.criticidad',
   ],
 };
 

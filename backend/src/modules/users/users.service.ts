@@ -4,6 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { SetPinDto, VerifyPinDto } from './dto/pin.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { revisarPassword } from '../../common/politica-password';
 
 // Proyección segura: nunca expone passwordHash.
 const userSelect = {
@@ -39,6 +40,13 @@ export class UsersService {
     if (!role) throw new BadRequestException('Rol no válido');
     const exists = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (exists) throw new BadRequestException('El email ya está registrado');
+
+    /* POLÍTICA DE CONTRASEÑA (bloque 26). Se comprueba aquí y no en el DTO
+       porque hace falta el correo y el nombre: `cristhian2026` es fácil de
+       adivinar justo para quien conoce a Cristhian, que es quien tiene acceso
+       a la planta. Se devuelven TODOS los motivos de golpe: si se diera uno
+       por vez, crear una cuenta serían cinco intentos. */
+    this.exigirPasswordDecente(dto.password, [dto.email, dto.fullName]);
 
     return this.prisma.user.create({
       data: {
@@ -91,7 +99,16 @@ export class UsersService {
       await this.assertNoDejaSinJefe(id, 'desactivar este usuario');
     }
     const data: any = { fullName: dto.fullName, roleId: dto.roleId, active: dto.active };
-    if (dto.password) data.passwordHash = await argon2.hash(dto.password);
+    if (dto.password) {
+      // Al cambiar la contraseña rige la misma política que al crearla. Sin
+      // esto se cumplía la regla el primer día y se saltaba para siempre con
+      // una edición.
+      const yo = await this.prisma.user.findUnique({
+        where: { id }, select: { email: true, fullName: true },
+      });
+      this.exigirPasswordDecente(dto.password, [yo?.email, dto.fullName ?? yo?.fullName]);
+      data.passwordHash = await argon2.hash(dto.password);
+    }
     return this.prisma.user.update({ where: { id }, data, select: userSelect });
   }
 
@@ -175,4 +192,14 @@ export class UsersService {
     });
     return { tienePin: !!user?.pinHash, actualizadoEn: user?.pinUpdatedAt || null };
   }
+  /** Aplica la política y traduce el resultado a un error legible. */
+  private exigirPasswordDecente(password: string, datos: (string | null | undefined)[]) {
+    const r = revisarPassword(password, datos);
+    if (!r.valida) {
+      throw new BadRequestException(
+        'La contraseña no cumple la política:\n· ' + r.motivos.join('\n· '),
+      );
+    }
+  }
+
 }

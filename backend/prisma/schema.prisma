@@ -59,6 +59,9 @@ model User {
   accessReviewed  AccessRequest[] @relation("AccessReviewer")
   woOpened        WorkOrder[]     @relation("WoOpenedBy")
   woClosed        WorkOrder[]     @relation("WoClosedBy")
+  /// Zonas cuya criticidad productiva declaró esta persona (bloque 26).
+  /// Prisma EXIGE el lado inverso aunque sólo Location guarde la clave.
+  zonasDeclaradas Location[]      @relation("ZonaDeclaradaPor")
   woAccompanied   WorkOrder[]     @relation("WoCompanion")
   woProgress      WorkOrderProgress[] @relation("WoProgressBy")
   sesiones        Sesion[]
@@ -194,6 +197,30 @@ model Location {
   /// un punto concreto difiere del resto (ej. una cámara dentro de un cofre
   /// refrigerado en plena zona de calor).
   environment      Environment?
+  // ---- CRITICIDAD PRODUCTIVA (bloque 26) — la declara PRODUCCIÓN ----
+  /// Qué le pasa a la producción si esta zona se queda a ciegas.
+  /// NO la pone Mantenimiento: la pone quien conoce el proceso. Sube la
+  /// criticidad de todos los activos que cuelgan de aquí (nunca la baja).
+  criticidadProduccion Criticality?
+  /// El motivo, escrito. La base OBLIGA a rellenarlo si la criticidad es
+  /// ALTA o CRÍTICA: sin esa regla, en tres meses todo es crítico y el campo
+  /// deja de ordenar nada.
+  porQueEsVital        String?
+  /// Qué ocurre en concreto si se pierde la vista aquí: se para la línea, se
+  /// pierde la trazabilidad del colado, no se ve a la cuadrilla en el foso…
+  impactoSiSeCae       String?
+  /// QUÉ SE VE DESDE AQUÍ. Es el campo que Producción pidió: no el nombre de
+  /// la zona, sino a qué da visión. «Salida del horno y entrada al desbaste».
+  queSeVigila          String?
+  /// Quién firmó la declaración. Si el usuario se da de baja, la declaración
+  /// sobrevive sin nombre: borrarla dejaría zonas críticas en silencio.
+  declaradoPorId       String?
+  declaradoPor         User?    @relation("ZonaDeclaradaPor", fields: [declaradoPorId], references: [id], onDelete: SetNull)
+  declaradoEn          DateTime?
+  /// Hasta cuándo vale. La planta cambia; una criticidad de 2026 aplicada en
+  /// 2029 es una mentira con fecha.
+  revisarAntesDe       DateTime?
+
   // ---- Campos SAP-ready ----
   sapLocationCode  String?
   costCenter       String?

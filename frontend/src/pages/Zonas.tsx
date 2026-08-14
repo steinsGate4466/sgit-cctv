@@ -1,0 +1,338 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { api } from '../api/client';
+import Modal from '../components/Modal';
+import Campo, { Seccion } from '../components/Campo';
+import Icono from '../components/Iconos';
+import { EsqueletoTabla } from '../components/Esqueleto';
+import { useAuth } from '../auth/AuthContext';
+import { enviarConRespaldo } from '../envio-seguro';
+
+/**
+ * ZONAS VITALES PARA LA PRODUCCIÓN — bloque 26.
+ *
+ * ===========================================================================
+ *  ES LA PANTALLA DONDE ENTRA PRODUCCIÓN
+ * ===========================================================================
+ *  Hasta aquí el sistema lo usaban dos áreas: Mantenimiento, que arregla, y
+ *  TI, que sostiene la red. Las dos saben cosas del EQUIPO. Ninguna sabe la
+ *  que de verdad ordena el trabajo:
+ *
+ *      «Si perdemos la vista AQUÍ, ¿qué le pasa a la producción?»
+ *
+ *  Esa la sabe el jefe de línea. Y hasta ahora no tenía dónde decirla, así
+ *  que no se decía, y cada área priorizaba por su cuenta.
+ *
+ *  Aquí lo dice UNA VEZ por zona. La prioridad de todas las cámaras de esa
+ *  zona sube sola: nadie tiene que ir cámara por cámara, y nadie se puede
+ *  olvidar.
+ *
+ *  Las tres áreas ven esta pantalla. Sólo Producción puede escribirla.
+ */
+
+const NIVELES = [
+  { v: '', et: 'Sin declarar', ayuda: 'Todavía no se ha valorado.' },
+  { v: 'BAJA', et: 'Baja', ayuda: 'Se puede quedar sin vista un tiempo sin consecuencias.' },
+  { v: 'MEDIA', et: 'Media', ayuda: 'Molesta, pero la línea sigue.' },
+  { v: 'ALTA', et: 'Alta', ayuda: 'Se pierde control del proceso. Hay que atenderla el mismo día.' },
+  { v: 'CRITICA', et: 'Crítica', ayuda: 'Sin vista aquí se para o se arriesga la producción.' },
+];
+
+const COLOR: Record<string, string> = {
+  CRITICA: 'crit', ALTA: 'warn', MEDIA: '', BAJA: '',
+};
+
+export default function Zonas() {
+  const { can } = useAuth();
+  const puedeDeclarar = can('zona.criticidad');
+
+  const [zonas, setZonas] = useState<any[]>([]);
+  const [resumen, setResumen] = useState<any>(null);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState('');
+  const [msg, setMsg] = useState('');
+  const [filtro, setFiltro] = useState('');
+  const [soloConEquipos, setSoloConEquipos] = useState(true);
+  const [editando, setEditando] = useState<any>(null);
+
+  const cargar = useCallback(async () => {
+    setCargando(true); setError('');
+    try {
+      const [a, b] = await Promise.all([
+        api.get('/zonas'),
+        api.get('/zonas/pendientes'),
+      ]);
+      setZonas(a.data); setResumen(b.data);
+    } catch (e: any) {
+      setError(e?.response?.data?.message || 'No se pudo cargar el árbol de zonas.');
+    } finally { setCargando(false); }
+  }, []);
+
+  useEffect(() => { cargar(); }, [cargar]);
+
+  const visibles = useMemo(() => {
+    const q = filtro.trim().toLowerCase();
+    return zonas.filter((z) => {
+      if (soloConEquipos && !z.activosEnLaRama) return false;
+      if (!q) return true;
+      return [z.nombre, z.code, z.queSeVigila, z.porQueEsVital]
+        .filter(Boolean).join(' ').toLowerCase().includes(q);
+    });
+  }, [zonas, filtro, soloConEquipos]);
+
+  return (
+    <div className="page">
+      <h1 className="page-title">Zonas vitales para la producción</h1>
+
+      <div className="card explica">
+        <b>Esta pantalla la llena Producción, y la leen las tres áreas.</b> La
+        pregunta no es qué cámara es cara: es <b>qué se pierde si esa zona se
+        queda a ciegas</b>. Eso sólo lo sabe quien conoce el proceso.
+        <div style={{ marginTop: 8 }}>
+          Lo que se declara aquí <b>sube sola la prioridad</b> de todas las
+          cámaras de la zona y de las que cuelgan por debajo. No hay que marcar
+          cámara por cámara y no hay forma de olvidarse.
+        </div>
+        <div style={{ marginTop: 8 }}>
+          Declarar <b>Alta</b> o <b>Crítica</b> obliga a escribir el porqué. Sin
+          esa frase, en unos meses todas las zonas son críticas y el campo deja
+          de ordenar nada.
+        </div>
+      </div>
+
+      {resumen && (
+        <div className="kpi-grid">
+          <div className="kpi">
+            <div className="label">Zonas declaradas</div>
+            <div className="value">{resumen.declaradas}</div>
+            <div className="hint">de {resumen.total} ubicaciones del árbol</div>
+          </div>
+          <div className={'kpi' + (resumen.vencidas.length ? ' warn' : '')}>
+            <div className="label">Declaraciones vencidas</div>
+            <div className="value">{resumen.vencidas.length}</div>
+            <div className="hint">
+              {resumen.vencidas.length
+                ? 'Pasó su fecha de revisión. Se siguen aplicando, pero hay que confirmarlas.'
+                : 'Ninguna caducada.'}
+            </div>
+          </div>
+          <div className={'kpi' + (resumen.sinDeclarar.length ? ' warn' : '')}>
+            <div className="label">Con equipos y sin valorar</div>
+            <div className="value">{resumen.sinDeclarar.length}</div>
+            <div className="hint">Zonas que tienen cámaras y nadie ha dicho cuánto importan</div>
+          </div>
+        </div>
+      )}
+
+      {error && <div className="card peligro">{error}</div>}
+      {msg && <div className="card explica">{msg}</div>}
+
+      <div className="filters">
+        <div>
+          <label>Buscar zona</label>
+          <input value={filtro} onChange={(e) => setFiltro(e.target.value)}
+                 placeholder="Nombre, código o qué se vigila" />
+        </div>
+        <div>
+          <label>&nbsp;</label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+            <input type="checkbox" checked={soloConEquipos}
+                   onChange={(e) => setSoloConEquipos(e.target.checked)}
+                   style={{ width: 18, height: 18, minHeight: 18 }} />
+            <span style={{ fontSize: 13 }}>Sólo zonas con equipos</span>
+          </label>
+        </div>
+      </div>
+
+      {cargando ? <EsqueletoTabla /> : (
+        <div className="card">
+          <table className="tabla">
+            <thead>
+              <tr>
+                <th>Zona</th>
+                <th>Qué se ve desde aquí</th>
+                <th>Importancia</th>
+                <th>Por qué</th>
+                <th>Equipos</th>
+                <th>Firmada</th>
+                {puedeDeclarar && <th />}
+              </tr>
+            </thead>
+            <tbody>
+              {visibles.map((z) => (
+                <tr key={z.id}>
+                  <td>
+                    <strong>{z.nombre}</strong>
+                    <div className="muted" style={{ fontSize: 11 }}>{z.code} · {z.tipo}</div>
+                  </td>
+                  <td>{z.queSeVigila || <span className="muted">—</span>}</td>
+                  <td>
+                    {z.criticidadProduccion
+                      ? <span className={'badge ' + (COLOR[z.criticidadProduccion] || '')}>
+                          {NIVELES.find((n) => n.v === z.criticidadProduccion)?.et}
+                        </span>
+                      : <span className="muted">Sin declarar</span>}
+                    {z.vencida && (
+                      <div style={{ fontSize: 11, color: 'var(--warn, #b45309)', marginTop: 3 }}>
+                        <Icono n="alerta" size={12} /> Caducada — confirmar
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ maxWidth: 320 }}>
+                    {z.porQueEsVital || <span className="muted">—</span>}
+                    {z.impactoSiSeCae && (
+                      <div className="muted" style={{ fontSize: 11, marginTop: 3 }}>
+                        Si se cae: {z.impactoSiSeCae}
+                      </div>
+                    )}
+                  </td>
+                  <td>
+                    {z.activosEnLaRama || 0}
+                    {z.activosPropios !== z.activosEnLaRama && (
+                      <div className="muted" style={{ fontSize: 11 }}>
+                        {z.activosPropios} propios
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ fontSize: 12 }}>
+                    {z.declaradoPor || <span className="muted">—</span>}
+                    {z.declaradoEn && (
+                      <div className="muted" style={{ fontSize: 11 }}>
+                        {new Date(z.declaradoEn).toLocaleDateString()}
+                      </div>
+                    )}
+                  </td>
+                  {puedeDeclarar && (
+                    <td>
+                      <button className="btn-mini" onClick={() => setEditando({ ...z })}>
+                        <Icono n="editar" size={14} /> Declarar
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+              {!visibles.length && (
+                <tr><td colSpan={7} className="muted" style={{ padding: 22, textAlign: 'center' }}>
+                  No hay zonas que coincidan.
+                </td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {editando && (
+        <EditorZona
+          zona={editando}
+          onCerrar={() => setEditando(null)}
+          onGuardado={(t) => { setEditando(null); setMsg(t); cargar(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+/** El formulario. Separado porque tiene su propia validación y su propio estado. */
+function EditorZona({ zona, onCerrar, onGuardado }: {
+  zona: any; onCerrar: () => void; onGuardado: (msg: string) => void;
+}) {
+  const [nivel, setNivel] = useState(zona.criticidadProduccion || '');
+  const [porQue, setPorQue] = useState(zona.porQueEsVital || '');
+  const [impacto, setImpacto] = useState(zona.impactoSiSeCae || '');
+  const [vigila, setVigila] = useState(zona.queSeVigila || '');
+  const [revisar, setRevisar] = useState(
+    zona.revisarAntesDe ? String(zona.revisarAntesDe).slice(0, 10) : '',
+  );
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState('');
+
+  const exigeMotivo = nivel === 'ALTA' || nivel === 'CRITICA';
+  const faltaMotivo = exigeMotivo && !porQue.trim();
+
+  async function guardar() {
+    setGuardando(true); setError('');
+    try {
+      await enviarConRespaldo('patch', `/zonas/${zona.id}`, {
+        criticidadProduccion: nivel || null,
+        porQueEsVital: porQue,
+        impactoSiSeCae: impacto,
+        queSeVigila: vigila,
+        revisarAntesDe: revisar || null,
+      }, `Zona ${zona.nombre}`);
+      onGuardado(`Zona «${zona.nombre}» actualizada. La prioridad de sus ${zona.activosEnLaRama || 0} equipos se recalcula sola.`);
+    } catch (e: any) {
+      setError(e?.response?.data?.message || 'No se pudo guardar.');
+    } finally { setGuardando(false); }
+  }
+
+  return (
+    <Modal
+      title={`Importancia de «${zona.nombre}»`}
+      ancho
+      onClose={onCerrar}
+      acciones={
+        <>
+          <button className="btn-mini" onClick={onCerrar}>Cancelar</button>
+          <button className="btn-primary" onClick={guardar} disabled={guardando || faltaMotivo}>
+            {guardando ? 'Guardando…' : 'Guardar declaración'}
+          </button>
+        </>
+      }
+    >
+      {error && <div className="card peligro" style={{ marginBottom: 12 }}>{error}</div>}
+
+      <div className="card explica" style={{ marginBottom: 14 }}>
+        Esta zona tiene <b>{zona.activosEnLaRama || 0} equipos</b> colgando
+        (contando los de las zonas de debajo). Lo que declares aquí les cambia
+        la prioridad a todos.
+      </div>
+
+      <Seccion titulo="Lo que ve Producción">
+        <Campo
+          etiqueta="Qué se ve desde aquí"
+          ayuda="No el nombre de la zona: a qué da visión. «Salida del horno y entrada al desbaste»."
+          ancho
+        >
+          <input value={vigila} onChange={(e) => setVigila(e.target.value)}
+                 placeholder="Salida del horno y entrada al desbaste" />
+        </Campo>
+
+        <Campo
+          etiqueta="Importancia para la producción"
+          ayuda={NIVELES.find((n) => n.v === nivel)?.ayuda}
+          obligatorio={false}
+        >
+          <select value={nivel} onChange={(e) => setNivel(e.target.value)}>
+            {NIVELES.map((n) => <option key={n.v} value={n.v}>{n.et}</option>)}
+          </select>
+        </Campo>
+
+        <Campo
+          etiqueta="Revisar antes de"
+          ayuda="La planta cambia. Una criticidad de hoy aplicada dentro de tres años sin que nadie la mire es una mentira con fecha."
+        >
+          <input type="date" value={revisar} onChange={(e) => setRevisar(e.target.value)} />
+        </Campo>
+
+        <Campo
+          etiqueta="Por qué es importante"
+          obligatorio={exigeMotivo}
+          error={faltaMotivo ? 'Alta y Crítica exigen escribir el motivo.' : undefined}
+          ayuda="Una frase. Es lo que va a leer el técnico a las tres de la mañana."
+          ancho
+        >
+          <textarea value={porQue} onChange={(e) => setPorQue(e.target.value)}
+                    placeholder="Es el único punto desde el que se ve el colado; sin esa cámara no hay forma de saber si la barra salió bien." />
+        </Campo>
+
+        <Campo
+          etiqueta="Qué pasa si se cae"
+          ayuda="El efecto concreto: se para la línea, se pierde la trazabilidad, no se ve a la cuadrilla en el foso."
+          ancho
+        >
+          <textarea value={impacto} onChange={(e) => setImpacto(e.target.value)}
+                    placeholder="Se detiene el tren hasta restablecer la vista." />
+        </Campo>
+      </Seccion>
+    </Modal>
+  );
+}

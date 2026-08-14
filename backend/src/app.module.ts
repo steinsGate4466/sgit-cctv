@@ -44,9 +44,11 @@ import { CorrectiveModule } from './modules/corrective/corrective.module';
 import { CabinetsModule } from './modules/cabinets/cabinets.module';
 import { AccessModule } from './modules/access/access.module';
 import { PredictiveModule } from './modules/predictive/predictive.module';
+import { ZonasModule } from './modules/zonas/zonas.module';
 
 @Module({
   imports: [
+    ZonasModule,
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
     AuthModule,

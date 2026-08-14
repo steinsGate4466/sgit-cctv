@@ -1994,3 +1994,10 @@ td .btn-mini + .btn-mini, td .btn-mini + .btn-peligro { margin-left: 6px; }
 table td, table th, .kpi .value, .indicador-valor, code {
   font-variant-numeric: tabular-nums;
 }
+
+/* En la tira horizontal del celular, «Lo último» no cabe: es un bloque de
+   cuatro líneas apiladas dentro de una fila. Se oculta también por CSS, no
+   sólo al pintarlo, por si alguien vuelve a montarlo algún día. */
+@media (max-width: 780px) {
+  .recientes-nav { display: none; }
+}

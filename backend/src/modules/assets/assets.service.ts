@@ -415,6 +415,18 @@ export class AssetsService {
       criticidadEfectiva: c?.criticidad || asset.criticality,
       intervaloPreventivoDias: c?.intervaloDias ?? null,
       etapaPendiente: c?.requiereAsignarEtapa ?? true,
+      /* LO QUE DIJO PRODUCCIÓN (bloque 26).
+         Va aquí y no en un endpoint aparte porque el técnico que abre la
+         ficha para arreglar la cámara es exactamente quien tiene que leer
+         «si esto se cae, se para la línea». Un dato así en otra pantalla es
+         un dato que nadie ve. */
+      zonaVital: c?.zonaVital ?? false,
+      criticidadProduccion: c?.criticidadProduccion ?? null,
+      zonaCriticaNombre: c?.zonaCriticaNombre ?? null,
+      porQueEsVital: c?.porQueEsVital ?? null,
+      impactoSiSeCae: c?.impactoSiSeCae ?? null,
+      queSeVigila: c?.queSeVigila ?? null,
+      declaracionVencida: c?.declaracionVencida ?? false,
     };
     // Qué le falta a la ficha. Alimenta el QR ("faltan canal y foto") y el
     // panel de avance del mapeo.

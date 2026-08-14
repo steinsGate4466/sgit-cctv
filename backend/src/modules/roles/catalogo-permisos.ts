@@ -33,6 +33,19 @@ export interface GrupoPermisos {
 
 export const CATALOGO_PERMISOS: GrupoPermisos[] = [
   {
+    grupo: 'Producción',
+    nota: 'Lo que sólo puede decidir quien conoce el proceso, no Mantenimiento ni TI.',
+    permisos: [
+      {
+        code: 'zona.criticidad',
+        nombre: 'Declarar zonas vitales',
+        explica: 'Decir qué zonas no pueden quedarse sin vista y por qué. Sube sola la prioridad de todas las cámaras de esa zona.',
+        cuidado: 'Reordena el trabajo de Mantenimiento sin que nadie lo toque a mano. Dáselo a Producción, no a quien ejecuta.',
+      },
+    ],
+  },
+
+  {
     grupo: 'Mirar',
     nota: 'Sólo consultar. Nada de esto modifica nada.',
     permisos: [

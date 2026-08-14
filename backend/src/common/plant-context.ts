@@ -71,6 +71,21 @@ export interface ContextoDePlanta {
   ambiente: Ambiente | null;
   criticidad: Criticidad;
   intervaloDias: number;
+  // ---- Lo que declaró PRODUCCIÓN sobre la zona (bloque 26) ----
+  /// Criticidad que Producción puso a la zona más cercana que la declare.
+  /// null = ninguna zona de la rama tiene declaración.
+  criticidadProduccion: Criticidad | null;
+  /// Atajo para pintar la etiqueta: la zona pesa para producción.
+  zonaVital: boolean;
+  /// Nombre de la zona que aporta la criticidad, para poder decir de dónde
+  /// sale. Sin esto, el técnico ve «CRÍTICA» y no sabe por qué.
+  zonaCriticaNombre: string | null;
+  porQueEsVital: string | null;
+  impactoSiSeCae: string | null;
+  queSeVigila: string | null;
+  /// true si la declaración caducó. No se ignora —seguiría siendo temerario—
+  /// pero se marca para que alguien la confirme.
+  declaracionVencida: boolean;
   /**
    * true cuando el activo todavía no tiene etapa asignada. La migración NO
    * inventa la etapa de las cámaras porque ningún dato existente permite
@@ -96,6 +111,144 @@ export function intervaloParaAmbiente(ambiente?: Ambiente | null): number {
   return INTERVALO_POR_AMBIENTE[ambiente] ?? INTERVALO_POR_DEFECTO;
 }
 
+/* ---------------------------------------------------------------------------
+   NÚCLEO PURO
+   ---------------------------------------------------------------------------
+   Lo que sigue no sabe que existe Prisma. Recibe el árbol ya cargado y
+   devuelve el contexto. Se hizo así por una razón práctica: la regla de
+   «qué criticidad gana» es la que decide el orden en que se atienden las
+   cámaras de la planta, y una regla así hay que poder probarla caso por caso
+   con datos escritos a mano, no levantando una base de datos.
+--------------------------------------------------------------------------- */
+
+/** Una ubicación del árbol, con lo justo para calcular. */
+export interface UbicacionDelArbol {
+  id: string;
+  code: string;
+  name: string;
+  type: string;
+  parentId: string | null;
+  stageId?: string | null;
+  environment?: string | null;
+  criticidadProduccion?: string | null;
+  porQueEsVital?: string | null;
+  impactoSiSeCae?: string | null;
+  queSeVigila?: string | null;
+  revisarAntesDe?: Date | null;
+}
+
+/** Una etapa del catálogo de proceso. */
+export interface EtapaDelCatalogo {
+  id: string;
+  code: string;
+  name: string;
+  sequence: number;
+  environment?: string | null;
+  baseCriticality: string;
+}
+
+/**
+ * Calcula el contexto de UN activo subiendo el árbol.
+ *
+ * @param ahora  milisegundos. Se pasa desde fuera para que dos activos del
+ *               mismo listado no puedan caer a distinto lado de una fecha de
+ *               caducidad, y para poder probar el vencimiento sin esperar.
+ */
+export function calcularContexto(
+  activo: ActivoLike,
+  porId: Map<string, UbicacionDelArbol>,
+  etapaPorId: Map<string, EtapaDelCatalogo>,
+  ahora: number,
+): ContextoDePlanta {
+  const base = (activo.criticality || 'MEDIA') as Criticidad;
+
+  const ctx: ContextoDePlanta = {
+    trenCode: null, trenNombre: null,
+    etapaCode: null, etapaNombre: null, etapaSecuencia: null,
+    ambiente: null,
+    criticidad: base,
+    intervaloDias: INTERVALO_POR_DEFECTO,
+    criticidadProduccion: null,
+    zonaVital: false,
+    zonaCriticaNombre: null,
+    porQueEsVital: null,
+    impactoSiSeCae: null,
+    queSeVigila: null,
+    declaracionVencida: false,
+    requiereAsignarEtapa: true,
+  };
+
+  // El tope de 20 saltos protege ante un ciclo por dato corrupto: sin él, un
+  // parentId mal grabado colgaría el proceso entero.
+  let actual = activo.locationId ? porId.get(activo.locationId) : undefined;
+  let ambienteLocal: Ambiente | null = null;
+  let saltos = 0;
+
+  while (actual && saltos < 20) {
+    // El ambiente declarado en la ubicación MÁS CERCANA manda sobre el de la
+    // etapa (caso real: cámara dentro de un cofre refrigerado en plena zona
+    // de calor).
+    if (!ambienteLocal && actual.environment) {
+      ambienteLocal = actual.environment as Ambiente;
+    }
+
+    /* LO QUE DIJO PRODUCCIÓN, de la zona MÁS CERCANA que lo diga.
+       Si el Tren 2 entero está declarado ALTA pero el foso del lecho está
+       declarado CRÍTICA, la cámara del foso es CRÍTICA: lo específico manda
+       sobre lo general, que es como lo diría una persona.
+
+       Y sólo SUBE la criticidad, nunca la baja. Una zona declarada MEDIA no
+       puede rebajar una cámara que Mantenimiento marcó ALTA por motivos
+       técnicos: son dos criterios distintos y los dos valen. */
+    if (!ctx.criticidadProduccion && actual.criticidadProduccion) {
+      const zonal = actual.criticidadProduccion as Criticidad;
+      ctx.criticidadProduccion = zonal;
+      ctx.zonaCriticaNombre = actual.name;
+      ctx.porQueEsVital = actual.porQueEsVital ?? null;
+      ctx.impactoSiSeCae = actual.impactoSiSeCae ?? null;
+      ctx.zonaVital = zonal === 'ALTA' || zonal === 'CRITICA';
+      ctx.declaracionVencida =
+        !!actual.revisarAntesDe && actual.revisarAntesDe.getTime() < ahora;
+      ctx.criticidad = criticidadMayor(ctx.criticidad, zonal);
+    }
+    // Qué se ve desde aquí: también la zona más cercana que lo tenga escrito,
+    // aunque no sea la misma que aporta la criticidad.
+    if (!ctx.queSeVigila && actual.queSeVigila) {
+      ctx.queSeVigila = actual.queSeVigila;
+    }
+
+    if (actual.type === 'ETAPA' && !ctx.etapaCode && actual.stageId) {
+      const etapa = etapaPorId.get(actual.stageId);
+      if (etapa) {
+        ctx.etapaCode = etapa.code;
+        ctx.etapaNombre = etapa.name;
+        ctx.etapaSecuencia = etapa.sequence;
+        ctx.requiereAsignarEtapa = false;
+        if (!ambienteLocal) ambienteLocal = etapa.environment as Ambiente;
+        // Se compara contra lo YA acumulado, no contra `base`: si dijera
+        // `base`, la etapa PISARÍA la criticidad que aportó la zona de
+        // Producción unos saltos más abajo.
+        ctx.criticidad = criticidadMayor(
+          ctx.criticidad,
+          etapa.baseCriticality as Criticidad,
+        );
+      }
+    }
+
+    if (actual.type === 'TREN' && !ctx.trenCode) {
+      ctx.trenCode = actual.code;
+      ctx.trenNombre = actual.name;
+    }
+
+    actual = actual.parentId ? porId.get(actual.parentId) : undefined;
+    saltos++;
+  }
+
+  ctx.ambiente = ambienteLocal;
+  ctx.intervaloDias = intervaloParaAmbiente(ambienteLocal);
+  return ctx;
+}
+
 /**
  * Calcula el contexto de planta de un lote de activos.
  * Devuelve un mapa assetId -> ContextoDePlanta.
@@ -106,6 +259,10 @@ export async function resolverContextoDePlanta(
 ): Promise<Record<string, ContextoDePlanta>> {
   const resultado: Record<string, ContextoDePlanta> = {};
   if (!activos.length) return resultado;
+  // Una sola lectura del reloj para todo el lote: si se leyera dentro del
+  // bucle, dos activos del mismo lote podrían caer a distinto lado de una
+  // fecha de caducidad y el listado se contradiría consigo mismo.
+  const ahora = Date.now();
 
   // --- Consulta 1: TODAS las ubicaciones (el árbol de planta es pequeño:
   //     decenas de filas, no cientos de miles). Traerlo entero evita subir el
@@ -114,6 +271,9 @@ export async function resolverContextoDePlanta(
     select: {
       id: true, code: true, name: true, type: true,
       parentId: true, stageId: true, environment: true,
+      // Bloque 26 — lo que declaró Producción sobre la zona.
+      criticidadProduccion: true, porQueEsVital: true,
+      impactoSiSeCae: true, queSeVigila: true, revisarAntesDe: true,
     },
   });
   // `as const` es necesario: sin él TypeScript infiere un array en lugar de
@@ -130,60 +290,12 @@ export async function resolverContextoDePlanta(
   const etapaPorId = new Map(etapas.map((e) => [e.id, e] as const));
 
   for (const activo of activos) {
-    const base = (activo.criticality || 'MEDIA') as Criticidad;
-
-    const ctx: ContextoDePlanta = {
-      trenCode: null, trenNombre: null,
-      etapaCode: null, etapaNombre: null, etapaSecuencia: null,
-      ambiente: null,
-      criticidad: base,
-      intervaloDias: INTERVALO_POR_DEFECTO,
-      requiereAsignarEtapa: true,
-    };
-
-    // Sube el árbol desde la ubicación del activo hasta la raíz.
-    // El tope de 20 saltos protege ante un ciclo por dato corrupto:
-    // sin él, un parentId mal grabado colgaría el proceso entero.
-    let actual = activo.locationId ? porId.get(activo.locationId) : undefined;
-    let ambienteLocal: Ambiente | null = null;
-    let saltos = 0;
-
-    while (actual && saltos < 20) {
-      // El ambiente declarado en la ubicación MÁS CERCANA manda sobre el
-      // de la etapa (caso real: cámara dentro de un cofre refrigerado en
-      // plena zona de calor).
-      if (!ambienteLocal && actual.environment) {
-        ambienteLocal = actual.environment as Ambiente;
-      }
-
-      if (actual.type === 'ETAPA' && !ctx.etapaCode && actual.stageId) {
-        const etapa = etapaPorId.get(actual.stageId);
-        if (etapa) {
-          ctx.etapaCode = etapa.code;
-          ctx.etapaNombre = etapa.name;
-          ctx.etapaSecuencia = etapa.sequence;
-          ctx.requiereAsignarEtapa = false;
-          if (!ambienteLocal) ambienteLocal = etapa.environment as Ambiente;
-          // La etapa impone una criticidad mínima; se puede subir, no bajar.
-          ctx.criticidad = criticidadMayor(
-            base,
-            etapa.baseCriticality as Criticidad,
-          );
-        }
-      }
-
-      if (actual.type === 'TREN' && !ctx.trenCode) {
-        ctx.trenCode = actual.code;
-        ctx.trenNombre = actual.name;
-      }
-
-      actual = actual.parentId ? porId.get(actual.parentId) : undefined;
-      saltos++;
-    }
-
-    ctx.ambiente = ambienteLocal;
-    ctx.intervaloDias = intervaloParaAmbiente(ambienteLocal);
-    resultado[activo.id] = ctx;
+    resultado[activo.id] = calcularContexto(
+      activo,
+      porId as Map<string, UbicacionDelArbol>,
+      etapaPorId as Map<string, EtapaDelCatalogo>,
+      ahora,
+    );
   }
 
   return resultado;

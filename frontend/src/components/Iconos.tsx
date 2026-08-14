@@ -81,6 +81,8 @@ const D: Record<string, string> = {
   qr: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z',
   llaveInglesa: 'M14.5 3.5a5 5 0 00-6.6 6.2L3 14.6 5.4 17l4.9-4.9a5 5 0 006.2-6.6L13.6 8 11 5.4z',
   camara: 'M3 7h4l2-2h6l2 2h4v12H3zM12 16a3.5 3.5 0 100-7 3.5 3.5 0 000 7z',
+  /* Escudo con estrella: la zona que no se puede perder de vista. */
+  zonaVital: 'M12 3l8 3v6c0 4.6-3.4 8-8 9-4.6-1-8-4.4-8-9V6zM12 8.5l1.2 2.4 2.6.4-1.9 1.8.5 2.6-2.4-1.3-2.4 1.3.5-2.6-1.9-1.8 2.6-.4z',
   /* Casco con visera: SSOMA. El chaleco (🦺) no se distingue a 18 px. */
   seguridad: 'M4 15a8 8 0 0116 0M3 15h18v3H3zM12 4a5 5 0 00-5 5v2h10V9a5 5 0 00-5-5z',
   firma: 'M3 17c3 0 3-9 6-9s3 9 6 9 3-4 6-4M4 21h16',

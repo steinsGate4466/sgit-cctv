@@ -4,6 +4,10 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { StructuredLogger } from './common/logger.service';
+import {
+  ContadorDePeticiones, LIMITE_GENERAL, LIMITE_PESADO,
+  claveDeOrigen, esRutaPesada,
+} from './common/limite-peticiones';
 
 async function bootstrap() {
   // Registro estructurado: en producción (LOG_FORMAT=json) cada línea sale en
@@ -16,6 +20,42 @@ async function bootstrap() {
   // para saber desde dónde se conectó la persona. Con 'trust proxy' Express toma
   // la IP del cliente desde la cabecera X-Forwarded-For.
   app.getHttpAdapter().getInstance().set('trust proxy', true);
+
+  /* LÍMITE DE PETICIONES (bloque 26).
+     Va ANTES que las cabeceras y que todo lo demás: si alguien está barriendo
+     el servidor, cuanto menos trabajo se haga antes de cortarle, mejor.
+
+     Se cuenta por USUARIO cuando se le conoce y por IP cuando no. En Aceros
+     toda la planta sale por la misma IP pública: contar sólo por IP dejaría
+     sin servicio a los demás por culpa de uno. El identificador del usuario
+     se lee del token sin verificar la firma — para CONTAR no hace falta, y
+     verificarla aquí duplicaría el trabajo del guard. Un token falseado sólo
+     conseguiría gastarse su propio cupo. */
+  const contador = new ContadorDePeticiones();
+  app.use((req: any, res: any, next: any) => {
+    let userId: string | undefined;
+    const cab = String(req.headers?.authorization || '');
+    if (cab.startsWith('Bearer ')) {
+      try {
+        const carga = JSON.parse(
+          Buffer.from(cab.slice(7).split('.')[1] || '', 'base64').toString('utf8'),
+        );
+        userId = carga?.sub || carga?.userId;
+      } catch { /* token ilegible: se cuenta por IP y ya */ }
+    }
+    const regla = esRutaPesada(req.originalUrl || req.url || '') ? LIMITE_PESADO : LIMITE_GENERAL;
+    const esperar = contador.consultar(claveDeOrigen(userId, req.ip), regla);
+    if (esperar !== null) {
+      res.setHeader('Retry-After', String(esperar));
+      return res.status(429).json({
+        statusCode: 429,
+        message:
+          'Demasiadas peticiones seguidas. Espera ' + esperar + ' segundos. ' +
+          'Si esto te pasa usando la aplicación con normalidad, avisa: el límite está mal puesto.',
+      });
+    }
+    return next();
+  });
 
   // Cabeceras de seguridad (equivalente a lo esencial de helmet, sin dependencias):
   // evitan que el navegador adivine tipos, que la app se embeba en un iframe ajeno

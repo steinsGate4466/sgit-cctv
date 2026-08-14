@@ -41,6 +41,7 @@ const TITLES: Record<string, string> = {
   '/campanas': 'Campañas de mapeo',
   '/electricidad': 'Electricidad',
   '/ipam': 'Direccionamiento IP',
+  '/zonas': 'Zonas vitales para la producción',
   '/mi-cuenta': 'Mi cuenta',
   '/indicadores': 'Indicadores de gestión',
   '/exportar': 'Exportar a Excel',
@@ -107,6 +108,22 @@ export default function Layout() {
     });
   };
 
+  /* ¿ESTAMOS EN UN CELULAR?
+     -------------------------------------------------------------------
+     En el celular la barra lateral no es una barra: es una TIRA horizontal
+     de pastillas arriba de la pantalla. Dos cosas que funcionan bien en el
+     escritorio se comportan mal ahí y hay que apagarlas, y para eso hace
+     falta saberlo en el código, no sólo en el CSS. */
+  const [esMovil, setEsMovil] = useState<boolean>(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 780px)').matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 780px)');
+    const alCambiar = (e: MediaQueryListEvent) => setEsMovil(e.matches);
+    mq.addEventListener('change', alCambiar);
+    return () => mq.removeEventListener('change', alCambiar);
+  }, []);
+
   /* LO ÚLTIMO QUE USASTE.
      -------------------------------------------------------------------
      De 38 pantallas, cada persona usa cinco. El técnico de campo vive en
@@ -157,9 +174,13 @@ export default function Layout() {
     },
     {
       titulo: 'Infraestructura',
-      rutas: ['/assets', '/cabinets', '/locations', '/access', '/cableado', '/mapeo', '/grabadores', '/conexiones', '/topologia', '/monitoreo', '/documentos', '/instalaciones', '/campanas', '/electricidad', '/ipam'],
+      rutas: ['/assets', '/cabinets', '/locations', '/access', '/cableado', '/mapeo', '/grabadores', '/conexiones', '/topologia', '/monitoreo', '/documentos', '/instalaciones', '/campanas', '/electricidad', '/ipam', '/zonas'],
       items: [
         can('asset.read') && <NavLink key="a" to="/assets"><Icono n="activos" /> Activos</NavLink>,
+        /* Va PRIMERA de la sección, antes que Activos en importancia aunque
+           no en orden: es la pantalla donde Producción dice qué pesa, y de
+           ella sale la prioridad de todo lo demás. */
+        can('location.read') && <NavLink key="zn" to="/zonas"><Icono n="zonaVital" /> Zonas vitales</NavLink>,
         // Instalaciones va junto a Activos porque es de donde salen: una
         // instalación terminada crea el activo.
         can('asset.read') && <NavLink key="ins" to="/instalaciones"><Icono n="instalar" /> Instalaciones</NavLink>,
@@ -272,7 +293,13 @@ export default function Layout() {
         <nav className="nav">
           {/* LO ÚLTIMO QUE USASTE. De 38 pantallas cada persona usa cinco:
               esto las sube arriba sin que nadie configure nada. */}
-          {recientes.length > 1 && !estrecha && (
+          {/* «Lo último» NO se pinta en el celular. Es un bloque de cuatro
+              líneas apiladas, y ahí dentro la barra es una FILA horizontal:
+              al meterlo, la tira pasaba de 40 px de alto a 120 de golpe en
+              cuanto habías visitado dos pantallas. Ese era el «crece de
+              forma abrupta». En la tira no hace falta: todo está a un dedo
+              de distancia deslizando. */}
+          {recientes.length > 1 && !estrecha && !esMovil && (
             <div className="recientes-nav">
               <div className="nav-titulo" style={{ cursor: 'default' }}>Lo último</div>
               {recientes.filter((r) => r !== loc.pathname).slice(0, 3).map((r) => (
@@ -293,7 +320,11 @@ export default function Layout() {
               // En modo estrecho NO se pliega nada: sin rótulos de sección, un
               // grupo plegado se ve como un hueco sin explicación y el usuario
               // no tiene dónde pulsar para abrirlo.
-              const oculta = plegada && !contieneActual && !estrecha;
+              // En el celular TAMPOCO se pliega. El rótulo de la sección está
+              // oculto en la tira, así que no hay dónde pulsar para abrirla:
+              // una sección plegada dejaba sus pantallas inalcanzables, y al
+              // entrar en una de ellas por el buscador aparecían de golpe.
+              const oculta = plegada && !contieneActual && !estrecha && !esMovil;
               return (
                 <div key={i} className={'nav-group' + (oculta ? ' plegada' : '')}>
                   {plegable && (
