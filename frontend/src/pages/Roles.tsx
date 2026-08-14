@@ -152,13 +152,44 @@ export default function Roles() {
           <input value={descripcion} onChange={(e) => setDescripcion(e.target.value)}
             placeholder="Una frase: quién lo usa y para qué" />
 
+          {/* PLANTILLAS. Antes eran diez botones con sólo el nombre, y elegir
+              entre «Técnico de red» y «Técnico de campo (CCTV)» a ciegas es
+              exactamente la duda que hace que alguien marque el más amplio
+              «por si acaso». Ahora cada una dice a QUÉ PUESTO corresponde y
+              cuántos permisos trae, y las delicadas llevan su aviso. */}
           {edita.nuevo && catalogo?.plantillas?.length > 0 && (
-            <div className="hint-link" style={{ display: 'block' }}>
-              <b>Empieza por una plantilla</b> y ajusta lo que haga falta.
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+            <div style={{ marginTop: 10 }}>
+              <b style={{ fontSize: 13 }}>Empieza por una plantilla</b>
+              <div className="muted" style={{ fontSize: 12, margin: '2px 0 10px' }}>
+                Son un punto de partida, no una jaula: después se ajusta casilla
+                por casilla. El tren que ve cada persona se configura aparte, en
+                su ficha de usuario.
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 8 }}>
                 {catalogo.plantillas.map((p: any) => (
-                  <button key={p.nombre} type="button" className="btn-mini"
-                    onClick={() => usarPlantilla(p)}>{p.nombre}</button>
+                  <button key={p.nombre} type="button"
+                    className="card"
+                    onClick={() => usarPlantilla(p)}
+                    style={{
+                      textAlign: 'left', padding: '10px 12px', cursor: 'pointer',
+                      display: 'block', font: 'inherit',
+                      borderLeft: p.advertencia ? '3px solid var(--warn,#d97706)' : undefined,
+                    }}>
+                    <b style={{ fontSize: 13 }}>{p.nombre}</b>
+                    {p.paraQuien && (
+                      <div className="muted" style={{ fontSize: 11.5, marginTop: 2 }}>{p.paraQuien}</div>
+                    )}
+                    <div style={{ fontSize: 12, marginTop: 5, lineHeight: 1.45 }}>{p.descripcion}</div>
+                    <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>
+                      {p.permisos.length} permisos
+                      {p.necesitaAmbito && ' · exige ámbito de tren'}
+                    </div>
+                    {p.advertencia && (
+                      <div style={{ fontSize: 11.5, marginTop: 6, color: '#8c1414', lineHeight: 1.4 }}>
+                        <Icono n="alerta" size={12} /> {p.advertencia}
+                      </div>
+                    )}
+                  </button>
                 ))}
               </div>
             </div>

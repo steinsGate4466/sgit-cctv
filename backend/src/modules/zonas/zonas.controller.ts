@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Ip, Param, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Ip, Param, Patch, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ZonasService } from './zonas.service';
+import { CoberturaService } from './cobertura.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
@@ -12,7 +13,10 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('zonas')
 export class ZonasController {
-  constructor(private readonly zonas: ZonasService) {}
+  constructor(
+    private readonly zonas: ZonasService,
+    private readonly cobertura: CoberturaService,
+  ) {}
 
   /* LEER es de todos los que ven la planta —TI y Mantenimiento necesitan
      saber POR QUÉ una zona pesa—; DECLARAR es sólo de Producción. Ésa es la
@@ -22,6 +26,16 @@ export class ZonasController {
   @Get()
   @RequirePermissions('location.read')
   listar() { return this.zonas.listar(); }
+
+  /* LO QUE MIRA PRODUCCIÓN. Va con `dashboard.read`, no con un permiso nuevo:
+     un jefe de línea que ya ve el tablero tiene que poder ver su cobertura sin
+     que nadie le conceda nada. El recorte lo pone el ÁMBITO, no el permiso. */
+  @SinAmbito()   // el ámbito lo aplica el servicio, sobre el árbol derivado
+  @Get('cobertura')
+  @RequirePermissions('dashboard.read')
+  coberturaPorZona(@CurrentUser() u: any, @Query('tren') tren?: string) {
+    return this.cobertura.porZona(u?.userId, tren);
+  }
 
   @SinAmbito()
   @Get('pendientes')

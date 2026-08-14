@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ZonasService } from './zonas.service';
+import { CoberturaService } from './cobertura.service';
 import { ZonasController } from './zonas.controller';
 import { AuditModule } from '../audit/audit.module';
 
@@ -11,7 +12,7 @@ import { AuditModule } from '../audit/audit.module';
 @Module({
   imports: [AuditModule],
   controllers: [ZonasController],
-  providers: [ZonasService],
-  exports: [ZonasService],
+  providers: [ZonasService, CoberturaService],
+  exports: [ZonasService, CoberturaService],
 })
 export class ZonasModule {}

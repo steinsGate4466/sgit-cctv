@@ -141,33 +141,172 @@ export function soloMira(codigos: string[]): boolean {
 }
 
 /**
- * Perfiles listos para no empezar de cero.
- * "Jefe de línea de Producción" es el que pidió el ingeniero: mira el estado
- * de SU tren, ve las órdenes activas y se descarga el informe. No interviene.
+ * PLANTILLAS DE ROL — perfiles de una planta siderúrgica, no de un software.
+ *
+ * =============================================================================
+ *  POR QUÉ HAY PLANTILLAS Y NO UNA LISTA DE 36 CASILLAS
+ * =============================================================================
+ *  Quien arma un rol no piensa en `wo.approve`: piensa «el almacenero». Si la
+ *  pantalla sólo ofrece códigos, marca todos por si acaso — y eso es
+ *  exactamente el fallo que el control de acceso venía a evitar.
+ *
+ *  Estas plantillas son un PUNTO DE PARTIDA editable, no una jaula. Cada una
+ *  responde a un puesto que existe de verdad en Pisco.
+ *
+ * =============================================================================
+ *  DOS CRITERIOS QUE ATRAVIESAN TODAS
+ * =============================================================================
+ *  1. NADIE LLEVA `credential.read` SALVO QUIEN ENTRA A LOS EQUIPOS.
+ *     Es la contraseña del grabador. Con ella se ve y se borra vídeo. No es
+ *     un permiso de consulta por mucho que se llame «read».
+ *
+ *  2. LO QUE CIERRA NO ES LO QUE EJECUTA. El técnico avanza su trabajo; el
+ *     cierre —que es lo que congela el indicador y la firma— es de quien
+ *     responde por él. Separarlo no es burocracia: es lo que hace que el MTTR
+ *     signifique algo.
+ *
+ *  El ÁMBITO por tren se configura aparte, en la ficha del usuario. Una
+ *  plantilla dice QUÉ puede hacer; el ámbito, SOBRE QUÉ TREN.
  */
-export const PLANTILLAS_DE_ROL: { nombre: string; descripcion: string; permisos: string[] }[] = [
+export const PLANTILLAS_DE_ROL: {
+  nombre: string;
+  descripcion: string;
+  permisos: string[];
+  /** Puesto real al que corresponde, en lenguaje de planta. */
+  paraQuien?: string;
+  /** Lo que hay que pensar dos veces antes de conceder este perfil. */
+  advertencia?: string;
+  /** true si este perfil sólo tiene sentido con ámbito de tren asignado. */
+  necesitaAmbito?: boolean;
+}[] = [
   {
     nombre: 'Jefe de línea (Producción)',
-    descripcion: 'Ve el estado de su tren y las órdenes en curso. No interviene: sólo mira y descarga el informe.',
-    permisos: ['dashboard.read', 'asset.read', 'location.read', 'incident.read', 'wo.read', 'wo.report'],
+    paraQuien: 'Jefe de turno o de línea del Tren 1, 2 o 3.',
+    descripcion:
+      'Ve qué se está viendo y qué no en SU tren, y DECLARA qué zonas no pueden ' +
+      'quedarse a ciegas. No interviene equipos: ésa es la única escritura que tiene.',
+    necesitaAmbito: true,
+    permisos: [
+      'dashboard.read', 'asset.read', 'location.read', 'incident.read',
+      'incident.create', 'wo.read', 'wo.report', 'monitor.read',
+      'zona.criticidad',
+    ],
+  },
+  {
+    nombre: 'Gerencia / Jefatura de planta',
+    paraQuien: 'Quien pide los números en el comité mensual.',
+    descripcion:
+      'Lee toda la planta y los indicadores. Ni una sola escritura: si necesita ' +
+      'que algo cambie, lo pide a quien responde por ello, y eso queda registrado.',
+    permisos: [
+      'dashboard.read', 'troubleshooting.read', 'asset.read', 'location.read',
+      'incident.read', 'wo.read', 'wo.report', 'inventory.read',
+      'access.read', 'document.read', 'monitor.read',
+    ],
+  },
+  {
+    nombre: 'Supervisor TI / Redes',
+    paraQuien: 'Quien responde por la red industrial y los grabadores.',
+    descripcion:
+      'Sostiene la infraestructura: direccionamiento, enlaces, monitoreo y las ' +
+      'credenciales de los equipos. No cierra órdenes de mantenimiento.',
+    advertencia:
+      'Lleva credential.read y credential.manage: es acceso directo a las cámaras. ' +
+      'Poca gente, y con nombre y apellido.',
+    permisos: [
+      'dashboard.read', 'troubleshooting.read', 'asset.read', 'asset.create',
+      'asset.update', 'location.read', 'location.manage',
+      'incident.read', 'incident.create', 'incident.update',
+      'wo.read', 'wo.update', 'wo.report',
+      'credential.read', 'credential.manage',
+      'monitor.read', 'monitor.manage', 'notify.read',
+      'document.read', 'document.manage', 'inventory.read',
+      'access.read', 'access.request',
+    ],
   },
   {
     nombre: 'Técnico de red',
-    descripcion: 'Detalla y ejecuta en campo las órdenes que le asignan.',
+    paraQuien: 'Quien sube al poste y configura el equipo.',
+    descripcion: 'Detalla y ejecuta en campo las órdenes que le asignan. Ve datos de red.',
     permisos: [
-      'dashboard.read', 'asset.read', 'asset.update', 'location.read', 'incident.read',
-      'incident.create', 'incident.update', 'wo.read', 'wo.report', 'wo.update',
-      'inventory.read', 'access.read', 'access.request', 'document.read',
+      'dashboard.read', 'asset.read', 'asset.update', 'location.read',
+      'incident.read', 'incident.create', 'incident.update',
+      'wo.read', 'wo.report', 'wo.update',
+      'credential.read', 'monitor.read',
+      'inventory.read', 'inventory.check',
+      'access.read', 'access.request', 'document.read',
+    ],
+  },
+  {
+    nombre: 'Técnico de campo (CCTV)',
+    paraQuien: 'Cuadrilla de mantenimiento de cámaras.',
+    descripcion:
+      'Igual que el de red pero SIN credenciales de equipos. Es el perfil por ' +
+      'defecto de la cuadrilla: la mayoría no necesita entrar al grabador.',
+    permisos: [
+      'dashboard.read', 'asset.read', 'asset.update', 'location.read',
+      'incident.read', 'incident.create', 'incident.update',
+      'wo.read', 'wo.report', 'wo.update',
+      'inventory.read', 'inventory.check',
+      'access.read', 'access.request', 'document.read',
+    ],
+  },
+  {
+    nombre: 'Almacén',
+    paraQuien: 'Almacenero de repuestos.',
+    descripcion:
+      'Stock, mínimos, entradas y salidas. Ve las órdenes SÓLO para saber contra ' +
+      'qué trabajo sale el material — sin eso no hay costo por equipo.',
+    permisos: [
+      'dashboard.read', 'inventory.read', 'inventory.manage', 'inventory.check',
+      'asset.read', 'location.read', 'wo.read',
+    ],
+  },
+  {
+    nombre: 'SSOMA / Seguridad',
+    paraQuien: 'Prevencionista que autoriza el trabajo en altura.',
+    descripcion:
+      'Revisa y APRUEBA los permisos de altura e izaje. Ve dónde está el equipo ' +
+      'y cómo se llega, que es lo que necesita para decidir.',
+    advertencia:
+      'access.approve es la firma que habilita a subir a un manlift. No es un ' +
+      'permiso administrativo: responde una persona.',
+    permisos: [
+      'dashboard.read', 'asset.read', 'location.read',
+      'access.read', 'access.request', 'access.approve',
+      'incident.read', 'wo.read', 'document.read',
+    ],
+  },
+  {
+    nombre: 'Auditoría / Control interno',
+    paraQuien: 'Auditoría interna o el propio equipo de TI revisando.',
+    descripcion:
+      'Lee la traza completa de quién hizo qué. No puede modificar nada, y sobre ' +
+      'todo NO ve credenciales: auditar no es tener acceso.',
+    permisos: [
+      'audit.read', 'dashboard.read', 'asset.read', 'location.read',
+      'incident.read', 'wo.read', 'wo.report', 'inventory.read', 'access.read',
     ],
   },
   {
     nombre: 'Contratista (tercería)',
-    descripcion: 'Empresa externa: ve y trabaja únicamente las órdenes que se le asignan.',
-    permisos: ['wo.read', 'wo.update', 'wo.report', 'asset.read', 'location.read', 'access.request'],
+    paraQuien: 'Empresa externa contratada para una campaña o una instalación.',
+    descripcion:
+      'Ve y trabaja ÚNICAMENTE lo que se le asigna. Sin inventario, sin auditoría, ' +
+      'sin credenciales y sin ver la planta entera.',
+    advertencia:
+      'Va SIEMPRE con ámbito de tren asignado. Sin ámbito, un contratista ve los ' +
+      'tres trenes, que es justo lo que no se quiere.',
+    necesitaAmbito: true,
+    permisos: [
+      'wo.read', 'wo.update', 'wo.report', 'asset.read', 'location.read',
+      'incident.create', 'access.request',
+    ],
   },
   {
     nombre: 'Consulta',
-    descripcion: 'Sólo mirar. Sin acceso a credenciales ni a auditoría.',
+    paraQuien: 'Visita, práctica profesional, o alguien que sólo necesita mirar.',
+    descripcion: 'Sólo mirar. Sin credenciales, sin auditoría, sin descargar informes.',
     permisos: ['dashboard.read', 'asset.read', 'location.read', 'incident.read', 'wo.read'],
   },
 ];

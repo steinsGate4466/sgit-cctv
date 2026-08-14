@@ -42,6 +42,7 @@ const TITLES: Record<string, string> = {
   '/electricidad': 'Electricidad',
   '/ipam': 'Direccionamiento IP',
   '/zonas': 'Zonas vitales para la producción',
+  '/cobertura': 'Mi cobertura',
   '/mi-cuenta': 'Mi cuenta',
   '/indicadores': 'Indicadores de gestión',
   '/exportar': 'Exportar a Excel',
@@ -162,6 +163,10 @@ export default function Layout() {
         // todo no le aporta nada: ya tiene Estado por Tren con los tres.
         (user?.ambitoTrenes?.length ?? 0) > 0 && can('dashboard.read') &&
           <NavLink key="mt" to="/mi-tren"><Icono n="mitren" /> Mi tren</NavLink>,
+        /* «Mi cobertura» va de las primeras a propósito: es la pantalla de
+           PRODUCCIÓN, y un jefe de línea que entre al sistema tiene que
+           encontrarla sin recorrer un menú pensado para Mantenimiento. */
+        can('dashboard.read') && <NavLink key="cob" to="/cobertura"><Icono n="camara" /> Mi cobertura</NavLink>,
         can('dashboard.read') && <NavLink key="bd" to="/bandeja"><Icono n="bandeja" /> Mi bandeja</NavLink>,
         can('dashboard.read') && <NavLink key="d" to="/dashboard"><Icono n="tablero" /> Dashboard</NavLink>,
         // Indicadores va junto al tablero: uno dice qué pasa hoy, el otro si

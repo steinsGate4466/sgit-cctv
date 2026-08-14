@@ -48,6 +48,7 @@ const Campanas = lazyConReintento(() => import('./pages/Campanas'));
 const Electricidad = lazyConReintento(() => import('./pages/Electricidad'));
 const Ipam = lazyConReintento(() => import('./pages/Ipam'));
 const Zonas = lazyConReintento(() => import('./pages/Zonas'));
+const Cobertura = lazyConReintento(() => import('./pages/Cobertura'));
 const MiCuenta = lazyConReintento(() => import('./pages/MiCuenta'));
 const Indicadores = lazyConReintento(() => import('./pages/Indicadores'));
 const Avisos = lazyConReintento(() => import('./pages/Avisos'));
@@ -111,6 +112,7 @@ export default function App() {
           <Route path="/electricidad" element={<Electricidad />} />
           <Route path="/ipam" element={<Ipam />} />
           <Route path="/zonas" element={<Zonas />} />
+          <Route path="/cobertura" element={<Cobertura />} />
           <Route path="/mi-cuenta" element={<MiCuenta />} />
           <Route path="/indicadores" element={<Indicadores />} />
           <Route path="/avisos" element={<Avisos />} />

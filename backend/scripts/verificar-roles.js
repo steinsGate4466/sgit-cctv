@@ -197,6 +197,26 @@ for (const p of [...EN_CATALOGO].sort()) {
 }
 if (!e2) console.log('   Ninguno.');
 
+// G) Las PLANTILLAS: perfiles listos que ofrece la pantalla de Roles.
+//    Una plantilla con un permiso inexistente se aplica «bien» y deja al rol
+//    con menos de lo que promete, sin decir nada.
+console.log('\nG) Plantillas de rol con permisos que no existen');
+let g = 0;
+{
+  const bloque = catTxt.match(/PLANTILLAS_DE_ROL[\s\S]*?\n\];/);
+  if (bloque) {
+    for (const p of bloque[0].matchAll(/nombre:\s*'([^']+)'[\s\S]*?permisos:\s*\[([^\]]*)\]/g)) {
+      const fuera = [...p[2].matchAll(/'([^']+)'/g)]
+        .map((x) => x[1]).filter((c) => !PERMISOS_SEMILLA.has(c));
+      if (fuera.length) {
+        fallar(`La plantilla «${p[1]}» ofrece permisos que no existen: ${fuera.join(', ')}.`);
+        g++;
+      }
+    }
+  }
+}
+if (!g) console.log('   Ninguna. Todas las plantillas conceden permisos reales.');
+
 // F) Deuda estructural: reglas por nombre de rol.
 console.log('\nF) Reglas atadas al NOMBRE del rol (deuda, no error)');
 const sitios = new Set();

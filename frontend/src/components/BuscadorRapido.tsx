@@ -73,6 +73,7 @@ const DESTINOS: Destino[] = [
   { ruta: '/users', nombre: 'Usuarios', seccion: 'Sistema', alias: 'personas cuentas alta baja contrasena', permiso: 'user.manage' },
   { ruta: '/roles', nombre: 'Roles y permisos', seccion: 'Sistema', alias: 'permiso perfil acceso ambito tren', permiso: 'role.manage' },
   { ruta: '/equipos', nombre: 'Equipos conocidos', seccion: 'Sistema', alias: 'pc ip mac desde que computadora dispositivo quien entra', permiso: 'asset.read' },
+  { ruta: '/cobertura', nombre: 'Mi cobertura', seccion: 'General', alias: 'produccion camaras viendo ciegas cobertura que cubro jefe de tren', permiso: 'dashboard.read' },
   { ruta: '/zonas', nombre: 'Zonas vitales', seccion: 'Infraestructura', alias: 'produccion critica importante prioridad vital zona', permiso: 'location.read' },
   { ruta: '/limpieza', nombre: 'Limpieza de datos', seccion: 'Sistema', alias: 'borrar purgar eliminar basura prueba', permiso: 'asset.delete' },
 ];
