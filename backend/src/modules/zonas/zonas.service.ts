@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { proponer, resolver, ETIQUETA, Intervencion } from '../../common/intervenibilidad';
 
 /**
  * ZONAS VITALES PARA LA PRODUCCIÓN — bloque 26.
@@ -64,6 +65,10 @@ export class ZonasService {
           impactoSiSeCae: true, queSeVigila: true,
           declaradoEn: true, revisarAntesDe: true,
           declaradoPor: { select: { fullName: true } },
+          environment: true,
+          intervencionFirmada: true, intervencionMotivo: true,
+          intervencionFirmadaEn: true, requiereAltura: true,
+          intervencionFirmadaPor: { select: { fullName: true } },
         },
         orderBy: [{ type: 'asc' }, { name: 'asc' }],
       }),
@@ -111,6 +116,26 @@ export class ZonasService {
       vencida: !!u.revisarAntesDe && u.revisarAntesDe.getTime() < ahora,
       activosPropios: propios.get(u.id) ?? 0,
       activosEnLaRama: enLaRama.get(u.id) ?? 0,
+      // ---- Bloque 28: cómo se interviene ----
+      ambiente: u.environment,
+      requiereAltura: u.requiereAltura,
+      ...(() => {
+        const prop = proponer(u.environment as any, u.requiereAltura);
+        const r = resolver(prop, u.intervencionFirmada as Intervencion | null);
+        return {
+          intervencionPropuesta: prop,
+          intervencionPropuestaTexto: ETIQUETA[prop],
+          intervencionAplica: r.aplica,
+          intervencionAplicaTexto: ETIQUETA[r.aplica],
+          intervencionFirmada: u.intervencionFirmada,
+          intervencionMotivo: u.intervencionMotivo,
+          intervencionFirmadaPor: u.intervencionFirmadaPor?.fullName ?? null,
+          intervencionFirmadaEn: u.intervencionFirmadaEn,
+          estaFirmada: r.estaFirmada,
+          firmaDesactualizada: r.firmaDesactualizada,
+          explicacion: r.motivo,
+        };
+      })(),
     }));
   }
 
@@ -217,4 +242,102 @@ export class ZonasService {
 
     return despues;
   }
+  /**
+   * FIRMAR cómo se interviene una zona.
+   *
+   * ===========================================================================
+   *  ESTO NO ES UN CAMPO MÁS
+   * ===========================================================================
+   *  Firmar «se puede intervenir en marcha» es autorizar a una persona a
+   *  trabajar con el tren produciendo. Si el sistema se equivoca hacia el lado
+   *  permisivo, alguien se acerca a la línea confiando en una pantalla.
+   *
+   *  Por eso:
+   *   · Sólo lo firman el Supervisor Operativo de Tercería y el Jefe de
+   *     Mantenimiento. El permiso `zona.intervencion` no lo tiene nadie más.
+   *   · Toda opción que permita trabajar en marcha EXIGE un motivo escrito.
+   *     La regla está también en la base de datos, no sólo aquí.
+   *   · Queda en la auditoría con nombre y fecha. Si algún día pasa algo, se
+   *     sabe quién dijo que ahí se podía trabajar.
+   *   · Y si el sistema propone algo MÁS restrictivo que lo que se está
+   *     firmando, se avisa antes de guardar: significa que el ambiente de la
+   *     zona no respalda esa firma.
+   */
+  async firmarIntervencion(
+    id: string,
+    dto: {
+      intervencionFirmada?: string | null;
+      intervencionMotivo?: string | null;
+      requiereAltura?: boolean;
+    },
+    userId?: string,
+    ip?: string,
+  ) {
+    const zona = await this.prisma.location.findUnique({
+      where: { id },
+      select: {
+        id: true, name: true, environment: true, requiereAltura: true,
+        intervencionFirmada: true, intervencionMotivo: true,
+      },
+    });
+    if (!zona) throw new NotFoundException('Esa ubicación no existe.');
+
+    const nivel = (dto.intervencionFirmada ?? null) as Intervencion | null;
+    const motivo = (dto.intervencionMotivo ?? '').trim();
+    const altura = dto.requiereAltura ?? zona.requiereAltura;
+
+    const VALIDOS = [
+      'EN_MARCHA', 'CON_PERMISO_ELECTRICO', 'CON_PERMISO_ALTURA',
+      'EXIGE_PARADA', 'SIN_CLASIFICAR',
+    ];
+    if (nivel && !VALIDOS.includes(nivel)) {
+      throw new BadRequestException(`Clasificación desconocida: ${nivel}.`);
+    }
+
+    // Todo lo que permite acercarse con el tren vivo exige un porqué.
+    const PERMISIVOS = ['EN_MARCHA', 'CON_PERMISO_ELECTRICO', 'CON_PERMISO_ALTURA'];
+    if (nivel && PERMISIVOS.includes(nivel) && !motivo) {
+      throw new BadRequestException(
+        'Para firmar que aquí se puede trabajar con el tren en marcha hay que escribir ' +
+        'por qué. Esa frase es la que va a leer el técnico antes de acercarse, y es la ' +
+        'que respalda tu firma si algún día hay que revisarla.',
+      );
+    }
+
+    const propuesta = proponer(zona.environment as any, altura);
+    if (nivel && PERMISIVOS.includes(nivel) && propuesta === 'EXIGE_PARADA') {
+      throw new BadRequestException(
+        `El ambiente de «${zona.name}» es ${zona.environment}, que por sí solo ya exige ` +
+        'parada del tren. Si de verdad se puede trabajar ahí en marcha, primero corrige ' +
+        'el ambiente de la zona: el dato de planta y la firma no pueden contradecirse.',
+      );
+    }
+
+    const despues = await this.prisma.location.update({
+      where: { id },
+      data: {
+        intervencionFirmada: nivel as any,
+        intervencionMotivo: motivo || null,
+        requiereAltura: altura,
+        intervencionFirmadaPorId: nivel ? (userId ?? null) : null,
+        intervencionFirmadaEn: nivel ? new Date() : null,
+      },
+      select: {
+        id: true, name: true, intervencionFirmada: true,
+        intervencionMotivo: true, intervencionFirmadaEn: true, requiereAltura: true,
+      },
+    });
+
+    /* Se audita también cuando se RETIRA la firma. Quitarla devuelve la zona a
+       «exige parada», que es más seguro pero puede parar trabajo durante
+       semanas sin que nadie sepa por qué. */
+    await this.audit.record({
+      userId, ip, action: 'UPDATE', entity: 'zona-intervencion', entityId: id,
+      before: { firma: zona.intervencionFirmada, motivo: zona.intervencionMotivo },
+      after: { firma: despues.intervencionFirmada, motivo: despues.intervencionMotivo },
+    });
+
+    return despues;
+  }
+
 }

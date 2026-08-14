@@ -41,9 +41,25 @@ const COLOR: Record<string, string> = {
   CRITICA: 'crit', ALTA: 'warn', MEDIA: '', BAJA: '',
 };
 
+/* Cómo se interviene la zona (bloque 28). El texto largo importa: es lo que
+   lee el técnico antes de acercarse a la línea. */
+const INTERVENCION: Record<string, { et: string; clase: string; ayuda: string }> = {
+  EN_MARCHA: { et: 'En marcha', clase: 'ok',
+    ayuda: 'Cabina o púlpito: se trabaja con el tren produciendo.' },
+  CON_PERMISO_ELECTRICO: { et: 'Con permiso eléctrico', clase: 'warn',
+    ayuda: 'Sala eléctrica o MCC: hace falta bloqueo eléctrico.' },
+  CON_PERMISO_ALTURA: { et: 'Con permiso de altura', clase: 'warn',
+    ayuda: 'Hay que subir: PETAR y personal acreditado.' },
+  EXIGE_PARADA: { et: 'Exige parada', clase: 'crit',
+    ayuda: 'Barra caliente, vapor o rodillos: el tren tiene que estar detenido.' },
+  SIN_CLASIFICAR: { et: 'Sin clasificar', clase: '',
+    ayuda: 'Sin ambiente declarado. Se trata como parada hasta que lo haya.' },
+};
+
 export default function Zonas() {
   const { can } = useAuth();
   const puedeDeclarar = can('zona.criticidad');
+  const puedeFirmar = can('zona.intervencion');
 
   const [zonas, setZonas] = useState<any[]>([]);
   const [resumen, setResumen] = useState<any>(null);
@@ -53,6 +69,7 @@ export default function Zonas() {
   const [filtro, setFiltro] = useState('');
   const [soloConEquipos, setSoloConEquipos] = useState(true);
   const [editando, setEditando] = useState<any>(null);
+  const [firmando, setFirmando] = useState<any>(null);
 
   const cargar = useCallback(async () => {
     setCargando(true); setError('');
@@ -153,8 +170,9 @@ export default function Zonas() {
                 <th>Importancia</th>
                 <th>Por qué</th>
                 <th>Equipos</th>
+                <th>Intervención</th>
                 <th>Firmada</th>
-                {puedeDeclarar && <th />}
+                {(puedeDeclarar || puedeFirmar) && <th />}
               </tr>
             </thead>
             <tbody>
@@ -193,6 +211,23 @@ export default function Zonas() {
                       </div>
                     )}
                   </td>
+                  {/* CÓMO SE INTERVIENE. Se enseña lo que APLICA, no la
+                      propuesta: la propuesta no autoriza a nadie. */}
+                  <td style={{ maxWidth: 220 }}>
+                    <span className={'badge ' + (INTERVENCION[z.intervencionAplica]?.clase || '')}>
+                      {INTERVENCION[z.intervencionAplica]?.et || z.intervencionAplica}
+                    </span>
+                    {!z.estaFirmada && z.intervencionPropuesta !== 'SIN_CLASIFICAR' && (
+                      <div className="muted" style={{ fontSize: 11, marginTop: 3 }}>
+                        Sin firmar. El sistema propondría «{INTERVENCION[z.intervencionPropuesta]?.et}».
+                      </div>
+                    )}
+                    {z.firmaDesactualizada && (
+                      <div style={{ fontSize: 11, color: 'var(--crit,#dc2626)', marginTop: 3 }}>
+                        <Icono n="alerta" size={12} /> La planta cambió desde que se firmó.
+                      </div>
+                    )}
+                  </td>
                   <td style={{ fontSize: 12 }}>
                     {z.declaradoPor || <span className="muted">—</span>}
                     {z.declaradoEn && (
@@ -201,11 +236,20 @@ export default function Zonas() {
                       </div>
                     )}
                   </td>
-                  {puedeDeclarar && (
+                  {(puedeDeclarar || puedeFirmar) && (
                     <td>
-                      <button className="btn-mini" onClick={() => setEditando({ ...z })}>
-                        <Icono n="editar" size={14} /> Declarar
-                      </button>
+                      <div className="card-acciones">
+                        {puedeDeclarar && (
+                          <button className="btn-mini" onClick={() => setEditando({ ...z })}>
+                            <Icono n="editar" size={14} /> Declarar
+                          </button>
+                        )}
+                        {puedeFirmar && (
+                          <button className="btn-mini" onClick={() => setFirmando({ ...z })}>
+                            <Icono n="firma" size={14} /> Intervención
+                          </button>
+                        )}
+                      </div>
                     </td>
                   )}
                 </tr>
@@ -218,6 +262,14 @@ export default function Zonas() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {firmando && (
+        <FirmaIntervencion
+          zona={firmando}
+          onCerrar={() => setFirmando(null)}
+          onGuardado={(t) => { setFirmando(null); setMsg(t); cargar(); }}
+        />
       )}
 
       {editando && (
@@ -331,6 +383,117 @@ function EditorZona({ zona, onCerrar, onGuardado }: {
         >
           <textarea value={impacto} onChange={(e) => setImpacto(e.target.value)}
                     placeholder="Se detiene el tren hasta restablecer la vista." />
+        </Campo>
+      </Seccion>
+    </Modal>
+  );
+}
+
+/**
+ * FIRMAR CÓMO SE INTERVIENE LA ZONA.
+ *
+ * ===========================================================================
+ *  ESTE FORMULARIO AUTORIZA A UNA PERSONA A ACERCARSE A LA LÍNEA
+ * ===========================================================================
+ *  No es un campo más. Por eso la pantalla no se parece a los demás
+ *  formularios: enseña primero lo que el sistema PROPONE y por qué, y sólo
+ *  después deja firmar. Firmar a ciegas «en marcha» sobre una zona de barra
+ *  caliente es el error que esto tiene que hacer difícil.
+ *
+ *  Lo firman el Supervisor Operativo de Tercería y el Jefe de Mantenimiento.
+ *  Nadie más tiene el permiso.
+ */
+function FirmaIntervencion({ zona, onCerrar, onGuardado }: {
+  zona: any; onCerrar: () => void; onGuardado: (msg: string) => void;
+}) {
+  const [nivel, setNivel] = useState(zona.intervencionFirmada || '');
+  const [motivo, setMotivo] = useState(zona.intervencionMotivo || '');
+  const [altura, setAltura] = useState(!!zona.requiereAltura);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState('');
+
+  const PERMISIVOS = ['EN_MARCHA', 'CON_PERMISO_ELECTRICO', 'CON_PERMISO_ALTURA'];
+  const exigeMotivo = PERMISIVOS.includes(nivel);
+  const faltaMotivo = exigeMotivo && !motivo.trim();
+
+  async function guardar() {
+    setGuardando(true); setError('');
+    try {
+      await enviarConRespaldo('patch', `/zonas/${zona.id}/intervencion`, {
+        intervencionFirmada: nivel || null,
+        intervencionMotivo: motivo,
+        requiereAltura: altura,
+      }, `Intervención de ${zona.nombre}`);
+      onGuardado(`Firmado cómo se interviene «${zona.nombre}».`);
+    } catch (e: any) {
+      setError(e?.response?.data?.message || 'No se pudo firmar.');
+    } finally { setGuardando(false); }
+  }
+
+  return (
+    <Modal
+      title={`¿Cómo se interviene «${zona.nombre}»?`}
+      ancho
+      onClose={onCerrar}
+      acciones={
+        <>
+          <button className="btn-mini" onClick={onCerrar}>Cancelar</button>
+          <button className="btn-primary" onClick={guardar} disabled={guardando || faltaMotivo}>
+            {guardando ? 'Firmando…' : 'Firmar'}
+          </button>
+        </>
+      }
+    >
+      {error && <div className="card peligro" style={{ marginBottom: 12 }}>{error}</div>}
+
+      <div className="card peligro" style={{ marginBottom: 14 }}>
+        <b>Esto autoriza a trabajar con el tren produciendo.</b> Queda con tu
+        nombre y la fecha en la auditoría. Mientras una zona no esté firmada,
+        el sistema pide parada — que es lo seguro.
+      </div>
+
+      {/* LO QUE PROPONE EL SISTEMA, y de dónde sale. */}
+      <div className="card explica" style={{ marginBottom: 14 }}>
+        <b>El sistema propone: {zona.intervencionPropuestaTexto}</b>
+        <div style={{ marginTop: 4, fontSize: 12.5 }}>
+          Sale del ambiente de la zona ({zona.ambiente || 'sin declarar'})
+          {zona.requiereAltura && ' y de que hay que subir'}. La propuesta no
+          autoriza nada: sólo la firma.
+        </div>
+      </div>
+
+      <Seccion titulo="La firma">
+        <Campo
+          etiqueta="Cómo se interviene"
+          ayuda={INTERVENCION[nivel]?.ayuda}
+        >
+          <select value={nivel} onChange={(e) => setNivel(e.target.value)}>
+            <option value="">Sin firmar — el sistema pedirá parada</option>
+            {Object.entries(INTERVENCION).filter(([k]) => k !== 'SIN_CLASIFICAR')
+              .map(([k, v]) => <option key={k} value={k}>{v.et}</option>)}
+          </select>
+        </Campo>
+
+        <Campo
+          etiqueta="¿Hay que subir para llegar?"
+          ayuda="Manlift o escalera. Sube la exigencia por muy fresca que esté la zona."
+        >
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '6px 0 0' }}>
+            <input type="checkbox" checked={altura} onChange={(e) => setAltura(e.target.checked)}
+                   style={{ width: 18, height: 18, minHeight: 18 }} />
+            <span style={{ fontSize: 13 }}>Sí, exige trabajo en altura</span>
+          </label>
+        </Campo>
+
+        <Campo
+          etiqueta="Por qué se puede trabajar así"
+          obligatorio={exigeMotivo}
+          error={faltaMotivo ? 'Autorizar a trabajar en marcha exige escribir el motivo.' : undefined}
+          ayuda="Es lo que va a leer el técnico antes de acercarse, y lo que respalda tu firma si algún día hay que revisarla."
+          ancho
+        >
+          <textarea value={motivo} onChange={(e) => setMotivo(e.target.value)}
+                    placeholder="El grabador está en la cabina del púlpito, cerrada y a 30 m de la línea. No hay exposición a la barra." />
         </Campo>
       </Seccion>
     </Modal>

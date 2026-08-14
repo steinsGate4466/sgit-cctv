@@ -60,20 +60,60 @@ describe('plantillas de rol', () => {
   });
 
   it('ninguna plantilla reparte administración', () => {
+    /* EXCEPCIÓN DOCUMENTADA (bloque 28): la plantilla «Auditoría / Control
+       interno» sí lleva `audit.read`, porque es su única razón de existir —
+       una plantilla de auditoría que no deja leer la auditoría no sirve para
+       nada y obligaría a marcarlo a mano, que es peor.
+
+       La excepción es segura porque esa plantilla no lleva NI UNA escritura,
+       ni credenciales. Y la regla de fondo sigue en pie para todas: nada de
+       gestionar usuarios, roles ni borrar. Se deja explícita aquí en vez de
+       ablandar la prueba en silencio, que es como se pierden estas reglas. */
+    const PUEDEN_AUDITAR = ['Auditoría / Control interno'];
     for (const p of PLANTILLAS_DE_ROL) {
       expect(p.permisos).not.toContain('user.manage');
       expect(p.permisos).not.toContain('role.manage');
-      expect(p.permisos).not.toContain('audit.read');
       expect(p.permisos).not.toContain('asset.delete');
+      if (!PUEDEN_AUDITAR.includes(p.nombre)) {
+        expect(p.permisos).not.toContain('audit.read');
+      }
     }
   });
 
-  it('EL JEFE DE LÍNEA NO PUEDE TOCAR NADA', () => {
-    // Lo pidió el ingeniero con estas palabras: "solo mirar, no intervenir".
-    // Si algún día alguien le añade wo.update "para que pueda cerrar las
-    // suyas", esta prueba se cae y obliga a decidirlo a propósito.
+  it('la plantilla de auditoría no puede escribir NADA', () => {
+    // El contrapeso de la excepción de arriba. Auditar no es tener acceso.
+    const aud = permisosDe('Auditoría');
+    expect(aud).toContain('audit.read');
+    expect(soloMira(aud)).toBe(true);
+    expect(aud).not.toContain('credential.read');
+  });
+
+  it('sólo dos plantillas pueden firmar dónde se trabaja con el tren en marcha', () => {
+    /* `zona.intervencion` autoriza a acercarse a la línea con el tren
+       produciendo. Si algún día aparece en una tercera plantilla, esta prueba
+       se cae y obliga a decidirlo con la cabeza fría, no en caliente. */
+    const conFirma = PLANTILLAS_DE_ROL
+      .filter((p) => p.permisos.includes('zona.intervencion'))
+      .map((p) => p.nombre);
+    expect(conFirma.sort()).toEqual(['Supervisor Operativo de Tercería']);
+  });
+
+  it('EL JEFE DE LÍNEA SÓLO ESCRIBE DOS COSAS', () => {
+    /* Antes esta prueba exigía `soloMira(jefe) === true` porque el ingeniero
+       lo pidió con estas palabras: "solo mirar, no intervenir". Y funcionó:
+       se cayó en cuanto Producción recibió capacidad de escritura, que es
+       exactamente para lo que estaba puesta.
+
+       La decisión se tomó a propósito en el bloque 26: Producción DECLARA qué
+       zonas son vitales, porque nadie más sabe hacerlo. Así que la regla no se
+       borra, se APRIETA: puede escribir exactamente dos cosas y ninguna más.
+       Si mañana aparece una tercera, esto vuelve a caerse. */
     const jefe = permisosDe('Jefe de línea');
-    expect(soloMira(jefe)).toBe(true);
+    const ESCRITURAS_PERMITIDAS = ['zona.criticidad', 'incident.create'];
+    const escribe = jefe.filter((c) => !soloMira([c]));
+    expect(escribe.sort()).toEqual([...ESCRITURAS_PERMITIDAS].sort());
+    // Y sobre todo: no autoriza a nadie a acercarse a la línea.
+    expect(jefe).not.toContain('zona.intervencion');
     expect(jefe).toContain('wo.report');   // sí puede descargar el informe
     expect(jefe).toContain('dashboard.read');
     expect(jefe).not.toContain('wo.create');

@@ -50,6 +50,10 @@ const PERMISSIONS = [
      ========================================================================== */
   'role.manage',
   'wo.report',
+  /* Bloque 28. Firmar si una zona se puede intervenir con el tren en marcha.
+     Es una autorización de SEGURIDAD, no un permiso administrativo: lo tienen
+     sólo el Jefe de Mantenimiento y el Supervisor Operativo de Tercería. */
+  'zona.intervencion',
   'monitor.read', 'monitor.manage',
   'notify.read', 'notify.manage',
 ];
@@ -115,6 +119,19 @@ const ROLES: Record<string, string[]> = {
     'inventory.read', 'access.read',
     'zona.criticidad',
     'monitor.read', 'wo.report',
+  ],
+  /* SUPERVISOR OPERATIVO DE TERCERÍA (bloque 28).
+     Responde por la cuadrilla contratada, que cubre los tres trenes. Su
+     escritura fuerte es una sola: FIRMAR en qué zonas se puede trabajar con
+     el tren en marcha. Lo demás es lo que necesita para firmar con criterio
+     —ver el equipo, cómo se llega y qué órdenes hay— y para mover el trabajo
+     de su gente. NO cierra órdenes: eso sigue siendo del Jefe. */
+  'Supervisor Operativo de Tercería': [
+    'dashboard.read', 'asset.read', 'location.read',
+    'incident.read', 'incident.create',
+    'wo.read', 'wo.update', 'wo.report',
+    'access.read', 'access.request', 'document.read',
+    'zona.intervencion',
   ],
 };
 

@@ -42,6 +42,22 @@ export class ZonasController {
   @RequirePermissions('location.read')
   pendientes() { return this.zonas.pendientes(); }
 
+  /* FIRMAR cómo se interviene la zona. Permiso aparte y exclusivo: sólo el
+     Supervisor Operativo de Tercería y el Jefe de Mantenimiento. No va con
+     `zona.criticidad` a propósito — Producción dice qué importa, pero no
+     autoriza a nadie a acercarse a la línea con el tren en marcha. */
+  @SinAmbito()
+  @Patch(':id/intervencion')
+  @RequirePermissions('zona.intervencion')
+  firmarIntervencion(
+    @Param('id') id: string,
+    @Body() dto: any,
+    @CurrentUser() u: any,
+    @Ip() ip: string,
+  ) {
+    return this.zonas.firmarIntervencion(id, dto, u?.userId, ip);
+  }
+
   @SinAmbito()
   @Patch(':id')
   @RequirePermissions('zona.criticidad')

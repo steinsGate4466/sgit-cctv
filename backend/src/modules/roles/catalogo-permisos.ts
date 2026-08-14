@@ -51,9 +51,20 @@ export const CATALOGO_PERMISOS: GrupoPermisos[] = [
     ],
   },
   {
-    grupo: 'Producción',
-    nota: 'Lo que sólo puede decidir quien conoce el proceso, no Mantenimiento ni TI.',
+    grupo: 'Producción y seguridad operativa',
+    nota:
+      'Decisiones que no puede tomar quien programa ni quien ejecuta: las toma quien ' +
+      'conoce el proceso y quien responde por la gente que entra a la línea.',
     permisos: [
+      {
+        code: 'zona.intervencion',
+        nombre: 'Firmar cómo se interviene una zona',
+        explica: 'Autorizar que en esa zona se trabaje con el tren produciendo, o exigir parada.',
+        cuidado:
+          'NO es un permiso administrativo: es una autorización de seguridad. Quien lo firma ' +
+          'responde de que ahí se puede trabajar sin parar la línea. Sólo el Jefe de ' +
+          'Mantenimiento y el Supervisor Operativo de Tercería.',
+      },
       {
         code: 'zona.criticidad',
         nombre: 'Declarar zonas vitales',
@@ -132,8 +143,27 @@ export const CODIGOS_VALIDOS: ReadonlySet<string> = new Set(
  * combinación incoherente: "sólo mira" + un permiso que modifica.
  * No lo prohíbe —el ingeniero manda—, pero la pantalla lo avisa.
  */
+/* OJO CON CÓMO SE DECIDE QUÉ «MODIFICA».
+   La primera versión miraba el GRUPO del catálogo: todo lo que no estuviera
+   en «Mirar» contaba como modificación. Funcionaba por casualidad, porque los
+   grupos son una decisión de PRESENTACIÓN —cómo se ordenan las casillas en la
+   pantalla— y no una decisión de semántica.
+
+   Se rompió en cuanto `audit.read` se colocó en su propio grupo: leer la
+   traza de auditoría pasó a contar como escritura, y un rol de auditoría de
+   sólo lectura dejaba de considerarse de sólo lectura.
+
+   Ahora la regla es semántica y no depende de dónde esté pintado: un permiso
+   terminado en `.read` no modifica nada, y `wo.report` sólo descarga un PDF.
+   Si algún día alguien mueve una casilla de sitio en la pantalla, esto no se
+   entera — que es justo lo que se quiere. */
+const NO_MODIFICAN_NUNCA = (code: string) =>
+  code.endsWith('.read') || code === 'wo.report';
+
 const MODIFICAN = new Set(
-  CATALOGO_PERMISOS.filter((g) => g.grupo !== 'Mirar').flatMap((g) => g.permisos.map((p) => p.code)),
+  CATALOGO_PERMISOS
+    .flatMap((g) => g.permisos.map((p) => p.code))
+    .filter((c) => !NO_MODIFICAN_NUNCA(c)),
 );
 
 export function soloMira(codigos: string[]): boolean {
@@ -211,14 +241,14 @@ export const PLANTILLAS_DE_ROL: {
       'Sostiene la infraestructura: direccionamiento, enlaces, monitoreo y las ' +
       'credenciales de los equipos. No cierra órdenes de mantenimiento.',
     advertencia:
-      'Lleva credential.read y credential.manage: es acceso directo a las cámaras. ' +
-      'Poca gente, y con nombre y apellido.',
+      'NO trae las credenciales de los equipos. Ese permiso es acceso directo al vídeo ' +
+      'de las cámaras y NO se reparte con una plantilla: se concede a mano, persona por ' +
+      'persona, después de crear el rol. Una plantilla se pulsa sin leer; eso no.',
     permisos: [
       'dashboard.read', 'troubleshooting.read', 'asset.read', 'asset.create',
       'asset.update', 'location.read', 'location.manage',
       'incident.read', 'incident.create', 'incident.update',
       'wo.read', 'wo.update', 'wo.report',
-      'credential.read', 'credential.manage',
       'monitor.read', 'monitor.manage', 'notify.read',
       'document.read', 'document.manage', 'inventory.read',
       'access.read', 'access.request',
@@ -227,12 +257,14 @@ export const PLANTILLAS_DE_ROL: {
   {
     nombre: 'Técnico de red',
     paraQuien: 'Quien sube al poste y configura el equipo.',
-    descripcion: 'Detalla y ejecuta en campo las órdenes que le asignan. Ve datos de red.',
+    descripcion:
+      'Detalla y ejecuta en campo las órdenes que le asignan. Las credenciales de los ' +
+      'equipos se le dan a mano si de verdad las necesita, no de serie.',
     permisos: [
       'dashboard.read', 'asset.read', 'asset.update', 'location.read',
       'incident.read', 'incident.create', 'incident.update',
       'wo.read', 'wo.report', 'wo.update',
-      'credential.read', 'monitor.read',
+      'monitor.read',
       'inventory.read', 'inventory.check',
       'access.read', 'access.request', 'document.read',
     ],
@@ -286,6 +318,23 @@ export const PLANTILLAS_DE_ROL: {
     permisos: [
       'audit.read', 'dashboard.read', 'asset.read', 'location.read',
       'incident.read', 'wo.read', 'wo.report', 'inventory.read', 'access.read',
+    ],
+  },
+  {
+    nombre: 'Supervisor Operativo de Tercería',
+    paraQuien: 'Quien responde por la cuadrilla contratada, que cubre los tres trenes.',
+    descripcion:
+      'Mueve el trabajo de su gente y FIRMA en qué zonas se puede intervenir con el tren ' +
+      'en marcha. No cierra órdenes: el cierre sigue siendo del Jefe de Mantenimiento.',
+    advertencia:
+      'Lleva zona.intervencion, que autoriza a acercarse a la línea con el tren produciendo. ' +
+      'Es la única persona fuera de Aceros que debería tenerlo, y responde por esa firma.',
+    permisos: [
+      'dashboard.read', 'asset.read', 'location.read',
+      'incident.read', 'incident.create',
+      'wo.read', 'wo.update', 'wo.report',
+      'access.read', 'access.request', 'document.read',
+      'zona.intervencion',
     ],
   },
   {

@@ -62,6 +62,8 @@ model User {
   /// Zonas cuya criticidad productiva declaró esta persona (bloque 26).
   /// Prisma EXIGE el lado inverso aunque sólo Location guarde la clave.
   zonasDeclaradas Location[]      @relation("ZonaDeclaradaPor")
+  /// Zonas en las que esta persona firmó cómo se interviene (bloque 28).
+  zonasIntervencion Location[]    @relation("ZonaIntervencionFirmada")
   woAccompanied   WorkOrder[]     @relation("WoCompanion")
   woProgress      WorkOrderProgress[] @relation("WoProgressBy")
   sesiones        Sesion[]
@@ -126,6 +128,16 @@ enum LocationType {
 /// No es lo mismo una cámara sobre el horno recalentador (1,100 °C) que una
 /// en el púlpito climatizado: el intervalo de mantenimiento preventivo se
 /// deriva de aquí y no de una casilla "crítico sí/no" marcada a criterio.
+/// ¿Se puede intervenir con el tren produciendo? (bloque 28)
+/// El sistema la PROPONE desde el ambiente; sólo vale si alguien la FIRMA.
+enum Intervencion {
+  EN_MARCHA              // púlpito, cabina: se trabaja con el tren vivo
+  CON_PERMISO_ELECTRICO  // sala eléctrica / MCC: bloqueo eléctrico
+  CON_PERMISO_ALTURA     // hay que subir: PETAR y personal acreditado
+  EXIGE_PARADA           // barra caliente, vapor, rodillos
+  SIN_CLASIFICAR         // sin ambiente declarado: se trata como parada
+}
+
 enum Environment {
   CALOR_RADIANTE    // horno recalentador — radiación directa, degrada sellos y óptica
   VAPOR_AGUA        // trenes — refrigeración de rodillos, condensación interna
@@ -220,6 +232,20 @@ model Location {
   /// Hasta cuándo vale. La planta cambia; una criticidad de 2026 aplicada en
   /// 2029 es una mentira con fecha.
   revisarAntesDe       DateTime?
+
+  // ---- INTERVENIBILIDAD (bloque 28) — la firman Tercería y Mantenimiento ----
+  /// Lo que alguien FIRMÓ. Vacío = el sistema exige parada, diga lo que diga
+  /// la propuesta. La propuesta sugiere; sólo la firma autoriza.
+  intervencionFirmada      Intervencion?
+  /// Por qué se puede trabajar así. La base lo EXIGE salvo para las opciones
+  /// restrictivas: una autorización sin motivo no es una autorización.
+  intervencionMotivo       String?
+  intervencionFirmadaPorId String?
+  intervencionFirmadaPor   User?    @relation("ZonaIntervencionFirmada", fields: [intervencionFirmadaPorId], references: [id], onDelete: SetNull)
+  intervencionFirmadaEn    DateTime?
+  /// Si llegar al equipo exige manlift o escalera. Sube la exigencia sin
+  /// importar lo fresca que esté la zona: subir es subir.
+  requiereAltura           Boolean  @default(false)
 
   // ---- Campos SAP-ready ----
   sapLocationCode  String?

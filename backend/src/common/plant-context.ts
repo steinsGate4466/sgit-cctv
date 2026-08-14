@@ -18,6 +18,9 @@
 //  Rendimiento: 2 consultas por lote (ubicaciones + etapas). No hay N+1.
 // =============================================================================
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  Intervencion, proponer, resolver as resolverIntervencion,
+} from './intervenibilidad';
 
 export type Criticidad = 'BAJA' | 'MEDIA' | 'ALTA' | 'CRITICA';
 
@@ -86,6 +89,17 @@ export interface ContextoDePlanta {
   /// true si la declaración caducó. No se ignora —seguiría siendo temerario—
   /// pero se marca para que alguien la confirme.
   declaracionVencida: boolean;
+  // ---- ¿Se puede intervenir con el tren en marcha? (bloque 28) ----
+  /// Lo que PROPONE el sistema a partir del ambiente. No autoriza.
+  intervencionPropuesta: Intervencion;
+  /// Lo que se APLICA. Sin firma es siempre EXIGE_PARADA.
+  intervencionAplica: Intervencion;
+  intervencionFirmada: boolean;
+  /// La firma permite más de lo que hoy tocaría: la planta cambió.
+  intervencionDesactualizada: boolean;
+  intervencionMotivo: string;
+  /// ¿Esta orden tiene que esperar a una ventana de parada?
+  esperaVentanaDeParada: boolean;
   /**
    * true cuando el activo todavía no tiene etapa asignada. La migración NO
    * inventa la etapa de las cámaras porque ningún dato existente permite
@@ -135,6 +149,9 @@ export interface UbicacionDelArbol {
   impactoSiSeCae?: string | null;
   queSeVigila?: string | null;
   revisarAntesDe?: Date | null;
+  intervencionFirmada?: string | null;
+  intervencionMotivo?: string | null;
+  requiereAltura?: boolean | null;
 }
 
 /** Una etapa del catálogo de proceso. */
@@ -175,6 +192,12 @@ export function calcularContexto(
     impactoSiSeCae: null,
     queSeVigila: null,
     declaracionVencida: false,
+    intervencionPropuesta: 'SIN_CLASIFICAR',
+    intervencionAplica: 'EXIGE_PARADA',
+    intervencionFirmada: false,
+    intervencionDesactualizada: false,
+    intervencionMotivo: '',
+    esperaVentanaDeParada: true,
     requiereAsignarEtapa: true,
   };
 
@@ -182,6 +205,9 @@ export function calcularContexto(
   // parentId mal grabado colgaría el proceso entero.
   let actual = activo.locationId ? porId.get(activo.locationId) : undefined;
   let ambienteLocal: Ambiente | null = null;
+  let firmaIntervencion: Intervencion | null = null;
+  let motivoFirma: string | null = null;
+  let alturaHeredada = false;
   let saltos = 0;
 
   while (actual && saltos < 20) {
@@ -217,6 +243,16 @@ export function calcularContexto(
       ctx.queSeVigila = actual.queSeVigila;
     }
 
+    /* CÓMO SE INTERVIENE. Igual que todo lo demás, gana la zona MÁS CERCANA
+       que lo tenga firmado: el foso puede tener su propia firma aunque el
+       tren entero tenga otra. Y la altura se hereda del primer sitio que la
+       declare, porque si hay que subir se sube. */
+    if (!firmaIntervencion && actual.intervencionFirmada) {
+      firmaIntervencion = actual.intervencionFirmada as Intervencion;
+      motivoFirma = actual.intervencionMotivo ?? null;
+    }
+    if (!alturaHeredada && actual.requiereAltura) alturaHeredada = true;
+
     if (actual.type === 'ETAPA' && !ctx.etapaCode && actual.stageId) {
       const etapa = etapaPorId.get(actual.stageId);
       if (etapa) {
@@ -246,6 +282,19 @@ export function calcularContexto(
 
   ctx.ambiente = ambienteLocal;
   ctx.intervaloDias = intervaloParaAmbiente(ambienteLocal);
+
+  /* La propuesta sale del ambiente ya resuelto; lo que se APLICA sale de
+     cruzarla con la firma. Sin firma, `resolver` devuelve EXIGE_PARADA
+     aunque la propuesta fuese EN_MARCHA. Esa es la red de seguridad y está
+     probada en `test/intervenibilidad.spec.ts`. */
+  ctx.intervencionPropuesta = proponer(ambienteLocal, alturaHeredada);
+  const iv = resolverIntervencion(ctx.intervencionPropuesta, firmaIntervencion);
+  ctx.intervencionAplica = iv.aplica;
+  ctx.intervencionFirmada = iv.estaFirmada;
+  ctx.intervencionDesactualizada = iv.firmaDesactualizada;
+  ctx.intervencionMotivo = motivoFirma && iv.estaFirmada ? motivoFirma : iv.motivo;
+  ctx.esperaVentanaDeParada = iv.aplica === 'EXIGE_PARADA' || iv.aplica === 'SIN_CLASIFICAR';
+
   return ctx;
 }
 
@@ -274,6 +323,8 @@ export async function resolverContextoDePlanta(
       // Bloque 26 — lo que declaró Producción sobre la zona.
       criticidadProduccion: true, porQueEsVital: true,
       impactoSiSeCae: true, queSeVigila: true, revisarAntesDe: true,
+      // Bloque 28 — cómo se interviene la zona.
+      intervencionFirmada: true, intervencionMotivo: true, requiereAltura: true,
     },
   });
   // `as const` es necesario: sin él TypeScript infiere un array en lugar de
