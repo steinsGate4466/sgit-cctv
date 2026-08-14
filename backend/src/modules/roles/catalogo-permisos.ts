@@ -57,6 +57,14 @@ export const CATALOGO_PERMISOS: GrupoPermisos[] = [
       'conoce el proceso y quien responde por la gente que entra a la línea.',
     permisos: [
       {
+        code: 'procedimiento.manage',
+        nombre: 'Escribir los procedimientos',
+        explica: 'Definir cómo se restaura cada modelo de equipo, y aceptar o rechazar las mejoras que propone el campo.',
+        cuidado:
+          'Lo que se escriba aquí es lo que va a seguir el próximo técnico, posiblemente ' +
+          'de noche y solo. Un paso mal puesto no se nota hasta que alguien lo sigue.',
+      },
+      {
         code: 'zona.intervencion',
         nombre: 'Firmar cómo se interviene una zona',
         explica: 'Autorizar que en esa zona se trabaje con el tren produciendo, o exigir parada.',
@@ -250,6 +258,7 @@ export const PLANTILLAS_DE_ROL: {
       'incident.read', 'incident.create', 'incident.update',
       'wo.read', 'wo.update', 'wo.report',
       'monitor.read', 'monitor.manage', 'notify.read',
+      'procedimiento.manage',
       'document.read', 'document.manage', 'inventory.read',
       'access.read', 'access.request',
     ],

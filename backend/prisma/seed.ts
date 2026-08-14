@@ -54,6 +54,9 @@ const PERMISSIONS = [
      Es una autorización de SEGURIDAD, no un permiso administrativo: lo tienen
      sólo el Jefe de Mantenimiento y el Supervisor Operativo de Tercería. */
   'zona.intervencion',
+  /* Bloque 29. Escribir y aprobar los procedimientos de restauración: lo que
+     va a seguir el próximo técnico, posiblemente de noche y solo. */
+  'procedimiento.manage',
   'monitor.read', 'monitor.manage',
   'notify.read', 'notify.manage',
 ];
@@ -78,6 +81,7 @@ const ROLES: Record<string, string[]> = {
     'access.read', 'access.request',
     // Los concedía la migración a quien ya tenía asset.read / wo.read.
     'monitor.read', 'wo.report',
+    'procedimiento.manage',
   ],
   // Técnico: rol de campo. Registra y llena formularios (incidencias y OT), actualiza su
   // trabajo; NO borra, NO aprueba, NO cierra, NO gestiona usuarios ni credenciales.
@@ -132,6 +136,9 @@ const ROLES: Record<string, string[]> = {
     'wo.read', 'wo.update', 'wo.report',
     'access.read', 'access.request', 'document.read',
     'zona.intervencion',
+  /* Bloque 29. Escribir y aprobar los procedimientos de restauración: lo que
+     va a seguir el próximo técnico, posiblemente de noche y solo. */
+  'procedimiento.manage',
   ],
 };
 

@@ -114,4 +114,71 @@ if (fallos) {
   }
 }
 
+/* ---------------------------------------------------------------------------
+   TRAMPA 3 — array de literales EXTRAÍDO a constante y metido en un `in:`
+   ---------------------------------------------------------------------------
+   Esto compila:
+
+       where: { status: { in: ['ABIERTA', 'EN_PROCESO'] } }
+
+   ...y esto NO:
+
+       private readonly ABIERTAS = ['ABIERTA', 'EN_PROCESO'];
+       where: { status: { in: this.ABIERTAS } }
+
+   La diferencia es que en el primer caso el literal se tipa POR CONTEXTO
+   —TypeScript ve que Prisma espera `WorkOrderStatus[]` y comprueba cada
+   cadena—, y en el segundo la constante ya se infirió como `string[]` antes
+   de llegar al `where`. Un `string` cualquiera no es un estado válido, así
+   que Prisma lo rechaza.
+
+   Es una trampa desagradable porque el código extraído se LEE mejor, y el
+   error sólo aparece al compilar — o sea, en la máquina del usuario. Pasó en
+   el bloque 29 con `OM_ABIERTA`.
+
+   La solución es anotar el tipo:  `: WorkOrderStatus[] = [...]`
+   Y de paso se gana algo: un estado mal escrito se caza al compilar.
+--------------------------------------------------------------------------- */
+{
+  const sospechosos = [];
+  for (const archivo of archivos(path.join(__dirname, '..', 'src'))) {
+    const texto = fs.readFileSync(archivo, 'utf8');
+    const lineas = texto.split('\n');
+
+    // 1. Constantes de array de literales SIN anotación de tipo.
+    const sinAnotar = new Map();   // nombre -> linea
+    lineas.forEach((l, i) => {
+      const m = l.match(/(?:private\s+)?(?:readonly\s+)?(?:const\s+)?(\w+)\s*=\s*\[\s*'[^']+'/);
+      if (!m) return;
+      if (/:\s*[\w.]+\[\]/.test(l)) return;      // ya lleva tipo
+      if (/as\s+const/.test(l)) return;           // tupla readonly, otro caso
+      sinAnotar.set(m[1], i + 1);
+    });
+    if (!sinAnotar.size) continue;
+
+    // 2. ¿Alguna se usa dentro de un `in:` de Prisma?
+    lineas.forEach((l, i) => {
+      const m = l.match(/\bin:\s*(?:this\.)?(\w+)\b/);
+      if (!m) return;
+      const nombre = m[1];
+      if (!sinAnotar.has(nombre)) return;
+      sospechosos.push({
+        archivo: path.relative(path.join(__dirname, '..'), archivo).replace(/\\/g, '/'),
+        declarada: sinAnotar.get(nombre), usada: i + 1, nombre,
+      });
+    });
+  }
+
+  if (sospechosos.length) {
+    console.error('\n  ARRAYS DE LITERALES SIN TIPO USADOS EN UN `in:` DE PRISMA\n');
+    for (const x of sospechosos) {
+      console.error(`    ${x.archivo}:${x.declarada}   ${x.nombre} = ['...']`);
+      console.error(`      se usa en un in: en la línea ${x.usada}, y ahí Prisma lo rechaza.`);
+      console.error(`      TypeScript la infirió string[]; el enum de Prisma no acepta string.`);
+      console.error(`      Anótala:  ${x.nombre}: TuEnum[] = ['...']\n`);
+    }
+    process.exit(1);
+  }
+}
+
 console.log('Constructores verificados: ningún `new` sobre un espacio de nombres.');

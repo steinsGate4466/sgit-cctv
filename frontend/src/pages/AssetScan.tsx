@@ -5,6 +5,7 @@ import { useAuth } from '../auth/AuthContext';
 import HistorialActivo from '../components/HistorialActivo';
 import Icono from '../components/Iconos';
 import { guardarPendiente } from '../cola-offline';
+import CampoDelTurno from '../components/CampoDelTurno';
 
 /**
  * Ficha rápida del activo — destino del código QR pegado en el equipo.
@@ -115,6 +116,12 @@ export default function AssetScan() {
           ))}
         </div>
       )}
+
+      {/* Bloque 29: lo que dejó el turno anterior y cómo se restaura este
+          modelo. Va ARRIBA de la ficha técnica a propósito: el técnico está
+          de pie delante del equipo y esto es lo que necesita antes de tocar
+          nada. La marca y el número de serie pueden esperar. */}
+      <CampoDelTurno assetId={a.id} />
 
       <div className="card scan-card">
         <Row k="Tipo" v={TYPE_ES[a.type] || a.type} />

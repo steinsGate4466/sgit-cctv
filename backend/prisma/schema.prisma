@@ -64,6 +64,12 @@ model User {
   zonasDeclaradas Location[]      @relation("ZonaDeclaradaPor")
   /// Zonas en las que esta persona firmó cómo se interviene (bloque 28).
   zonasIntervencion Location[]    @relation("ZonaIntervencionFirmada")
+  // ---- Bloque 29 ----
+  procedimientosCreados ProcedimientoRestauracion[] @relation("ProcedimientoCreadoPor")
+  mejorasPropuestas     MejoraProcedimiento[]       @relation("MejoraPropuestaPor")
+  mejorasDecididas      MejoraProcedimiento[]       @relation("MejoraDecididaPor")
+  notasDeCampo          NotaDeCampo[]               @relation("NotaDeCampoAutor")
+  notasResueltas        NotaDeCampo[]               @relation("NotaResueltaPor")
   woAccompanied   WorkOrder[]     @relation("WoCompanion")
   woProgress      WorkOrderProgress[] @relation("WoProgressBy")
   sesiones        Sesion[]
@@ -366,6 +372,109 @@ enum MgmtNetwork {
 }
 
 // =====================================================================
+//  PROCEDIMIENTO DE RESTAURACIÓN Y NOTAS DE CAMPO (bloque 29)
+//  Los dos cuelgan del QR del equipo: es la única puerta que el técnico
+//  abre de verdad estando en planta.
+// =====================================================================
+
+enum EstadoMejora {
+  PROPUESTA
+  ACEPTADA
+  RECHAZADA
+}
+
+enum TipoNotaCampo {
+  DEJADO_A_MEDIAS   // quedó provisional y hay que terminarlo
+  VIGILAR           // puede volver a fallar
+  RIESGO_ACCESO     // la escalera, el poste, el paso bloqueado
+  ESPERANDO_A_OTRO  // almacén, TI, Producción, un tercero
+}
+
+/// CÓMO SE RESTAURA ESTE MODELO DE EQUIPO.
+///
+/// Va por MODELO, no por activo. Si colgara de cada cámara habría 300
+/// procedimientos vacíos y nadie llenaría ninguno; por modelo se escribe una
+/// vez y sirve para las 300. Marca y modelo vacíos = vale para todo el tipo,
+/// que es la red de abajo para que siempre haya algo que enseñar.
+model ProcedimientoRestauracion {
+  id           String    @id @default(uuid())
+  tipoActivo   AssetType
+  marca        String?
+  modelo       String?
+  titulo       String
+  pasos        String[]  @default([])
+  advertencias String?
+  /// Cuánto suele llevar. Sirve para saber si entra en la ventana y para
+  /// comparar con el tiempo real: así se ve si el procedimiento mejora de
+  /// verdad o sólo sobre el papel.
+  minutosEstimados Int?
+  activo       Boolean   @default(true)
+  creadoPorId  String?
+  creadoPor    User?     @relation("ProcedimientoCreadoPor", fields: [creadoPorId], references: [id], onDelete: SetNull)
+  mejoras      MejoraProcedimiento[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([tipoActivo, marca, modelo])
+  @@map("procedimientos_restauracion")
+}
+
+/// Una mejora propuesta DESDE una intervención real.
+/// El que acaba de arreglarlo sabe el atajo; esto es donde lo deja escrito.
+/// La acepta o la rechaza el Jefe: si entrara sola, el procedimiento se
+/// llenaría de manías personales.
+model MejoraProcedimiento {
+  id              String  @id @default(uuid())
+  procedimientoId String
+  procedimiento   ProcedimientoRestauracion @relation(fields: [procedimientoId], references: [id], onDelete: Cascade)
+  /// De qué orden salió. Una mejora sin trabajo detrás es una opinión.
+  workOrderId     String?
+  workOrder       WorkOrder? @relation("MejoraDesdeOm", fields: [workOrderId], references: [id], onDelete: SetNull)
+  texto           String
+  minutosReales   Int?
+  estado          EstadoMejora @default(PROPUESTA)
+  propuestaPorId  String?
+  propuestaPor    User?   @relation("MejoraPropuestaPor", fields: [propuestaPorId], references: [id], onDelete: SetNull)
+  decididaPorId   String?
+  decididaPor     User?   @relation("MejoraDecididaPor", fields: [decididaPorId], references: [id], onDelete: SetNull)
+  decididaEn      DateTime?
+  motivoDecision  String?
+  createdAt       DateTime @default(now())
+
+  @@index([procedimientoId, estado])
+  @@map("mejoras_procedimiento")
+}
+
+/// LA ENTREGA DE TURNO, PEGADA AL EQUIPO.
+///
+/// No es una bitácora de turno: eso se abandona en tres semanas porque hay
+/// que acordarse de llenarla al final, cansado. Esto se escribe trabajando y
+/// aparece solo cuando el siguiente escanea el QR de ese equipo.
+model NotaDeCampo {
+  id           String  @id @default(uuid())
+  assetId      String
+  asset        Asset   @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  tipo         TipoNotaCampo
+  texto        String
+  /// La nota MUERE SOLA. Sin esto, en seis meses el QR devuelve veinte avisos
+  /// viejos y el técnico deja de leerlos — que es peor que no tenerlos,
+  /// porque el que sí importa queda enterrado.
+  vigenteHasta DateTime?
+  resuelta     Boolean @default(false)
+  resueltaPorId String?
+  resueltaPor  User?   @relation("NotaResueltaPor", fields: [resueltaPorId], references: [id], onDelete: SetNull)
+  resueltaEn   DateTime?
+  workOrderId  String?
+  workOrder    WorkOrder? @relation("NotaDesdeOm", fields: [workOrderId], references: [id], onDelete: SetNull)
+  autorId      String?
+  autor        User?   @relation("NotaDeCampoAutor", fields: [autorId], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+
+  @@index([assetId, resuelta])
+  @@map("notas_de_campo")
+}
+
+// =====================================================================
 //  ACTIVOS TECNOLÓGICOS (Módulo 2) — tabla base + herencia por tipo
 // =====================================================================
 
@@ -516,6 +625,10 @@ model Asset {
   tableroElectrico TableroElectrico[]
   /// Reservas de IP declaradas para este equipo.
   reservasIp    ReservaIp[]
+  /// Avisos pegados a ESTE equipo para el que llegue después (bloque 29).
+  /// Es la entrega de turno: aparece sola al escanear el QR.
+  notasDeCampo NotaDeCampo[]
+
 
   @@index([type])
   @@index([status])
@@ -1055,6 +1168,10 @@ model WorkOrder {
   /// Instalaciones que se ejecutan con esta orden. Lado inverso obligatorio:
   /// Prisma exige el campo en AMBOS modelos aunque sólo uno lleve la clave.
   instalaciones Instalacion[]
+  // ---- Bloque 29: lo que salió de esta orden ----
+  mejorasPropuestas MejoraProcedimiento[] @relation("MejoraDesdeOm")
+  notasDeCampo      NotaDeCampo[]         @relation("NotaDesdeOm")
+
 
   @@index([assetId])
   @@index([locationId])

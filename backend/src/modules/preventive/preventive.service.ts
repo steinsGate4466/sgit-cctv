@@ -1,10 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { WorkOrderStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { UpsertPreventivePlanDto } from './dto/upsert-plan.dto';
 
-// OM preventivas que cuentan como "ya en curso" (no se duplica la generación).
-const OPEN_WO = ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'];
+/* OM preventivas que cuentan como "ya en curso" (no se duplica la generación).
+
+   VA ANOTADA CON EL ENUM, y antes no lo estaba: se usaba con `as any` para
+   callar al compilador. Eso funcionaba y a la vez apagaba la única alarma que
+   había — con `as any`, escribir 'EN_PROSESO' habría compilado igual y la
+   comprobación de duplicados no habría encontrado nunca esa orden, generando
+   preventivas repetidas en silencio. Lo encontró `verificar-constructores`. */
+const OPEN_WO: WorkOrderStatus[] = ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'];
 
 export type PlanStatus = 'AL_DIA' | 'PROXIMO' | 'VENCIDO' | 'SIN_PROGRAMAR' | 'INACTIVO';
 
@@ -170,7 +177,7 @@ export class PreventiveService {
     for (const plan of due) {
       // Regla 3: no duplicar si ya hay una preventiva en curso para ese activo.
       const openWo = await this.prisma.workOrder.findFirst({
-        where: { assetId: plan.assetId, type: 'PREVENTIVO', status: { in: OPEN_WO as any } },
+        where: { assetId: plan.assetId, type: 'PREVENTIVO', status: { in: OPEN_WO } },
         select: { id: true },
       });
       if (openWo) {

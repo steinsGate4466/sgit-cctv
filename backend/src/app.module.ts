@@ -45,9 +45,11 @@ import { CabinetsModule } from './modules/cabinets/cabinets.module';
 import { AccessModule } from './modules/access/access.module';
 import { PredictiveModule } from './modules/predictive/predictive.module';
 import { ZonasModule } from './modules/zonas/zonas.module';
+import { ProcedimientosModule } from './modules/procedimientos/procedimientos.module';
 
 @Module({
   imports: [
+    ProcedimientosModule,
     ZonasModule,
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
