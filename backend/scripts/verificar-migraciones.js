@@ -241,12 +241,49 @@ for (const [tabla, cols] of S.tablas) {
       }
     }
   }
-  // Índices que crean las migraciones y el esquema no conoce. Sólo se avisa:
-  // pueden ser índices puestos a mano a propósito... pero la CI los va a
-  // marcar igual, así que conviene verlos.
+  /* ---- EL SENTIDO CONTRARIO: índice en el SQL que el esquema no declara ----
+     Este es el que rompió la CI #89. La migración del bloque 26 creaba
+     `locations_criticidadProduccion_idx` y el `@@index` no estaba en el
+     esquema. `prisma migrate diff` lo ve como un índice de más y lo marca
+     como desfase — con razón: si alguien regenera la migración desde el
+     esquema, ese índice desaparece sin que nadie lo decida.
+
+     Se recogen también los `@unique` de CAMPO (no sólo los `@@unique` de
+     modelo): generan `<tabla>_<campo>_key` y sin contarlos saldrían decenas
+     de falsos positivos. */
+  const declarados = new Set();
+  {
+    const txt = fs.readFileSync(SCHEMA, 'utf8');
+    for (const m of txt.matchAll(/model\s+(\w+)\s*\{([\s\S]*?)\n\}/g)) {
+      const cuerpo = m[2];
+      const mapa = /@@map\("([^"]+)"\)/.exec(cuerpo);
+      const tabla = mapa ? mapa[1] : m[1];
+      for (const idx of cuerpo.matchAll(/@@(index|unique)\(\[([^\]]+)\]\)/g)) {
+        const cols = idx[2].split(',').map((c) => c.trim());
+        declarados.add(`${tabla}_${cols.join('_')}_${idx[1] === 'unique' ? 'key' : 'idx'}`);
+      }
+      // `campo Tipo @unique` y `campo Tipo @unique @map("otro_nombre")`
+      for (const u of cuerpo.matchAll(/^\s*(\w+)\s+[\w?[\]]+[^\n]*@unique[^\n]*$/gm)) {
+        const linea = u[0];
+        const col = /@map\("([^"]+)"\)/.exec(linea)?.[1] || u[1];
+        declarados.add(`${tabla}_${col}_key`);
+      }
+    }
+  }
+
   for (const [nombre, i] of M.indices) {
     if (i.metodo !== 'btree') {
       sobran.push(`índice ${nombre} (${i.metodo}: Prisma no sabe expresarlo)`);
+      continue;
+    }
+    // Sólo se exige para tablas cuyo CREATE TABLE se ha leído: si falta el
+    // baseline, los índices antiguos no son un fallo, es que no está.
+    if (!declarados.has(nombre) && M.tablas.has(i.tabla)) {
+      problemasIndice.push({
+        tabla: i.tabla,
+        texto: `Índice "${nombre}" lo CREA una migración y el esquema no lo declara. ` +
+          `Añade @@index a ${i.tabla} o la CI lo marcará como desfase (pasó en la #89).`,
+      });
     }
   }
 }

@@ -122,6 +122,16 @@ jobs:
         working-directory: backend
         run: npm run verificar:constructores
 
+      # El control de acceso vive en cinco sitios que nadie obliga a coincidir:
+      # la semilla, los @RequirePermissions, el catalogo de la pantalla de
+      # Roles, los can() del frontend y los `role === 'Nombre'` sueltos.
+      # Cuando uno se desincroniza NO revienta nada: simplemente deja de
+      # proteger, o esconde una pantalla para siempre. Encontro 11 desfases
+      # el 13/08, entre ellos que la semilla revocaba permisos al ejecutarse.
+      - name: Roles y permisos sin desfase
+        working-directory: backend
+        run: npm run verificar:roles
+
       - name: Pruebas unitarias
         working-directory: backend
         run: npm test -- --ci --runInBand

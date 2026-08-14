@@ -33,6 +33,24 @@ export interface GrupoPermisos {
 
 export const CATALOGO_PERMISOS: GrupoPermisos[] = [
   {
+    grupo: 'Configuración del sistema',
+    nota: 'Cambia cómo se comporta el sistema para todos, no sólo lo que uno ve.',
+    permisos: [
+      {
+        code: 'monitor.manage',
+        nombre: 'Configurar el monitoreo',
+        explica: 'Dar de alta las sondas y decidir qué se comprueba y cada cuánto.',
+        cuidado: 'Una sonda mal puesta llena la bandeja de falsas alarmas y la gente deja de mirarla.',
+      },
+      {
+        code: 'notify.manage',
+        nombre: 'Configurar los avisos',
+        explica: 'Decidir qué se notifica por Telegram y a quién.',
+        cuidado: 'Avisar de más consigue que nadie lea ninguno.',
+      },
+    ],
+  },
+  {
     grupo: 'Producción',
     nota: 'Lo que sólo puede decidir quien conoce el proceso, no Mantenimiento ni TI.',
     permisos: [
@@ -59,6 +77,8 @@ export const CATALOGO_PERMISOS: GrupoPermisos[] = [
       { code: 'access.read', nombre: 'Ver permisos de altura', explica: 'Solicitudes de trabajo en altura y su estado.' },
       { code: 'document.read', nombre: 'Ver documentos', explica: 'Manuales y fichas adjuntas a los equipos.' },
       { code: 'troubleshooting.read', nombre: 'Ver diagnóstico', explica: 'Tiempos de reparación y causas más repetidas.' },
+      { code: 'monitor.read', nombre: 'Ver el monitoreo', explica: 'El estado OBSERVADO de la red: qué responde y qué no, aparte de lo que dice la ficha.' },
+      { code: 'notify.read', nombre: 'Ver la bandeja de avisos', explica: 'Qué avisos se enviaron por Telegram y a quién. Vincular el propio teléfono NO necesita permiso.' },
     ],
   },
   {

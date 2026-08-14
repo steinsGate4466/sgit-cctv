@@ -240,6 +240,11 @@ model Location {
   @@index([parentId])
   @@index([path])
   @@index([stageId])
+  /// Bloque 26. Este índice lo CREA la migración, así que tiene que estar
+  /// declarado aquí también: si sólo vive en el SQL, `prisma migrate diff`
+  /// ve un índice que el esquema no pide y lo marca como desfase. Fue el
+  /// fallo del CI #89.
+  @@index([criticidadProduccion])
   @@map("locations")
 }
 

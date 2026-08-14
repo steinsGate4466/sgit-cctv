@@ -167,10 +167,18 @@ export class MaintenanceController {
     return this.wo.listEvidence(id);
   }
 
-  // Informe PDF de la OM bajo demanda (con las fotos incrustadas).
+  /* Informe PDF de la OM bajo demanda (con las fotos incrustadas).
+
+     Exige `wo.report`, NO `wo.read`. El permiso existía, estaba descrito en la
+     pantalla de Roles y concedido a todo el mundo… y no lo pedía nadie: se
+     podía desmarcar en un rol y la persona seguía descargando los PDF con las
+     firmas y las fotos dentro. Lo encontró `verificar-roles.js`.
+
+     Se puede cambiar sin dejar a nadie fuera porque la migración concedió
+     `wo.report` exactamente a quien ya tenía `wo.read`. */
   @AmbitoDe('workOrder')
   @Get(':id/report')
-  @RequirePermissions('wo.read')
+  @RequirePermissions('wo.report')
   async report(@Param('id') id: string, @Res() res: Response) {
     const { buffer, filename } = await this.wo.buildReport(id);
     res.setHeader('Content-Type', 'application/pdf');

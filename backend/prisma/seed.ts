@@ -27,6 +27,31 @@ const PERMISSIONS = [
   // Bloque 26 — PRODUCCIÓN declara qué zonas son vitales. TI y Mantenimiento
   // lo LEEN con 'location.read'; declararlo es de quien conoce el proceso.
   'zona.criticidad',
+
+  /* ==========================================================================
+     PERMISOS QUE NACIERON EN UNA MIGRACIÓN Y NUNCA VOLVIERON AQUÍ
+     --------------------------------------------------------------------------
+     Los seis de abajo se crearon con `INSERT INTO permissions` dentro de las
+     migraciones de los bloques 12.x, y esta lista no se actualizó. La base
+     los tenía; esta lista no.
+
+     No era inofensivo. Unas líneas más abajo, el seed hace:
+
+         deleteMany({ permissionId: { notIn: allowed } })
+
+     …para poder RETIRAR un permiso a un rol sin recrear la base. Con la lista
+     incompleta, eso significa que CADA VEZ que alguien ejecutara la semilla,
+     el Jefe de Mantenimiento perdía en silencio el acceso a Roles, Monitoreo,
+     Avisos y al informe PDF de las órdenes. El sistema seguiría arrancando,
+     los menús simplemente desaparecerían, y nadie sabría por qué.
+
+     Lo cazó `verificar-roles.js`. La lección es la de siempre en este
+     proyecto: dos sitios que dicen lo mismo y nadie los obliga a coincidir.
+     ========================================================================== */
+  'role.manage',
+  'wo.report',
+  'monitor.read', 'monitor.manage',
+  'notify.read', 'notify.manage',
 ];
 
 // ---- Roles y sus permisos ----
@@ -47,6 +72,8 @@ const ROLES: Record<string, string[]> = {
     'inventory.read', 'inventory.manage', 'inventory.check',
     // Supervisa las solicitudes de acceso, pero NO las aprueba (eso es del Jefe).
     'access.read', 'access.request',
+    // Los concedía la migración a quien ya tenía asset.read / wo.read.
+    'monitor.read', 'wo.report',
   ],
   // Técnico: rol de campo. Registra y llena formularios (incidencias y OT), actualiza su
   // trabajo; NO borra, NO aprueba, NO cierra, NO gestiona usuarios ni credenciales.
@@ -58,6 +85,7 @@ const ROLES: Record<string, string[]> = {
     'inventory.read', 'inventory.check',
     // Levanta la solicitud de acceso especial desde campo (no la aprueba).
     'access.read', 'access.request',
+    'monitor.read', 'wo.report',
   ],
   // Técnico de Red: como el Técnico, pero PUEDE ver datos de red y credenciales (accesos).
   'Técnico de Red': [
@@ -68,12 +96,14 @@ const ROLES: Record<string, string[]> = {
     'credential.read', 'credential.manage',
     'inventory.read', 'inventory.check',
     'access.read', 'access.request',
+    'monitor.read', 'wo.report',
   ],
   // Consultor Externo: SOLO lectura del avance del proceso.
   'Consultor Externo': [
     'dashboard.read', 'incident.read', 'wo.read',
     'troubleshooting.read', 'asset.read', 'location.read',
     'inventory.read', 'access.read',
+    'monitor.read', 'wo.report',
   ],
   /* JEFE DE PRODUCCIÓN (bloque 26). Antes compartía rol con el consultor
      externo, que es sólo mirar. Pero Producción no viene a mirar: viene a
@@ -84,6 +114,7 @@ const ROLES: Record<string, string[]> = {
     'troubleshooting.read', 'asset.read', 'location.read',
     'inventory.read', 'access.read',
     'zona.criticidad',
+    'monitor.read', 'wo.report',
   ],
 };
 
