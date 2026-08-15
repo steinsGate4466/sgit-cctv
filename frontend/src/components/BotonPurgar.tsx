@@ -18,7 +18,7 @@ import { useAuth } from '../auth/AuthContext';
  *
  *      <BotonPurgar recurso="incidencia" id={x.id} onBorrado={recargar} />
  *
- *  El botón NO SE PINTA si el usuario no es Jefe de Mantenimiento. Esconderlo
+ *  El botón NO SE PINTA sin el permiso «Borrar definitivamente». Esconderlo
  *  no protege nada —el servidor lo vuelve a comprobar— pero enseñar un botón
  *  que va a fallar es peor que no enseñarlo.
  *
@@ -43,8 +43,11 @@ export default function BotonPurgar({
   /** true = sólo el icono, para las filas de tabla. */
   compacto?: boolean;
 }) {
-  const { user } = useAuth();
-  const esJefe = user?.role === 'Jefe de Mantenimiento';
+  /* Bloque 34. Antes: `user.role === 'Jefe de Mantenimiento'`. Atar un botón
+     irreversible al NOMBRE del rol significaba que renombrarlo desde la
+     pantalla de Roles lo hacía desaparecer sin ningún aviso. */
+  const { can } = useAuth();
+  const puedePurgar = can('purga.definitiva');
 
   const [abierto, setAbierto] = useState(false);
   const [previa, setPrevia] = useState<any>(null);
@@ -54,7 +57,7 @@ export default function BotonPurgar({
   const [borrando, setBorrando] = useState(false);
   const [error, setError] = useState('');
 
-  if (!esJefe) return null;
+  if (!puedePurgar) return null;
 
   async function abrir() {
     setAbierto(true); setCargando(true); setError('');
@@ -97,7 +100,7 @@ export default function BotonPurgar({
           vistazo en una fila llena de botones. */}
       <button
         className={compacto ? 'btn-mini btn-peligro' : 'btn-peligro'}
-        title="Eliminar definitivamente. No se recupera. Sólo Jefe de Mantenimiento."
+        title="Eliminar definitivamente. No se recupera. Exige el permiso de borrado definitivo."
         onClick={(e) => { e.stopPropagation(); abrir(); }}
       >
         <Icono n="papelera" size={compacto ? 14 : 16} />

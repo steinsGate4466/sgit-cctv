@@ -40,16 +40,33 @@ import { AuditService } from '../audit/audit.service';
  *  distingue las dos cosas sin preguntarle a nadie.
  *
  * ===========================================================================
- *  POR QUÉ SE EXIGE EL ROL Y NO SÓLO EL PERMISO
+ *  POR QUÉ SE PIDEN DOS LLAVES Y NO UNA
  * ===========================================================================
  *
- *  `asset.delete` es un permiso, y un permiso se puede otorgar por error al
- *  crear un rol. Borrar definitivamente es irreversible, así que además se
- *  comprueba que quien lo pide ES **Jefe de Mantenimiento**. Dos llaves para
- *  la puerta que no tiene vuelta.
+ *  `asset.delete` es un permiso amplio, y un permiso amplio se otorga por
+ *  error al armar un rol. Borrar definitivamente es irreversible, así que
+ *  además se exige `purga.definitiva`: una llave estrecha que hay que dar a
+ *  propósito. Dos llaves para la puerta que no tiene vuelta.
+ *
+ *  ---------------------------------------------------------------------------
+ *  BLOQUE 34 — POR QUÉ LA SEGUNDA LLAVE YA NO ES EL NOMBRE DEL ROL
+ *  ---------------------------------------------------------------------------
+ *  Hasta aquí la segunda llave era `u.role.name !== 'Jefe de Mantenimiento'`,
+ *  con ese texto repetido a mano en cinco archivos entre backend y frontend.
+ *
+ *  Eso ataba una regla de seguridad a una CADENA DE TEXTO EDITABLE desde la
+ *  propia pantalla de Roles. Renombrar el rol —a «Jefe de Mantto.», por
+ *  ejemplo— no habría dado ningún error: el botón desaparece de la pantalla y
+ *  el servidor empieza a rechazar a todo el mundo, incluida la persona que
+ *  acaba de renombrarlo. Y al revés: crear un rol nuevo llamado exactamente
+ *  «Jefe de Mantenimiento» heredaba la llave sin que nadie se la diera.
+ *
+ *  Un permiso es un registro de la base con su propia identidad. Se ve en la
+ *  pantalla de Roles, se concede a propósito, y renombrar el rol no lo toca.
  */
 
-const ROL_QUE_PUEDE_PURGAR = 'Jefe de Mantenimiento';
+/** La segunda llave. Vive en el catálogo, no en el nombre de ningún rol. */
+const PERMISO_PURGA = 'purga.definitiva';
 
 @Injectable()
 export class PurgaService {
@@ -58,17 +75,38 @@ export class PurgaService {
     private readonly audit: AuditService,
   ) {}
 
-  /** Dos llaves: el permiso lo comprueba el guard; el ROL, aquí. */
-  private async exigirJefe(userId?: string | null) {
+  /**
+   * Dos llaves: la AMPLIA (`asset.delete` / `wo.approve`) la comprueba el
+   * guard en el controlador; la ESTRECHA se comprueba aquí, en el servicio.
+   *
+   * Se comprueba aquí y no con un segundo `@RequirePermissions` a propósito:
+   * el guard es un adorno que se puede olvidar al añadir una ruta nueva. Todo
+   * borrado definitivo pasa por este método, así que una ruta nueva que se
+   * olvide del decorador SIGUE quedando protegida.
+   *
+   * También se relee `active`: un usuario desactivado hace un minuto puede
+   * tener todavía un token válido en la mano.
+   */
+  private async exigirLlaveDefinitiva(userId?: string | null) {
     if (!userId) throw new ForbiddenException('Sesión no válida.');
     const u = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { active: true, role: { select: { name: true } } },
+      select: {
+        active: true,
+        role: {
+          select: {
+            permissions: { select: { permission: { select: { code: true } } } },
+          },
+        },
+      },
     });
-    if (!u?.active || u.role?.name !== ROL_QUE_PUEDE_PURGAR) {
+    const tiene = !!u?.active
+      && !!u.role?.permissions.some((p) => p.permission.code === PERMISO_PURGA);
+    if (!tiene) {
       throw new ForbiddenException(
-        `El borrado definitivo lo hace únicamente el ${ROL_QUE_PUEDE_PURGAR}. ` +
-        `No basta con tener el permiso: es una operación sin vuelta atrás.`,
+        'El borrado definitivo exige el permiso «Borrar definitivamente (sin ' +
+        'vuelta atrás)». No basta con poder eliminar activos: esta operación ' +
+        'no se puede deshacer.',
       );
     }
   }
@@ -142,7 +180,7 @@ export class PurgaService {
    * es lo que evita el clic accidental en la fila equivocada.
    */
   async purgarActivo(id: string, confirmacion: string, userId?: string | null, ip?: string | null) {
-    await this.exigirJefe(userId);
+    await this.exigirLlaveDefinitiva(userId);
 
     const previa = await this.vistaPreviaActivo(id);
     if (!previa.sePuedePurgar) throw new BadRequestException(previa.motivoSiNo!);
@@ -356,7 +394,7 @@ export class PurgaService {
     ip?: string | null,
     forzar = false,
   ) {
-    await this.exigirJefe(userId);
+    await this.exigirLlaveDefinitiva(userId);
 
     const previa = await this.vistaPreviaOm(id);
 
@@ -476,7 +514,7 @@ export class PurgaService {
    *   Inventario. Se dice aquí y se dice en pantalla.
    */
   async vaciarOrdenes(confirmacion: string, userId?: string | null, ip?: string | null) {
-    await this.exigirJefe(userId);
+    await this.exigirLlaveDefinitiva(userId);
 
     const FRASE = 'VACIAR TODAS LAS ORDENES';
     if ((confirmacion || '').trim().toUpperCase().replace(/\s+/g, ' ') !== FRASE) {
@@ -533,7 +571,7 @@ export class PurgaService {
    *
    * Aquí la tabla `RECURSOS` declara lo particular de cada uno —su código,
    * qué arrastra, qué lo bloquea— y estas dos funciones aplican a todos lo
-   * mismo: rol de Jefe, confirmación escrita, auditoría ANTES de borrar y
+   * mismo: la llave de purga, confirmación escrita, auditoría ANTES de borrar y
    * cascada de PostgreSQL.
    */
   recursosDisponibles() {
@@ -557,7 +595,11 @@ export class PurgaService {
        auditoría encuentra: el permiso que se exige no es el del recurso que
        se está tocando. Como la ruta no puede saberlo, lo comprueba el
        servicio, que sí sabe qué recurso es. */
-    if (permisos && !permisos.includes(R.permiso) && rol !== ROL_QUE_PUEDE_PURGAR) {
+    /* Bloque 34: la excepción ya no es «ser Jefe de Mantenimiento» sino tener
+       la llave del borrado definitivo. Quien la tiene puede ver la vista
+       previa de cualquier recurso: es la persona que limpia la base, y
+       tendría poco sentido enseñarle sólo la mitad de la basura. */
+    if (permisos && !permisos.includes(R.permiso) && !permisos.includes(PERMISO_PURGA)) {
       throw new ForbiddenException(
         `Para ver o borrar ${R.etiqueta.toLowerCase()} hace falta el permiso "${R.permiso}".`,
       );
@@ -622,7 +664,7 @@ export class PurgaService {
     ip?: string | null,
     forzar = false,
   ) {
-    await this.exigirJefe(userId);
+    await this.exigirLlaveDefinitiva(userId);
     const R = porClave(clave);
     if (!R) throw new BadRequestException(`No sé borrar "${clave}".`);
 
@@ -728,7 +770,7 @@ export class PurgaService {
   }
 
   async purgarUsuario(id: string, confirmacion: string, userId?: string | null, ip?: string | null) {
-    await this.exigirJefe(userId);
+    await this.exigirLlaveDefinitiva(userId);
     if (id === userId) throw new BadRequestException('No puedes borrarte a ti mismo.');
 
     const previa = await this.vistaPreviaUsuario(id);
@@ -740,14 +782,32 @@ export class PurgaService {
       );
     }
 
-    // Que no quede el sistema sin administrador.
-    if (previa.usuario.rol === ROL_QUE_PUEDE_PURGAR) {
-      const otros = await this.prisma.user.count({
-        where: { active: true, id: { not: id }, role: { name: ROL_QUE_PUEDE_PURGAR } },
+    /* QUE NO QUEDE EL SISTEMA SIN ADMINISTRADOR.
+       -------------------------------------------------------------------
+       Bloque 34: antes esto contaba «cuántos Jefes de Mantenimiento activos
+       quedan». Estaba mal por dos motivos. Uno, el de siempre: renombrar el
+       rol devolvía cero y el sistema se dejaba borrar al último. Y dos, más
+       de fondo: la pregunta correcta nunca fue cuánta gente tiene ESE ROL,
+       sino cuánta gente puede DAR DE ALTA A OTRA. Un rol nuevo llamado
+       «Administrador TI» con `user.manage` administra igual, y el conteo
+       viejo no lo veía.
+
+       Ahora se cuenta por el permiso. Si el que se va es el último que puede
+       crear usuarios, no se borra: nadie podría volver a entrar a arreglarlo
+       salvo tocando la base a mano. */
+    const ES_ADMIN = {
+      role: { permissions: { some: { permission: { code: 'user.manage' } } } },
+    };
+    const seVaUnAdmin = await this.prisma.user.count({ where: { id, ...ES_ADMIN } });
+    if (seVaUnAdmin > 0) {
+      const quedan = await this.prisma.user.count({
+        where: { active: true, id: { not: id }, ...ES_ADMIN },
       });
-      if (otros === 0) {
+      if (quedan === 0) {
         throw new BadRequestException(
-          `Es el único ${ROL_QUE_PUEDE_PURGAR} activo. Borrarlo dejaría el sistema sin nadie que pueda administrarlo.`,
+          'Es el último usuario activo que puede administrar usuarios. Borrarlo ' +
+          'dejaría el sistema sin nadie capaz de crear cuentas: no se podría ' +
+          'volver a entrar salvo tocando la base de datos a mano.',
         );
       }
     }
@@ -807,7 +867,7 @@ export class PurgaService {
   }
 
   async purgarAuditoria(antesDe: string, confirmacion: string, userId?: string | null, ip?: string | null) {
-    await this.exigirJefe(userId);
+    await this.exigirLlaveDefinitiva(userId);
     const previa = await this.vistaPreviaAuditoria(antesDe);
 
     if ((confirmacion || '').trim().toUpperCase() !== 'DEPURAR AUDITORIA') {

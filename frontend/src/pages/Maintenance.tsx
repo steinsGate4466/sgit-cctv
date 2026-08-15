@@ -38,7 +38,7 @@ function isOverdue(w: any) {
 }
 
 export default function Maintenance() {
-  const { can, user } = useAuth();
+  const { can } = useAuth();
   const navegar = useNavigate();
   const [rows, setRows] = useState<any[]>([]);
   // Borrado DEFINITIVO de una orden. No es cancelar: cancelar deja constancia
@@ -409,7 +409,7 @@ export default function Maintenance() {
                       las cerradas de prueba son justo las que estorban. El
                       diálogo pide una segunda confirmación y lo marca como
                       forzado en la auditoría. */}
-                  {can('wo.approve') && user?.role === 'Jefe de Mantenimiento' && (
+                  {can('wo.approve') && can('purga.definitiva') && (
                     <button className="btn-mini btn-peligro" style={{ marginLeft: 4 }}
                       title={w.status === 'CERRADA'
                         ? 'Borrar definitivamente (está cerrada: pedirá segunda confirmación)'

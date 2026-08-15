@@ -678,7 +678,7 @@ export default function Assets() {
             )}
             {/* Sólo el Jefe de Mantenimiento. El servidor lo vuelve a comprobar:
                 esconder un botón no protege nada, sólo evita la confusión. */}
-            {can('asset.delete') && user?.role === 'Jefe de Mantenimiento' && (
+            {can('asset.delete') && can('purga.definitiva') && (
               <button className="btn-mini btn-peligro" title="Elimina el registro de la base de datos. Para pruebas, duplicados y códigos mal tecleados. No se recupera."
                       onClick={() => setAPurgar(detail.id)}><Icono n="papelera" size={14} /> Eliminar definitivamente</button>
             )}

@@ -137,6 +137,18 @@ export const CATALOGO_PERMISOS: GrupoPermisos[] = [
       { code: 'asset.delete', nombre: 'Eliminar activos', explica: 'Borrar un equipo del sistema.', cuidado: 'Se pierde su historial de mantenimiento.' },
       { code: 'credential.read', nombre: 'Ver credenciales', explica: 'Usuarios y contraseñas de cámaras y NVR.', cuidado: 'Es acceso directo a las cámaras de planta. Poca gente.' },
       { code: 'credential.manage', nombre: 'Editar credenciales', explica: 'Cambiar las contraseñas guardadas de los equipos.', cuidado: 'Es acceso directo a las cámaras de planta. Poca gente.' },
+      /* Bloque 34. La SEGUNDA llave del borrado definitivo. No sustituye a
+         `asset.delete` ni a `wo.approve`: se suma a ellos. Dar de baja un
+         equipo conserva su historial; esto lo borra de la base con todo lo
+         que cuelgue. Antes esta llave era el texto 'Jefe de Mantenimiento'
+         escrito a mano en cinco archivos, así que renombrar el rol la
+         desactivaba en silencio. */
+      {
+        code: 'purga.definitiva',
+        nombre: 'Borrar definitivamente (sin vuelta atrás)',
+        explica: 'Segunda llave para eliminar de la base registros que nunca debieron existir: pruebas, duplicados, códigos mal tecleados.',
+        cuidado: 'No se recupera y no queda el equipo en BAJA: desaparece. Debería tenerlo una sola persona.',
+      },
     ],
   },
 ];

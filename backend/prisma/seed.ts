@@ -59,6 +59,28 @@ const PERMISSIONS = [
   'procedimiento.manage',
   'monitor.read', 'monitor.manage',
   'notify.read', 'notify.manage',
+
+  /* ==========================================================================
+     BLOQUE 34 — LA SEGUNDA LLAVE DEL BORRADO DEFINITIVO
+     --------------------------------------------------------------------------
+     El borrado definitivo siempre pidió DOS llaves: un permiso amplio
+     (`asset.delete` o `wo.approve`) y, además, ser Jefe de Mantenimiento. La
+     idea es buena: un permiso amplio se otorga por error al armar un rol, y
+     esto no tiene vuelta atrás.
+
+     El problema era CÓMO estaba escrita la segunda llave: el texto
+     'Jefe de Mantenimiento' aparecía a mano en cinco archivos. Si alguien
+     renombra ese rol desde la pantalla de Roles —algo que la propia pantalla
+     invita a hacer— las cinco comparaciones dejan de cumplirse. No falla
+     nada: el botón simplemente desaparece y el servidor empieza a rechazar a
+     todo el mundo. O al revés, si alguien crea un rol nuevo con ese nombre
+     exacto, hereda la llave sin que nadie se lo haya dado.
+
+     Ahora la segunda llave es este permiso. Sigue habiendo dos llaves y sigue
+     siendo estrecha, pero es un dato de la base que se ve y se otorga desde la
+     pantalla de Roles, en vez de una cadena de texto enterrada en el código.
+     ========================================================================== */
+  'purga.definitiva',
 ];
 
 // ---- Roles y sus permisos ----

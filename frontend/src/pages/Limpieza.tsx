@@ -5,7 +5,7 @@ import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
 
 /**
- * LIMPIEZA DE DATOS (bloque 15) — sólo el Jefe de Mantenimiento.
+ * LIMPIEZA DE DATOS (bloque 15) — exige el permiso «Borrar definitivamente».
  *
  * DOS COSAS DISTINTAS, Y LA PANTALLA LO DICE EN VOZ ALTA
  *   · BAJA    — el equipo existió y salió de planta. Conserva su historial.
@@ -20,8 +20,8 @@ import { useAuth } from '../auth/AuthContext';
  * el código obliga a mirar cuál se está borrando.
  */
 export default function Limpieza() {
-  const { can, user } = useAuth();
-  const esJefe = user?.role === 'Jefe de Mantenimiento';
+  const { can } = useAuth();
+  const puedePurgar = can('purga.definitiva');
 
   const [pestana, setPestana] = useState<'activos' | 'om' | 'usuarios' | 'auditoria'>('activos');
   const [candidatos, setCandidatos] = useState<any[]>([]);
@@ -103,7 +103,7 @@ export default function Limpieza() {
   }
 
   if (!can('asset.delete') && !can('user.manage') && !can('audit.read')) {
-    return <div className="card vacio"><h3>Sin acceso</h3><p>Esta pantalla es del Jefe de Mantenimiento.</p></div>;
+    return <div className="card vacio"><h3>Sin acceso</h3><p>Para ver la limpieza hace falta poder eliminar activos, administrar usuarios o leer la auditoría.</p></div>;
   }
 
   return (
@@ -116,11 +116,12 @@ export default function Limpieza() {
           <b>Borrar definitivamente</b> (esta pantalla) es para un registro que
           <b> nunca debió existir</b>: una prueba, un duplicado, un código mal tecleado.
         </div>
-        {!esJefe && (
+        {!puedePurgar && (
           <div className="tg-aviso" style={{ marginTop: 10 }}>
-            Aunque veas esta pantalla, el borrado definitivo <b>sólo lo ejecuta el
-            Jefe de Mantenimiento</b>. Es una operación sin vuelta y pide dos llaves:
-            el permiso y el rol.
+            Puedes mirar, pero no borrar. La operación pide <b>dos llaves</b>: el
+            permiso del recurso (eliminar activos, administrar usuarios…) y además
+            <b> «Borrar definitivamente (sin vuelta atrás)»</b>, que se concede
+            aparte desde la pantalla de Roles. Te falta la segunda.
           </div>
         )}
       </div>

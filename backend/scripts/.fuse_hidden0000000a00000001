@@ -115,7 +115,8 @@ for (const f of archivos(path.join(RAIZ_BACK, 'src'))) {
 }
 
 // --- 3. El catálogo que ve el ingeniero --------------------------------------
-const catTxt = leer(path.join(RAIZ_BACK, 'src', 'modules', 'roles', 'catalogo-permisos.ts'));
+const catTxt = leer(
+  path.join(RAIZ_BACK, 'src', 'modules', 'roles', 'catalogo-permisos.ts'), 'utf8');
 const EN_CATALOGO = new Set([...catTxt.matchAll(/code:\s*'([^']+)'/g)].map((m) => m[1]));
 
 // --- 4. Lo que usa el frontend -----------------------------------------------

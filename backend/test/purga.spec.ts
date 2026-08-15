@@ -9,18 +9,29 @@ import { PurgaService } from '../src/modules/purga/purga.service';
  * debe, porque ese es el fallo que no se puede deshacer.
  *
  * Cada `it` de aquí es un día malo concreto:
- *   · alguien con el permiso pero sin el cargo,
+ *   · alguien con el permiso amplio pero sin la segunda llave,
  *   · un clic en la fila de al lado,
  *   · un equipo real confundido con basura,
  *   · el único jefe borrándose a sí mismo,
  *   · la auditoría de esta semana desapareciendo.
  */
 
+/* Bloque 34: la segunda llave dejó de ser el NOMBRE del rol y pasó a ser el
+   permiso `purga.definitiva`. El servicio ya no lee `role.name`, lee la lista
+   de permisos del rol, así que el doble de Prisma tiene que devolver esa
+   forma. Se deja este ayudante para que la intención se lea de un vistazo:
+   `conPermisos('purga.definitiva')` es «alguien que sí puede». */
+const conPermisos = (...codes: string[]) => ({
+  active: true,
+  role: { permissions: codes.map((code) => ({ permission: { code } })) },
+});
+const LLAVE = 'purga.definitiva';
+
 // Prisma de mentira: sólo lo que toca el servicio.
 function prismaFalso(over: any = {}) {
   return {
     user: {
-      findUnique: jest.fn().mockResolvedValue({ active: true, role: { name: 'Jefe de Mantenimiento' } }),
+      findUnique: jest.fn().mockResolvedValue(conPermisos(LLAVE, 'user.manage')),
       count: jest.fn().mockResolvedValue(2),
       delete: jest.fn().mockResolvedValue({}),
     },
@@ -61,21 +72,21 @@ const ACTIVO_LIMPIO = {
 };
 
 describe('purga · las dos llaves de la puerta sin vuelta', () => {
-  it('con el permiso pero SIN el cargo, no se borra nada', async () => {
+  it('con asset.delete pero SIN la llave de purga, no se borra nada', async () => {
     // Este es el caso real: alguien crea un rol nuevo, le marca asset.delete
     // sin pensarlo, y esa persona entra a Activos. El guard la deja pasar.
-    // El rol es el segundo cerrojo.
+    // `purga.definitiva` es el segundo cerrojo, y hay que darlo aparte.
     const prisma = prismaFalso();
-    prisma.user.findUnique.mockResolvedValue({ active: true, role: { name: 'Técnico' } });
+    prisma.user.findUnique.mockResolvedValue(conPermisos('asset.delete'));
     const s = new PurgaService(prisma, auditFalso());
 
     await expect(s.purgarActivo('a1', 'ewaeweaw', 'u1', null)).rejects.toThrow(ForbiddenException);
     expect(prisma.asset.delete).not.toHaveBeenCalled();
   });
 
-  it('un jefe DESACTIVADO tampoco borra', async () => {
+  it('un usuario DESACTIVADO tampoco borra, aunque tenga la llave', async () => {
     const prisma = prismaFalso();
-    prisma.user.findUnique.mockResolvedValue({ active: false, role: { name: 'Jefe de Mantenimiento' } });
+    prisma.user.findUnique.mockResolvedValue({ ...conPermisos(LLAVE), active: false });
     const s = new PurgaService(prisma, auditFalso());
     await expect(s.purgarActivo('a1', 'ewaeweaw', 'u1', null)).rejects.toThrow(ForbiddenException);
   });
@@ -195,7 +206,7 @@ describe('purga de usuarios · nadie firma en nombre de un fantasma', () => {
   it('quien cerró una orden NO se borra: se desactiva', async () => {
     const prisma = prismaFalso();
     prisma.user.findUnique.mockImplementation(({ select }: any) =>
-      select?.role && select?.email ? USUARIO : { active: true, role: { name: 'Jefe de Mantenimiento' } });
+      select?.role && select?.email ? USUARIO : conPermisos(LLAVE, 'user.manage'));
     prisma.workOrder.count.mockImplementation(({ where }: any) =>
       Promise.resolve(where.closedById ? 7 : 0));
     const s = new PurgaService(prisma, auditFalso());
@@ -210,26 +221,45 @@ describe('purga de usuarios · nadie firma en nombre de un fantasma', () => {
     await expect(s.purgarUsuario('u1', 'x@y.z', 'u1', null)).rejects.toThrow(/a ti mismo/);
   });
 
-  it('no se borra al único Jefe de Mantenimiento activo', async () => {
-    // Sin esto, el sistema se queda sin nadie que pueda administrarlo y sólo
+  /* Bloque 34: esta regla se preguntaba «¿cuántos Jefes de Mantenimiento
+     activos quedan?». La pregunta correcta nunca fue cuánta gente tiene ESE
+     ROL, sino cuánta gente puede DAR DE ALTA A OTRA — un rol nuevo llamado
+     «Administrador TI» con user.manage administra igual y el conteo viejo no
+     lo veía. Ahora se cuenta por el permiso, no por el nombre. */
+  it('no se borra al último que puede administrar usuarios', async () => {
+    // Sin esto, el sistema se queda sin nadie que pueda crear cuentas y sólo
     // se sale entrando a la base de datos a mano.
     const prisma = prismaFalso();
     prisma.user.findUnique.mockImplementation(({ select }: any) =>
-      select?.email
-        ? { ...USUARIO, id: 'u9', role: { name: 'Jefe de Mantenimiento' } }
-        : { active: true, role: { name: 'Jefe de Mantenimiento' } });
-    prisma.user.count.mockResolvedValue(0);
+      select?.email ? { ...USUARIO, id: 'u9' } : conPermisos(LLAVE, 'user.manage'));
+    // El que se va SÍ es administrador (1) y no queda ningún otro (0).
+    prisma.user.count.mockImplementation(({ where }: any) =>
+      Promise.resolve(where?.id === 'u9' ? 1 : 0));
     const s = new PurgaService(prisma, auditFalso());
 
     await expect(s.purgarUsuario('u9', 'prueba@aasa.com.pe', 'u1', null))
-      .rejects.toThrow(/único Jefe de Mantenimiento/);
+      .rejects.toThrow(/último usuario activo que puede administrar/);
     expect(prisma.user.delete).not.toHaveBeenCalled();
+  });
+
+  it('si queda otro administrador, sí se borra', async () => {
+    // La otra mitad de la regla. Sin esta prueba, un freno demasiado celoso
+    // —que no dejara borrar nunca— pasaría igual de desapercibido.
+    const prisma = prismaFalso();
+    prisma.user.findUnique.mockImplementation(({ select }: any) =>
+      select?.email ? { ...USUARIO, id: 'u9' } : conPermisos(LLAVE, 'user.manage'));
+    prisma.user.count.mockImplementation(({ where }: any) =>
+      Promise.resolve(where?.id === 'u9' ? 1 : 3));
+    const s = new PurgaService(prisma, auditFalso());
+
+    await s.purgarUsuario('u9', 'prueba@aasa.com.pe', 'u1', null);
+    expect(prisma.user.delete).toHaveBeenCalled();
   });
 
   it('el correo se compara sin distinguir mayúsculas', async () => {
     const prisma = prismaFalso();
     prisma.user.findUnique.mockImplementation(({ select }: any) =>
-      select?.email ? USUARIO : { active: true, role: { name: 'Jefe de Mantenimiento' } });
+      select?.email ? USUARIO : conPermisos(LLAVE, 'user.manage'));
     const s = new PurgaService(prisma, auditFalso());
     await expect(s.purgarUsuario('u9', 'PRUEBA@AASA.COM.PE', 'u1', null))
       .resolves.toMatchObject({ ok: true });
@@ -394,9 +424,12 @@ describe('purga de OM · los avisos y la segunda llave', () => {
     ]);
   });
 
-  it('sin el cargo de Jefe, ni forzando', async () => {
+  it('sin la llave de purga no se borra, ni forzando', async () => {
+    // `forzar: true` sirve para saltarse los AVISOS (está cerrada, salió
+    // material), no el permiso. Si un día alguien confundiera las dos cosas,
+    // el freno de la puerta sin vuelta se abriría con una casilla.
     const prisma = prismaFalso();
-    prisma.user.findUnique.mockResolvedValue({ active: true, role: { name: 'Supervisor TI' } });
+    prisma.user.findUnique.mockResolvedValue(conPermisos('wo.approve'));
     const s = new PurgaService(prisma, auditFalso());
     await expect(s.purgarOm('w1', 'OT-2026-0099', 'u1', null, true)).rejects.toThrow(ForbiddenException);
   });
@@ -455,7 +488,7 @@ describe('vaciar TODAS las órdenes · el botón de antes del estreno', () => {
 
   it('sin el cargo de Jefe, no', async () => {
     const prisma = prismaFalso();
-    prisma.user.findUnique.mockResolvedValue({ active: true, role: { name: 'Técnico' } });
+    prisma.user.findUnique.mockResolvedValue(conPermisos('asset.delete'));
     const s = new PurgaService(prisma, auditFalso());
     await expect(s.vaciarOrdenes('VACIAR TODAS LAS ORDENES', 'u1', null)).rejects.toThrow(ForbiddenException);
     expect(prisma.workOrder.deleteMany).not.toHaveBeenCalled();
