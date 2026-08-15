@@ -307,7 +307,14 @@ export default function Layout() {
           {recientes.length > 1 && !estrecha && !esMovil && (
             <div className="recientes-nav">
               <div className="nav-titulo" style={{ cursor: 'default' }}>Lo último</div>
-              {recientes.filter((r) => r !== loc.pathname).slice(0, 3).map((r) => (
+              {/* `TITLES[r]` no es sólo para pintar el nombre: es la LISTA
+                  BLANCA. «Lo último» sale de localStorage, y localStorage lo
+                  puede editar cualquiera con la consola abierta o un
+                  complemento del navegador. Sin este filtro, un valor metido a
+                  mano se convertiría en el destino de un <NavLink>. Al exigir
+                  que la ruta exista en TITLES, sólo pueden salir pantallas
+                  reales de la aplicación. */}
+              {recientes.filter((r) => r !== loc.pathname && TITLES[r]).slice(0, 3).map((r) => (
                 <NavLink key={r} to={r} className="reciente">{TITLES[r]}</NavLink>
               ))}
             </div>
