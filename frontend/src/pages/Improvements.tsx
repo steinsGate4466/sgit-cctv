@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
+import { useDialogos } from '../components/Dialogos';
 
 /**
  * Mantenimiento de Mejora — trabajos que no son reparación ni rutina:
@@ -8,6 +9,7 @@ import { api } from '../api/client';
 const fmt = (d: string | null) => (d ? new Date(d).toLocaleDateString() : '—');
 
 export default function Improvements() {
+  const { avisar } = useDialogos();
   const [oms, setOms] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -23,7 +25,7 @@ export default function Improvements() {
       const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
       const a = document.createElement('a'); a.href = url; a.download = (w.code || 'informe') + '.pdf';
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    } catch { window.alert('No se pudo generar el informe.'); }
+    } catch { await avisar('No se pudo generar el informe.'); }
   }
 
   if (loading) return <div className="loading">Cargando mejoras…</div>;

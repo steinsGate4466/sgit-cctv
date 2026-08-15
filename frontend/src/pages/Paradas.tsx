@@ -4,6 +4,7 @@ import Modal from '../components/Modal';
 import BotonPurgar from '../components/BotonPurgar';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
+import { useDialogos } from '../components/Dialogos';
 
 /**
  * VENTANAS DE PARADA
@@ -42,6 +43,7 @@ function dur(min: number | null | undefined) {
 }
 
 export default function Paradas() {
+  const { pedirTexto } = useDialogos();
   const { can } = useAuth();
   const puede = can('wo.update');
 
@@ -127,7 +129,7 @@ export default function Paradas() {
   async function cambiarEstado(p: any, estado: string) {
     let motivo: string | undefined;
     if (estado === 'CANCELADA') {
-      motivo = prompt('¿Por qué se cancela? La gente ya se había movilizado.') || '';
+      motivo = await pedirTexto('¿Por qué se cancela? La gente ya se había movilizado.') || '';
       if (!motivo.trim()) return;
     }
     try {

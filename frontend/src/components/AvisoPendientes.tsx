@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { alCambiarPendientes, listarPendientes, borrarPendiente, subirPendientes, hayRed, Pendiente } from '../cola-offline';
+import { useDialogos } from './Dialogos';
 
 /**
  * LA BARRA DE PENDIENTES (bloque 12.6).
@@ -14,6 +15,7 @@ import { alCambiarPendientes, listarPendientes, borrarPendiente, subirPendientes
  * en realidad no llega a ningún sitio.
  */
 export default function AvisoPendientes() {
+  const { confirmar } = useDialogos();
   const [cuantos, setCuantos] = useState(0);
   const [lista, setLista] = useState<Pendiente[]>([]);
   const [abierto, setAbierto] = useState(false);
@@ -87,8 +89,8 @@ export default function AvisoPendientes() {
               <button
                 className="btn-mini"
                 title="Descartar este borrador"
-                onClick={() => {
-                  if (confirm(`¿Descartar «${p.titulo}»?\n\nSe pierde lo escrito y no se subirá nunca.`)) {
+                onClick={async () => {
+                  if (await confirmar(`¿Descartar «${p.titulo}»?\n\nSe pierde lo escrito y no se subirá nunca.`)) {
                     borrarPendiente(p.id).then(refrescar);
                   }
                 }}

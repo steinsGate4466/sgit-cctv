@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useDialogos } from './Dialogos';
 
 /**
  * FOTOGRAFÍAS EN EL MOMENTO DEL ALTA.
@@ -55,17 +56,18 @@ interface Props {
 }
 
 export default function AssetPhotoPicker({ fotos, onChange }: Props) {
+  const { avisar } = useDialogos();
   const [kind, setKind] = useState('REFERENCIA');
   const [caption, setCaption] = useState('');
 
-  function agregar(files: FileList | null) {
+  async function agregar(files: FileList | null) {
     if (!files || !files.length) return;
     const nuevas: FotoPendiente[] = [];
     for (const file of Array.from(files)) {
       // 12 MB es el tope que acepta el servidor. Se avisa aquí para no
       // descubrirlo recién al guardar, cuando ya se perdió el trabajo.
       if (file.size > 12 * 1024 * 1024) {
-        window.alert(`"${file.name}" pesa más de 12 MB y no se puede subir.`);
+        await avisar(`"${file.name}" pesa más de 12 MB y no se puede subir.`);
         continue;
       }
       nuevas.push({ file, kind, caption: caption.trim(), url: URL.createObjectURL(file) });

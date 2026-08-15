@@ -4,6 +4,7 @@ import Modal from '../components/Modal';
 import AccessRequestForm, { MEANS_ES, STATUS_ES, STATUS_BADGE } from '../components/AccessRequestForm';
 import { useAuth } from '../auth/AuthContext';
 import Icono from '../components/Iconos';
+import { useDialogos } from '../components/Dialogos';
 
 /**
  * Bandeja de Accesibilidad y Trabajo en Altura.
@@ -14,6 +15,7 @@ const STATUSES = ['SOLICITADO', 'EN_REVISION', 'APROBADO', 'RECHAZADO'];
 const fmt = (d?: string | null) => (d ? new Date(d).toLocaleDateString() : '—');
 
 export default function Access() {
+  const { avisar } = useDialogos();
   const { can, user } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
@@ -53,7 +55,7 @@ export default function Access() {
     try {
       const res = await api.get('/access-requests/photos/' + ph.id + '/file', { responseType: 'blob' });
       window.open(URL.createObjectURL(res.data), '_blank');
-    } catch { window.alert('No se pudo abrir la foto.'); }
+    } catch { await avisar('No se pudo abrir la foto.'); }
   }
   async function downloadReport(r: any) {
     try {
@@ -61,7 +63,7 @@ export default function Access() {
       const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
       const a = document.createElement('a'); a.href = url; a.download = (r.code || 'acceso') + '.pdf';
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    } catch { window.alert('No se pudo generar el documento.'); }
+    } catch { await avisar('No se pudo generar el documento.'); }
   }
 
   function openDecide(r: any, status: string) {

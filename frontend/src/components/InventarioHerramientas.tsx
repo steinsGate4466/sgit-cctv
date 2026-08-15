@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import Modal from './Modal';
 import { useAuth } from '../auth/AuthContext';
 import { WO_TYPES, WO_TYPE_ES } from '../pages/omCatalogos';
+import { useDialogos } from './Dialogos';
 
 /**
  * CATÁLOGO DE HERRAMIENTAS + informe de las que más faltan.
@@ -22,6 +23,7 @@ import { WO_TYPES, WO_TYPE_ES } from '../pages/omCatalogos';
 const VACIO = { code: '', name: '', category: '', notes: '', suggestedFor: [] as string[] };
 
 export default function InventarioHerramientas() {
+  const { confirmar, avisar } = useDialogos();
   const { can } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [faltantes, setFaltantes] = useState<any[]>([]);
@@ -68,16 +70,16 @@ export default function InventarioHerramientas() {
       await cargar();
     } catch (err: any) {
       const m = err?.response?.data?.message;
-      window.alert(Array.isArray(m) ? m.join(', ') : m || 'No se pudo guardar la herramienta.');
+      await avisar(Array.isArray(m) ? m.join(', ') : m || 'No se pudo guardar la herramienta.');
     } finally { setGuardando(false); }
   }
 
   async function desactivar(t: any) {
-    if (!window.confirm(
+    if (!(await confirmar(
       `¿Desactivar "${t.name}"?\n\nNo se borra: las verificaciones pasadas de las ` +
-      `órdenes la referencian y borrarla dejaría esos registros sin sentido.`)) return;
+      `órdenes la referencian y borrarla dejaría esos registros sin sentido.`))) return;
     try { await api.delete('/inventory/tools/' + t.id); await cargar(); }
-    catch { window.alert('No se pudo desactivar.'); }
+    catch { await avisar('No se pudo desactivar.'); }
   }
 
   function alternarTipo(tipo: string) {

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, FormEvent } from 'react';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { useDialogos } from './Dialogos';
 
 /**
  * CATÁLOGOS EDITABLES — causas, síntomas, acciones y motivos.
@@ -27,6 +28,7 @@ const TIPOS = [
 const VACIO = { id: '', code: '', name: '', group: '', sequence: 0, notes: '' };
 
 export default function CatalogosEditables() {
+  const { confirmar, avisar } = useDialogos();
   const { can } = useAuth();
   const editable = can('location.manage');
 
@@ -47,9 +49,9 @@ export default function CatalogosEditables() {
 
   useEffect(() => { cargar().finally(() => setCargando(false)); }, [cargar]);
 
-  const error = (err: any) => {
+  const error = async (err: any) => {
     const m = err?.response?.data?.message;
-    window.alert(Array.isArray(m) ? m.join(', ') : m || 'No se pudo completar la acción.');
+    await avisar(Array.isArray(m) ? m.join(', ') : m || 'No se pudo completar la acción.');
   };
 
   async function guardar(e: FormEvent) {
@@ -80,9 +82,9 @@ export default function CatalogosEditables() {
   async function alternarActiva(item: any) {
     try {
       if (item.active) {
-        if (!window.confirm(
+        if (!(await confirmar(
           `"${item.name}" dejará de ofrecerse al cerrar órdenes.\n\n` +
-          'NO se borra: las órdenes que ya la usaron la seguirán mostrando.\n\n¿Continuar?')) return;
+          'NO se borra: las órdenes que ya la usaron la seguirán mostrando.\n\n¿Continuar?'))) return;
         await api.delete('/catalogos/' + item.id);
       } else {
         await api.patch('/catalogos/' + item.id, { active: true });

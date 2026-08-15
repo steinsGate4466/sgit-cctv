@@ -28,7 +28,7 @@ import { useAuth } from '../auth/AuthContext';
  *   1. Primero se PREGUNTA al servidor qué se lleva por delante, y se enseña.
  *   2. Si hay avisos —está cerrado, tiene firma, salió material— hay que
  *      marcar una casilla aparte. Forzar queda MARCADO en la auditoría.
- *   3. Hay que ESCRIBIR el código a mano. Un `confirm()` se acepta por
+ *   3. Hay que ESCRIBIR el código a mano. Un `confirm()` del navegador se acepta por
  *      reflejo; escribir el código obliga a mirar cuál se está borrando.
  *      El error real es la fila de al lado.
  */

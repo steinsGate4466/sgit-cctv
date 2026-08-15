@@ -5,6 +5,7 @@ import BotonPurgar from '../components/BotonPurgar';
 import Icono from '../components/Iconos';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
+import { useDialogos } from '../components/Dialogos';
 
 /**
  * DOCUMENTOS: MANUALES, PLANOS Y FICHAS (bloque 12.7).
@@ -28,6 +29,7 @@ const CATEGORIAS = [
 const ETIQUETA: Record<string, string> = Object.fromEntries(CATEGORIAS.map((c) => [c.v, c.t]));
 
 export default function Documentos() {
+  const { confirmar, avisar } = useDialogos();
   const { can } = useAuth();
   const puedeSubir = can('document.manage');
 
@@ -110,13 +112,13 @@ export default function Documentos() {
       const a = document.createElement('a');
       a.href = url; a.download = nombre; a.click();
       URL.revokeObjectURL(url);
-    } catch { alert('No se pudo descargar.'); }
+    } catch { await avisar('No se pudo descargar.'); }
   }
 
   async function borrar(id: string, titulo: string, version: number) {
-    if (!confirm(`¿Borrar «${titulo}» v${version}?\n\nNo se puede deshacer.`)) return;
+    if (!(await confirmar(`¿Borrar «${titulo}» v${version}?\n\nNo se puede deshacer.`))) return;
     try { await api.delete(`/documentos/${id}`); await cargar(); }
-    catch { alert('No se pudo borrar.'); }
+    catch { await avisar('No se pudo borrar.'); }
   }
 
   return (

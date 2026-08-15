@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import Icono from '../components/Iconos';
 import { EsqueletoTablero } from '../components/Esqueleto';
 import { NadaPendiente } from '../components/Ilustraciones';
+import { useDialogos } from '../components/Dialogos';
 
 /**
  * MI TREN — la pantalla de Producción.
@@ -27,6 +28,7 @@ import { NadaPendiente } from '../components/Ilustraciones';
  * dirección, no lo ve. Un filtro de pantalla nunca es un permiso.
  */
 export default function MiTren() {
+  const { avisar } = useDialogos();
   const [datos, setDatos] = useState<any>(null);
   const [ordenes, setOrdenes] = useState<any[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -83,7 +85,7 @@ export default function MiTren() {
       // hasta recargar la página. Con diez informes seguidos se nota.
       URL.revokeObjectURL(url);
     } catch {
-      window.alert('No se pudo descargar el informe. Vuelve a intentarlo.');
+      await avisar('No se pudo descargar el informe. Vuelve a intentarlo.');
     } finally {
       setBajando(null);
     }

@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
+import { useDialogos } from '../components/Dialogos';
 
 const fmt = (d: string | null) => (d ? new Date(d).toLocaleDateString() : '—');
 
 export default function Corrective() {
+  const { avisar } = useDialogos();
   const [rows, setRows] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
   const [oms, setOms] = useState<any[]>([]);
@@ -23,7 +25,7 @@ export default function Corrective() {
       const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
       const a = document.createElement('a'); a.href = url; a.download = (w.code || 'informe') + '.pdf';
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    } catch { window.alert('No se pudo generar el informe.'); }
+    } catch { await avisar('No se pudo generar el informe.'); }
   }
 
   if (loading) return <div className="loading">Cargando historial correctivo…</div>;

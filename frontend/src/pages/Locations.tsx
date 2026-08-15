@@ -4,6 +4,7 @@ import BotonPurgar from '../components/BotonPurgar';
 import CatalogosEditables from '../components/CatalogosEditables';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
+import { useDialogos } from '../components/Dialogos';
 
 const TYPES = ['EMPRESA', 'PLANTA', 'TREN', 'AREA', 'SALA', 'ZONA', 'RACK'];
 const TYPE_ES: Record<string, string> = {
@@ -15,6 +16,7 @@ const CRIT_ES: Record<string, string> = {
 };
 
 export default function Locations() {
+  const { confirmar, avisar } = useDialogos();
   const { can } = useAuth();
   const [tab, setTab] = useState<'ubic' | 'etapas' | 'catalogos'>('ubic');
 
@@ -67,27 +69,27 @@ export default function Locations() {
       await load();
     } catch (err: any) {
       const m = err?.response?.data?.message;
-      window.alert(Array.isArray(m) ? m.join(', ') : m || 'No se pudo guardar la ubicación.');
+      await avisar(Array.isArray(m) ? m.join(', ') : m || 'No se pudo guardar la ubicación.');
     } finally { setSaving(false); }
   }
 
   async function uploadPhoto(e: FormEvent) {
     e.preventDefault();
-    if (!photoFile) { window.alert('Selecciona una imagen.'); return; }
+    if (!photoFile) { await avisar('Selecciona una imagen.'); return; }
     setUploading(true);
     try {
       const fd = new FormData(); fd.append('file', photoFile);
       await api.post('/locations/' + photoFor.id + '/photo', fd);
       setPhotoFor(null); setPhotoFile(null);
       await load();
-    } catch { window.alert('No se pudo subir la foto.'); }
+    } catch { await avisar('No se pudo subir la foto.'); }
     finally { setUploading(false); }
   }
   async function viewPhoto(l: any) {
     try {
       const res = await api.get('/locations/' + l.id + '/photo', { responseType: 'blob' });
       window.open(URL.createObjectURL(res.data), '_blank');
-    } catch { window.alert('La ubicación no tiene foto.'); }
+    } catch { await avisar('La ubicación no tiene foto.'); }
   }
 
   // ---------------------------------------------------------------------- etapas
@@ -122,12 +124,12 @@ export default function Locations() {
       await loadStages();
     } catch (err: any) {
       const m = err?.response?.data?.message;
-      window.alert(Array.isArray(m) ? m.join(', ') : m || 'No se pudo guardar la etapa.');
+      await avisar(Array.isArray(m) ? m.join(', ') : m || 'No se pudo guardar la etapa.');
     } finally { setSaving(false); }
   }
   async function asignarATren(e: FormEvent) {
     e.preventDefault();
-    if (!assignTren) { window.alert('Elige un tren.'); return; }
+    if (!assignTren) { await avisar('Elige un tren.'); return; }
     setSaving(true);
     try {
       await api.post(`/locations/stages/${assignFor.id}/trenes/${assignTren}`);
@@ -135,13 +137,13 @@ export default function Locations() {
       await Promise.all([load(), loadStages()]);
     } catch (err: any) {
       const m = err?.response?.data?.message;
-      window.alert(Array.isArray(m) ? m.join(', ') : m || 'No se pudo asignar la etapa.');
+      await avisar(Array.isArray(m) ? m.join(', ') : m || 'No se pudo asignar la etapa.');
     } finally { setSaving(false); }
   }
   async function desactivar(s: any) {
-    if (!window.confirm(`¿Desactivar la etapa "${s.name}"?\n\nNo se borra: el historial de mantenimiento se conserva.`)) return;
+    if (!(await confirmar(`¿Desactivar la etapa "${s.name}"?\n\nNo se borra: el historial de mantenimiento se conserva.`))) return;
     try { await api.delete('/locations/stages/' + s.id); await loadStages(); }
-    catch { window.alert('No se pudo desactivar la etapa.'); }
+    catch { await avisar('No se pudo desactivar la etapa.'); }
   }
 
   const ambienteDe = (code: string) => ambientes.find((a) => a.code === code);

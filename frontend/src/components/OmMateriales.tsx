@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, FormEvent } from 'react';
 import { api } from '../api/client';
 import Modal from './Modal';
 import { useAuth } from '../auth/AuthContext';
+import { useDialogos } from './Dialogos';
 
 /**
  * MATERIALES Y REEMPLAZO DE EQUIPO EN LA ORDEN.
@@ -19,6 +20,7 @@ import { useAuth } from '../auth/AuthContext';
  */
 
 export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => void }) {
+  const { confirmar, avisar, pedirTexto } = useDialogos();
   const { can } = useAuth();
   const [tab, setTab] = useState<'materiales' | 'reemplazo'>('materiales');
 
@@ -67,17 +69,17 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
    * líneas con su descuento de stock, o no sale ninguna.
    */
   async function generarRetiro() {
-    if (!window.confirm(
+    if (!(await confirmar(
       `Se va a generar la salida de almacén de ${resumen?.solicitados} material(es) ` +
       `de la orden ${wo.code}.\n\n` +
-      `El stock se descontará y quedará registrado a tu nombre.\n\n¿Confirmas?`)) return;
+      `El stock se descontará y quedará registrado a tu nombre.\n\n¿Confirmas?`))) return;
     setFirmando(true);
     try {
       const r = await api.post(`/work-orders/${wo.id}/materials/retiro`, {});
       if (r.data?.avisos?.length) {
         // No se bloquea por falta de stock: el catálogo es un espejo de SAP y
         // puede estar desactualizado. Se avisa y se deja constancia.
-        window.alert(
+        await avisar(
           'Retiro generado, con avisos:\n\n' + r.data.avisos.join('\n') +
           '\n\nRegulariza esas cantidades en SAP.');
       }
@@ -86,7 +88,7 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
   }
 
   async function rechazar(item: any) {
-    const motivo = window.prompt(
+    const motivo = await pedirTexto(
       `¿Por qué no se autoriza "${item.description}"?\n\n` +
       'Es obligatorio: sin motivo, el técnico volverá a pedir lo mismo la semana que viene.');
     if (motivo === null) return;
@@ -97,19 +99,19 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
   }
 
   async function devolver() {
-    if (!window.confirm(
+    if (!(await confirmar(
       `Se devolverán al almacén ${resumen?.porDevolver} unidad(es) que se retiraron y no se usaron.\n\n` +
-      'Sin esto, el stock del sistema queda por debajo del real.\n\n¿Confirmas?')) return;
+      'Sin esto, el stock del sistema queda por debajo del real.\n\n¿Confirmas?'))) return;
     try {
       const r = await api.post(`/work-orders/${wo.id}/materials/devolucion`, {});
-      window.alert(`Devuelto: ${r.data?.unidades ?? 0} unidad(es) en ${r.data?.devueltos ?? 0} línea(s).`);
+      await avisar(`Devuelto: ${r.data?.unidades ?? 0} unidad(es) en ${r.data?.devueltos ?? 0} línea(s).`);
       await cargar();
     } catch (err) { error(err); }
   }
 
-  function error(err: any) {
+  async function error(err: any) {
     const m = err?.response?.data?.message;
-    window.alert(Array.isArray(m) ? m.join(', ') : m || 'No se pudo completar la acción.');
+    await avisar(Array.isArray(m) ? m.join(', ') : m || 'No se pudo completar la acción.');
   }
 
   async function agregar(e: FormEvent) {
@@ -137,7 +139,7 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
   }
 
   async function quitar(item: any) {
-    if (!window.confirm(`¿Quitar "${item.description}" de la orden?`)) return;
+    if (!(await confirmar(`¿Quitar "${item.description}" de la orden?`))) return;
     try { await api.delete(`/work-orders/${wo.id}/materials/${item.id}`); await cargar(); }
     catch (err) { error(err); }
   }
@@ -145,7 +147,7 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
   async function registrarSwap(e: FormEvent) {
     e.preventDefault();
     if (!swap.removedAssetId && !swap.installedAssetId) {
-      window.alert('Indica al menos el equipo retirado o el instalado.');
+      await avisar('Indica al menos el equipo retirado o el instalado.');
       return;
     }
     setGuardando(true);

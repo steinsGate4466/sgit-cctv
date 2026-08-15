@@ -6,6 +6,7 @@ import BotonPurgar from '../components/BotonPurgar';
 import { useAuth } from '../auth/AuthContext';
 import InventarioHerramientas from '../components/InventarioHerramientas';
 import InventarioImportar from '../components/InventarioImportar';
+import { useDialogos } from '../components/Dialogos';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend, ResponsiveContainer,
 } from 'recharts';
@@ -29,6 +30,7 @@ function stockBadge(r: any) {
 }
 
 export default function Inventory() {
+  const { confirmar, avisar } = useDialogos();
   const { can } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
@@ -113,12 +115,12 @@ export default function Inventory() {
       await load();
     } catch (err: any) {
       const m = err?.response?.data?.message;
-      window.alert(Array.isArray(m) ? m.join(', ') : m || 'No se pudo guardar el repuesto.');
+      await avisar(Array.isArray(m) ? m.join(', ') : m || 'No se pudo guardar el repuesto.');
     } finally { setSaving(false); }
   }
   async function del(r: any) {
-    if (!window.confirm('¿Eliminar el repuesto "' + r.name + '"?')) return;
-    await api.delete('/inventory/' + r.id).catch(() => window.alert('No se pudo eliminar.'));
+    if (!(await confirmar('¿Eliminar el repuesto "' + r.name + '"?'))) return;
+    await api.delete('/inventory/' + r.id).catch(async () => await avisar('No se pudo eliminar.'));
     await load();
   }
 
@@ -128,7 +130,7 @@ export default function Inventory() {
       await api.post('/inventory/' + checkRow.id + '/check', { countedQty: Number(chk.countedQty), note: chk.note || undefined });
       setCheckRow(null); setChk({ countedQty: '', note: '' });
       await load();
-    } catch { window.alert('No se pudo registrar la comprobación.'); }
+    } catch { await avisar('No se pudo registrar la comprobación.'); }
   }
   async function submitMove(e: FormEvent) {
     e.preventDefault();
@@ -138,7 +140,7 @@ export default function Inventory() {
       await load();
     } catch (err: any) {
       const m = err?.response?.data?.message;
-      window.alert(Array.isArray(m) ? m.join(', ') : m || 'No se pudo registrar el movimiento.');
+      await avisar(Array.isArray(m) ? m.join(', ') : m || 'No se pudo registrar el movimiento.');
     }
   }
 
@@ -148,7 +150,7 @@ export default function Inventory() {
   }
   async function addLink() {
     if (!linkAssetId) return;
-    await api.post('/inventory/' + compat.id + '/link', { assetId: linkAssetId }).catch(() => window.alert('No se pudo vincular.'));
+    await api.post('/inventory/' + compat.id + '/link', { assetId: linkAssetId }).catch(async () => await avisar('No se pudo vincular.'));
     await openCompat(compat);
   }
   async function removeLink(assetId: string) {

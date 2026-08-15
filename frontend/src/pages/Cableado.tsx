@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, conAmbito, AvisoAmbito } from '../components/FiltroAmbito';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
+import { useDialogos } from '../components/Dialogos';
 
 /**
  * TRAMOS DE CABLE.
@@ -48,6 +49,7 @@ const VACIO = {
 };
 
 export default function Cableado() {
+  const { confirmar, avisar } = useDialogos();
   const { can } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [meta, setMeta] = useState<any>(null);
@@ -128,17 +130,17 @@ export default function Cableado() {
       await load();
     } catch (err: any) {
       const m = err?.response?.data?.message;
-      window.alert(Array.isArray(m) ? m.join(', ') : m || 'No se pudo guardar el tramo.');
+      await avisar(Array.isArray(m) ? m.join(', ') : m || 'No se pudo guardar el tramo.');
     } finally { setSaving(false); }
   }
 
   async function retirar(c: any) {
-    if (!window.confirm(
+    if (!(await confirmar(
       `¿Marcar este tramo como retirado?\n\nNo se borra: un tramo retirado sigue ` +
       `explicando fallas pasadas y borrarlo dejaría sin sentido el historial de ` +
-      `esas órdenes.`)) return;
+      `esas órdenes.`))) return;
     try { await api.delete('/assets/cables/' + c.id); await load(); }
-    catch { window.alert('No se pudo retirar el tramo.'); }
+    catch { await avisar('No se pudo retirar el tramo.'); }
   }
 
   const nombre = (id: string) => opciones.find((o) => o.id === id)?.assetCode || '—';

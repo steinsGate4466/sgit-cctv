@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import Modal from '../components/Modal';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
+import { useDialogos } from '../components/Dialogos';
 
 /**
  * EQUIPOS CONOCIDOS — el diccionario de "¿desde qué PC se hizo esto?"
@@ -29,6 +30,7 @@ const VACIO = {
 };
 
 export default function Equipos() {
+  const { confirmar } = useDialogos();
   const { can } = useAuth();
   // Pestaña de dispositivos: qué APARATOS pueden entrar al sistema.
   const [pestana, setPestana] = useState<'equipos' | 'dispositivos'>('equipos');
@@ -109,7 +111,7 @@ export default function Equipos() {
   }
 
   async function borrar(e: any) {
-    if (!confirm(`¿Quitar "${e.nombre}" del registro?\n\nLa auditoría antigua NO cambia: guarda el nombre copiado.`)) return;
+    if (!(await confirmar(`¿Quitar "${e.nombre}" del registro?\n\nLa auditoría antigua NO cambia: guarda el nombre copiado.`))) return;
     try {
       await api.delete(`/equipos/${e.id}`);
       setMsg(`Quitado "${e.nombre}" del registro.`);
@@ -334,6 +336,9 @@ export default function Equipos() {
  * de 700 líneas donde nadie encuentra nada.
  */
 function DispositivosPanel({ disp, acceso, msg, error, setMsg, setError, decidir, cambiarModo }: any) {
+  /* Este panel es un componente aparte, así que pide sus propios diálogos:
+     los hooks no cruzan el límite de un componente. */
+  const { pedirTexto } = useDialogos();
   const MODO_TXT: Record<string, string> = {
     LIBRE: 'Libre — no se comprueba nada. Es como está hoy.',
     AVISAR: 'Avisar — se apunta qué aparatos entran, pero NO se bloquea a nadie.',
@@ -444,11 +449,13 @@ function DispositivosPanel({ disp, acceso, msg, error, setMsg, setError, decidir
                 <td><span className={'badge ' + d.estado}>{d.estado}</span></td>
                 <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                   {d.estado !== 'APROBADO' && (
-                    <button className="btn-mini" onClick={() => {
-                      const n = window.prompt(
-                        '¿Cómo se llama este aparato?\n\nEj: «PC púlpito T2», «Celular de Juan».',
-                        d.nombre || '',
-                      );
+                    <button className="btn-mini" onClick={async () => {
+                      const n = await pedirTexto({
+                        titulo: '¿Cómo se llama este aparato?',
+                        mensaje: 'Ej: «PC púlpito T2», «Celular de Juan».',
+                        valorInicial: d.nombre || '',
+                        aceptar: 'Autorizar',
+                      });
                       if (n === null) return;
                       decidir(d.id, 'APROBADO', n || undefined);
                     }}>Autorizar</button>

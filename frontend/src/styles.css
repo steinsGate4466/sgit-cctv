@@ -2001,3 +2001,143 @@ table td, table th, .kpi .value, .indicador-valor, code {
 @media (max-width: 780px) {
   .recientes-nav { display: none; }
 }
+
+/* =========================================================================
+   BLOQUE 35 — DIÁLOGOS DE LA APLICACIÓN
+   -------------------------------------------------------------------------
+   Sustituyen a las 117 ventanas grises de `window.confirm/alert/prompt`.
+
+   La decisión visual que importa: UNA PREGUNTA NORMAL Y UN BORRADO NO SE
+   PARECEN. El cuadro nativo los pintaba idénticos, y así «¿Eliminar esta
+   foto?» y «vas a borrar 43 registros» se leían con la misma cara. Aquí lo
+   irreversible lleva franja y botón rojos, y no se cierra al pulsar el fondo
+   —un clic despistado no debe contar como respuesta a nada que no se deshace.
+
+   El z-index (1200) queda por ENCIMA de Modal (1000): estos diálogos se abren
+   desde dentro de formularios que ya son ventanas. Si quedara por debajo, la
+   pregunta se pintaría detrás del formulario que la lanzó y la pantalla
+   parecería colgada.
+   ========================================================================= */
+.dlg-fondo {
+  position: fixed; inset: 0; z-index: 1200;
+  background: rgba(17, 24, 39, .55);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  /* En el celular el teclado sube y tapa el cuadro si va centrado a la
+     fuerza; con `auto` el navegador lo desplaza a la zona visible. */
+  overflow: auto;
+}
+
+.dlg {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .28);
+  width: 100%; max-width: 440px;
+  padding: 20px 22px 16px;
+  border-top: 4px solid #1f4e79;
+  animation: dlg-entra .13s ease-out;
+}
+.dlg-peligro { border-top-color: #b42318; }
+
+/* Corta, y desactivada si la persona pidió menos movimiento. */
+@keyframes dlg-entra { from { opacity: 0; transform: translateY(-6px); } }
+@media (prefers-reduced-motion: reduce) { .dlg { animation: none; } }
+
+.dlg-titulo {
+  margin: 0 0 8px; font-size: 16.5px; font-weight: 650; line-height: 1.35;
+  color: #111827;
+}
+.dlg-peligro .dlg-titulo { color: #912018; }
+
+/* `pre-line` respeta los saltos de línea del mensaje. Los textos que se
+   migraron traían «\n\n» separando la pregunta de la consecuencia, y es esa
+   separación la que hace que la segunda parte se lea. */
+.dlg-mensaje {
+  margin: 0 0 14px; font-size: 13.5px; line-height: 1.6; color: #374151;
+  white-space: pre-line;
+}
+
+.dlg-etiqueta { display: block; font-size: 12.5px; color: #4b5563; margin: 4px 0 5px; }
+
+.dlg-campo {
+  width: 100%; box-sizing: border-box;
+  /* 16px NO es capricho: por debajo de eso, Safari en iOS hace zoom al
+     enfocar el campo y descoloca la pantalla entera. */
+  font-size: 16px;
+  padding: 9px 11px; margin-bottom: 12px;
+  border: 1px solid #cbd5e1; border-radius: 6px;
+  font-family: inherit;
+}
+.dlg-campo:focus-visible { outline: 2px solid #1f4e79; outline-offset: 1px; border-color: #1f4e79; }
+
+.dlg-acciones {
+  display: flex; justify-content: flex-end; gap: 8px;
+  margin-top: 4px; padding-top: 12px; border-top: 1px solid #eef2f7;
+}
+/* 40 px de alto: es el mínimo que se acierta con guante en un teléfono. */
+.dlg-acciones button { min-height: 40px; padding: 0 16px; }
+.dlg-acciones button:disabled { opacity: .5; cursor: not-allowed; }
+
+@media (max-width: 480px) {
+  /* En pantalla estrecha los botones se apilan y el principal va ARRIBA:
+     es el que se busca, y así queda bajo el pulgar sin estirar la mano. */
+  .dlg-acciones { flex-direction: column-reverse; }
+  .dlg-acciones button { width: 100%; }
+}
+
+/* =========================================================================
+   BLOQUE 36 — RIESGO: TARJETAS QUE FILTRAN, Y UN COLOR PARA «NO SÉ»
+   -------------------------------------------------------------------------
+   Dos añadidos, y los dos son de significado, no de adorno:
+
+   1. `.kpi-boton` — la tarjeta de indicador se vuelve pulsable y filtra la
+      tabla. Es la diferencia entre un tablero que se mira y uno que se usa:
+      se lee «3 críticos» y se pulsa para tener esos tres delante, en vez de
+      ir a buscarlos a mano en una tabla de doscientas filas. Como es un
+      <button> de verdad, funciona con teclado y el lector de pantalla dice
+      si está activo — cosa que un <div> con onClick no hace.
+
+   2. `.sindatos` — GRIS A PROPÓSITO, ni verde ni rojo. «No sé» no es «está
+      bien» y tampoco es «está mal»; pintarlo de verde sería mentir y de rojo
+      sería asustar por algo que quizá no existe. El gris no tranquiliza, que
+      es justo lo que se busca: obliga a ir a averiguarlo.
+   ========================================================================= */
+.kpi-boton {
+  /* Hereda el aspecto de .kpi; sólo se apaga lo que el navegador
+     mete por ser un <button>. */
+  font: inherit; text-align: left; width: 100%;
+  cursor: pointer; border: 1px solid var(--line); border-left-width: 4px;
+}
+.kpi-boton:hover { border-color: #9db4cc; }
+.kpi-boton:focus-visible { outline: 2px solid #1f4e79; outline-offset: 2px; }
+
+/* Activo: se nota SIN depender sólo del color, porque el filtro tiene que
+   verse también en una pantalla con reflejo del sol o en escala de grises. */
+.kpi-activo { box-shadow: inset 0 0 0 2px #1f4e79; background: #f2f7fc; }
+
+.kpi.sindatos { border-left-color: #94a3b8; }
+.chip.sindatos { background: #eef2f6; color: #475569; border-color: #cbd5e1; }
+
+/* ---- Bloque 36: la etiqueta como se va a imprimir, y la muestra de color --- */
+
+/* Monoespaciada y con la misma proporción de dos líneas que la etiquetadora
+   de campo. Enseñarla con la tipografía de la web haría parecer correcto un
+   código que en la etiqueta real no cabe. */
+.etiqueta-previa {
+  margin-top: 14px; padding: 12px 16px;
+  background: #fffdf3; border: 1px dashed #b9a97a; border-radius: 6px;
+  display: inline-block; min-width: 240px;
+}
+.etiqueta-l1 {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 19px; font-weight: 700; letter-spacing: .5px; color: #1a1a1a;
+}
+.etiqueta-l2 { font-size: 11.5px; color: #5b5b5b; margin-top: 3px; }
+
+/* El borde NO es adorno: el blanco de VOZ sobre fondo blanco sería invisible
+   sin él, y esa fila parecería un error de carga. */
+.muestra-color {
+  display: inline-block; width: 15px; height: 15px; border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, .28); margin-right: 8px;
+  vertical-align: -3px;
+}

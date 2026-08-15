@@ -5,6 +5,7 @@ import App from './App';
 import { AuthProvider } from './auth/AuthContext';
 import './styles.css';
 import ErrorBoundary from './components/ErrorBoundary';
+import { ProveedorDialogos } from './components/Dialogos';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
@@ -14,7 +15,13 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
     <ErrorBoundary donde="aplicación">
       <BrowserRouter>
         <AuthProvider>
-          <App />
+          {/* Los diálogos van DENTRO del enrutador y DENTRO del acceso, para
+              que un mensaje pueda nombrar al usuario o llevar a una ruta. Y
+              por debajo del ErrorBoundary: si el proveedor mismo falla, la
+              red de seguridad sigue por encima. */}
+          <ProveedorDialogos>
+            <App />
+          </ProveedorDialogos>
         </AuthProvider>
       </BrowserRouter>
     </ErrorBoundary>

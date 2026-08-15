@@ -2,6 +2,7 @@ import { useEffect, useState, FormEvent } from 'react';
 import { api } from '../api/client';
 import Modal from './Modal';
 import { WO_TYPES, WO_TYPE_ES } from '../pages/omCatalogos';
+import { useDialogos } from './Dialogos';
 
 /**
  * ASIGNAR UNA ORDEN — lo que hace el ingeniero. Cuatro campos.
@@ -22,6 +23,7 @@ export default function AsignarOm({ incidente, onHecho, onClose }: {
   onHecho: () => void;
   onClose: () => void;
 }) {
+  const { avisar } = useDialogos();
   const [form, setForm] = useState<any>({
     type: incidente ? 'CORRECTIVO' : 'PREVENTIVO',
     activity: '', assetId: incidente?.assetId || '', technicianId: '', scheduledDate: '',
@@ -62,7 +64,7 @@ export default function AsignarOm({ incidente, onHecho, onClose }: {
       // distintos sobre el mismo equipo. Pero abrir la segunda sin saber que
       // existe la primera es como se duplica el trabajo en campo.
       if (r.data?.avisoDuplicado) {
-        window.alert(r.data.avisoDuplicado + '\n\nLa orden se creó igualmente.');
+        await avisar(r.data.avisoDuplicado + '\n\nLa orden se creó igualmente.');
       }
       onHecho();
       onClose();

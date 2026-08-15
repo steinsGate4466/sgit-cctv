@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import Icono from '../components/Iconos';
 import { useAuth } from '../auth/AuthContext';
 import { EsqueletoTablero } from '../components/Esqueleto';
+import { useDialogos } from '../components/Dialogos';
 
 /**
  * AVISOS POR TELEGRAM (4F) — montado y apagado.
@@ -20,6 +21,7 @@ import { EsqueletoTablero } from '../components/Esqueleto';
  * que parecerían "todo enviado".
  */
 export default function Avisos() {
+  const { confirmar } = useDialogos();
   const { can } = useAuth();
   const [mio, setMio] = useState<any>(null);
   const [estado, setEstado] = useState<any>(null);
@@ -141,7 +143,7 @@ export default function Avisos() {
               <button
                 className="btn-mini btn-danger"
                 onClick={async () => {
-                  if (!window.confirm('¿Apagar los avisos por Telegram?')) return;
+                  if (!(await confirmar('¿Apagar los avisos por Telegram?'))) return;
                   await api.post('/avisos/configuracion/token', { token: '' });
                   await cargar();
                 }}
@@ -178,7 +180,7 @@ export default function Avisos() {
               <button
                 className="btn-mini btn-danger"
                 onClick={async () => {
-                  if (!window.confirm('¿Dejar de recibir avisos en Telegram?')) return;
+                  if (!(await confirmar('¿Dejar de recibir avisos en Telegram?'))) return;
                   await api.post('/avisos/mi-telegram/desvincular', {});
                   await cargar();
                 }}

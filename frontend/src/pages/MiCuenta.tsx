@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
+import { useDialogos } from '../components/Dialogos';
 
 /**
  * MI CUENTA — sesiones abiertas y el botón de «me robaron el teléfono».
@@ -20,6 +21,7 @@ import { useAuth } from '../auth/AuthContext';
  * Sin esta pantalla, esa capacidad estaba construida y apagada.
  */
 export default function MiCuenta() {
+  const { confirmar } = useDialogos();
   const { user, logout } = useAuth();
   const [sesiones, setSesiones] = useState<any[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -39,10 +41,10 @@ export default function MiCuenta() {
   useEffect(() => { setCargando(true); cargar().finally(() => setCargando(false)); }, [cargar]);
 
   async function cerrarTodas() {
-    if (!confirm(
+    if (!(await confirmar(
       'Se cerrarán TODAS tus sesiones, incluida ésta.\n\n' +
       'Tendrás que volver a iniciar sesión en todos tus equipos.',
-    )) return;
+    ))) return;
     setOcupado(true);
     try {
       const r = await api.post('/auth/sesiones/cerrar-todas', {});

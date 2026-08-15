@@ -4,6 +4,7 @@ import Modal from '../components/Modal';
 import BotonPurgar from '../components/BotonPurgar';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
+import { useDialogos } from '../components/Dialogos';
 
 /**
  * INSTALACIONES — poner equipo NUEVO.
@@ -57,6 +58,7 @@ const NUMEROS = new Set(['metrosCable', 'alturaMetros', 'distanciaEnlaceM', 'can
 const LARGOS = new Set(['rutaCable', 'riesgos', 'materialesEstimados']);
 
 export default function Instalaciones() {
+  const { pedirTexto } = useDialogos();
   const { can, user } = useAuth();
   const puedeEvaluar = can('asset.update');
   const puedeDecidir = can('wo.approve');
@@ -150,7 +152,7 @@ export default function Instalaciones() {
   async function decidir(i: any, aprobar: boolean) {
     let motivo: string | undefined;
     if (!aprobar) {
-      motivo = prompt('¿Por qué se rechaza? Quien la pidió tiene que poder corregirla.') || '';
+      motivo = await pedirTexto('¿Por qué se rechaza? Quien la pidió tiene que poder corregirla.') || '';
       if (!motivo.trim()) return;
     }
     try {

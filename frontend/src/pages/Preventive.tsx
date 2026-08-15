@@ -4,6 +4,7 @@ import RutinasEditor from '../components/RutinasEditor';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
 import Icono from '../components/Iconos';
+import { useDialogos } from '../components/Dialogos';
 
 // Estado del plan -> clase de badge existente.
 const PLAN_BADGE: Record<string, string> = {
@@ -16,6 +17,7 @@ const PLAN_ES: Record<string, string> = {
 const fmt = (d: string | null) => (d ? new Date(d).toLocaleDateString() : '—');
 
 export default function Preventive() {
+  const { confirmar, avisar } = useDialogos();
   const { can } = useAuth();
   const [plans, setPlans] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
@@ -59,20 +61,20 @@ export default function Preventive() {
       const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
       const a = document.createElement('a'); a.href = url; a.download = (w.code || 'informe') + '.pdf';
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    } catch { window.alert('No se pudo generar el informe.'); }
+    } catch { await avisar('No se pudo generar el informe.'); }
   }
   async function generate() {
-    if (!window.confirm('¿Generar las OM preventivas de los planes vencidos?')) return;
+    if (!(await confirmar('¿Generar las OM preventivas de los planes vencidos?'))) return;
     setGenerating(true);
     try {
       const r = await api.post('/preventive/generate', {});
       const g = r.data?.generated ?? 0;
       const om = r.data?.skipped?.length ?? 0;
-      window.alert(`Se generaron ${g} OM preventiva(s).${om ? ` ${om} activo(s) omitido(s) (ya tenían una OM abierta o están fuera de operación).` : ''}`);
+      await avisar(`Se generaron ${g} OM preventiva(s).${om ? ` ${om} activo(s) omitido(s) (ya tenían una OM abierta o están fuera de operación).` : ''}`);
       await load();
     } catch (err: any) {
       const m = err?.response?.data?.message;
-      window.alert(Array.isArray(m) ? m.join(', ') : m || 'No se pudo generar.');
+      await avisar(Array.isArray(m) ? m.join(', ') : m || 'No se pudo generar.');
     } finally { setGenerating(false); }
   }
 
@@ -89,7 +91,7 @@ export default function Preventive() {
   }
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!form.assetId) { window.alert('Selecciona un activo.'); return; }
+    if (!form.assetId) { await avisar('Selecciona un activo.'); return; }
     setSaving(true);
     try {
       const body: any = {
@@ -104,7 +106,7 @@ export default function Preventive() {
       await load();
     } catch (err: any) {
       const m = err?.response?.data?.message;
-      window.alert(Array.isArray(m) ? m.join(', ') : m || 'No se pudo guardar el plan.');
+      await avisar(Array.isArray(m) ? m.join(', ') : m || 'No se pudo guardar el plan.');
     } finally { setSaving(false); }
   }
 

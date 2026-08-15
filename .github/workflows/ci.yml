@@ -190,6 +190,16 @@ jobs:
         working-directory: frontend
         run: npm run lint
 
+      # El bloque 35 sustituyo 117 window.confirm/alert/prompt por los dialogos
+      # de la aplicacion. La 118 se escribe sola si nada lo impide: `confirm(...)`
+      # es mas corto que pedir el hook. Ademas de feas, esas ventanas las puede
+      # APAGAR el navegador ("impedir que esta pagina cree mas dialogos"), y
+      # entonces confirm() devuelve false sin preguntar y el boton deja de
+      # funcionar sin ningun error.
+      - name: Sin ventanas del navegador
+        working-directory: frontend
+        run: npm run verificar:dialogos
+
       - name: Compilar
         working-directory: frontend
         run: npm run build

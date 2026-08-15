@@ -29,6 +29,8 @@ const TITLES: Record<string, string> = {
   '/roles': 'Roles y permisos',
   '/mi-tren': 'Mi tren',
   '/topologia': 'Puntos críticos de la red',
+  '/riesgo': 'Dónde no vamos a poder arreglar',
+  '/rotulado': 'Estándar de rotulado',
   '/monitoreo': 'Monitoreo de red',
   '/grabadores': 'Grabadores y canales',
   '/conexiones': 'Conexiones de red',
@@ -179,7 +181,7 @@ export default function Layout() {
     },
     {
       titulo: 'Infraestructura',
-      rutas: ['/assets', '/cabinets', '/locations', '/access', '/cableado', '/mapeo', '/grabadores', '/conexiones', '/topologia', '/monitoreo', '/documentos', '/instalaciones', '/campanas', '/electricidad', '/ipam', '/zonas'],
+      rutas: ['/assets', '/cabinets', '/locations', '/access', '/cableado', '/mapeo', '/grabadores', '/conexiones', '/topologia', '/monitoreo', '/documentos', '/instalaciones', '/campanas', '/electricidad', '/ipam', '/zonas', '/riesgo', '/rotulado'],
       items: [
         can('asset.read') && <NavLink key="a" to="/assets"><Icono n="activos" /> Activos</NavLink>,
         /* Va PRIMERA de la sección, antes que Activos en importancia aunque
@@ -211,6 +213,11 @@ export default function Layout() {
         // y no habia pantalla que lo usara.
         can('document.read') && <NavLink key="dc" to="/documentos"><Icono n="etiqueta" /> Manuales y planos</NavLink>,
         can('asset.read') && <NavLink key="tp" to="/topologia"><Icono n="critico" /> Puntos críticos</NavLink>,
+        /* Bloque 36: el backend de riesgo llevaba semanas calculando y no
+           había forma de verlo. Un cálculo sin enlace, para la planta, no
+           existe. */
+        can('asset.read') && <NavLink key="rg" to="/riesgo"><Icono n="alerta" /> Riesgo</NavLink>,
+        can('asset.read') && <NavLink key="rt" to="/rotulado"><Icono n="etiqueta" /> Rotulado</NavLink>,
         can('monitor.read') && <NavLink key="mo" to="/monitoreo"><Icono n="reloj" /> Monitoreo</NavLink>,
         can('access.read') && <NavLink key="ac" to="/access"><Icono n="acceso" /> Accesibilidad</NavLink>,
       ].filter(Boolean) as ReactNode[],

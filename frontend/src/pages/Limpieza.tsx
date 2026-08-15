@@ -16,7 +16,7 @@ import { useAuth } from '../auth/AuthContext';
  * que costó meses juntar.
  *
  * Antes de borrar SIEMPRE se enseña qué se lleva por delante, y hay que
- * escribir el código a mano. Un `confirm()` se acepta por reflejo; escribir
+ * escribir el código a mano. Un `confirm()` del navegador se acepta por reflejo; escribir
  * el código obliga a mirar cuál se está borrando.
  */
 export default function Limpieza() {

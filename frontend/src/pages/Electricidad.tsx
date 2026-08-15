@@ -4,6 +4,7 @@ import Modal from '../components/Modal';
 import BotonPurgar from '../components/BotonPurgar';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
+import { useDialogos } from '../components/Dialogos';
 
 /**
  * ELECTRICIDAD — tableros, circuitos y qué cuelga de cada llave.
@@ -31,6 +32,7 @@ const ESTADO_CIRC: Record<string, string> = {
 };
 
 export default function Electricidad() {
+  const { confirmar } = useDialogos();
   const { can } = useAuth();
   const puedeEditar = can('asset.update');
 
@@ -145,7 +147,7 @@ export default function Electricidad() {
   }
 
   async function descolgar(enlaceId: string) {
-    if (!confirm('¿Quitar este equipo del circuito?\n\nNo borra el equipo: sólo deja de decir que cuelga de esta llave.')) return;
+    if (!(await confirmar('¿Quitar este equipo del circuito?\n\nNo borra el equipo: sólo deja de decir que cuelga de esta llave.'))) return;
     try {
       await api.delete(`/electricidad/activos/${enlaceId}`);
       setMsg('Quitado.'); await abrir(detalle.id);

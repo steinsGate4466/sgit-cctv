@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, FormEvent } from 'react';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { useDialogos } from './Dialogos';
 
 /**
  * DEFINICIÓN DE LAS RUTINAS PREVENTIVAS, POR TIPO DE ACTIVO.
@@ -23,6 +24,7 @@ const TIPOS = [
 const TIPO_ES = Object.fromEntries(TIPOS.map((t) => [t.v, t.t]));
 
 export default function RutinasEditor() {
+  const { confirmar, avisar } = useDialogos();
   const { can } = useAuth();
   const editable = can('location.manage');
 
@@ -39,9 +41,9 @@ export default function RutinasEditor() {
   }, []);
   useEffect(() => { cargar().finally(() => setCargando(false)); }, [cargar]);
 
-  const error = (err: any) => {
+  const error = async (err: any) => {
     const m = err?.response?.data?.message;
-    window.alert(Array.isArray(m) ? m.join(', ') : m || 'No se pudo completar la acción.');
+    await avisar(Array.isArray(m) ? m.join(', ') : m || 'No se pudo completar la acción.');
   };
 
   async function crearRutina() {
@@ -74,9 +76,9 @@ export default function RutinasEditor() {
   }
 
   async function quitarPunto(p: any) {
-    if (!window.confirm(
+    if (!(await confirmar(
       `"${p.text}" dejará de pedirse en las rutinas nuevas.\n\n` +
-      'NO se borra: las órdenes que ya lo respondieron lo conservan.\n\n¿Continuar?')) return;
+      'NO se borra: las órdenes que ya lo respondieron lo conservan.\n\n¿Continuar?'))) return;
     try { await api.delete('/checklist/puntos/' + p.id); await cargar(); }
     catch (err) { error(err); }
   }

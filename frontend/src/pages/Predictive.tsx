@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
 import Icono from '../components/Iconos';
+import { useDialogos } from '../components/Dialogos';
 
 /**
  * Mantenimiento Predictivo — alerta temprana por condición.
@@ -17,6 +18,7 @@ const NIVEL_ES: Record<string, string> = {
 };
 
 export default function Predictive() {
+  const { confirmar, avisar } = useDialogos();
   const { can } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
@@ -36,7 +38,7 @@ export default function Predictive() {
   /** Crea una OM PREDICTIVA a partir de la alerta (decisión humana, no automática). */
   async function crearOM(r: any) {
     const señales = r.signals.map((s: any) => `- ${s.senal}: ${s.detalle}`).join('\n');
-    if (!window.confirm(`¿Crear una OM PREDICTIVA para ${r.asset.assetCode}?\n\nSeñales detectadas:\n${señales}`)) return;
+    if (!(await confirmar(`¿Crear una OM PREDICTIVA para ${r.asset.assetCode}?\n\nSeñales detectadas:\n${señales}`))) return;
     setCreating(true);
     try {
       await api.post('/work-orders', {
@@ -49,11 +51,11 @@ export default function Predictive() {
         materials: undefined,
         scheduledDate: new Date().toISOString(),
       });
-      window.alert('OM predictiva creada. Queda en el módulo de Mantenimiento.');
+      await avisar('OM predictiva creada. Queda en el módulo de Mantenimiento.');
       setDetail(null);
     } catch (err: any) {
       const m = err?.response?.data?.message;
-      window.alert(Array.isArray(m) ? m.join(', ') : m || 'No se pudo crear la OM.');
+      await avisar(Array.isArray(m) ? m.join(', ') : m || 'No se pudo crear la OM.');
     } finally { setCreating(false); }
   }
 

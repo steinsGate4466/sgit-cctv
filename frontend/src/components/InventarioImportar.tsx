@@ -1,5 +1,6 @@
 import { useState, useCallback, DragEvent } from 'react';
 import { api } from '../api/client';
+import { useDialogos } from './Dialogos';
 
 /**
  * CARGA DEL CATÁLOGO DE ALMACÉN — arrastra el archivo y se llena solo.
@@ -43,6 +44,7 @@ const esXlsViejo = (n: string) => /\.xls$/i.test(n);
 const esCsv = (n: string) => /\.(csv|txt)$/i.test(n);
 
 export default function InventarioImportar({ onImportado }: { onImportado: () => void }) {
+  const { confirmar } = useDialogos();
   const [archivo, setArchivo] = useState<File | null>(null);
   const [grilla, setGrilla] = useState<{ encabezados: any[]; filas: any[][] } | null>(null);
   const [previa, setPrevia] = useState<any>(null);
@@ -138,9 +140,9 @@ export default function InventarioImportar({ onImportado }: { onImportado: () =>
   async function aplicar() {
     if (!previa) return;
     const total = (previa.nuevos || 0) + (previa.actualizados || 0);
-    if (!window.confirm(
+    if (!(await confirmar(
       `Se van a crear ${previa.nuevos} repuestos y actualizar ${previa.actualizados}.\n\n` +
-      `El stock local quedará con los valores del archivo.\n\n¿Aplicar los ${total} cambios?`)) return;
+      `El stock local quedará con los valores del archivo.\n\n¿Aplicar los ${total} cambios?`))) return;
 
     setAplicando(true);
     setError('');

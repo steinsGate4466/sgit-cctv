@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { api } from '../api/client';
+import { useDialogos } from './Dialogos';
 
 /**
  * LA RUTINA PREVENTIVA, RESPONDIDA EN CAMPO.
@@ -28,6 +29,7 @@ export default function RutinaEnCampo({ workOrderId, soloLectura, onCambio }: {
   soloLectura?: boolean;
   onCambio?: (bloqueo: string | null) => void;
 }) {
+  const { pedirTexto } = useDialogos();
   const [datos, setDatos] = useState<any>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
@@ -52,10 +54,12 @@ export default function RutinaEnCampo({ workOrderId, soloLectura, onCambio }: {
     // que rellenar en cada punto conforme, que son la mayoría.
     if (result === 'NO_OK') {
       const punto = datos.puntos.find((p: any) => p.id === itemId);
-      note = window.prompt(
-        `"${punto?.text}"\n\n¿Qué encontraste? Es obligatorio.`,
-        respuestaDe(itemId)?.note || '',
-      ) ?? undefined;
+      note = await pedirTexto({
+        titulo: `"${punto?.text}"`,
+        mensaje: '¿Qué encontraste? Es obligatorio.',
+        valorInicial: respuestaDe(itemId)?.note || '',
+        aceptar: 'Guardar hallazgo',
+      }) ?? undefined;
       if (note === undefined) return;          // canceló
       if (!note.trim()) {
         setError('Un "No conforme" sin explicar no sirve. Di qué encontraste.');

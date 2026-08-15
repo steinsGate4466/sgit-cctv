@@ -13,6 +13,7 @@ import HistorialActivo from '../components/HistorialActivo';
 import RepuestosDelActivo from '../components/RepuestosDelActivo';
 import BorrarDefinitivo from '../components/BorrarDefinitivo';
 import Icono from '../components/Iconos';
+import { useDialogos } from '../components/Dialogos';
 
 const TYPES = ['CAMERA', 'NVR', 'SWITCH', 'WIRELESS', 'DECODER', 'PANTALLA', 'PC', 'ROUTER', 'FIREWALL', 'SERVER', 'UPS', 'FIBER', 'CABINET', 'TABLERO_ELECTRICO', 'OTHER'];
 const STATES = ['OPERATIVO', 'FUERA_SERVICIO', 'MANTENIMIENTO', 'BAJA', 'STOCK'];
@@ -52,6 +53,7 @@ function Frow({ k, v }: { k: string; v: any }) {
 }
 
 export default function Assets() {
+  const { confirmar, avisar, pedirTexto } = useDialogos();
   const { can, user } = useAuth();
   // Si se llega desde una OM de mapeo (/assets?om=...), los activos que se
   // registren quedan ligados a esa orden: así se puede reconstruir después
@@ -250,13 +252,13 @@ export default function Assets() {
         // Las fotos NO se encolan: pesan y el aviso tiene que ser honesto.
         setForm(null); setSpec({});
         if (fotosNuevas.length) {
-          window.alert(
+          await avisar(
             TEXTO_PENDIENTE +
             `\n\nLas ${fotosNuevas.length} foto(s) NO se guardaron: tendrás que ` +
             'volver a tomarlas desde la ficha cuando el activo suba.',
           );
         } else {
-          window.alert(TEXTO_PENDIENTE);
+          await avisar(TEXTO_PENDIENTE);
         }
         setFotosNuevas([]);
         setSaving(false);
@@ -282,7 +284,7 @@ export default function Assets() {
           URL.revokeObjectURL(f.url);
         }
         if (fallidas.length) {
-          window.alert(
+          await avisar(
             'El activo se guardó, pero estas fotos no se pudieron subir:\n' +
             fallidas.join('\n') +
             '\n\nPuedes volver a subirlas desde la ficha del activo.',
@@ -298,7 +300,7 @@ export default function Assets() {
       if (assetId) {
         const d = await api.get('/assets/' + assetId).then((r) => r.data).catch(() => null);
         if (d?.pendiente) {
-          window.alert(
+          await avisar(
             `Activo guardado.\n\n${d.pendiente}\n\n` +
             'Queda marcado como ficha incompleta: puedes completarlo después, ' +
             'incluso escaneando su QR desde el celular en planta.',
@@ -338,7 +340,7 @@ export default function Assets() {
     if (!a.credentialId) return;
     const r = await api.get('/credentials/' + a.credentialId + '/reveal').then((res) => res.data).catch(() => null);
     if (r) setRowPass((p) => ({ ...p, [a.id]: r.secret }));
-    else window.alert('No se pudo revelar la contraseña.');
+    else await avisar('No se pudo revelar la contraseña.');
   }
 
   /** Muestra el QR del activo para pegarlo en el equipo. */
@@ -347,7 +349,7 @@ export default function Assets() {
     try {
       const res = await api.get('/assets/' + a.id + '/qr', { responseType: 'blob' });
       setQrUrl(URL.createObjectURL(res.data));
-    } catch { window.alert('No se pudo generar el QR.'); }
+    } catch { await avisar('No se pudo generar el QR.'); }
   }
   async function downloadQrSheet() {
     try {
@@ -355,7 +357,7 @@ export default function Assets() {
       const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
       const a = document.createElement('a'); a.href = url; a.download = 'etiquetas-qr.pdf';
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    } catch { window.alert('No se pudo generar la hoja de etiquetas.'); }
+    } catch { await avisar('No se pudo generar la hoja de etiquetas.'); }
   }
 
   async function reveal(credId: string) {
@@ -364,7 +366,7 @@ export default function Assets() {
   }
 
   async function uploadPhoto() {
-    if (!photoFile || !detail) { window.alert('Selecciona una imagen.'); return; }
+    if (!photoFile || !detail) { await avisar('Selecciona una imagen.'); return; }
     setUploadingPhoto(true);
     try {
       const fd = new FormData();
@@ -375,7 +377,7 @@ export default function Assets() {
       setPhotoFile(null); setPhotoCaption('');
       const ph = await api.get('/assets/' + detail.id + '/photos').then((r) => r.data).catch(() => []);
       setPhotos(ph || []);
-    } catch { window.alert('No se pudo subir la foto.'); }
+    } catch { await avisar('No se pudo subir la foto.'); }
     finally { setUploadingPhoto(false); }
   }
   async function viewPhoto(ph: any) {
@@ -384,10 +386,10 @@ export default function Assets() {
       // res.data ya es un Blob con su Content-Type (image/jpeg|png); usarlo directo
       // preserva el tipo para que el navegador lo muestre como imagen y no como texto.
       window.open(URL.createObjectURL(res.data), '_blank');
-    } catch { window.alert('No se pudo abrir la foto.'); }
+    } catch { await avisar('No se pudo abrir la foto.'); }
   }
   async function delPhoto(ph: any) {
-    if (!window.confirm('¿Eliminar esta foto?')) return;
+    if (!(await confirmar('¿Eliminar esta foto?'))) return;
     await api.delete('/assets/photos/' + ph.id).catch(() => {});
     const list = await api.get('/assets/' + detail.id + '/photos').then((r) => r.data).catch(() => []);
     setPhotos(list || []);
@@ -408,7 +410,7 @@ export default function Assets() {
       a.href = url;
       a.download = (activo.assetCode || 'informe') + '.pdf';
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    } catch { window.alert('No se pudo generar el informe.'); }
+    } catch { await avisar('No se pudo generar el informe.'); }
   }
 
   async function saveStatus() {
@@ -418,7 +420,7 @@ export default function Assets() {
       await api.patch('/assets/' + detail.id + '/status', { status: newStatus });
       setDetail({ ...detail, status: newStatus });
       await loadAssets();
-    } catch { window.alert('No se pudo actualizar el estado.'); }
+    } catch { await avisar('No se pudo actualizar el estado.'); }
     finally { setSavingStatus(false); }
   }
 
@@ -428,7 +430,7 @@ export default function Assets() {
       await api.patch('/assets/' + detail.id + '/network', { ipAddress: ipEdit || undefined });
       setDetail({ ...detail, ipAddress: ipEdit });
       await loadAssets();
-    } catch { window.alert('No se pudo actualizar la IP.'); }
+    } catch { await avisar('No se pudo actualizar la IP.'); }
     finally { setSavingIp(false); }
   }
 
@@ -447,7 +449,7 @@ export default function Assets() {
       }
       setQuick(null);
       await loadAssets();
-    } catch { window.alert('No se pudo actualizar la IP / contraseña.'); }
+    } catch { await avisar('No se pudo actualizar la IP / contraseña.'); }
     finally { setQSaving(false); }
   }
 
@@ -465,11 +467,11 @@ export default function Assets() {
         setCreds(c || []);
       }
       await loadAssets();
-    } catch { window.alert('No se pudo guardar el acceso.'); }
+    } catch { await avisar('No se pudo guardar el acceso.'); }
     finally { setSavingIp(false); }
   }
   async function addCredential() {
-    if (!cred.secret) { window.alert('La contraseña del equipo es obligatoria.'); return; }
+    if (!cred.secret) { await avisar('La contraseña del equipo es obligatoria.'); return; }
     try {
       await api.post('/credentials', { assetId: detail.id, username: cred.username || 'admin', secret: cred.secret, type: cred.type || undefined });
       setCred({ username: '', type: '', secret: '' });
@@ -477,35 +479,35 @@ export default function Assets() {
       setCreds(c || []);
     } catch (err: any) {
       const m = err?.response?.data?.message;
-      window.alert(Array.isArray(m) ? m.join(', ') : m || 'No se pudo guardar la credencial.');
+      await avisar(Array.isArray(m) ? m.join(', ') : m || 'No se pudo guardar la credencial.');
     }
   }
   /** Baja de activo: limpieza de registros de prueba o equipos retirados de planta. */
   async function removeAsset(a: any) {
-    const paso1 = window.confirm(
+    const paso1 = await confirmar(
       `¿Dar de baja el activo ${a.assetCode}?\n\n` +
       'Dejará de aparecer en listados, planes preventivos y tableros.\n' +
       'Su historial (OM, incidencias, auditoría) se conserva como evidencia.',
     );
     if (!paso1) return;
-    const conf = window.prompt(`Confirma escribiendo el código del activo: ${a.assetCode}`);
+    const conf = await pedirTexto(`Confirma escribiendo el código del activo: ${a.assetCode}`);
     if (conf !== a.assetCode) {
-      if (conf !== null) window.alert('El código no coincide. No se dio de baja.');
+      if (conf !== null) await avisar('El código no coincide. No se dio de baja.');
       return;
     }
     try {
       await api.delete('/assets/' + a.id);
       setDetail(null);
       await loadAssets();
-      window.alert('Activo dado de baja.');
+      await avisar('Activo dado de baja.');
     } catch (err: any) {
       const m = err?.response?.data?.message;
-      window.alert(Array.isArray(m) ? m.join(', ') : m || 'No se pudo dar de baja el activo.');
+      await avisar(Array.isArray(m) ? m.join(', ') : m || 'No se pudo dar de baja el activo.');
     }
   }
 
   async function delCredential(id: string) {
-    if (!window.confirm('¿Eliminar esta credencial?')) return;
+    if (!(await confirmar('¿Eliminar esta credencial?'))) return;
     await api.delete('/credentials/' + id).catch(() => {});
     const c = await api.get('/credentials?assetId=' + detail.id).then((r) => r.data).catch(() => []);
     setCreds(c || []);

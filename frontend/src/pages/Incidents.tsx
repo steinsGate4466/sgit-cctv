@@ -6,6 +6,7 @@ import Modal from '../components/Modal';
 import BotonPurgar from '../components/BotonPurgar';
 import { useAuth } from '../auth/AuthContext';
 import Icono from '../components/Iconos';
+import { useDialogos } from '../components/Dialogos';
 
 // Categorías agrupadas para el selector (CCTV/NVR, Red/energía, Entorno de planta).
 const CATEGORY_GROUPS: { label: string; items: string[] }[] = [
@@ -48,6 +49,7 @@ function statusBadge(s: string) {
 }
 
 export default function Incidents() {
+  const { avisar } = useDialogos();
   const { can, user } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
@@ -131,7 +133,7 @@ export default function Incidents() {
       await load();
     } catch (err: any) {
       const m = err?.response?.data?.message;
-      window.alert(Array.isArray(m) ? m.join(', ') : m || 'No se pudo crear la incidencia.');
+      await avisar(Array.isArray(m) ? m.join(', ') : m || 'No se pudo crear la incidencia.');
     } finally { setSaving(false); }
   }
 
@@ -182,7 +184,7 @@ export default function Incidents() {
       await load();
     } catch (err: any) {
       const m = err?.response?.data?.message;
-      window.alert(Array.isArray(m) ? m.join(', ') : m || 'No se pudo guardar la propuesta.');
+      await avisar(Array.isArray(m) ? m.join(', ') : m || 'No se pudo guardar la propuesta.');
     } finally { setPropSaving(false); }
   }
 
@@ -193,7 +195,7 @@ export default function Incidents() {
   }
   async function uploadPhoto(e: FormEvent) {
     e.preventDefault();
-    if (!file) { window.alert('Selecciona una imagen.'); return; }
+    if (!file) { await avisar('Selecciona una imagen.'); return; }
     setUploading(true);
     try {
       const fd = new FormData(); fd.append('file', file); if (caption) fd.append('caption', caption);
@@ -201,7 +203,7 @@ export default function Incidents() {
       setFile(null); setCaption('');
       const ev = await api.get('/incidents/' + photoId + '/evidence').then((r) => r.data).catch(() => []);
       setEvidence(ev || []);
-    } catch { window.alert('No se pudo subir la imagen.'); }
+    } catch { await avisar('No se pudo subir la imagen.'); }
     finally { setUploading(false); }
   }
   async function downloadReport(i: any) {
@@ -210,7 +212,7 @@ export default function Incidents() {
       const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
       const a = document.createElement('a'); a.href = url; a.download = (i.code || 'informe') + '.pdf';
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    } catch { window.alert('No se pudo generar el informe.'); }
+    } catch { await avisar('No se pudo generar el informe.'); }
   }
 
   function clearFilters() { setFq(''); setFCat(''); setFStatus(''); setFrom(''); setTo(''); }
@@ -223,7 +225,7 @@ export default function Incidents() {
       await load();
     } catch (err: any) {
       const m = err?.response?.data?.message;
-      window.alert(Array.isArray(m) ? m.join(', ') : m || 'No se pudo actualizar el estado.');
+      await avisar(Array.isArray(m) ? m.join(', ') : m || 'No se pudo actualizar el estado.');
     }
   }
 

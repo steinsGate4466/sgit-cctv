@@ -5,8 +5,10 @@ import BotonPurgar from '../components/BotonPurgar';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, AvisoAmbito } from '../components/FiltroAmbito';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
+import { useDialogos } from '../components/Dialogos';
 
 export default function Cabinets() {
+  const { avisar } = useDialogos();
   const { can } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
@@ -55,19 +57,19 @@ export default function Cabinets() {
       await load();
     } catch (err: any) {
       const m = err?.response?.data?.message;
-      window.alert(Array.isArray(m) ? m.join(', ') : m || 'No se pudo guardar el gabinete.');
+      await avisar(Array.isArray(m) ? m.join(', ') : m || 'No se pudo guardar el gabinete.');
     } finally { setSaving(false); }
   }
   async function uploadPhoto(e: FormEvent) {
     e.preventDefault();
-    if (!file) { window.alert('Selecciona una imagen.'); return; }
+    if (!file) { await avisar('Selecciona una imagen.'); return; }
     setUploading(true);
     try {
       const fd = new FormData(); fd.append('file', file);
       await api.post('/cabinets/' + photoFor.id + '/photo', fd);
       setPhotoFor(null); setFile(null);
       await load();
-    } catch { window.alert('No se pudo subir la foto.'); }
+    } catch { await avisar('No se pudo subir la foto.'); }
     finally { setUploading(false); }
   }
   async function viewPhoto(g: any) {
@@ -75,7 +77,7 @@ export default function Cabinets() {
       const res = await api.get('/cabinets/' + g.id + '/photo', { responseType: 'blob' });
       // res.data ya es un Blob con su Content-Type; usarlo directo preserva el tipo imagen.
       window.open(URL.createObjectURL(res.data), '_blank');
-    } catch { window.alert('El gabinete no tiene foto.'); }
+    } catch { await avisar('El gabinete no tiene foto.'); }
   }
 
   if (loading) return <div className="loading">Cargando gabinetes…</div>;
@@ -95,7 +97,7 @@ export default function Cabinets() {
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      window.alert('No se pudieron generar las etiquetas.');
+      await avisar('No se pudieron generar las etiquetas.');
     }
   }
 

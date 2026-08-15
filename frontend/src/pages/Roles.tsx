@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import Modal from '../components/Modal';
 import Icono from '../components/Iconos';
 import { EsqueletoTabla } from '../components/Esqueleto';
+import { useDialogos } from '../components/Dialogos';
 
 /**
  * ROLES QUE CREA EL INGENIERO.
@@ -20,6 +21,7 @@ import { EsqueletoTabla } from '../components/Esqueleto';
  * tiene sentido y se ajusta.
  */
 export default function Roles() {
+  const { confirmar, avisar } = useDialogos();
   const [roles, setRoles] = useState<any[]>([]);
   const [catalogo, setCatalogo] = useState<any>(null);
   const [cargando, setCargando] = useState(true);
@@ -83,13 +85,13 @@ export default function Roles() {
   }
 
   async function borrar(rol: any) {
-    if (!window.confirm(`¿Borrar el rol "${rol.nombre}"?`)) return;
+    if (!(await confirmar(`¿Borrar el rol "${rol.nombre}"?`))) return;
     try {
       await api.delete('/roles-admin/' + rol.id);
       await cargar();
     } catch (e: any) {
       const m = e?.response?.data?.message;
-      window.alert(Array.isArray(m) ? m.join(', ') : m || 'No se pudo borrar.');
+      await avisar(Array.isArray(m) ? m.join(', ') : m || 'No se pudo borrar.');
     }
   }
 

@@ -8,6 +8,7 @@ import { useAuth } from '../auth/AuthContext';
 import { fh, duracion } from '../pages/omCatalogos';
 import OmHerramientas, { HerramientaMarcada } from './OmHerramientas';
 import RutinaEnCampo from './RutinaEnCampo';
+import { useDialogos } from './Dialogos';
 
 /**
  * Pantallas de EJECUCIÓN EN CAMPO de una orden de mantenimiento.
@@ -26,6 +27,7 @@ interface Props {
 }
 
 export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
+  const { confirmar, avisar } = useDialogos();
   const { user } = useAuth();
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
@@ -137,8 +139,8 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
         // nunca se abrió.
         if (herramientas.length) {
           await api.post('/work-orders/' + wo.id + '/tools', { items: herramientas })
-            .catch(() => {
-              window.alert(
+            .catch(async () => {
+              await avisar(
                 'La orden se abrió, pero la lista de herramientas no se pudo guardar. '
                 + 'Puedes registrarla de nuevo desde la orden.',
               );
@@ -154,7 +156,7 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
         // Cerrar una orden que no llegó al 100 % es válido —a veces se decide
         // no continuar— pero tiene que ser una decisión consciente.
         if ((wo.progressPct ?? 0) < 100) {
-          const ok = window.confirm(
+          const ok = await confirmar(
             `El avance registrado es ${wo.progressPct ?? 0}%.\n\n` +
             '¿Confirmas el cierre de la orden?',
           );
@@ -181,7 +183,7 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
           const detalle = sobrante
             .map((m: any) => `  · ${m.description}: retirado ${m.withdrawnQty}, usado ${m.usedQty ?? 0} → sobran ${m.porDevolver} ${m.unit || ''}`)
             .join('\n');
-          const ok = window.confirm(
+          const ok = await confirmar(
             'Hay material retirado que no se declaró como usado:\n\n' + detalle +
             '\n\nSi NO vuelve al almacén, el stock del sistema quedará por debajo del real.\n\n' +
             'Aceptar = cerrar sin devolver (se queda contigo).\n' +

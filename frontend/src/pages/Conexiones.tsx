@@ -5,6 +5,7 @@ import Icono from '../components/Iconos';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, conAmbito } from '../components/FiltroAmbito';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
+import { useDialogos } from '../components/Dialogos';
 
 /**
  * CONEXIONES DE RED (bloque 12.1).
@@ -31,6 +32,7 @@ const MEDIO: Record<string, string> = {
 };
 
 export default function Conexiones() {
+  const { confirmar, avisar } = useDialogos();
   const { can } = useAuth();
   const puedeEditar = can('asset.update');
 
@@ -115,9 +117,9 @@ export default function Conexiones() {
   }
 
   async function vaciar(puertoId: string, code: string) {
-    if (!confirm(`¿Desenchufar ${code}?\n\nEl equipo NO se borra: sólo deja de estar en este puerto.`)) return;
+    if (!(await confirmar(`¿Desenchufar ${code}?\n\nEl equipo NO se borra: sólo deja de estar en este puerto.`))) return;
     try { await api.delete(`/conexiones/puertos/${puertoId}`); await cargar(); }
-    catch { alert('No se pudo desenchufar.'); }
+    catch { await avisar('No se pudo desenchufar.'); }
   }
 
   async function abrirNuevoEnlace() {
@@ -146,9 +148,9 @@ export default function Conexiones() {
   }
 
   async function borrarEnlace(id: string, texto: string) {
-    if (!confirm(`¿Borrar el enlace ${texto}?`)) return;
+    if (!(await confirmar(`¿Borrar el enlace ${texto}?`))) return;
     try { await api.delete(`/conexiones/enlaces/${id}`); await cargar(); }
-    catch { alert('No se pudo borrar.'); }
+    catch { await avisar('No se pudo borrar.'); }
   }
 
   return (

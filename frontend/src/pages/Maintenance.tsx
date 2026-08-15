@@ -12,6 +12,7 @@ import DetallarOm from '../components/DetallarOm';
 import OmMateriales from '../components/OmMateriales';
 import { WO_TYPES, WO_TYPE_ES, CANALES, CANAL_ES, CAUSA_ES } from './omCatalogos';
 import Icono from '../components/Iconos';
+import { useDialogos } from '../components/Dialogos';
 
 const TYPES = WO_TYPES; // incluye MAPEO: el levantamiento también es una OM
 // Estados que el técnico puede fijar al registrar la intervención (el cierre lo hace el Jefe).
@@ -38,6 +39,7 @@ function isOverdue(w: any) {
 }
 
 export default function Maintenance() {
+  const { avisar } = useDialogos();
   const { can } = useAuth();
   const navegar = useNavigate();
   const [rows, setRows] = useState<any[]>([]);
@@ -189,7 +191,7 @@ export default function Maintenance() {
       await load();
     } catch (err: any) {
       const m = err?.response?.data?.message;
-      window.alert(Array.isArray(m) ? m.join(', ') : m || 'No se pudo crear la orden de mantenimiento.');
+      await avisar(Array.isArray(m) ? m.join(', ') : m || 'No se pudo crear la orden de mantenimiento.');
     } finally { setSaving(false); }
   }
 
@@ -212,7 +214,7 @@ export default function Maintenance() {
       setIntId(null);
       await load();
     } catch {
-      window.alert('No se pudo registrar la intervención.');
+      await avisar('No se pudo registrar la intervención.');
     } finally { setIntSaving(false); }
   }
 
@@ -223,7 +225,7 @@ export default function Maintenance() {
   }
   async function uploadPhoto(e: FormEvent) {
     e.preventDefault();
-    if (!file) { window.alert('Selecciona una imagen.'); return; }
+    if (!file) { await avisar('Selecciona una imagen.'); return; }
     setUploading(true);
     try {
       const fd = new FormData();
@@ -235,7 +237,7 @@ export default function Maintenance() {
       setEvidence(ev || []);
       await load();
     } catch {
-      window.alert('No se pudo subir la imagen.');
+      await avisar('No se pudo subir la imagen.');
     } finally { setUploading(false); }
   }
   async function downloadReport(w: any) {
@@ -247,7 +249,7 @@ export default function Maintenance() {
       document.body.appendChild(a); a.click(); a.remove();
       URL.revokeObjectURL(url);
     } catch {
-      window.alert('No se pudo generar el informe.');
+      await avisar('No se pudo generar el informe.');
     }
   }
 
@@ -429,9 +431,9 @@ export default function Maintenance() {
           tipo="om"
           id={omAPurgar.id}
           onCerrar={() => setOmAPurgar(null)}
-          onBorrado={(r) => {
+          onBorrado={async (r) => {
             setOmAPurgar(null);
-            alert(
+            await avisar(
               `Borrada ${r.code} y ${r.arrastrado} registro(s) asociados.` +
               (r.conservado ? `\n\nSe conservaron ${r.conservado} registro(s) que no dependen de la orden (equipos levantados, inspecciones).` : ''),
             );

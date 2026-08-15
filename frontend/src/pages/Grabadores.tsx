@@ -5,6 +5,7 @@ import Icono from '../components/Iconos';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, conAmbito } from '../components/FiltroAmbito';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
+import { useDialogos } from '../components/Dialogos';
 
 /**
  * GRABADORES Y CANALES (bloques 6a y 6b).
@@ -23,6 +24,7 @@ import { useAuth } from '../auth/AuthContext';
  * se usa sentado.
  */
 export default function Grabadores() {
+  const { confirmar, avisar } = useDialogos();
   const { can } = useAuth();
   const puedeEditar = can('asset.update');
 
@@ -139,13 +141,13 @@ export default function Grabadores() {
 
   async function quitar(assetId: string, code: string) {
     if (!abierto) return;
-    if (!confirm(`¿Sacar ${code} del grabador ${abierto.code}?\n\nLa cámara NO se borra: sólo deja de estar asignada a este grabador.`)) return;
+    if (!(await confirmar(`¿Sacar ${code} del grabador ${abierto.code}?\n\nLa cámara NO se borra: sólo deja de estar asignada a este grabador.`))) return;
     try {
       await api.delete(`/grabadores/${abierto.id}/camaras/${assetId}`);
       await abrir(abierto);
       await cargar();
     } catch {
-      alert('No se pudo quitar. Vuelve a intentarlo.');
+      await avisar('No se pudo quitar. Vuelve a intentarlo.');
     }
   }
 
