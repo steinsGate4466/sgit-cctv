@@ -32,5 +32,10 @@
     "eslint-plugin-react-hooks": "^4.6.2",
     "typescript": "^5.5.4",
     "vite": "^5.4.6"
+  },
+  "overrides": {
+    "brace-expansion": "^2.0.2",
+    "js-yaml": "^4.3.1",
+    "nanoid": "^3.3.18"
   }
 }

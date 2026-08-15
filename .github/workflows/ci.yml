@@ -140,6 +140,13 @@ jobs:
         working-directory: backend
         run: npm run verificar:node
 
+      # El contenedor arrancaba con `prisma db push`, que NO aplica migraciones
+      # y puede ELIMINAR COLUMNAS. Llevaba meses ahi: con la base vacia nunca
+      # paso nada, asi que nada aviso. Lo encontro la auditoria del 13/08.
+      - name: Dockerfile sin trampas que cuesten datos
+        working-directory: backend
+        run: npm run verificar:despliegue
+
       - name: Pruebas unitarias
         working-directory: backend
         run: npm test -- --ci --runInBand
