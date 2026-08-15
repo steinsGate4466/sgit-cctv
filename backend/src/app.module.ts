@@ -46,9 +46,11 @@ import { AccessModule } from './modules/access/access.module';
 import { PredictiveModule } from './modules/predictive/predictive.module';
 import { ZonasModule } from './modules/zonas/zonas.module';
 import { ProcedimientosModule } from './modules/procedimientos/procedimientos.module';
+import { EstandaresModule } from './modules/estandares/estandares.module';
 
 @Module({
   imports: [
+    EstandaresModule,
     ProcedimientosModule,
     ZonasModule,
     ConfigModule.forRoot({ isGlobal: true }),
