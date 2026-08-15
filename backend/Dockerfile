@@ -1,7 +1,7 @@
 # ===== SGIT-CCTV API — build multi-stage (auditado) =====
 
 # ---- Stage 1: builder ----
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 # python3/make/g++  -> compilar el binding nativo de argon2
 # openssl/libc6-compat -> requeridos por el motor de Prisma en Alpine (musl)
@@ -14,7 +14,7 @@ COPY . .
 RUN npx prisma generate && npm run build
 
 # ---- Stage 2: runner ----
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 # En runtime, Prisma (motor de consultas) y argon2 (binario nativo) necesitan

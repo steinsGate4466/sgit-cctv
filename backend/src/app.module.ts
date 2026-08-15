@@ -47,9 +47,11 @@ import { PredictiveModule } from './modules/predictive/predictive.module';
 import { ZonasModule } from './modules/zonas/zonas.module';
 import { ProcedimientosModule } from './modules/procedimientos/procedimientos.module';
 import { EstandaresModule } from './modules/estandares/estandares.module';
+import { RiesgoModule } from './modules/riesgo/riesgo.module';
 
 @Module({
   imports: [
+    RiesgoModule,
     EstandaresModule,
     ProcedimientosModule,
     ZonasModule,

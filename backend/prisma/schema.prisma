@@ -70,6 +70,7 @@ model User {
   mejorasDecididas      MejoraProcedimiento[]       @relation("MejoraDecididaPor")
   notasDeCampo          NotaDeCampo[]               @relation("NotaDeCampoAutor")
   notasResueltas        NotaDeCampo[]               @relation("NotaResueltaPor")
+  modelosVerificados    ModeloEquipo[]              @relation("ModeloVerificadoPor")
   woAccompanied   WorkOrder[]     @relation("WoCompanion")
   woProgress      WorkOrderProgress[] @relation("WoProgressBy")
   sesiones        Sesion[]
@@ -472,6 +473,35 @@ model NotaDeCampo {
 
   @@index([assetId, resuelta])
   @@map("notas_de_campo")
+}
+
+/// OBSOLESCENCIA POR MODELO (bloque 32).
+///
+/// «¿Qué cámaras ya no se consiguen?» es una pregunta del MODELO, no del
+/// activo. Por modelo se averigua UNA vez con el fabricante y sirve para las
+/// 300; por activo habría que marcarlo 300 veces y en tres meses la mitad
+/// estaría sin marcar.
+model ModeloEquipo {
+  id             String    @id @default(uuid())
+  tipoActivo     AssetType
+  marca          String
+  modelo         String
+  /// Cuándo el fabricante deja de dar parches de firmware.
+  finDeSoporte   DateTime?
+  /// Ya no se consigue en el mercado. Lo marca una persona: no se deduce.
+  sinRecambio    Boolean   @default(false)
+  /// Con qué se reemplaza. Es la respuesta que hará falta el día que falle,
+  /// y averiguarla ese día cuesta una semana.
+  reemplazadoPor String?
+  notas          String?
+  verificadoPorId String?
+  verificadoPor  User?     @relation("ModeloVerificadoPor", fields: [verificadoPorId], references: [id], onDelete: SetNull)
+  verificadoEn   DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([tipoActivo, marca, modelo])
+  @@map("modelos_equipo")
 }
 
 // =====================================================================

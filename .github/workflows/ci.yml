@@ -35,10 +35,10 @@ jobs:
       - name: Descargar el codigo
         uses: actions/checkout@v4
 
-      - name: Preparar Node 20
+      - name: Preparar Node 22
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
@@ -132,6 +132,14 @@ jobs:
         working-directory: backend
         run: npm run verificar:roles
 
+      # Node 20 murio el 30/04/2026 y el proyecto siguio sobre el tres meses y
+      # medio sin parches, porque una version sin soporte NO se rompe: sigue
+      # funcionando igual. Esto lo caza, y ademas comprueba que Dockerfile, CI
+      # y engines digan los tres la misma version.
+      - name: Node con soporte y una sola version declarada
+        working-directory: backend
+        run: npm run verificar:node
+
       - name: Pruebas unitarias
         working-directory: backend
         run: npm test -- --ci --runInBand
@@ -151,10 +159,10 @@ jobs:
       - name: Descargar el codigo
         uses: actions/checkout@v4
 
-      - name: Preparar Node 20
+      - name: Preparar Node 22
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -214,10 +222,10 @@ jobs:
       - name: Descargar el codigo
         uses: actions/checkout@v4
 
-      - name: Preparar Node 20
+      - name: Preparar Node 22
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
