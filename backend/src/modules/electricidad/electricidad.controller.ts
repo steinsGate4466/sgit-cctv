@@ -54,8 +54,16 @@ export class ElectricidadController {
     return this.e.editarCircuito(id, dto, u?.userId, ip);
   }
 
+  /* El impacto del TABLERO entero, no de un circuito. Contesta la pregunta de
+     las tres de la mañana: «se fue el TAB-T2-MCC-01, ¿qué acabo de perder?».
+     Arrastra los tableros aguas abajo y la cascada de red. */
+  @SinAmbito()  // el tablero declara su tren; el ámbito se aplica al listar
+  @Get('tableros/:id/impacto')
+  @RequirePermissions('asset.read')
+  impactoTablero(@Param('id') id: string) { return this.e.impactoTablero(id); }
+
   /** «Si salta esta llave, ¿qué se apaga?» */
-  @SinAmbito()  // idem
+  @SinAmbito()  // el circuito cuelga de su tablero, que ya declara el tren
   @Get('circuitos/:id/impacto')
   @RequirePermissions('asset.read')
   impacto(@Param('id') id: string) { return this.e.impactoCircuito(id); }

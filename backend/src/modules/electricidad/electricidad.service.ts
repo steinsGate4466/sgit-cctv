@@ -1,6 +1,8 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { resolverContextoDePlanta } from '../../common/plant-context';
+import { tablerosAfectados, calcularImpacto, ColgadosDeSwitch, EquipoAlimentado } from './impacto-tablero';
 
 /**
  * ELECTRICIDAD (bloque 18)
@@ -376,4 +378,94 @@ export class ElectricidadService {
       })),
     };
   }
+  /**
+   * SI SE CAE ESTE TABLERO ENTERO, ¿QUÉ SE APAGA? (bloque 31)
+   *
+   * El impacto por CIRCUITO ya existía. Éste es el de arriba: el tablero
+   * completo, arrastrando los que él alimenta aguas abajo — un dato que el
+   * modelo guardaba desde el bloque 18 y que no usaba nadie.
+   *
+   * Cruza tres capas y las suma sin contar a nadie dos veces:
+   *   1. lo colgado de sus circuitos,
+   *   2. lo colgado de los tableros que él alimenta,
+   *   3. lo que pierde la RED porque su switch se quedó sin luz.
+   *
+   * Y termina diciendo qué ZONAS VITALES quedan a ciegas, que es lo único que
+   * a Producción le va a importar de todo esto.
+   */
+  async impactoTablero(tableroId: string) {
+    const [tableros, enlaces] = await Promise.all([
+      this.prisma.tableroElectrico.findMany({
+        select: { id: true, codigo: true, nombre: true, alimentadoDeId: true },
+      }),
+      this.prisma.alimentacionActivo.findMany({
+        select: {
+          asset: { select: { id: true, assetCode: true, type: true, locationId: true, criticality: true } },
+          circuito: { select: { tableroId: true } },
+        },
+      }),
+    ]);
+
+    const cadena = tablerosAfectados(tableroId, tableros);
+    if (!cadena.length) throw new NotFoundException('Ese tablero no existe.');
+
+    // El contexto de planta dice qué zona es vital. Se pide para TODOS los
+    // activos alimentados, no sólo los del apagón: sale igual de caro y evita
+    // una segunda consulta si mañana se amplía la vista.
+    const activos = enlaces.map((e) => ({
+      id: e.asset.id, criticality: e.asset.criticality, locationId: e.asset.locationId,
+    }));
+    const ctx = await resolverContextoDePlanta(this.prisma, activos);
+
+    const alimentados: EquipoAlimentado[] = enlaces.map((e) => ({
+      id: e.asset.id,
+      assetCode: e.asset.assetCode,
+      tipo: e.asset.type as string,
+      tableroId: e.circuito.tableroId,
+      zonaVital: ctx[e.asset.id]?.zonaVital ?? false,
+      zonaNombre: ctx[e.asset.id]?.zonaCriticaNombre ?? null,
+    }));
+
+    // Lo que cuelga de cada switch, por si el switch se queda sin luz.
+    const idsSwitch = alimentados.filter((a) => a.tipo === 'SWITCH').map((a) => a.id);
+    const colgados: ColgadosDeSwitch = new Map();
+    if (idsSwitch.length) {
+      const puertos = await this.prisma.switchPort.findMany({
+        where: { switchId: { in: idsSwitch }, connectedAssetId: { not: null } },
+        select: {
+          switchId: true,
+          connectedAsset: { select: { id: true, assetCode: true, type: true, locationId: true, criticality: true } },
+        },
+      });
+      const ctx2 = await resolverContextoDePlanta(
+        this.prisma,
+        puertos.filter((p) => p.connectedAsset).map((p) => ({
+          id: p.connectedAsset!.id,
+          criticality: p.connectedAsset!.criticality,
+          locationId: p.connectedAsset!.locationId,
+        })),
+      );
+      for (const p of puertos) {
+        if (!p.connectedAsset) continue;
+        const lista = colgados.get(p.switchId) ?? [];
+        lista.push({
+          id: p.connectedAsset.id,
+          assetCode: p.connectedAsset.assetCode,
+          tipo: p.connectedAsset.type as string,
+          tableroId: '',           // no cuelga eléctricamente del tablero
+          zonaVital: ctx2[p.connectedAsset.id]?.zonaVital ?? false,
+          zonaNombre: ctx2[p.connectedAsset.id]?.zonaCriticaNombre ?? null,
+        });
+        colgados.set(p.switchId, lista);
+      }
+    }
+
+    const impacto = calcularImpacto(cadena.map((t) => t.id), alimentados, colgados);
+    return {
+      tablero: cadena[0],
+      cadena: cadena.slice(1),
+      ...impacto,
+    };
+  }
+
 }
