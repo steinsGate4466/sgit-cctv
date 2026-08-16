@@ -200,6 +200,15 @@ jobs:
         working-directory: frontend
         run: npm run verificar:dialogos
 
+      # Las 44 pantallas llegaron a 9454 palabras de texto visible sin que
+      # nadie lo decidiera: una explicacion cada vez, y cada una razonable por
+      # separado. Esto es un TRINQUETE: la deuda vieja esta medida y anotada en
+      # LINEA_BASE, pero no puede crecer, y cuando una pantalla mejora su
+      # numero baja y ya no puede volver a subir.
+      - name: Pantallas que no marean
+        working-directory: frontend
+        run: npm run verificar:densidad
+
       - name: Compilar
         working-directory: frontend
         run: npm run build

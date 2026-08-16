@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { api } from '../api/client';
+import { useVolverALaPantalla } from '../useVolverALaPantalla';
+import { Accion, Cifras, LoQueHayQueHacer, Titular, Tono } from '../components/Patron';
 
 /**
  * ESTADO POR TREN — tablero de INFRAESTRUCTURA.
@@ -38,11 +40,62 @@ const STATUS_ES: Record<string, string> = {
 };
 const fmt = (d: any) => (d ? new Date(d).toLocaleDateString() : '—');
 
-/** Traduce el porcentaje a una frase que entiende cualquiera. */
-function semaforo(pct: number) {
-  if (pct >= 95) return { cls: 'ok', txt: 'Operación normal', icon: '●' };
-  if (pct >= 80) return { cls: 'warn', txt: 'Requiere atención', icon: '●' };
-  return { cls: 'crit', txt: 'Situación crítica', icon: '●' };
+/* =============================================================================
+   BLOQUE 38 — EL TITULAR DEL TREN
+   -----------------------------------------------------------------------------
+   Antes esta pantalla abría con un semáforo grande («Operación normal») y
+   OCHO tarjetas de indicador. Ocho números a la vez no se leen: se miran por
+   encima y no se actúa sobre ninguno. Ése era el mareo.
+
+   Ahora arriba va UNA frase que responde «¿tengo que moverme?», debajo la
+   lista corta de lo que hay que hacer, y los ocho indicadores se quedan —son
+   útiles, cada uno abre su lista— pero por debajo, como explorador.
+
+   POR QUÉ EL TITULAR SE ARMA AQUÍ Y NO EN EL BACKEND
+   En Cobertura lo redacta el servidor, y es lo correcto: esa frase también
+   sale en el PDF y en el aviso de Telegram, así que tiene que decir lo mismo
+   en los tres sitios. Ésta no sale en ningún otro sitio; es un resumen de
+   pantalla. Meterla en el backend obligaría a un endpoint nuevo para algo que
+   sólo se lee aquí.
+   ============================================================================= */
+function titularDelTren(r: any): { tono: Tono; texto: string; apoyo: string } {
+  if (!r || r.total === 0) {
+    return {
+      tono: 'sindatos',
+      texto: 'Este tren todavía no tiene equipos en el árbol',
+      apoyo: 'No es que esté mal: es que falta cargarlo. Hasta entonces no hay nada que medir.',
+    };
+  }
+
+  /* El orden importa: se informa de lo más grave que haya, no de todo a la
+     vez. Un titular que enumera cinco cosas vuelve a ser una lista. */
+  const graves: string[] = [];
+  if (r.camarasCaidas) graves.push(`${r.camarasCaidas} ${r.camarasCaidas === 1 ? 'cámara' : 'cámaras'} sin imagen`);
+  if (r.incidenciasCriticas) graves.push(`${r.incidenciasCriticas} ${r.incidenciasCriticas === 1 ? 'incidencia crítica' : 'incidencias críticas'}`);
+  if (r.omVencidas) graves.push(`${r.omVencidas} ${r.omVencidas === 1 ? 'orden vencida' : 'órdenes vencidas'}`);
+
+  if (graves.length) {
+    return {
+      tono: r.camarasCaidas || r.incidenciasCriticas ? 'grave' : 'atender',
+      texto: graves.join(' · '),
+      apoyo: `${r.operativos} de ${r.enOperacion} equipos funcionando con normalidad (${r.disponibilidad} %).`,
+    };
+  }
+
+  if (r.omAbiertas || r.accesosPendientes) {
+    return {
+      tono: 'atender',
+      texto: 'Sin fallas, con trabajo en curso',
+      apoyo: `${r.omAbiertas} ${r.omAbiertas === 1 ? 'orden abierta' : 'órdenes abiertas'} dentro de plazo`
+        + (r.accesosPendientes ? ` · ${r.accesosPendientes} acceso(s) por aprobar` : '') + '.',
+    };
+  }
+
+  return {
+    tono: 'bien',
+    texto: 'El tren está entero',
+    apoyo: `${r.operativos} de ${r.enOperacion} equipos operativos. Ninguna falla, ninguna orden vencida.`,
+  };
 }
 
 type Vista =
@@ -87,6 +140,10 @@ export default function TrainBoard() {
 
   useEffect(() => { cargarDetalle(); }, [cargarDetalle]);
 
+  /* Bloque 37: con dos o tres órdenes vivas, este tablero se queda viejo. Al
+     volver a la pantalla se recarga el tren que se está mirando. */
+  useVolverALaPantalla(cargarDetalle);
+
   async function abrirSinUbicar() {
     setVerSinUbicar(true);
     if (!listaSinUbicar) {
@@ -116,9 +173,39 @@ export default function TrainBoard() {
   }
 
   const r = d?.resumen;
-  const sem = semaforo(r?.disponibilidad ?? 100);
   const cab = r?.cableado;
   const can = r?.canales;
+  const tit = titularDelTren(r);
+
+  /* LO QUE HAY QUE HACER, ordenado por lo que duele.
+     -------------------------------------------------------------------------
+     Cada fila lleva a la vista que ya existe, así que pulsar en «2 cámaras sin
+     imagen» deja delante esas dos. Antes había que leer los ocho indicadores,
+     encontrar el que estaba en rojo y pulsarlo.
+
+     Se construye a mano y no con un bucle sobre los indicadores a propósito:
+     no todo indicador es una tarea. «Gabinetes: 12» no hay que hacer nada con
+     ello; «3 gabinetes sin foto», sí. */
+  const pendientes: Accion[] = [];
+  const suma = (cond: any, marca: string, tono: Tono, texto: string, vista: Vista) => {
+    if (cond) pendientes.push({ id: vista + texto, marca, tono, texto, alPulsar: () => setVista(vista) });
+  };
+  if (r) {
+    suma(r.camarasCaidas, String(r.camarasCaidas), 'grave',
+      r.camarasCaidas === 1 ? 'cámara sin imagen' : 'cámaras sin imagen', 'atencion');
+    suma(r.incidenciasCriticas, String(r.incidenciasCriticas), 'grave',
+      r.incidenciasCriticas === 1 ? 'incidencia crítica' : 'incidencias críticas', 'incidencias');
+    suma(r.omVencidas, String(r.omVencidas), 'grave',
+      r.omVencidas === 1 ? 'orden fuera de plazo' : 'órdenes fuera de plazo', 'trabajos');
+    suma(cab?.fueraNorma, String(cab?.fueraNorma), 'atender',
+      `tramos sobre ${d.limiteTramoM} m`, 'cableado');
+    suma(can?.sobreasignados, String(can?.sobreasignados), 'atender',
+      'grabadores sobreasignados', 'grabadores');
+    suma(r.accesosPendientes, String(r.accesosPendientes), 'atender',
+      r.accesosPendientes === 1 ? 'acceso por aprobar' : 'accesos por aprobar', 'accesos');
+    suma(r.gabinetes?.sinFoto, String(r.gabinetes?.sinFoto), 'sindatos',
+      r.gabinetes?.sinFoto === 1 ? 'gabinete sin foto' : 'gabinetes sin foto', 'gabinetes');
+  }
 
   return (
     <div>
@@ -207,27 +294,35 @@ export default function TrainBoard() {
         </div>
       ) : (
         <>
-          {/* ------------------------------------------------------- semáforo */}
-          <div className={'status-hero ' + sem.cls}>
-            <div className="sh-left">
-              <div className="sh-dot">{sem.icon}</div>
-              <div>
-                <div className="sh-title">{sem.txt}</div>
-                <div className="sh-sub">
-                  {r.total === 0
-                    ? 'Este tren todavía no tiene activos colgados en el árbol'
-                    : `${r.operativos} de ${r.enOperacion} equipos funcionando con normalidad`}
-                </div>
-              </div>
-            </div>
-            <div className="sh-right">
-              <div className="sh-pct">{r.disponibilidad}%</div>
-              <div className="sh-label">disponibilidad</div>
-            </div>
-          </div>
+          {/* -------- 1. LA RESPUESTA (bloque 38) -------- */}
+          <Titular tono={tit.tono} texto={tit.texto} apoyo={tit.apoyo} />
 
-          {/* ------------------------------------------------- los indicadores */}
-          <div className="kpi-grid" style={{ marginTop: 16 }}>
+          {/* -------- 2. LO QUE HAY QUE HACER -------- */}
+          <LoQueHayQueHacer
+            acciones={pendientes}
+            vacio={r.total > 0 ? 'Nada pendiente en este tren.' : undefined}
+          />
+
+          {/* -------- 3. LOS NÚMEROS, EN UNA LÍNEA --------
+              La disponibilidad estaba en un bloque enorme al lado del
+              semáforo. Es un dato de contexto, no la respuesta: aquí va donde
+              le toca, en la línea de cifras. */}
+          {r.total > 0 && (
+            <Cifras
+              datos={[
+                { n: r.disponibilidad, et: '% disponibilidad' },
+                { n: r.operativos, de: r.enOperacion, et: 'operativos' },
+                { n: r.avanceMapeoPct, et: '% mapeado' },
+              ]}
+            />
+          )}
+
+          {/* -------- 4. EL EXPLORADOR --------
+              Los ocho indicadores se quedan: cada uno abre su lista y eso es
+              lo que hace que la pantalla sirva para trabajar. Lo que cambia es
+              que ya no son lo PRIMERO que se ve. */}
+          <div className="bloque-titulo">Explorar el tren</div>
+          <div className="kpi-grid">
             <Kpi label="Cámaras funcionando" value={`${r.camaras - r.camarasCaidas}/${r.camaras}`}
                  cls={r.camarasCaidas ? 'warn' : 'ok'}
                  hint={r.camarasCaidas ? `${r.camarasCaidas} sin imagen o con falla` : 'Todas operativas'}

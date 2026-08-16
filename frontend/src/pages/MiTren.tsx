@@ -5,6 +5,23 @@ import { EsqueletoTablero } from '../components/Esqueleto';
 import { NadaPendiente } from '../components/Ilustraciones';
 import { useDialogos } from '../components/Dialogos';
 import { useVolverALaPantalla } from '../useVolverALaPantalla';
+import { Cifras, Titular, Tono } from '../components/Patron';
+
+/**
+ * El tono de la línea.
+ *
+ * SIN CÁMARAS NO ES «BIEN», ES «SIN DATOS». La versión anterior calculaba el
+ * porcentaje con `total > 0 ? ... : 100` y un tren vacío salía al 100 % en
+ * verde. Un tren que nadie ha cargado no está sano: está sin medir, y el
+ * gris lo dice sin tranquilizar a nadie.
+ */
+const tono = (total: number, caidos: number): Tono => {
+  if (total === 0) return 'sindatos';
+  if (caidos === 0) return 'bien';
+  /* Una sola cámara caída ya es «atender». Se pasa a grave a partir de dos, o
+     cuando es más de la décima parte de la línea. */
+  return caidos >= 2 || caidos / total > 0.1 ? 'grave' : 'atender';
+};
 
 /**
  * MI TREN — la pantalla de Producción.
@@ -127,9 +144,6 @@ export default function MiTren() {
   return (
     <div>
       <h1 className="page-title">Mi tren</h1>
-      <p className="page-sub">
-        Estado de la vigilancia en tu línea y qué se está haciendo con lo que está caído.
-      </p>
 
       {trenes.map((t) => {
         const a = t.activos || {};
@@ -137,30 +151,40 @@ export default function MiTren() {
         const caidos = (a.fueraServicio ?? 0) + (a.conIncidencia ?? 0) + (a.mantenimiento ?? 0);
         const viendo = Math.max(total - caidos, 0);
         const pct = total > 0 ? Math.round((viendo / total) * 100) : 100;
-        const estado = pct >= 95 ? 'ok' : pct >= 85 ? 'warn' : 'crit';
         const suyas = ordenes.filter((o) => (o.tren || o.trenCode) === t.code);
 
         return (
           <div key={t.code || t.id} style={{ marginBottom: 26 }}>
-            <div className={'status-hero ' + estado}>
-              <div className="sh-left">
-                <span className="sh-dot">●</span>
-                <div>
-                  <div className="sh-title">{t.nombre || t.code}</div>
-                  <div className="sh-sub">
-                    {caidos === 0
-                      ? 'Todas las cámaras de tu línea están operativas.'
-                      : `${caidos} de ${total} cámaras no están viendo ahora mismo.`}
-                  </div>
-                </div>
-              </div>
-              <div className="sh-right">
-                <div className="sh-pct">{pct}%</div>
-                <div className="sh-label">con visión</div>
-              </div>
-            </div>
+            {/* -------- LA RESPUESTA (bloque 38) --------
+                Antes el nombre del tren era el titular y el estado la letra
+                pequeña. Estaba al revés: el jefe de línea YA SABE en qué tren
+                está; lo que no sabe es si tiene que moverse. */}
+            <Titular
+              tono={tono(total, caidos)}
+              texto={
+                total === 0
+                  ? `${t.nombre || t.code}: todavía sin cámaras cargadas`
+                  : caidos === 0
+                    ? `${t.nombre || t.code}: con vista completa`
+                    : `${caidos} ${caidos === 1 ? 'cámara no está viendo' : 'cámaras no están viendo'} en ${t.nombre || t.code}`
+              }
+              apoyo={
+                total === 0
+                  ? 'No se puede medir nada hasta que se carguen. No sale 0 % ni 100 %: los dos serían mentira.'
+                  : `${viendo} de ${total} con visión (${pct} %) · ${suyas.length} ${suyas.length === 1 ? 'orden abierta' : 'órdenes abiertas'}`
+              }
+            />
 
-            <div className="section-title">Qué está caído y qué se está haciendo</div>
+            {total > 0 && (
+              <Cifras
+                datos={[
+                  { n: viendo, de: total, et: 'con visión' },
+                  { n: suyas.length, et: suyas.length === 1 ? 'orden abierta' : 'órdenes abiertas' },
+                ]}
+              />
+            )}
+
+            <div className="bloque-titulo">Qué está caído y qué se está haciendo</div>
 
             {suyas.length === 0 ? (
               <div className="card vacio">

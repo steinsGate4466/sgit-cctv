@@ -2141,3 +2141,257 @@ table td, table th, .kpi .value, .indicador-valor, code {
   border: 1px solid rgba(0, 0, 0, .28); margin-right: 8px;
   vertical-align: -3px;
 }
+
+/* =========================================================================
+   BLOQUE 38 — EL PATRÓN DE PANTALLA
+   -------------------------------------------------------------------------
+   Escrito PRIMERO PARA EL CELULAR y ampliado después al escritorio, no al
+   revés. Al revés no funciona: lo que se diseña ancho y luego se estrecha
+   acaba con scroll horizontal y botones de 28 px que no se aciertan con
+   guante. Lo que se diseña estrecho y luego se ensancha sólo gana aire.
+
+   Tres reglas duras del móvil, y las tres salen de la planta:
+     · 44 px de alto mínimo en lo que se pulsa. Es lo que se acierta con guante.
+     · 16 px en los campos. Por debajo, Safari en iOS hace zoom al enfocar y
+       descoloca la pantalla entera.
+     · Lo que se usa va ABAJO. El pulgar llega a la mitad inferior.
+   ========================================================================= */
+
+/* ---- 1. El titular --------------------------------------------------- */
+.titular {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 16px 18px; border-radius: 12px; margin-bottom: 16px;
+}
+.titular svg { flex: none; margin-top: 2px; }
+/* 17px en móvil y 19 en escritorio: es la única cosa de la pantalla que se
+   tiene que poder leer desde la puerta. */
+.titular-frase { font-size: 17px; font-weight: 650; line-height: 1.35; }
+.titular-apoyo { font-size: 13px; margin-top: 5px; line-height: 1.5; }
+
+@media (min-width: 700px) {
+  .titular-frase { font-size: 19px; }
+  .titular-apoyo { font-size: 13.5px; }
+}
+
+/* ---- 2. Lo que hay que hacer ----------------------------------------- */
+.bloque-titulo {
+  font-size: 12px; color: var(--muted); margin: 18px 0 7px;
+  text-transform: none; letter-spacing: 0;
+}
+
+.acciones {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 10px; overflow: hidden;
+}
+
+.accion {
+  display: flex; align-items: center; gap: 10px;
+  /* 48 px de alto: por encima del mínimo de 44, porque estas filas se pulsan
+     caminando. */
+  min-height: 48px; padding: 10px 13px;
+  border-top: 1px solid var(--line);
+  color: inherit; text-decoration: none;
+}
+.accion:first-child { border-top: 0; }
+a.accion:hover { background: #f6f9fc; }
+a.accion:focus-visible { outline: 2px solid #1f4e79; outline-offset: -2px; }
+.accion svg { flex: none; color: var(--muted); }
+
+.accion-texto { flex: 1; min-width: 0; font-size: 14px; line-height: 1.35; }
+/* En móvil el «dónde» baja a su propia línea: en 320 px no cabe al lado y
+   partirlo a media palabra se lee peor que en dos renglones. */
+.accion-donde { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+@media (min-width: 560px) {
+  .accion-donde { display: inline; margin: 0 0 0 8px; }
+}
+
+.marca {
+  flex: none; font-size: 11px; font-weight: 600;
+  padding: 3px 8px; border-radius: 5px; white-space: nowrap;
+}
+.marca-grave    { background: #fdeceb; color: #7f1d1d; }
+.marca-atender  { background: #fdf3e2; color: #78350f; }
+.marca-bien     { background: #eaf5ed; color: #14532d; }
+.marca-sindatos { background: #f1f4f7; color: #334155; }
+
+.acciones-resto { font-size: 12.5px; color: var(--muted); margin: 8px 2px 0; }
+.nada-que-hacer { font-size: 13.5px; color: var(--muted); margin: 10px 2px 16px; }
+
+/* ---- 3. Los números, en una línea ------------------------------------ */
+/* `flex-wrap` y no una rejilla: con tres cifras en un teléfono de 320 px, dos
+   caben arriba y una baja sola. Una rejilla de tres columnas las apretaría
+   hasta partir los números. */
+.cifras {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px;
+  padding: 11px 2px; margin: 14px 0;
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+}
+.cifra { display: flex; align-items: baseline; gap: 5px; font-size: 13px; }
+.cifra b { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.cifra-de { font-size: 13px; color: var(--muted); margin-left: -3px; }
+.cifra-et { color: var(--muted); }
+.cifra-sep { color: var(--line); margin-right: 8px; }
+.cifra-sindatos { font-size: 14px; color: #64748b; font-style: italic; }
+
+/* ---- 4. El detalle, plegado ------------------------------------------ */
+.detalle {
+  border: 1px solid var(--line); border-radius: 10px;
+  margin-top: 16px; background: var(--card);
+}
+.detalle-cabeza {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; min-height: 46px; padding: 0 14px;
+  font-size: 13.5px; color: var(--muted); cursor: pointer;
+  list-style: none;   /* Safari */
+}
+/* El triángulo por defecto de <summary> se quita en los dos motores: Chrome y
+   Firefox usan `::marker`, Safari usa este pseudo-elemento propio. */
+.detalle-cabeza::-webkit-details-marker { display: none; }
+.detalle-cabeza::marker { content: ''; }
+.detalle-cabeza:hover { color: var(--fg); }
+.detalle-cabeza:focus-visible { outline: 2px solid #1f4e79; outline-offset: -2px; }
+.detalle-cabeza svg { transition: transform .15s ease; }
+.detalle[open] .detalle-cabeza svg { transform: rotate(180deg); }
+.detalle[open] .detalle-cabeza { border-bottom: 1px solid var(--line); color: var(--fg); }
+.detalle-cuerpo { padding: 4px; }
+@media (prefers-reduced-motion: reduce) { .detalle-cabeza svg { transition: none; } }
+
+/* ---- 5. Cómo se calcula esto ----------------------------------------- */
+/* Discreto A PROPÓSITO: es para el primer día, no para todos los días. */
+.como-calcula { margin-top: 18px; }
+.como-calcula > summary {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 40px; font-size: 12.5px; color: var(--muted); cursor: pointer;
+  list-style: none;
+}
+.como-calcula > summary::-webkit-details-marker { display: none; }
+.como-calcula > summary::marker { content: ''; }
+.como-calcula > summary::before { content: '?'; 
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 1px solid currentColor; font-size: 11px; }
+.como-calcula > summary:hover { color: var(--fg); }
+.como-calcula > summary:focus-visible { outline: 2px solid #1f4e79; outline-offset: 2px; }
+.como-calcula-cuerpo {
+  font-size: 13px; line-height: 1.65; color: var(--muted);
+  padding: 4px 0 0 22px; max-width: 70ch;
+}
+.como-calcula-cuerpo p { margin: 0 0 8px; }
+
+/* =========================================================================
+   BLOQUE 38 — LA TABLA QUE EN EL CELULAR ES UNA TARJETA
+   -------------------------------------------------------------------------
+   MÓVIL PRIMERO. Lo de abajo es la forma de tarjeta; la tabla aparece a
+   partir de 780 px con una media consulta.
+
+   Se pinta UN SOLO marcado. Dos copias escondidas con `display:none`
+   duplicarían el peso del HTML —que en el plan de datos del técnico se
+   nota— y un lector de pantalla leería todo dos veces.
+
+   El corte en 780 px coincide con el que ya usa el menú lateral: por debajo
+   de ahí la barra pasa a tira horizontal. Si los dos cortes fueran
+   distintos, habría un rango de anchos con el menú en modo teléfono y las
+   tablas en modo escritorio.
+   ========================================================================= */
+
+/* ---- FORMA DE TARJETA (móvil) ---------------------------------------- */
+.ta-cabecera { display: none; }          /* en móvil no hay cabecera: hay etiquetas */
+
+.ta-fila {
+  display: block;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 13px 15px;
+  margin-bottom: 10px;
+  color: inherit; text-decoration: none;
+}
+a.ta-fila:active { background: #f6f9fc; }
+a.ta-fila:focus-visible { outline: 2px solid #1f4e79; outline-offset: 2px; }
+
+.ta-principal { font-size: 15px; font-weight: 600; margin-bottom: 9px; }
+
+.ta-celda { display: flex; gap: 8px; align-items: baseline; font-size: 13.5px; padding: 3px 0; }
+.ta-etiqueta { flex: 0 0 40%; color: var(--muted); font-size: 12.5px; }
+.ta-valor { flex: 1; min-width: 0; }
+
+/* Lo que sólo hace falta comparando veinte filas en el púlpito. En el
+   teléfono estorba: la IP y el gabinete no se miran caminando. */
+.ta-solo-pc { display: none; }
+
+/* La flecha de «esto lleva a algún sitio» no cabe en la tarjeta: en móvil la
+   tarjeta ENTERA es el destino y eso ya se entiende. */
+.ta-fila > svg { display: none; }
+
+.ta-accion { padding-top: 11px; margin-top: 9px; border-top: 1px solid var(--line); }
+.ta-boton {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; min-height: 44px;       /* el mínimo que se acierta con guante */
+  font-size: 14.5px; text-decoration: none;
+}
+
+/* ---- FORMA DE TABLA (escritorio) ------------------------------------- */
+@media (min-width: 780px) {
+  .tabla-adaptable {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .ta-cabecera {
+    display: flex; gap: 12px;
+    padding: 9px 14px;
+    background: #f7f9fb;
+    border-bottom: 1px solid var(--line);
+    font-size: 12px; color: var(--muted);
+  }
+
+  .ta-fila {
+    display: flex; gap: 12px; align-items: center;
+    background: transparent; border: 0; border-radius: 0;
+    border-top: 1px solid var(--line);
+    padding: 10px 14px; margin: 0;
+  }
+  .ta-fila:first-of-type { border-top: 0; }
+  a.ta-fila:hover { background: #f6f9fc; }
+
+  .ta-celda { display: block; flex: 1; min-width: 0; padding: 0; font-size: 13px; }
+  .ta-principal { font-size: 13.5px; font-weight: 600; margin: 0; }
+
+  /* En escritorio la etiqueta ya está en la cabecera: repetirla en cada fila
+     sería decir «Estado: OK» doscientas veces. */
+  .ta-etiqueta { display: none; }
+  .ta-valor { display: inline; }
+  .ta-solo-pc { display: block; }
+  .ta-fila > svg { display: block; flex: none; color: var(--muted); }
+  .ta-flecha { flex: 0 0 16px; }
+
+  /* En escritorio el botón no ocupa el ancho: es una celda más. */
+  .ta-accion { border: 0; padding: 0; margin: 0; flex: 0 0 auto; }
+  .ta-boton { width: auto; min-height: 32px; padding: 0 12px; font-size: 13px; }
+}
+
+/* ---- Bloque 38: filas de zona dentro del detalle plegado -------------- */
+.zona-fila { padding: 11px 12px; border-bottom: 1px solid var(--line); }
+.zona-fila:last-child { border-bottom: 0; }
+.zona-cabeza { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 14px; }
+/* `margin-left:auto` empuja la cuenta al extremo. Con `flex-wrap`, si no cabe
+   baja de línea sola en vez de aplastar el nombre de la zona. */
+.zona-cuenta { margin-left: auto; font-size: 13px; font-variant-numeric: tabular-nums; }
+.zona-sub { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+.zona-aviso { font-size: 12px; color: #b45309; margin-top: 4px; display: flex; align-items: center; gap: 5px; }
+
+/* Bloque 38: una fila de acción puede ser <a>, <div> o <button>. El botón
+   trae estilos propios del navegador que hay que apagar para que las tres
+   se vean iguales — si no, la que navega dentro de la pantalla se
+   distinguiría de la que navega fuera, y esa diferencia no significa nada
+   para quien la usa. */
+button.accion {
+  width: 100%; font: inherit; text-align: left;
+  background: none; border: 0; border-top: 1px solid var(--line);
+  cursor: pointer;
+}
+button.accion:first-child { border-top: 0; }
+button.accion:hover { background: #f6f9fc; }
+button.accion:focus-visible { outline: 2px solid #1f4e79; outline-offset: -2px; }

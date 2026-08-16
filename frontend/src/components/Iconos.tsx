@@ -91,6 +91,12 @@ const D: Record<string, string> = {
   pausa: 'M9 5v14M15 5v14',
   /* Engranaje: lo que hace el sistema solo, sin que nadie pulse nada. */
   automatico: 'M12 9a3 3 0 100 6 3 3 0 000-6zM12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1',
+  /* Bloque 38. Al final de una fila significa «esto lleva a algún sitio».
+     Sin ella, una fila pulsable y una que sólo informa se ven igual, y la
+     gente deja de probar a pulsar. */
+  flecha: 'M9 6l6 6-6 6',
+  /* Chevron hacia abajo: lo que se despliega. */
+  desplegar: 'M6 9l6 6 6-6',
 };
 
 export type NombreIcono = keyof typeof D;

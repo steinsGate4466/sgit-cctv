@@ -4,6 +4,7 @@ import { NadaPendiente } from '../components/Ilustraciones';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useVolverALaPantalla } from '../useVolverALaPantalla';
+import { Accion, Cifras, LoQueHayQueHacer, Titular, Tono } from '../components/Patron';
 
 /**
  * MI BANDEJA — lo que espera una decisión, hoy.
@@ -45,10 +46,43 @@ export default function Bandeja() {
 
   const r = d.resumen;
 
+  /* ==========================================================================
+     BLOQUE 38 — EL TITULAR Y EL ORDEN DE ATAQUE
+     --------------------------------------------------------------------------
+     EL ORDEN NO ES POR CANTIDAD, ES POR QUIÉN ESTÁ PARADO ESPERANDO.
+
+       1. Permiso de altura   — hay alguien al pie de la escalera sin poder subir.
+       2. Sin detallar        — el técnico no puede ni empezar.
+       3. Firma de almacén    — la orden está lista y le falta el material.
+       4. Vencidas            — molesta, pero nadie está de pie esperando.
+
+     Ordenarlo por cantidad pondría arriba lo que más hay, que casi siempre son
+     las vencidas — y las vencidas ya llevan días: un día más no cambia nada.
+     El permiso de altura sí: son minutos de una persona parada.
+     ========================================================================== */
+  const porDondeEmpezar: Accion[] = [];
+  const pon = (n: number, tono: Tono, texto: string, a: string) => {
+    if (n > 0) porDondeEmpezar.push({ id: a + texto, marca: String(n), tono, texto, a });
+  };
+  pon(r.accesos, 'grave', r.accesos === 1 ? 'permiso de altura sin resolver' : 'permisos de altura sin resolver', '/access');
+  pon(r.sinDetallar, 'atender', r.sinDetallar === 1 ? 'orden asignada sin detallar' : 'órdenes asignadas sin detallar', '/maintenance');
+  pon(r.firmasPendientes, 'atender', r.firmasPendientes === 1 ? 'orden esperando material' : 'órdenes esperando material', '/maintenance');
+  pon(r.vencidas, 'atender', r.vencidas === 1 ? 'orden fuera de plazo' : 'órdenes fuera de plazo', '/maintenance');
+
+  /* El titular nombra LO PRIMERO, no el total. «7 cosas pendientes» no dice por
+     dónde empezar; «1 permiso de altura sin resolver» sí. */
+  const primero = porDondeEmpezar[0];
+  const tono: Tono = r.accesos ? 'grave' : 'atender';
+  const titular = primero
+    ? `${primero.marca} ${primero.texto}`
+    : `${r.total} ${r.total === 1 ? 'cosa esperándote' : 'cosas esperándote'}`;
+  const apoyo = r.total > (Number(primero?.marca) || 0)
+    ? `Y ${r.total - Number(primero?.marca ?? 0)} más por debajo. Van ordenadas por quién está parado esperando, no por cuántas hay.`
+    : undefined;
+
   return (
     <div>
       <h1 className="page-title">Mi bandeja</h1>
-      <p className="page-sub">Lo que espera una decisión tuya. No es un tablero: es una lista para vaciar.</p>
 
       {r.total === 0 ? (
         <div className="card vacio">
@@ -61,16 +95,20 @@ export default function Bandeja() {
         </div>
       ) : (
         <>
-          <div className="kpi-grid">
-            <Contador t="Sin detallar" v={r.sinDetallar} cls={r.sinDetallar ? 'warn' : 'ok'}
-              hint="El técnico no puede empezar" />
-            <Contador t="Firmas de almacén" v={r.firmasPendientes} cls={r.firmasPendientes ? 'warn' : 'ok'}
-              hint="Órdenes esperando material" />
-            <Contador t="Permisos de altura" v={r.accesos} cls={r.accesos ? 'crit' : 'ok'}
-              hint="Sin esto nadie sube" />
-            <Contador t="Órdenes vencidas" v={r.vencidas} cls={r.vencidas ? 'crit' : 'ok'}
-              hint="Pasaron de fecha" />
-          </div>
+          {/* -------- 1. LA RESPUESTA (bloque 38) --------
+              Antes esto abría con cuatro contadores. Cuatro números no dicen
+              por dónde empezar; una frase sí. */}
+          <Titular tono={tono} texto={titular} apoyo={apoyo} />
+
+          {/* -------- 2. POR DÓNDE EMPEZAR --------
+              Las mismas cifras, pero ordenadas por lo que bloquea a otra
+              persona y con un solo toque para llegar. Un permiso de altura sin
+              firmar deja a alguien parado al pie de la escalera; una orden
+              vencida molesta pero nadie está esperando de pie. */}
+          <LoQueHayQueHacer titulo="Por dónde empezar" acciones={porDondeEmpezar} />
+
+          {/* -------- 3. EL TOTAL, EN UNA LÍNEA -------- */}
+          <Cifras datos={[{ n: r.total, et: 'cosas esperándote' }]} />
 
           {/* -------------------------------------------------- BLOQUEA A OTROS */}
           <Bloque

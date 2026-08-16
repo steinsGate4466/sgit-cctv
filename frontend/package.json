@@ -14,7 +14,8 @@
     "lint": "eslint \"src/**/*.{ts,tsx}\" --max-warnings 50",
     "verificar:foco": "node scripts/verificar-foco.cjs",
     "verificar:cascada": "node scripts/verificar-cascada.cjs",
-    "verificar:dialogos": "node scripts/verificar-dialogos.cjs"
+    "verificar:dialogos": "node scripts/verificar-dialogos.cjs",
+    "verificar:densidad": "node scripts/verificar-densidad.cjs"
   },
   "dependencies": {
     "axios": "^1.7.7",
