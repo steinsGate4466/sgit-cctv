@@ -19,23 +19,56 @@ describe('MaintenanceService — ejecución de OM en campo', () => {
   });
 
   function build(over: any = {}) {
+    /* ESTADO VIVO DE LA ORDEN.
+       -----------------------------------------------------------------------
+       Bloque 37: el servicio dejó de escribir con `update` y pasó a
+       `updateMany` con el estado en el `where`. Eso lo cambia todo aquí: el
+       doble ya no puede devolver un objeto fijo, porque LA PRUEBA depende de
+       si la fila cumplía o no la condición.
+
+       Este objeto es la «fila» de la base. `updateMany` la mira, decide si la
+       toca, y devuelve cuántas cambió — igual que PostgreSQL. Con eso se puede
+       probar de verdad la carrera: basta con cambiar `filaViva.status` entre
+       medias para simular que otro cerró la orden. */
+    const filaViva: any = { id: 'w1', ...(over.wo || {}) };
+
     const prisma: any = {
       workOrder: {
-        findUnique: jest.fn().mockResolvedValue(over.wo ?? null),
+        /* Devuelve la fila VIVA, no la foto inicial. Es lo que hace una base
+           de datos de verdad, y es justo lo que hace falta para que el
+           mensaje de conflicto pueda decir en qué estado quedó la orden.
+           Con la foto, `escribirSiSigueEn` releía y encontraba el estado
+           viejo — y el aviso al técnico habría sido incorrecto. */
+        findUnique: jest.fn().mockImplementation(() =>
+          (over.wo ? { ...filaViva } : null)),
+        findUniqueOrThrow: jest.fn().mockImplementation(() => ({ ...filaViva })),
         findFirst: jest.fn().mockResolvedValue(over.ultimaOm ?? null),
         create: jest.fn().mockImplementation(({ data }: any) => ({ id: 'w1', ...data })),
-        update: jest.fn().mockImplementation(({ data }: any) => ({
-          id: 'w1', ...(over.wo || {}), ...data,
-        })),
+        update: jest.fn().mockImplementation(({ data }: any) => {
+          Object.assign(filaViva, data);
+          return { ...filaViva };
+        }),
+        updateMany: jest.fn().mockImplementation(({ where, data }: any) => {
+          const permitidos = where?.status?.in;
+          if (permitidos && !permitidos.includes(filaViva.status)) return { count: 0 };
+          Object.assign(filaViva, data);
+          return { count: 1 };
+        }),
       },
       user: { findUnique: jest.fn().mockResolvedValue(over.usuario ?? USUARIO('Técnico de Red')) },
       workOrderProgress: {
         create: jest.fn().mockImplementation(({ data }: any) => ({ id: 'p1', ...data })),
         findMany: jest.fn().mockResolvedValue(over.avances ?? []),
       },
-      // $transaction recibe un arreglo de promesas ya construidas.
-      $transaction: jest.fn((ops: any[]) => Promise.all(ops)),
+      /* `$transaction` recibe DOS formas: un arreglo de promesas ya
+         construidas, o una función que recibe el cliente transaccional. El
+         bloque 37 introdujo la segunda —hace falta para poder abortar a mitad
+         cuando otro se adelantó—, así que el doble tiene que servir las dos. */
+      $transaction: jest.fn((arg: any) =>
+        typeof arg === 'function' ? arg(prisma) : Promise.all(arg)),
     };
+    // Se expone para que las pruebas de carrera puedan moverla.
+    prisma.__fila = filaViva;
     const audit = { record: jest.fn().mockResolvedValue(null) };
     const preventive = { markServiced: jest.fn().mockResolvedValue(null) };
     // Bandeja de salida de avisos (4F). Se puede hacer que FALLE a propósito
@@ -118,7 +151,7 @@ describe('MaintenanceService — ejecución de OM en campo', () => {
       await svc.openSigned('w1', {
         email: 'tec@aa.local', password: 'correcta', companionId: 'u2',
       } as any);
-      const d = prisma.workOrder.update.mock.calls[0][0].data;
+      const d = prisma.__fila;
       expect(d.status).toBe('EN_PROCESO');
       expect(d.openedById).toBe('u1');
       expect(d.companionId).toBe('u2');
@@ -169,13 +202,13 @@ describe('MaintenanceService — ejecución de OM en campo', () => {
         usuario: USUARIO('Técnico de Red'),
       });
       await svc.openSigned('w1', { email: 'tec@aa.local', password: 'correcta' } as any);
-      expect(prisma.workOrder.update).toHaveBeenCalled();
+      expect(prisma.workOrder.updateMany).toHaveBeenCalled();
     });
 
     it('un Técnico eléctrico SÍ puede abrir una correctiva', async () => {
       const { svc, prisma } = build({ wo: abierta, usuario: USUARIO('Técnico') });
       await svc.openSigned('w1', { email: 'tec@aa.local', password: 'correcta' } as any);
-      expect(prisma.workOrder.update).toHaveBeenCalled();
+      expect(prisma.workOrder.updateMany).toHaveBeenCalled();
     });
   });
 
@@ -189,7 +222,7 @@ describe('MaintenanceService — ejecución de OM en campo', () => {
       expect(prisma.workOrderProgress.create).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ pct: 30 }) }),
       );
-      const d = prisma.workOrder.update.mock.calls[0][0].data;
+      const d = prisma.__fila;
       expect(d.progressPct).toBe(30);
       expect(d.status).toBe('EN_PROCESO');
     });
@@ -197,7 +230,7 @@ describe('MaintenanceService — ejecución de OM en campo', () => {
     it('acota el porcentaje entre 0 y 100', async () => {
       const { svc, prisma } = build({ wo: enCurso });
       await svc.addProgress('w1', { pct: 150 } as any, 'u1');
-      expect(prisma.workOrder.update.mock.calls[0][0].data.progressPct).toBe(100);
+      expect(prisma.__fila.progressPct).toBe(100);
     });
 
     it('no deja bajar el avance sin explicación', async () => {
@@ -215,7 +248,7 @@ describe('MaintenanceService — ejecución de OM en campo', () => {
     it('deja bajarlo eligiendo el motivo de la lista, sin escribir nada', async () => {
       const { svc, prisma } = build({ wo: { ...enCurso, progressPct: 60 } });
       await svc.addProgress('w1', { pct: 40, reasonCode: 'FALTA_REPUESTO' } as any, 'u1');
-      expect(prisma.workOrder.update).toHaveBeenCalled();
+      expect(prisma.workOrder.updateMany).toHaveBeenCalled();
       expect(prisma.workOrderProgress.create.mock.calls[0][0].data.reasonCode)
         .toBe('FALTA_REPUESTO');
     });
@@ -224,7 +257,7 @@ describe('MaintenanceService — ejecución de OM en campo', () => {
       // La válvula de escape sigue existiendo para lo que la lista no prevé.
       const { svc, prisma } = build({ wo: { ...enCurso, progressPct: 60 } });
       await svc.addProgress('w1', { pct: 40, note: 'se encontró otro tramo dañado' } as any, 'u1');
-      expect(prisma.workOrder.update).toHaveBeenCalled();
+      expect(prisma.workOrder.updateMany).toHaveBeenCalled();
     });
 
     it('no admite avance sobre una orden cerrada', async () => {
@@ -283,7 +316,7 @@ describe('MaintenanceService — ejecución de OM en campo', () => {
         rootCause: 'CABLE_FUERA_NORMA', isRecurrent: true,
         endedAt: '2026-07-29T09:30:00Z',
       } as any);
-      const d = prisma.workOrder.update.mock.calls[0][0].data;
+      const d = prisma.__fila;
       expect(d.status).toBe('CERRADA');
       expect(d.rootCause).toBe('CABLE_FUERA_NORMA');
       expect(d.isRecurrent).toBe(true);
@@ -313,7 +346,7 @@ describe('MaintenanceService — ejecución de OM en campo', () => {
         email: 'tec@aa.local', password: 'correcta',
       } as any)).resolves.toBeDefined();
       // Y lo importante: la orden quedó cerrada de verdad.
-      expect(prisma.workOrder.update.mock.calls[0][0].data.status).toBe('CERRADA');
+      expect(prisma.__fila.status).toBe('CERRADA');
     });
 
     it('rechaza una hora de cierre anterior al inicio', async () => {
@@ -342,7 +375,116 @@ describe('MaintenanceService — ejecución de OM en campo', () => {
     it('si se cierra sin haber abierto, no deja el inicio en blanco', async () => {
       const { svc, prisma } = build({ wo: { ...enProceso, startedAt: null } });
       await svc.closeSigned('w1', { email: 'tec@aa.local', password: 'correcta' } as any);
-      expect(prisma.workOrder.update.mock.calls[0][0].data.startedAt).toBeTruthy();
+      expect(prisma.__fila.startedAt).toBeTruthy();
+    });
+  });
+
+  /* ==========================================================================
+     BLOQUE 37 — DOS O TRES ÓRDENES A LA VEZ
+     --------------------------------------------------------------------------
+     Estas pruebas son las únicas que reproducen el escenario que el bloque 37
+     vino a arreglar, y no se pueden hacer a mano: hay que provocar el instante
+     exacto en que dos personas tocan la misma orden.
+
+     El truco es `prisma.__fila`: el doble se comporta como PostgreSQL —mira el
+     estado, decide si toca la fila, y devuelve cuántas cambió—. Moviendo esa
+     fila entre medias se simula al Jefe cerrando desde el púlpito mientras el
+     técnico está registrando en el teléfono.
+     ========================================================================== */
+  describe('carrera: alguien mueve la orden mientras trabajas', () => {
+    const enProceso = {
+      id: 'w1', code: 'OM-2026-0007', type: 'CORRECTIVO',
+      status: 'EN_PROCESO', progressPct: 40, startedAt: new Date('2026-08-15T08:00:00Z'),
+    };
+
+    /* CÓMO SE FABRICA LA CARRERA.
+       -----------------------------------------------------------------------
+       No basta con poner la orden en CERRADA: la comprobación del principio
+       del método la vería y saltaría antes —que es lo correcto, y además ya
+       funcionaba—.
+
+       La carrera de verdad es más estrecha: el método LEE la orden (todavía
+       EN_PROCESO), y el Jefe la cierra en el instante siguiente, antes de que
+       el método escriba. Se reproduce haciendo que la primera lectura
+       devuelva la foto vieja mientras la fila real ya está cerrada. */
+    function conCierreEntreMedias(over: any) {
+      const b = build(over);
+      b.prisma.workOrder.findUnique.mockImplementationOnce(() => ({ ...over.wo }));
+      b.prisma.__fila.status = 'CERRADA';
+      return b;
+    }
+
+    it('el avance NO resucita una orden que otro cerró', async () => {
+      /* EL FALLO QUE ESTO PREVIENE, paso a paso:
+           1. el técnico abre la pantalla   -> la orden está EN_PROCESO
+           2. el Jefe la cierra             -> pasa a CERRADA
+           3. el técnico pulsa «avance»     -> escribía `status: EN_PROCESO`
+              y la orden volvía a la vida, con su firma de cierre dentro.
+         Un cierre lleva firma, materiales y a veces un informe en PDF.
+         Deshacerlo sin dejar rastro es de los peores fallos posibles aquí. */
+      const { svc, prisma } = conCierreEntreMedias({ wo: enProceso });
+
+      await expect(svc.addProgress('w1', { pct: 80 } as any, 'u1', null))
+        .rejects.toThrow(/cerró o canceló/i);
+
+      expect(prisma.__fila.status).toBe('CERRADA');
+      expect(prisma.__fila.progressPct).toBe(40);  // no se movió
+    });
+
+    it('cuando el avance se rechaza, TAMPOCO queda el parte colgando', async () => {
+      /* El parte de avance se crea DENTRO de la transacción, después de la
+         guarda. Si se creara antes, quedaría un avance del 80 % colgando de
+         una orden cerrada al 100 % — y el historial contaría una secuencia
+         que nunca ocurrió. */
+      const { svc, prisma } = conCierreEntreMedias({ wo: enProceso });
+
+      await expect(svc.addProgress('w1', { pct: 80 } as any, 'u1', null)).rejects.toThrow();
+      expect(prisma.workOrderProgress.create).not.toHaveBeenCalled();
+    });
+
+    it('la comprobación temprana sigue funcionando (sin carrera, mensaje simple)', async () => {
+      // Cuando la orden YA estaba cerrada al abrir la pantalla, el aviso lo da
+      // la comprobación de siempre. No hace falta llegar a la guarda.
+      const { svc } = build({ wo: { ...enProceso, status: 'CERRADA' } });
+      await expect(svc.addProgress('w1', { pct: 80 } as any, 'u1', null))
+        .rejects.toThrow(/orden cerrada/i);
+    });
+
+    it('dos técnicos cerrando: el segundo recibe un aviso, no pisa al primero', async () => {
+      const { svc, prisma } = build({ wo: enProceso });
+      // El primero cierra.
+      await svc.closeSigned('w1', { email: 'tec@aa.local', password: 'correcta' } as any);
+      expect(prisma.__fila.status).toBe('CERRADA');
+      const quienCerro = prisma.__fila.closedById;
+
+      // El segundo llega tarde.
+      await expect(
+        svc.closeSigned('w1', { email: 'tec@aa.local', password: 'correcta' } as any),
+      ).rejects.toThrow(/está ahora CERRADA/i);
+
+      // Y el registro sigue diciendo quién cerró de verdad.
+      expect(prisma.__fila.closedById).toBe(quienCerro);
+    });
+
+    it('el mensaje dice EN QUÉ quedó la orden, no sólo que falló', async () => {
+      /* «Alguien la movió» a secas deja al técnico sin saber si tiene que
+         rehacer el trabajo. El estado actual es la mitad útil del mensaje. */
+      const base = { ...enProceso, status: 'ABIERTA', startedAt: null };
+      const { svc, prisma } = build({ wo: base });
+      prisma.workOrder.findUnique.mockImplementationOnce(() => ({ ...base }));
+      prisma.__fila.status = 'CANCELADA';   // el Jefe la cancela entre medias
+
+      await expect(
+        svc.openSigned('w1', { email: 'tec@aa.local', password: 'correcta' } as any),
+      ).rejects.toThrow(/OM-2026-0007.*CANCELADA/is);
+    });
+
+    it('sin carrera, todo sigue funcionando igual', async () => {
+      // La guarda no puede estorbar al caso normal, que es el 99 % de las veces.
+      const { svc, prisma } = build({ wo: enProceso });
+      await svc.addProgress('w1', { pct: 75 } as any, 'u1', null);
+      expect(prisma.__fila.progressPct).toBe(75);
+      expect(prisma.workOrderProgress.create).toHaveBeenCalled();
     });
   });
 });

@@ -1,4 +1,6 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException, ConflictException, Injectable, NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { randomUUID } from 'crypto';
@@ -20,6 +22,7 @@ import { CloseWorkOrderDto } from './dto/close-work-order.dto';
 import { OpenWorkOrderDto } from './dto/open-work-order.dto';
 import { ProgressWorkOrderDto } from './dto/progress-work-order.dto';
 import { computeEffectiveStatuses } from '../../common/asset-status';
+import { conReintentoDeCodigo, siguienteCorrelativo } from '../../common/correlativo';
 // PDF: se carga con require para no depender de @types en el build.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PDFDocument = require('pdfkit');
@@ -57,16 +60,31 @@ export class MaintenanceService {
    * —que revienta contra la restricción de unicidad—.
    *
    * Ahora se toma el MAYOR correlativo del año en curso, no la cantidad.
+   *
+   * ---------------------------------------------------------------------------
+   * BLOQUE 37 — DOS PERSONAS PULSANDO A LA VEZ
+   * ---------------------------------------------------------------------------
+   * Leer el último y sumarle uno deja un hueco entre la lectura y la escritura.
+   * Si dos personas crean una orden en ese hueco, las dos leen 0041 y las dos
+   * escriben 0042. Como `code` es `@unique` no salen duplicadas —eso ya estaba
+   * bien—, pero la segunda persona se llevaba un 500 sin explicación.
+   *
+   * Y pasaba justo en el peor momento: cuando cae algo gordo y varios abren
+   * órdenes a la vez.
+   *
+   * Se RELEE en cada reintento, así que no hace falta saltar posiciones: el
+   * número que sale ya tiene en cuenta la orden que acaba de entrar. Saltar
+   * dejaría huecos en la numeración, y un hueco en un correlativo de órdenes
+   * es justo lo que una auditoría pregunta y nadie sabe responder.
    */
   private async nextCode(): Promise<string> {
-    const year = new Date().getFullYear();
+    const prefijo = `OM-${new Date().getFullYear()}-`;
     const ultima = await this.prisma.workOrder.findFirst({
-      where: { code: { startsWith: `OM-${year}-` } },
+      where: { code: { startsWith: prefijo } },
       orderBy: { code: 'desc' },
       select: { code: true },
     });
-    const ultimo = ultima ? Number(ultima.code.split('-').pop()) || 0 : 0;
-    return `OM-${year}-${String(ultimo + 1).padStart(4, '0')}`;
+    return siguienteCorrelativo(ultima?.code, prefijo);
   }
 
   async create(dto: CreateWorkOrderDto) {
@@ -78,7 +96,12 @@ export class MaintenanceService {
       );
     }
 
-    return this.prisma.workOrder.create({
+    /* El reintento envuelve la creación ENTERA, no sólo el cálculo del
+       código: el choque se descubre al escribir, no al calcular. Si el código
+       viene del formulario (`dto.code`, un número de SAP escrito a mano) no se
+       reintenta —repetirlo daría el mismo choque tres veces—: ese conflicto es
+       real y tiene que llegarle a quien lo tecleó. */
+    return conReintentoDeCodigo(async (n) => this.prisma.workOrder.create({
       data: {
         code: dto.code || (await this.nextCode()),
         type: dto.type,
@@ -101,7 +124,7 @@ export class MaintenanceService {
         plannedDurationMin: dto.plannedDurationMin,
       },
       include: inc,
-    });
+    }), dto.code ? 1 : undefined);
   }
 
   /**
@@ -156,9 +179,14 @@ export class MaintenanceService {
       throw new BadRequestException('El acompañante debe ser una persona distinta.');
     }
 
-    const updated = await this.prisma.workOrder.update({
-      where: { id },
-      data: {
+    /* Bloque 37: con guarda. Dos técnicos pueden escanear el mismo QR y abrir
+       la misma orden. Quien firma la apertura queda registrado como
+       responsable del trabajo en altura o en línea: que el segundo pise al
+       primero cambia quién responde si pasa algo. */
+    const updated = await this.escribirSiSigueEn(
+      id,
+      ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'],
+      {
         status: 'EN_PROCESO',
         startedAt: dto.startedAt ? new Date(dto.startedAt) : new Date(),
         openedById: signer!.id,
@@ -166,8 +194,8 @@ export class MaintenanceService {
         // Si nadie la tenía asignada, queda a nombre de quien la abre.
         technicianId: wo.technicianId || signer!.id,
       },
-      include: inc,
-    });
+      'abrir la orden',
+    );
 
     await this.audit.record({
       userId: signer!.id,
@@ -339,6 +367,46 @@ export class MaintenanceService {
     ).catch(() => 0);
   }
 
+  /* ==========================================================================
+     ESCRITURA CON GUARDA — bloque 37
+     --------------------------------------------------------------------------
+     Todo este servicio sigue el mismo patrón: leer la orden, comprobar que
+     está en un estado válido, y escribir. Entre la comprobación y la escritura
+     hay un hueco, y con tres órdenes vivas y varias personas trabajando ese
+     hueco se cruza de verdad.
+
+     Este método mete la condición DENTRO del `where`, así que PostgreSQL
+     comprueba y escribe en la misma sentencia. Si no cambió ninguna fila es
+     que otro llegó antes, y se dice con un 409 en vez de pisar su trabajo.
+
+     `updateMany` y no `update` porque `update` sólo admite campos únicos en el
+     `where`, y `status` no lo es. El precio es releer la orden después.
+     ========================================================================== */
+  private async escribirSiSigueEn(
+    id: string,
+    estadosValidos: readonly string[],
+    data: Prisma.WorkOrderUncheckedUpdateInput,
+    queHacia: string,
+  ) {
+    const movidas = await this.prisma.workOrder.updateMany({
+      where: { id, status: { in: estadosValidos as any } },
+      data,
+    });
+    if (movidas.count === 0) {
+      /* Se relee para poder DECIR en qué quedó. «Alguien la movió» a secas
+         deja al técnico sin saber si tiene que rehacer el trabajo o no. */
+      const ahora = await this.prisma.workOrder.findUnique({
+        where: { id }, select: { code: true, status: true },
+      });
+      if (!ahora) throw new NotFoundException('Orden de mantenimiento no encontrada');
+      throw new ConflictException(
+        `No se pudo ${queHacia}: la orden ${ahora.code} está ahora ${ahora.status}. ` +
+        'Alguien la movió mientras trabajabas. Actualiza la pantalla.',
+      );
+    }
+    return this.prisma.workOrder.findUniqueOrThrow({ where: { id }, include: inc });
+  }
+
   // Cierre firmado: re-verifica credenciales del que cierra y audita la firma.
   async closeSigned(id: string, dto: CloseWorkOrderDto, ip?: string | null) {
     const wo = await this.prisma.workOrder.findUnique({ where: { id } });
@@ -370,9 +438,14 @@ export class MaintenanceService {
       );
     }
 
-    const updated = await this.prisma.workOrder.update({
-      where: { id },
-      data: {
+    /* Bloque 37: con guarda. Un cierre lleva firma, materiales retirados y a
+       veces un informe en PDF. Que dos personas lo hagan a la vez y la segunda
+       pise a la primera dejaría el registro diciendo que cerró quien no cerró
+       —y ese registro es el que se enseña en una auditoría—. */
+    const updated = await this.escribirSiSigueEn(
+      id,
+      ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'],
+      {
         status: 'CERRADA',
         executedDate: wo.executedDate || ahora,
         diagnosis: dto.diagnosis ?? wo.diagnosis,
@@ -393,8 +466,8 @@ export class MaintenanceService {
         // del inicio para que la duración no quede en blanco.
         startedAt: wo.startedAt || wo.executedDate || ahora,
       },
-      include: inc,
-    });
+      'cerrar la orden',
+    );
 
     // Duración real del trabajo, en minutos. Sirve para comparar contra la
     // parada que estimó Producción y saber si estiman bien.
@@ -494,8 +567,52 @@ export class MaintenanceService {
       );
     }
 
-    const [, updated] = await this.prisma.$transaction([
-      this.prisma.workOrderProgress.create({
+    /* ==========================================================================
+       BLOQUE 37 — EL HUECO ENTRE LEER Y ESCRIBIR
+       --------------------------------------------------------------------------
+       Arriba se comprobó que la orden no estuviera cerrada. Esa comprobación
+       fue sobre `wo`, que es una FOTO tomada hace unos milisegundos.
+       Con dos o tres órdenes vivas y varias personas trabajando, en ese hueco
+       cabe perfectamente que el Jefe cierre la orden desde el púlpito.
+       Entonces pasaba esto:
+           1. el técnico lee la orden -> EN_PROCESO
+           2. el Jefe la cierra       -> CERRADA
+           3. el técnico escribe `status: wo.status` (EN_PROCESO)
+              -> LA ORDEN RESUCITA, y nadie se entera.
+       El cierre lleva firma, materiales y a veces un informe en PDF. Deshacerlo
+       sin dejar rastro es de los peores fallos posibles aquí.
+
+       LA CONDICIÓN VIAJA EN EL `where`, NO EN UN `if`.
+       `updateMany` con el estado en el `where` hace que PostgreSQL comprebe y
+       escriba en la MISMA sentencia: no hay hueco donde colarse. Si devuelve
+       0 filas es que alguien la movió entre medias, y entonces se dice.
+
+       Se usa `updateMany` y no `update` porque `update` sólo acepta campos
+       únicos en el `where`; `status` no lo es. El precio es que hay que releer
+       la orden después — barato comparado con perder un cierre firmado.
+       ========================================================================== */
+    const ESTADOS_QUE_ADMITEN_AVANCE = ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'] as const;
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const movidas = await tx.workOrder.updateMany({
+        where: { id, status: { in: ESTADOS_QUE_ADMITEN_AVANCE as any } },
+        data: {
+          progressPct: pct,
+          // Reportar avance implica que el trabajo está en marcha.
+          status: wo.status === 'ABIERTA' ? 'EN_PROCESO' : wo.status,
+        },
+      });
+
+      if (movidas.count === 0) {
+        /* Lanzar DENTRO de la transacción es lo que evita que quede un parte
+           de avance colgando de una orden que ya se cerró. */
+        throw new ConflictException(
+          'Alguien cerró o canceló esta orden mientras registrabas el avance. ' +
+          'Tu parte NO se guardó. Actualiza la pantalla para ver cómo quedó.',
+        );
+      }
+
+      await tx.workOrderProgress.create({
         data: {
           workOrderId: id,
           pct,
@@ -503,17 +620,10 @@ export class MaintenanceService {
           note: dto.note?.trim() || null,
           reportedById: userId || null,
         },
-      }),
-      this.prisma.workOrder.update({
-        where: { id },
-        data: {
-          progressPct: pct,
-          // Reportar avance implica que el trabajo está en marcha.
-          status: wo.status === 'ABIERTA' ? 'EN_PROCESO' : wo.status,
-        },
-        include: inc,
-      }),
-    ]);
+      });
+
+      return tx.workOrder.findUniqueOrThrow({ where: { id }, include: inc });
+    });
 
     await this.audit.record({
       userId: userId || null,
@@ -806,7 +916,9 @@ export class MaintenanceService {
       }
     }
 
-    const wo = await this.prisma.workOrder.create({
+    /* Bloque 37. Éste es EL sitio donde la carrera pasa de verdad: cae algo
+       en un tren y el ingeniero y el jefe asignan órdenes casi a la vez. */
+    const wo = await conReintentoDeCodigo(async () => this.prisma.workOrder.create({
       data: {
         code: await this.nextCode(),
         type: dto.type || 'CORRECTIVO',
@@ -823,7 +935,7 @@ export class MaintenanceService {
         detailedAt: null,
       },
       include: inc,
-    });
+    }));
 
     await this.audit.record({
       userId: userId || null,

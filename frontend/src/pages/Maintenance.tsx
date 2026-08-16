@@ -13,6 +13,7 @@ import OmMateriales from '../components/OmMateriales';
 import { WO_TYPES, WO_TYPE_ES, CANALES, CANAL_ES, CAUSA_ES } from './omCatalogos';
 import Icono from '../components/Iconos';
 import { useDialogos } from '../components/Dialogos';
+import { useVolverALaPantalla } from '../useVolverALaPantalla';
 
 const TYPES = WO_TYPES; // incluye MAPEO: el levantamiento también es una OM
 // Estados que el técnico puede fijar al registrar la intervención (el cierre lo hace el Jefe).
@@ -130,6 +131,11 @@ export default function Maintenance() {
   // Buscar; si estuvieran aquí, se consultaría en cada tecla escrita.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [ambito]);
+
+  /* Bloque 37. Con dos o tres órdenes vivas, la lista se queda vieja: el Jefe
+     cierra una desde el púlpito y el técnico la sigue viendo abierta. Al
+     volver a la pantalla se recarga, así que lo que ve es lo que hay. */
+  useVolverALaPantalla(load);
 
   // Catálogo de causas: se pide una vez y se guarda como diccionario
   // código -> nombre, para traducir lo que muestran las tablas.

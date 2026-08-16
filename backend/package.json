@@ -29,6 +29,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
+    "prueba:calor": "node scripts/prueba-de-calor.js",
     "verificar:bd": "node scripts/diagnostico-bd.js",
     "verificar:campos": "node scripts/verificar-campos-prisma.js"
   },

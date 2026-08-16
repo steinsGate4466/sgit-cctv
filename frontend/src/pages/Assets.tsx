@@ -14,6 +14,7 @@ import RepuestosDelActivo from '../components/RepuestosDelActivo';
 import BorrarDefinitivo from '../components/BorrarDefinitivo';
 import Icono from '../components/Iconos';
 import { useDialogos } from '../components/Dialogos';
+import { useOcultarAlSalir } from '../useVolverALaPantalla';
 
 const TYPES = ['CAMERA', 'NVR', 'SWITCH', 'WIRELESS', 'DECODER', 'PANTALLA', 'PC', 'ROUTER', 'FIREWALL', 'SERVER', 'UPS', 'FIBER', 'CABINET', 'TABLERO_ELECTRICO', 'OTHER'];
 const STATES = ['OPERATIVO', 'FUERA_SERVICIO', 'MANTENIMIENTO', 'BAJA', 'STOCK'];
@@ -181,6 +182,14 @@ export default function Assets() {
   // queda en blanco. TypeScript no detecta esto; solo se ve al ejecutarlo.
   useAutoOcultar(rowPass, () => setRowPass({}), 60);
   useAutoOcultar(revealed, () => setRevealed({}), 60);
+
+  /* Bloque 37 — EL TELÉFONO ES DEL TÉCNICO.
+     Al cambiar de aplicación, Android e iOS guardan una captura de la última
+     pantalla para el conmutador. Si había una contraseña de cámara a la
+     vista, esa imagen queda en su teléfono y no hay forma de borrarla desde
+     aquí. Los 60 segundos de `useAutoOcultar` no cubren el instante exacto
+     del cambio de app; esto sí. */
+  useOcultarAlSalir(() => { setRowPass({}); setRevealed({}); });
 
   function openNew() {
     setFormErr('');

@@ -3,6 +3,7 @@ import { EsqueletoTabla } from '../components/Esqueleto';
 import { NadaPendiente } from '../components/Ilustraciones';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
+import { useVolverALaPantalla } from '../useVolverALaPantalla';
 
 /**
  * MI BANDEJA — lo que espera una decisión, hoy.
@@ -33,6 +34,9 @@ export default function Bandeja() {
     setD(r);
   }, []);
   useEffect(() => { cargar().finally(() => setCargando(false)); }, [cargar]);
+
+  // Bloque 37: al volver del bolsillo, lo que se ve es lo que hay.
+  useVolverALaPantalla(cargar);
 
   if (cargando) return <EsqueletoTabla filas={5} />;
   if (!d) return <div className="card" style={{ padding: 30, textAlign: 'center' }}>

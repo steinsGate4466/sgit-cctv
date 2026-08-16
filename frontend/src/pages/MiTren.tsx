@@ -4,6 +4,7 @@ import Icono from '../components/Iconos';
 import { EsqueletoTablero } from '../components/Esqueleto';
 import { NadaPendiente } from '../components/Ilustraciones';
 import { useDialogos } from '../components/Dialogos';
+import { useVolverALaPantalla } from '../useVolverALaPantalla';
 
 /**
  * MI TREN — la pantalla de Producción.
@@ -62,6 +63,9 @@ export default function MiTren() {
   }, []);
 
   useEffect(() => { cargar().finally(() => setCargando(false)); }, [cargar]);
+
+  // Bloque 37: al volver del bolsillo, lo que se ve es lo que hay.
+  useVolverALaPantalla(cargar);
 
   /**
    * EL INFORME NO SE ABRE CON UN ENLACE.

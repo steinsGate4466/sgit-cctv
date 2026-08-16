@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { ETIQUETAS, perfilDe, PERFILES } from './requisitos-sitio';
+import { conReintentoDeCodigo, siguienteCorrelativo } from '../../common/correlativo';
 import {
   CrearInstalacionDto, DecidirInstalacionDto, EvaluarInstalacionDto, InstaladaDto,
 } from './dto/instalacion.dto';
@@ -257,14 +258,6 @@ export class InstalacionService {
     if (i.estado !== 'APROBADA') throw new BadRequestException('Sólo se genera la orden de una instalación APROBADA.');
     if (i.workOrderId) throw new ConflictException('Esta instalación ya tiene una orden generada.');
 
-    const anio = new Date().getFullYear();
-    const ultima = await this.prisma.workOrder.findFirst({
-      where: { code: { startsWith: `OT-${anio}-` } },
-      orderBy: { code: 'desc' }, select: { code: true },
-    });
-    const n = ultima ? Number(ultima.code.split('-')[2]) + 1 : 1;
-    const code = `OT-${anio}-${String(n).padStart(4, '0')}`;
-
     const detalles = [
       `Instalación ${i.codigo}: ${i.cantidad} x ${i.tipoEquipo} en ${i.tipoSitio}.`,
       i.referenciaSitio ? `Sitio: ${i.referenciaSitio}` : null,
@@ -275,21 +268,41 @@ export class InstalacionService {
       i.quienAutoriza ? `Autoriza: ${i.quienAutoriza}` : null,
     ].filter(Boolean).join('\n');
 
-    const [wo] = await this.prisma.$transaction([
-      this.prisma.workOrder.create({
-        data: {
-          code,
-          type: 'CORRECTIVO',
-          status: 'ABIERTA',
-          locationId: i.locationId,
-          activity: detalles,
-          zone: i.referenciaSitio,
-          materials: i.materialesEstimados,
-          openedById: userId || null,
-        },
-      }),
-      this.prisma.instalacion.update({ where: { id }, data: { estado: 'EN_EJECUCION' } }),
-    ]);
+    /* BLOQUE 37 — EL CORRELATIVO SE CALCULA DENTRO DEL REINTENTO.
+       -----------------------------------------------------------------------
+       Antes se leía la última OT, se sumaba uno y se escribía. Entre la
+       lectura y la escritura cabe otra persona, y como `code` es único la
+       segunda se llevaba un 500. Ahora, si el número ya está cogido, se pide
+       el siguiente y se repite.
+
+       Se RELEE la última en cada reintento, así que el número ya tiene en
+       cuenta la orden que acaba de entrar y no quedan huecos en la serie.
+
+       Y el reintento envuelve la TRANSACCIÓN ENTERA, no sólo la creación: si
+       la orden se crea y la instalación no pasa a EN_EJECUCION, queda una
+       orden huérfana que nadie va a relacionar con nada. */
+    const prefijo = `OT-${new Date().getFullYear()}-`;
+    const [wo] = await conReintentoDeCodigo(async () => {
+      const ultima = await this.prisma.workOrder.findFirst({
+        where: { code: { startsWith: prefijo } },
+        orderBy: { code: 'desc' }, select: { code: true },
+      });
+      return this.prisma.$transaction([
+        this.prisma.workOrder.create({
+          data: {
+            code: siguienteCorrelativo(ultima?.code, prefijo),
+            type: 'CORRECTIVO',
+            status: 'ABIERTA',
+            locationId: i.locationId,
+            activity: detalles,
+            zone: i.referenciaSitio,
+            materials: i.materialesEstimados,
+            openedById: userId || null,
+          },
+        }),
+        this.prisma.instalacion.update({ where: { id }, data: { estado: 'EN_EJECUCION' } }),
+      ]);
+    });
     await this.prisma.instalacion.update({ where: { id }, data: { workOrderId: wo.id } });
 
     await this.audit.record({

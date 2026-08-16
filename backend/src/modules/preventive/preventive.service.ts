@@ -3,6 +3,9 @@ import { WorkOrderStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { UpsertPreventivePlanDto } from './dto/upsert-plan.dto';
+import {
+  conReintentoDeCodigo, esChoqueDeUnicidad, siguienteCorrelativo,
+} from '../../common/correlativo';
 
 /* OM preventivas que cuentan como "ya en curso" (no se duplica la generación).
 
@@ -39,29 +42,37 @@ export class PreventiveService {
   }
 
   /**
-   * Código correlativo del año que no colisione con códigos manuales (SAP) ya existentes.
-   * Parte del mayor correlativo del año en curso, no del total de OM.
+   * Código correlativo del año que no colisione con códigos manuales (SAP)
+   * ya existentes. Parte del mayor correlativo del año, no del total de OM.
+   *
+   * ---------------------------------------------------------------------------
+   * BLOQUE 37 — SE QUITÓ EL `while (true)`
+   * ---------------------------------------------------------------------------
+   * La versión anterior recorría números preguntando «¿existe ya?» hasta dar
+   * con uno libre. Tenía dos problemas:
+   *
+   *  1. NO ARREGLABA LA CARRERA que decía arreglar. Entre el «¿existe?» y el
+   *     `create` sigue habiendo un hueco, así que dos procesos podían recibir
+   *     el mismo número libre y chocar igual. Comprobar antes de escribir da
+   *     una sensación de seguridad que no se corresponde con nada.
+   *
+   *  2. ERA UN BUCLE SIN SALIDA. Si algo hacía que el `create` no llegara a
+   *     ocurrir —una excepción río arriba, por ejemplo—, el bucle podía
+   *     recorrer miles de números haciendo una consulta por cada uno. Un
+   *     bucle infinito en el generador automático de preventivas es de las
+   *     cosas que tumban un servidor un domingo por la noche.
+   *
+   * Ahora se calcula UNA vez y el choque lo absorbe `conReintentoDeCodigo`
+   * alrededor del `create`, que es donde el choque de verdad ocurre.
    */
   private async nextCode(): Promise<string> {
-    const year = new Date().getFullYear();
-    const prefix = `OM-${year}-`;
+    const prefijo = `OM-${new Date().getFullYear()}-`;
     const last = await this.prisma.workOrder.findFirst({
-      where: { code: { startsWith: prefix } },
+      where: { code: { startsWith: prefijo } },
       orderBy: { code: 'desc' },
       select: { code: true },
     });
-    let n = 0;
-    if (last) {
-      const parsed = parseInt(last.code.slice(prefix.length), 10);
-      if (!Number.isNaN(parsed)) n = parsed;
-    }
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-      n++;
-      const code = `${prefix}${String(n).padStart(4, '0')}`;
-      const exists = await this.prisma.workOrder.findUnique({ where: { code }, select: { id: true } });
-      if (!exists) return code;
-    }
+    return siguienteCorrelativo(last?.code, prefijo);
   }
 
   async listPlans() {
@@ -190,25 +201,43 @@ export class PreventiveService {
         ? `${plan.asset.location?.name || 'Planta'} — ${plan.asset.cabinet.code}`
         : plan.asset.location?.name || undefined;
 
-      const code = await this.nextCode();
+      /* BLOQUE 37 — SE REINTENTA EN VEZ DE OMITIR.
+         --------------------------------------------------------------------
+         Antes, un choque de código dejaba el plan fuera del lote con el
+         motivo «código en uso, reintentar». Pero nadie reintentaba: el lote
+         lo lanza el programador automático de madrugada y no lo mira nadie.
+         Resultado: un preventivo que tocaba y no se generó, y el aviso
+         enterrado en el resumen de una tarea nocturna.
+
+         Ahora el choque se absorbe. Lo que SÍ se sigue omitiendo es
+         cualquier otro fallo: eso no es concurrencia y el lote no puede
+         pararse entero por un plan malo. */
       try {
-        await this.prisma.workOrder.create({
-          data: {
-            code,
-            type: 'PREVENTIVO',
-            status: 'ABIERTA',
-            assetId: plan.assetId,
-            zone,
-            activity:
-              `Mantenimiento preventivo programado del activo ${plan.asset.assetCode} ` +
-              `(frecuencia: cada ${plan.intervalDays} días${plan.zoneCritical ? ', zona crítica' : ''}).`,
-            scheduledDate: plan.nextDueAt || now, // Regla 5
-          },
+        const code = await conReintentoDeCodigo(async () => {
+          const c = await this.nextCode();
+          await this.prisma.workOrder.create({
+            data: {
+              code: c,
+              type: 'PREVENTIVO',
+              status: 'ABIERTA',
+              assetId: plan.assetId,
+              zone,
+              activity:
+                `Mantenimiento preventivo programado del activo ${plan.asset.assetCode} ` +
+                `(frecuencia: cada ${plan.intervalDays} días${plan.zoneCritical ? ', zona crítica' : ''}).`,
+              scheduledDate: plan.nextDueAt || now, // Regla 5
+            },
+          });
+          return c;
         });
         created.push({ code, asset: plan.asset.assetCode, dueAt: plan.nextDueAt });
       } catch (e: any) {
-        // Colisión de código por concurrencia (P2002): se omite y se reporta, sin romper el lote.
-        skipped.push({ asset: plan.asset.assetCode, motivo: 'código en uso, reintentar' });
+        skipped.push({
+          asset: plan.asset.assetCode,
+          motivo: esChoqueDeUnicidad(e)
+            ? 'el código siguió ocupado tras tres intentos'
+            : (e?.message || 'no se pudo crear la orden'),
+        });
       }
     }
 

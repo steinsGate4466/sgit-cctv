@@ -132,31 +132,101 @@ export class InventoryService {
     return rows.map(flags);
   }
 
-  // ---------- movimientos de stock ----------
+  /* ==========================================================================
+     MOVIMIENTOS DE STOCK — bloque 37
+     --------------------------------------------------------------------------
+     DOS FALLOS QUE TENÍA ESTA FUNCIÓN, Y LOS DOS SOLO SE VEN CON GENTE A LA VEZ
+
+     1) EL LIBRO Y EL SALDO PODÍAN DEJAR DE CUADRAR.
+        Eran dos escrituras sueltas: primero el movimiento, después el stock.
+        Si la segunda fallaba —se cae la conexión, se reinicia el contenedor—
+        quedaba un RETIRO registrado que nunca descontó nada. El libro decía
+        que salieron 3 y el saldo seguía igual. Nadie lo nota hasta el
+        inventario físico, y para entonces hay meses de movimientos encima y
+        es imposible saber cuál fue.
+        Ahora las dos van en una transacción: o las dos, o ninguna.
+
+     2) EL STOCK SE CALCULABA EN JAVASCRIPT.
+        `sp.currentStock + delta` se leía, se sumaba aquí, y se escribía. Dos
+        técnicos retirando 3 de un stock de 5 leían los dos «5», calculaban
+        los dos «2», y guardaban «2». Se llevaron 6 piezas de 5 y el sistema
+        dice que quedan 2. Y la comprobación de negativo no lo ve, porque cada
+        uno mira su propia lectura.
+        Ahora se usa `{ increment: delta }`, que PostgreSQL traduce a
+        `SET "currentStock" = "currentStock" + n` — se resuelve dentro de la
+        base, en una sola operación, sin hueco donde colarse.
+
+     EL NEGATIVO SE COMPRUEBA DOS VECES, Y NO SOBRA
+     Antes de escribir, para poder dar un mensaje que se entienda. Y DESPUÉS,
+     dentro de la transacción, porque la primera comprobación se hizo sobre
+     una lectura que ya puede estar vieja. La segunda es la que de verdad
+     protege; la primera es la que se lee bien.
+     ========================================================================== */
   async registerMovement(id: string, dto: MovementDto, userId?: string) {
     const sp = await this.ensure(id);
     let delta = 0;
     if (dto.type === 'INGRESO') delta = Math.abs(dto.quantity);
     else if (dto.type === 'RETIRO') delta = -Math.abs(dto.quantity);
     else delta = dto.quantity; // AJUSTE: +/-
-    const newStock = sp.currentStock + delta;
-    if (newStock < 0) throw new BadRequestException('El movimiento deja el stock en negativo');
-    await this.prisma.stockMovement.create({
-      data: {
-        sparePartId: id, type: dto.type as any, quantity: Math.abs(dto.quantity),
-        sapCode: dto.sapCode, reason: dto.reason, userId: userId || null,
-      },
+
+    if (sp.currentStock + delta < 0) {
+      throw new BadRequestException(
+        `Quedan ${sp.currentStock} y el movimiento retira ${Math.abs(delta)}: dejaría el stock en negativo.`,
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.stockMovement.create({
+        data: {
+          sparePartId: id, type: dto.type as any, quantity: Math.abs(dto.quantity),
+          sapCode: dto.sapCode, reason: dto.reason, userId: userId || null,
+        },
+      });
+
+      const actualizado = await tx.sparePart.update({
+        where: { id },
+        data: { currentStock: { increment: delta } },
+      });
+
+      /* La suma la hizo PostgreSQL, así que este número es el real, no el que
+         yo había calculado. Si otro se adelantó y el resultado quedó negativo,
+         la excepción deshace la transacción ENTERA: no queda ni el movimiento
+         ni el descuento. */
+      if (actualizado.currentStock < 0) {
+        throw new BadRequestException(
+          'Otra persona retiró este repuesto mientras registrabas el movimiento y ya no hay suficiente. ' +
+          'Actualiza la pantalla y vuelve a mirar el stock.',
+        );
+      }
+      return actualizado;
     });
-    return this.prisma.sparePart.update({ where: { id }, data: { currentStock: newStock } });
   }
 
-  // ---------- comprobación física (control diario) ----------
+  /* ==========================================================================
+     COMPROBACIÓN FÍSICA (control diario)
+     --------------------------------------------------------------------------
+     Aquí NO se usa `increment`: el conteo físico no es un delta, es la verdad.
+     Alguien contó y hay 7. Se escribe 7, se pisa lo que hubiera, y eso es lo
+     correcto — es justo para lo que sirve un inventario físico.
+
+     Lo que sí hacía falta es la transacción. El registro guarda `previousQty`
+     para poder ver el ajuste después; si el conteo se escribe y el registro
+     no, se pierde la única prueba de cuánto se corrigió y por qué.
+     ========================================================================== */
   async registerCheck(id: string, dto: CheckDto, userId?: string) {
     const sp = await this.ensure(id);
-    await this.prisma.stockCheck.create({
-      data: { sparePartId: id, countedQty: dto.countedQty, previousQty: sp.currentStock, note: dto.note, userId: userId || null },
+    return this.prisma.$transaction(async (tx) => {
+      await tx.stockCheck.create({
+        data: {
+          sparePartId: id, countedQty: dto.countedQty, previousQty: sp.currentStock,
+          note: dto.note, userId: userId || null,
+        },
+      });
+      return tx.sparePart.update({
+        where: { id },
+        data: { currentStock: dto.countedQty, lastCheckedAt: new Date() },
+      });
     });
-    return this.prisma.sparePart.update({ where: { id }, data: { currentStock: dto.countedQty, lastCheckedAt: new Date() } });
   }
 
   // ---------- dashboard de inventario ----------

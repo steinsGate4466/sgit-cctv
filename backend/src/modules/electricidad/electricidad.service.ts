@@ -204,12 +204,19 @@ export class ElectricidadService {
     if (!a) throw new NotFoundException('Ese activo no existe.');
 
     try {
-      const r = await this.prisma.alimentacionActivo.create({
-        data: { circuitoId, assetId, viaPoe: !!viaPoe, notas: notas?.trim() || null },
+      /* Bloque 37: las dos escrituras van juntas. Si la segunda falla, el
+         activo queda colgado del circuito pero el circuito no aparece marcado
+         como de CCTV — y entonces el técnico de red, que filtra justo por esa
+         marca, no lo encuentra. El enlace existiría y sería invisible. */
+      const r = await this.prisma.$transaction(async (tx) => {
+        const enlace = await tx.alimentacionActivo.create({
+          data: { circuitoId, assetId, viaPoe: !!viaPoe, notas: notas?.trim() || null },
+        });
+        // Si se declara un equipo de CCTV, el circuito queda marcado como tal:
+        // así el técnico de red lo encuentra filtrando, sin saber de tableros.
+        await tx.circuitoElectrico.update({ where: { id: circuitoId }, data: { esCctv: true } });
+        return enlace;
       });
-      // Si se declara un equipo de CCTV, el circuito queda marcado como tal:
-      // así el técnico de red lo encuentra filtrando, sin saber de tableros.
-      await this.prisma.circuitoElectrico.update({ where: { id: circuitoId }, data: { esCctv: true } });
       await this.audit.record({
         userId, action: 'CREATE', entity: 'electricidad', entityId: r.id, ip,
         after: { circuito: c.numero, activo: a.assetCode, viaPoe: !!viaPoe },

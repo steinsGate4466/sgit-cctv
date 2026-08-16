@@ -1,4 +1,6 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException,
+} from '@nestjs/common';
 import { WorkOrderStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -320,27 +322,61 @@ export class ProcedimientosService {
       );
     }
 
-    const r = await this.prisma.mejoraProcedimiento.update({
-      where: { id },
-      data: {
-        estado: estado as any,
-        motivoDecision: (dto.motivo ?? '').trim() || null,
-        decididaPorId: userId ?? null,
-        decididaEn: new Date(),
-      },
-      select: { id: true, estado: true },
-    });
+    /* ==========================================================================
+       BLOQUE 37 — DOS JEFES DECIDIENDO A LA VEZ
+       --------------------------------------------------------------------------
+       Esta función tenía los dos fallos de concurrencia a la vez, y el segundo
+       es de los que borran trabajo de campo sin dejar rastro.
 
-    // Aceptada y marcada como paso: se añade al final del procedimiento.
-    if (estado === 'ACEPTADA' && dto.comoPaso !== false) {
-      const proc = await this.prisma.procedimientoRestauracion.findUnique({
-        where: { id: mejora.procedimientoId }, select: { pasos: true },
+       1) DOBLE DECISIÓN. Arriba se comprueba «¿ya estaba decidida?» sobre una
+          lectura. Un doble clic, o dos personas en la bandeja de pendientes,
+          pasaban los dos esa comprobación: la mejora se aceptaba dos veces y
+          el paso se añadía DUPLICADO al procedimiento.
+          Ahora la condición va en el `where` del propio update: PostgreSQL
+          comprueba y escribe en la misma sentencia.
+
+       2) UN PASO SE PERDÍA. Los pasos son un array, y se actualizaba leyendo
+          el array entero, añadiendo uno, y volviendo a escribirlo. Dos mejoras
+          aceptadas a la vez leían los mismos 4 pasos, cada una añadía el suyo,
+          y las dos guardaban 5. El segundo paso desaparecía.
+          Eso es una mejora que un técnico propuso desde campo, que el jefe
+          aceptó, y que no aparece en el procedimiento. Nadie lo nota: el
+          técnico ve «ACEPTADA» y da por hecho que está.
+
+          Se resuelve serializando dentro de una transacción, y releyendo los
+          pasos DENTRO de ella para que la lectura y la escritura no se
+          separen.
+       ========================================================================== */
+    const r = await this.prisma.$transaction(async (tx) => {
+      const movidas = await tx.mejoraProcedimiento.updateMany({
+        where: { id, estado: 'PROPUESTA' },
+        data: {
+          estado: estado as any,
+          motivoDecision: (dto.motivo ?? '').trim() || null,
+          decididaPorId: userId ?? null,
+          decididaEn: new Date(),
+        },
       });
-      await this.prisma.procedimientoRestauracion.update({
-        where: { id: mejora.procedimientoId },
-        data: { pasos: [...(proc?.pasos ?? []), mejora.texto] },
-      });
-    }
+
+      if (movidas.count === 0) {
+        throw new ConflictException(
+          'Esta propuesta ya la decidió alguien mientras la mirabas. Actualiza la pantalla.',
+        );
+      }
+
+      // Aceptada y marcada como paso: se añade al final del procedimiento.
+      if (estado === 'ACEPTADA' && dto.comoPaso !== false) {
+        const proc = await tx.procedimientoRestauracion.findUnique({
+          where: { id: mejora.procedimientoId }, select: { pasos: true },
+        });
+        await tx.procedimientoRestauracion.update({
+          where: { id: mejora.procedimientoId },
+          data: { pasos: [...(proc?.pasos ?? []), mejora.texto] },
+        });
+      }
+
+      return { id, estado };
+    });
 
     await this.audit.record({
       userId, ip, action: 'UPDATE', entity: 'mejora-procedimiento', entityId: id,
