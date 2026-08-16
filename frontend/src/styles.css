@@ -2395,3 +2395,123 @@ button.accion {
 button.accion:first-child { border-top: 0; }
 button.accion:hover { background: #f6f9fc; }
 button.accion:focus-visible { outline: 2px solid #1f4e79; outline-offset: -2px; }
+
+/* =========================================================================
+   BLOQUE 39 — LA TARJETA DE UNA CÁMARA CAÍDA
+   -------------------------------------------------------------------------
+   Móvil primero. Es la pantalla que el jefe de tren va a abrir desde el
+   púlpito con el teléfono en la mano, o desde el PC en una reunión.
+   ========================================================================= */
+.cam {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 12px; overflow: hidden; margin-bottom: 14px;
+}
+/* La franja roja de zona vital se ve incluso de reojo desde la puerta, que es
+   el único momento en que muchos van a mirar esta pantalla. */
+.cam-vital { border-left: 4px solid #a32d2d; }
+
+.cam-cabeza {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 10px; flex-wrap: wrap; padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.cam-quien { min-width: 0; }
+.cam-zona { margin: 0; font-size: 15.5px; font-weight: 650; line-height: 1.3; }
+.cam-codigo {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px; color: var(--muted); margin-top: 3px;
+}
+
+/* ---- La foto de a qué apunta ---- */
+.cam-foto { margin: 0; background: #0e1116; }
+.cam-foto img {
+  display: block; width: 100%;
+  /* Alto fijo con `cover`: sin él, una foto vertical del móvil de un técnico
+     empujaría todo lo demás fuera de la pantalla. Se recorta a propósito —lo
+     que importa es reconocer el sitio, no ver la foto entera. */
+  height: 190px; object-fit: cover;
+}
+.cam-foto figcaption {
+  font-size: 12px; color: #cbd5e1; padding: 7px 14px; line-height: 1.4;
+}
+@media (min-width: 780px) { .cam-foto img { height: 240px; } }
+
+.cam-sinfoto {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0; padding: 12px 16px; font-size: 12.5px; color: var(--muted);
+  background: #f7f9fb; border-bottom: 1px solid var(--line);
+}
+
+.cam-bloque { padding: 13px 16px; border-bottom: 1px solid var(--line); }
+
+/* ---- La cronología ---- */
+.cronologia { list-style: none; margin: 0; padding: 0; }
+.cronologia li { position: relative; padding: 0 0 13px 22px; }
+.cronologia li:last-child { padding-bottom: 0; }
+.crono-punto {
+  position: absolute; left: 0; top: 4px;
+  width: 9px; height: 9px; border-radius: 50%;
+}
+/* La línea arranca DEBAJO del punto y llega al siguiente. Sin ella los hitos
+   se leen como una lista suelta y se pierde que son una secuencia. */
+.crono-linea {
+  position: absolute; left: 4px; top: 15px; bottom: 0;
+  width: 2px; background: var(--line);
+}
+.crono-que { font-size: 13.5px; line-height: 1.3; }
+.crono-cuando { font-size: 12px; color: var(--muted); margin-top: 2px; line-height: 1.45; }
+
+/* ---- El avance ---- */
+.cam-avance-cabeza {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 7px; font-size: 13px;
+}
+.barra { height: 8px; background: #eef2f7; border-radius: 4px; overflow: hidden; }
+.barra-relleno { height: 8px; background: #1d9e75; transition: width .3s ease; }
+@media (prefers-reduced-motion: reduce) { .barra-relleno { transition: none; } }
+.cam-nota { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; line-height: 1.5; }
+
+.cam-sinorden {
+  display: flex; align-items: flex-start; gap: 8px;
+  margin: 0; padding: 13px 16px; font-size: 13px; line-height: 1.5;
+  background: #fdeceb; color: #7f1d1d; border-bottom: 1px solid var(--line);
+}
+
+/* ---- Lo que falta para terminar: la sección que dispara una compra ---- */
+.cam-falta {
+  display: flex; gap: 9px; align-items: flex-start;
+  padding: 13px 16px; background: #fdf3e2; color: #78350f;
+  font-size: 13px; line-height: 1.5; border-bottom: 1px solid var(--line);
+}
+.cam-falta ul { margin: 6px 0 0; padding-left: 17px; font-size: 12.5px; }
+.cam-falta li { margin-bottom: 3px; }
+
+/* ---- El pie: hasta dónde se puede llegar ---- */
+.cam-pie { display: flex; gap: 9px; align-items: flex-start; padding: 12px 16px; }
+.cam-pie + .cam-pie { border-top: 1px solid rgba(0,0,0,.06); }
+.cam-pie-que { font-size: 13.5px; font-weight: 600; line-height: 1.3; }
+.cam-pie-porque { font-size: 12px; margin-top: 2px; line-height: 1.45; }
+.cam-pie-bien     { background: #eaf5ed; color: #14532d; }
+.cam-pie-atender  { background: #fdf3e2; color: #78350f; }
+.cam-pie-grave    { background: #fdeceb; color: #7f1d1d; }
+.cam-pie-sindatos { background: #f1f4f7; color: #334155; }
+
+/* ---- El detalle ---- */
+.cam-mas {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; min-height: 42px; font: inherit; font-size: 12.5px;
+  background: none; border: 0; border-top: 1px solid var(--line);
+  color: var(--muted); cursor: pointer;
+}
+.cam-mas:hover { background: #f6f9fc; color: var(--fg); }
+.cam-mas:focus-visible { outline: 2px solid #1f4e79; outline-offset: -2px; }
+
+.cam-detalle {
+  margin: 0; padding: 4px 16px 14px; font-size: 13px;
+  border-top: 1px solid var(--line);
+}
+.cam-detalle dt { font-size: 11.5px; color: var(--muted); margin-top: 11px; }
+.cam-detalle dd { margin: 3px 0 0; line-height: 1.5; }
+.cam-materiales { list-style: none; margin: 0; padding: 0; }
+.cam-materiales li { padding: 6px 0; border-bottom: 1px solid var(--line); }
+.cam-materiales li:last-child { border-bottom: 0; }

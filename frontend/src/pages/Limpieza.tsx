@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import BorrarDefinitivo from '../components/BorrarDefinitivo';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
+import { Titular } from '../components/Patron';
 
 /**
  * LIMPIEZA DE DATOS (bloque 15) — exige el permiso «Borrar definitivamente».
@@ -23,7 +24,10 @@ export default function Limpieza() {
   const { can } = useAuth();
   const puedePurgar = can('purga.definitiva');
 
-  const [pestana, setPestana] = useState<'activos' | 'om' | 'usuarios' | 'auditoria'>('activos');
+  const [pestana, setPestana] = useState<'activos' | 'om' | 'usuarios' | 'auditoria' | 'todo'>('activos');
+  // Bloque 39: dejar la base como el primer día, antes del despliegue real.
+  const [operativos, setOperativos] = useState<any>(null);
+  const [fraseVaciarTodo, setFraseVaciarTodo] = useState('');
   const [candidatos, setCandidatos] = useState<any[]>([]);
   const [candidatosOm, setCandidatosOm] = useState<any[]>([]);
   const [resumenOm, setResumenOm] = useState<any>(null);
@@ -62,6 +66,23 @@ export default function Limpieza() {
   }, []);
 
   useEffect(() => { setCargando(true); cargar().finally(() => setCargando(false)); }, [cargar]);
+
+  /* DEJAR LA BASE COMO EL PRIMER DÍA (bloque 39).
+     Es lo que se usa el día del despliegue real: se borra todo lo que se cargó
+     para la demo y quedan los usuarios, los roles, el árbol de planta, los
+     catálogos y la auditoría. */
+  async function vaciarTodo() {
+    setVaciando(true); setErrorModal('');
+    try {
+      const r = await api.post('/purga/vaciar-todo', { confirmacion: fraseVaciarTodo });
+      setHecho(`Base vacía: ${r.data.total} registro(s) borrados. Los usuarios y el árbol de planta siguen ahí.`);
+      setFraseVaciarTodo('');
+      setOperativos(null);
+      await cargar();
+    } catch (e: any) {
+      setErrorModal(e?.response?.data?.message || 'No se pudo vaciar.');
+    } finally { setVaciando(false); }
+  }
 
   async function vaciarOrdenes() {
     setVaciando(true); setErrorModal('');
@@ -108,23 +129,13 @@ export default function Limpieza() {
 
   return (
     <div className="page">
-      <div className="card peligro">
-        <b>Aquí se borra de verdad, y no hay vuelta atrás.</b>
-        <div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.6 }}>
-          <b>Dar de baja</b> es para un equipo que existió y salió de planta: desaparece
-          de los listados y <b>conserva su historial</b>. Eso se hace desde Activos.<br />
-          <b>Borrar definitivamente</b> (esta pantalla) es para un registro que
-          <b> nunca debió existir</b>: una prueba, un duplicado, un código mal tecleado.
-        </div>
-        {!puedePurgar && (
-          <div className="tg-aviso" style={{ marginTop: 10 }}>
-            Puedes mirar, pero no borrar. La operación pide <b>dos llaves</b>: el
-            permiso del recurso (eliminar activos, administrar usuarios…) y además
-            <b> «Borrar definitivamente (sin vuelta atrás)»</b>, que se concede
-            aparte desde la pantalla de Roles. Te falta la segunda.
-          </div>
-        )}
-      </div>
+      <Titular
+        tono={puedePurgar ? 'grave' : 'sindatos'}
+        texto="Aquí se borra de verdad, y no hay vuelta atrás"
+        apoyo={puedePurgar
+          ? 'Nada de esto se recupera. Antes de cada borrado se enseña qué se lleva por delante.'
+          : 'Puedes mirar, pero no borrar: te falta el permiso «Borrar definitivamente».'}
+      />
 
       {hecho && <div className="card" style={{ borderColor: '#7fbf8f', background: '#eef8f0' }}>{hecho}</div>}
       {fallo && <div className="card aviso-error">{fallo}</div>}
@@ -141,6 +152,9 @@ export default function Limpieza() {
         </button>
         <button className={pestana === 'auditoria' ? 'act' : ''} onClick={() => setPestana('auditoria')}>
           Auditoría antigua
+        </button>
+        <button className={pestana === 'todo' ? 'act' : ''} onClick={() => setPestana('todo')}>
+          Dejar la base vacía
         </button>
       </div>
 
@@ -301,6 +315,62 @@ export default function Limpieza() {
             </tbody>
           </table>
         </>
+      )}
+
+      {/* ---------- DEJAR LA BASE VACÍA (bloque 39) ---------- */}
+      {!cargando && pestana === 'todo' && (
+        <div className="card">
+          <div className="section-title" style={{ marginTop: 0 }}>
+            Dejar la base como el primer día
+          </div>
+          <p style={{ fontSize: 13, lineHeight: 1.6 }}>
+            Para el día del despliegue real. Borra lo operativo —activos,
+            incidencias, órdenes, almacén— y <b>conserva usuarios, roles, el
+            árbol de planta, los catálogos y la auditoría</b>.
+          </p>
+
+          {!operativos ? (
+            <button className="btn" style={{ marginTop: 14 }}
+              onClick={async () => {
+                const r = await api.get('/purga/operativos').then((x) => x.data).catch(() => null);
+                setOperativos(r ?? {});
+              }}>
+              Ver qué hay ahora mismo
+            </button>
+          ) : (
+            <>
+              {/* NADIE BORRA A CIEGAS. Primero se enseña el precio. */}
+              <div className="card explica" style={{ marginTop: 14 }}>
+                <b>Esto es lo que se va a borrar:</b>
+                <ul style={{ margin: '6px 0 0', fontSize: 13, lineHeight: 1.7 }}>
+                  {Object.entries(operativos)
+                    .filter(([, n]) => (n as number) > 0)
+                    .map(([k, n]) => <li key={k}><b>{n as number}</b> {k}</li>)}
+                  {Object.values(operativos).every((n) => !n) && (
+                    <li>Nada. La base ya está vacía de datos operativos.</li>
+                  )}
+                </ul>
+              </div>
+
+              {Object.values(operativos).some((n) => (n as number) > 0) && (
+                <div style={{ marginTop: 14 }}>
+                  <label>Escribe <code>DEJAR LA BASE VACIA</code> para confirmar</label>
+                  <input value={fraseVaciarTodo}
+                    onChange={(e) => setFraseVaciarTodo(e.target.value)}
+                    placeholder="DEJAR LA BASE VACIA" autoComplete="off" />
+                  <button className="btn-peligro" style={{ marginTop: 10 }}
+                    onClick={vaciarTodo}
+                    disabled={vaciando
+                      || fraseVaciarTodo.trim().toUpperCase().replace(/\s+/g, ' ') !== 'DEJAR LA BASE VACIA'}>
+                    {vaciando ? 'Vaciando…' : 'Dejar la base vacía'}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+
+          {errorModal && <div className="card peligro" style={{ marginTop: 12 }}>{errorModal}</div>}
+        </div>
       )}
 
       {/* ---------- AUDITORÍA ---------- */}

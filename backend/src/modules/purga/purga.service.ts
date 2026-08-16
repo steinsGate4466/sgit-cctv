@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { PrismaService } from '../../prisma/prisma.service';
 import { porClave, RECURSOS } from './recursos-purgables';
 import { AuditService } from '../audit/audit.service';
+import { NUNCA_SE_BORRA } from './datos-de-demo';
 
 /**
  * PURGA — BORRADO DEFINITIVO PARA LIMPIAR BASURA (bloque 15).
@@ -542,6 +543,101 @@ export class PurgaService {
 
     const r = await this.prisma.workOrder.deleteMany({});
     return { ok: true, borradas: r.count, cerradas };
+  }
+
+  /* ==========================================================================
+     DEJAR LA BASE COMO EL PRIMER DÍA — bloque 39
+     --------------------------------------------------------------------------
+     Para la demo hacen falta dos incidencias con su orden, su avance y su
+     material faltante. Sin eso la pantalla del jefe de tren sale vacía, y una
+     pantalla vacía se lee como «el software no funciona» aunque esté perfecto.
+
+     Pero el día del despliegue real esos datos NO PUEDEN QUEDARSE. Esta
+     función los borra y deja lo que hace falta para trabajar:
+
+        SE BORRA          incidencias, órdenes, avances, materiales, activos,
+                          movimientos de almacén, fotos… todo lo operativo.
+        NO SE TOCA        usuarios, roles, permisos, el árbol de planta, los
+                          catálogos, la configuración y la AUDITORÍA.
+
+     POR QUÉ LA AUDITORÍA SOBREVIVE
+     Es la prueba de qué pasó, y eso incluye este mismo borrado. Un vaciado que
+     se borra a sí mismo del registro es exactamente lo que nadie quiere
+     encontrar en una revisión.
+
+     EL ORDEN DE BORRADO NO ES CASUAL
+     Se va de las hojas al tronco. PostgreSQL tiene cascadas declaradas para
+     casi todo, pero no para todo: un `deleteMany` sobre activos con
+     movimientos de stock colgando fallaría por clave foránea y dejaría el
+     vaciado a medias — la peor situación posible, porque parece que funcionó.
+     ========================================================================== */
+  async vaciarDatosOperativos(
+    confirmacion: string, userId?: string | null, ip?: string | null,
+  ) {
+    await this.exigirLlaveDefinitiva(userId);
+
+    const FRASE = 'DEJAR LA BASE VACIA';
+    if ((confirmacion || '').trim().toUpperCase().replace(/\s+/g, ' ') !== FRASE) {
+      throw new BadRequestException(`Escribe exactamente: ${FRASE}`);
+    }
+
+    const antes = await this.contarOperativos();
+    if (Object.values(antes).every((n) => n === 0)) {
+      throw new BadRequestException('La base ya está vacía de datos operativos.');
+    }
+
+    /* Se anota ANTES de borrar. Si se anotara después y el borrado se cayera
+       a mitad, quedaría un registro diciendo que se vació algo que sigue ahí. */
+    await this.audit.record({
+      userId: userId || null, action: 'PURGE_DEMO_DATA',
+      entity: 'sistema', entityId: null, ip,
+      before: antes,
+    });
+
+    const p: any = this.prisma;
+    /* De las hojas al tronco. Cada nombre es una tabla de Prisma; las que no
+       existan en una versión futura se saltan sin romper el vaciado. */
+    const ORDEN = [
+      'workOrderProgress', 'workOrderMaterial', 'workOrderEvidence',
+      'notaCampo', 'mejoraProcedimiento',
+      'stockCheck', 'stockMovement',
+      'incidentEvidence', 'workOrder', 'incident',
+      'accessRequest', 'inspeccionGrua', 'assetPhoto', 'assetHistory',
+      'credential', 'assetObservation',
+      'alimentacionActivo', 'networkLink', 'switchPort',
+      'assetCamera', 'assetNvr', 'assetSwitch', 'assetWireless',
+      'assetDecoder', 'assetScreen', 'assetPc',
+      'zonaCampana', 'campanaMapeo', 'instalacion',
+      'preventivePlan', 'asset', 'sparePart',
+      'notificacionSaliente',
+    ];
+
+    const borrado: Record<string, number> = {};
+    for (const tabla of ORDEN) {
+      if (!p[tabla]?.deleteMany) continue;   // la tabla no existe: se salta
+      const r = await p[tabla].deleteMany({});
+      if (r.count) borrado[tabla] = r.count;
+    }
+
+    return {
+      ok: true,
+      borrado,
+      total: Object.values(borrado).reduce((s, n) => s + n, 0),
+      conservado: NUNCA_SE_BORRA,
+    };
+  }
+
+  /** Qué hay hoy, para enseñarlo ANTES de vaciar. Nadie borra a ciegas. */
+  async contarOperativos() {
+    const [activos, incidencias, ordenes, repuestos, movimientos, fotos] = await Promise.all([
+      this.prisma.asset.count(),
+      this.prisma.incident.count(),
+      this.prisma.workOrder.count(),
+      this.prisma.sparePart.count(),
+      this.prisma.stockMovement.count(),
+      this.prisma.assetPhoto.count(),
+    ]);
+    return { activos, incidencias, ordenes, repuestos, movimientos, fotos };
   }
 
   /** Cuántas hay y de qué tipo, para enseñarlo antes de vaciar. */

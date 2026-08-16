@@ -84,6 +84,27 @@ export class PurgaController {
     return this.purga.vaciarOrdenes(dto.confirmacion, u?.userId, ip);
   }
 
+  /* ---------- DEJAR LA BASE COMO EL PRIMER DÍA (bloque 39) ----------
+     Es lo que se usa el día del despliegue real: se borra todo lo cargado
+     para la demo y quedan los usuarios, los roles, el árbol de planta, los
+     catálogos y la auditoría.
+
+     Exige `purga.definitiva` —la segunda llave, que se concede aparte— y
+     escribir la frase completa. Dos frenos para lo que no tiene vuelta. */
+  @SinAmbito()
+  @Get('operativos')
+  @RequirePermissions('asset.read')
+  contarOperativos() {
+    return this.purga.contarOperativos();
+  }
+
+  @SinAmbito()
+  @Post('vaciar-todo')
+  @RequirePermissions('asset.delete')
+  vaciarTodo(@Body() dto: PurgarDto, @CurrentUser() u: any, @Ip() ip: string) {
+    return this.purga.vaciarDatosOperativos(dto.confirmacion, u?.userId, ip);
+  }
+
   @SinAmbito()  // purga: ya exige el rol Jefe de Mantenimiento, que lo ve todo
   /* ---------- BORRADO GENÉRICO, CUALQUIER MÓDULO ----------
      Una sola pareja de rutas para los quince recursos. El permiso concreto

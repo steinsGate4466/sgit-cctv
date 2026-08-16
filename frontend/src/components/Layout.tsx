@@ -30,6 +30,7 @@ const TITLES: Record<string, string> = {
   '/mi-tren': 'Mi tren',
   '/topologia': 'Puntos críticos de la red',
   '/riesgo': 'Dónde no vamos a poder arreglar',
+  '/mis-camaras': 'Mis cámaras',
   '/rotulado': 'Estándar de rotulado',
   '/monitoreo': 'Monitoreo de red',
   '/grabadores': 'Grabadores y canales',
@@ -169,6 +170,10 @@ export default function Layout() {
            PRODUCCIÓN, y un jefe de línea que entre al sistema tiene que
            encontrarla sin recorrer un menú pensado para Mantenimiento. */
         can('dashboard.read') && <NavLink key="cob" to="/cobertura"><Icono n="camara" /> Mi cobertura</NavLink>,
+        /* Bloque 39. La pantalla que pidió Producción: qué cámara falla, quién
+           la ataca y qué falta. Va de las primeras porque es la que abre un
+           jefe de tren cuando le avisan por radio. */
+        can('om.mirar') && <NavLink key="mcam" to="/mis-camaras"><Icono n="alerta" /> Mis cámaras</NavLink>,
         can('dashboard.read') && <NavLink key="bd" to="/bandeja"><Icono n="bandeja" /> Mi bandeja</NavLink>,
         can('dashboard.read') && <NavLink key="d" to="/dashboard"><Icono n="tablero" /> Dashboard</NavLink>,
         // Indicadores va junto al tablero: uno dice qué pasa hoy, el otro si

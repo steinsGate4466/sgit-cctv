@@ -81,6 +81,24 @@ const PERMISSIONS = [
      pantalla de Roles, en vez de una cadena de texto enterrada en el código.
      ========================================================================== */
   'purga.definitiva',
+
+  /* ==========================================================================
+     BLOQUE 39 — PRODUCCIÓN MIRA LA ORDEN, NO LA TOCA
+     --------------------------------------------------------------------------
+     El jefe de tren necesita ver qué se está haciendo con SUS cámaras: el
+     avance, la última nota del técnico, qué material falta para poder mover
+     una compra.
+
+     Darle `wo.read` para eso le abriría el módulo de Mantenimiento entero —las
+     trescientas órdenes de la planta, los filtros, las de otros trenes— y le
+     metería en el menú pantallas que no va a usar nunca. Ésa es la forma más
+     rápida de que deje de entrar al sistema.
+
+     `om.mirar` es una llave estrecha: sólo el panel de su tren, sólo lectura,
+     sólo su ámbito. Si alguien se la concede por error, lo peor que puede
+     hacer es MIRAR.
+     ========================================================================== */
+  'om.mirar',
 ];
 
 // ---- Roles y sus permisos ----
@@ -140,6 +158,7 @@ const ROLES: Record<string, string[]> = {
      DECIR qué zonas no pueden quedarse sin vista. Ése es su único permiso de
      escritura, y es el que integra a las tres áreas. */
   'Jefe de Producción': [
+    'om.mirar',
     'dashboard.read', 'incident.read', 'incident.create', 'wo.read',
     'troubleshooting.read', 'asset.read', 'location.read',
     'inventory.read', 'access.read',

@@ -144,6 +144,12 @@ export const CATALOGO_PERMISOS: GrupoPermisos[] = [
          escrito a mano en cinco archivos, así que renombrar el rol la
          desactivaba en silencio. */
       {
+        code: 'om.mirar',
+        nombre: 'Mirar el trabajo sobre mis cámaras',
+        explica: 'Ver la orden que se está haciendo: avance, última nota del técnico y qué material falta.',
+        cuidado: 'Es SÓLO LECTURA. Se creó para que Producción pueda observar sin abrirle el módulo de Mantenimiento entero.',
+      },
+      {
         code: 'purga.definitiva',
         nombre: 'Borrar definitivamente (sin vuelta atrás)',
         explica: 'Segunda llave para eliminar de la base registros que nunca debieron existir: pruebas, duplicados, códigos mal tecleados.',
