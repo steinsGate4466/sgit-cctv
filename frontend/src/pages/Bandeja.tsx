@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useVolverALaPantalla } from '../useVolverALaPantalla';
 import { Accion, Cifras, LoQueHayQueHacer, Titular, Tono } from '../components/Patron';
+import { fecha } from '../formato';
 
 /**
  * MI BANDEJA — lo que espera una decisión, hoy.
@@ -21,7 +22,6 @@ import { Accion, Cifras, LoQueHayQueHacer, Titular, Tono } from '../components/P
  * corre prisa, y al final lo que conviene mirar. No por volumen.
  */
 
-const fecha = (d: any) => (d ? new Date(d).toLocaleDateString() : '—');
 const diasDesde = (d: any) =>
   d ? Math.floor((Date.now() - new Date(d).getTime()) / 86400000) : 0;
 

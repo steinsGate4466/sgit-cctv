@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
+import { fecha, hora } from '../formato';
 
 /** Traducción de acciones: la auditoría debe leerse sin conocer el código. */
 const ACTION_ES: Record<string, string> = {
@@ -139,8 +140,8 @@ export default function Audit() {
                 {rows.map((e: any) => (
                   <tr key={e.id}>
                     <td className="muted" style={{ whiteSpace: 'nowrap' }}>
-                      {new Date(e.createdAt).toLocaleDateString()}
-                      <div style={{ fontSize: 11 }}>{new Date(e.createdAt).toLocaleTimeString()}</div>
+                      {fecha(e.createdAt)}
+                      <div style={{ fontSize: 11 }}>{hora(e.createdAt)}</div>
                     </td>
                     <td>
                       {e.user?.fullName || <span className="muted">Sistema</span>}

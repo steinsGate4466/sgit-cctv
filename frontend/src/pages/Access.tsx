@@ -5,6 +5,7 @@ import AccessRequestForm, { MEANS_ES, STATUS_ES, STATUS_BADGE } from '../compone
 import { useAuth } from '../auth/AuthContext';
 import Icono from '../components/Iconos';
 import { useDialogos } from '../components/Dialogos';
+import { fecha } from '../formato';
 
 /**
  * Bandeja de Accesibilidad y Trabajo en Altura.
@@ -12,7 +13,6 @@ import { useDialogos } from '../components/Dialogos';
  * se analiza el sustento y el Jefe de Mantenimiento da el visto bueno.
  */
 const STATUSES = ['SOLICITADO', 'EN_REVISION', 'APROBADO', 'RECHAZADO'];
-const fmt = (d?: string | null) => (d ? new Date(d).toLocaleDateString() : '—');
 
 export default function Access() {
   const { avisar } = useDialogos();
@@ -124,7 +124,7 @@ export default function Access() {
                     : <span className="badge FUERA_SERVICIO" style={{ fontSize: 10 }}>Sin evidencia</span>}
                 </td>
                 <td><span className={'badge ' + (STATUS_BADGE[r.status] || 'BAJA')}>{STATUS_ES[r.status] || r.status}</span></td>
-                <td className="muted" style={{ fontSize: 12 }}>{fmt(r.createdAt)}</td>
+                <td className="muted" style={{ fontSize: 12 }}>{fecha(r.createdAt)}</td>
                 <td style={{ whiteSpace: 'nowrap' }}>
                   <button className="btn-mini" onClick={() => openDetail(r.id)}>Revisar</button>
                   <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => downloadReport(r)}>Informe</button>

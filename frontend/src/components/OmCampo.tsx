@@ -147,6 +147,10 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
             });
         }
       } else if (accion === 'avance') {
+        /* Bloque 40. Este `await` ya vive dentro del try/catch del método, y
+           es EL más importante de todos: un avance que el técnico cree
+           registrado y no llegó es trabajo perdido en campo. Se deja anotado
+           para que nadie lo saque de aquí. */
         await api.post('/work-orders/' + wo.id + '/progress', {
           reasonCode: motivoAvance || undefined,
           pct: Number(pct),

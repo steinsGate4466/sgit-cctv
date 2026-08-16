@@ -14,6 +14,7 @@ import { WO_TYPES, WO_TYPE_ES, CANALES, CANAL_ES, CAUSA_ES } from './omCatalogos
 import Icono from '../components/Iconos';
 import { useDialogos } from '../components/Dialogos';
 import { useVolverALaPantalla } from '../useVolverALaPantalla';
+import { fecha, fechaHora, plural } from '../formato';
 
 const TYPES = WO_TYPES; // incluye MAPEO: el levantamiento también es una OM
 // Estados que el técnico puede fijar al registrar la intervención (el cierre lo hace el Jefe).
@@ -362,7 +363,7 @@ export default function Maintenance() {
                     || (w.location?.name ? <span style={{ fontStyle: 'italic' }}>{w.location.name}</span> : '—')}
                 </td>
                 <td className="muted" style={{ fontSize: 12 }}>
-                  {w.scheduledDate ? new Date(w.scheduledDate).toLocaleDateString() : '—'}
+                  {w.scheduledDate ? fecha(w.scheduledDate) : '—'}
                   {isOverdue(w) && <span className="badge FUERA_SERVICIO" style={{ marginLeft: 6 }}>Vencida</span>}
                 </td>
                 <td style={{ whiteSpace: 'nowrap' }}>
@@ -440,8 +441,8 @@ export default function Maintenance() {
           onBorrado={async (r) => {
             setOmAPurgar(null);
             await avisar(
-              `Borrada ${r.code} y ${r.arrastrado} registro(s) asociados.` +
-              (r.conservado ? `\n\nSe conservaron ${r.conservado} registro(s) que no dependen de la orden (equipos levantados, inspecciones).` : ''),
+              `Borrada ${r.code} y ${plural(r.arrastrado, 'registro')} asociados.` +
+              (r.conservado ? `\n\nSe conservaron ${plural(r.conservado, 'registro')} que no dependen de la orden (equipos levantados, inspecciones).` : ''),
             );
             load();
           }}
@@ -617,7 +618,7 @@ export default function Maintenance() {
             <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>{evidence.length} foto(s) registradas</div>
             {evidence.map((ev) => (
               <div key={ev.id} style={{ fontSize: 12, padding: '4px 0', borderTop: '1px solid #eee' }}>
-                <Icono n="camara" size={14} /> {ev.caption || '(sin descripción)'} <span className="muted">· {new Date(ev.createdAt).toLocaleString()}</span>
+                <Icono n="camara" size={14} /> {ev.caption || '(sin descripción)'} <span className="muted">· {fechaHora(ev.createdAt)}</span>
               </div>
             ))}
             {!evidence.length && <div className="muted" style={{ fontSize: 12 }}>Aún no hay fotos.</div>}

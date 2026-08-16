@@ -7,6 +7,7 @@ import BotonPurgar from '../components/BotonPurgar';
 import { useAuth } from '../auth/AuthContext';
 import Icono from '../components/Iconos';
 import { useDialogos } from '../components/Dialogos';
+import { fechaHora } from '../formato';
 
 // Categorías agrupadas para el selector (CCTV/NVR, Red/energía, Entorno de planta).
 const CATEGORY_GROUPS: { label: string; items: string[] }[] = [
@@ -380,7 +381,7 @@ export default function Incidents() {
             <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>{evidence.length} foto(s) registradas</div>
             {evidence.map((ev) => (
               <div key={ev.id} style={{ fontSize: 12, padding: '4px 0', borderTop: '1px solid #eee' }}>
-                <Icono n="camara" size={14} /> {ev.caption || '(sin descripción)'} <span className="muted">· {new Date(ev.createdAt).toLocaleString()}</span>
+                <Icono n="camara" size={14} /> {ev.caption || '(sin descripción)'} <span className="muted">· {fechaHora(ev.createdAt)}</span>
               </div>
             ))}
             {!evidence.length && <div className="muted" style={{ fontSize: 12 }}>Aún no hay fotos.</div>}

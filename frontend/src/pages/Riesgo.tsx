@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
+import { plural } from '../formato';
 
 /**
  * DÓNDE ESTAMOS EXPUESTOS A NO PODER ARREGLAR — bloque 36.
@@ -206,7 +207,7 @@ export default function Riesgo() {
           {/* La tarea concreta, no el consejo genérico. */}
           {pestana === 'equipos' && obsol?.modelosSinFicha?.length > 0 && (
             <div className="card explica">
-              <b>{obsol.modelosSinFicha.length} modelo(s) sin ficha de obsolescencia.</b>{' '}
+              <b>{plural(obsol.modelosSinFicha.length, 'modelo')} sin ficha de obsolescencia.</b>{' '}
               Mientras no se sepa si tienen recambio, sus equipos no se pueden
               valorar. No es «revisar el inventario»: es averiguar estos.
               <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>

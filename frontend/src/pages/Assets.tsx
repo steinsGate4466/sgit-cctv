@@ -15,6 +15,7 @@ import BorrarDefinitivo from '../components/BorrarDefinitivo';
 import Icono from '../components/Iconos';
 import { useDialogos } from '../components/Dialogos';
 import { useOcultarAlSalir } from '../useVolverALaPantalla';
+import { fecha, plural } from '../formato';
 
 const TYPES = ['CAMERA', 'NVR', 'SWITCH', 'WIRELESS', 'DECODER', 'PANTALLA', 'PC', 'ROUTER', 'FIREWALL', 'SERVER', 'UPS', 'FIBER', 'CABINET', 'TABLERO_ELECTRICO', 'OTHER'];
 const STATES = ['OPERATIVO', 'FUERA_SERVICIO', 'MANTENIMIENTO', 'BAJA', 'STOCK'];
@@ -754,7 +755,7 @@ export default function Assets() {
           <Frow k="Ubicación" v={detail.location?.name} />
           <Frow k="Gabinete" v={detail.cabinet ? `${detail.cabinet.code} — ${detail.cabinet.name}` : null} />
           <Frow k="Lugar de referencia" v={detail.referencePlace} />
-          <Frow k="Garantía" v={detail.warrantyEnd ? new Date(detail.warrantyEnd).toLocaleDateString() : null} />
+          <Frow k="Garantía" v={detail.warrantyEnd ? fecha(detail.warrantyEnd) : null} />
 
           {can('asset.update') && (
             <div className="detail-sec">
@@ -1009,7 +1010,7 @@ export default function Assets() {
           onBorrado={(r) => {
             setAPurgar(null);
             setDetail(null);
-            setMsg(`Borrado ${r.code} y ${r.arrastrado} registro(s) asociados.`);
+            setMsg(`Borrado ${r.code} y ${plural(r.arrastrado, 'registro')} asociados.`);
             loadAssets();
           }}
         />

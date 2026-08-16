@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { CAUSA_ES, fh } from '../pages/omCatalogos';
+import { plural } from '../formato';
 
 /**
  * HISTORIAL DEL ACTIVO — la retroalimentación antes de intervenir.
@@ -82,7 +83,7 @@ export default function HistorialActivo({ assetId, compacto }: Props) {
           <div style={{ fontSize: 12 }}>
             {sinHistorial
               ? 'Es la primera intervención registrada sobre este equipo.'
-              : `${d.resumen.ordenesTotales} orden(es) registradas, sin patrón detectado.`}
+              : `${plural(d.resumen.ordenesTotales, 'orden', 'órdenes')}(es) registradas, sin patrón detectado.`}
           </div>
         )}
       </div>
@@ -150,7 +151,7 @@ export default function HistorialActivo({ assetId, compacto }: Props) {
       {d.compartida?.vecinos > 0 && (
         <div style={{ marginTop: 10 }}>
           <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 4 }}>
-            Comparte {d.compartida.via} con {d.compartida.vecinos} equipo(s)
+            Comparte {d.compartida.via} con {plural(d.compartida.vecinos, 'equipo')}
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {d.compartida.vecinosDetalle?.slice(0, compacto ? 6 : 20).map((v: any) => (

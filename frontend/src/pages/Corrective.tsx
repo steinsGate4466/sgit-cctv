@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { useDialogos } from '../components/Dialogos';
+import { fecha } from '../formato';
 
-const fmt = (d: string | null) => (d ? new Date(d).toLocaleDateString() : '—');
 
 export default function Corrective() {
   const { avisar } = useDialogos();
@@ -54,7 +54,7 @@ export default function Corrective() {
                 <td>{r.correctiveTotal}</td>
                 <td style={{ fontWeight: 600 }}>{r.corrective12m}</td>
                 <td>{r.incidents}</td>
-                <td className="muted">{fmt(r.lastFailureAt)}</td>
+                <td className="muted">{fecha(r.lastFailureAt)}</td>
                 <td>{r.replacementCandidate ? <span className="badge FUERA_SERVICIO">Candidato</span> : <span className="badge OPERATIVO">No</span>}</td>
               </tr>
             ))}
@@ -77,7 +77,7 @@ export default function Corrective() {
                 <td className="muted" style={{ fontSize: 12 }}>{w.zone || '—'}</td>
                 <td style={{ fontSize: 12 }}>{w.activity || '—'}</td>
                 <td><span className={'badge ' + (w.status === 'CERRADA' ? 'OPERATIVO' : w.status === 'CANCELADA' ? 'BAJA' : 'MANTENIMIENTO')}>{w.status}</span></td>
-                <td className="muted" style={{ fontSize: 12 }}>{w.scheduledDate ? new Date(w.scheduledDate).toLocaleDateString() : '—'}</td>
+                <td className="muted" style={{ fontSize: 12 }}>{w.scheduledDate ? fecha(w.scheduledDate) : '—'}</td>
                 <td><button className="btn-mini" onClick={() => downloadOM(w)}>Informe</button></td>
               </tr>
             ))}

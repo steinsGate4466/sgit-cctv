@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import Icono from './Iconos';
 import { useAuth } from '../auth/AuthContext';
 import { enviarConRespaldo } from '../envio-seguro';
+import { fecha } from '../formato';
 
 /**
  * LO QUE DEJÓ EL TURNO ANTERIOR, Y CÓMO SE ARREGLA ESTO — bloque 29.
@@ -36,6 +37,7 @@ export default function CampoDelTurno({ assetId }: { assetId: string }) {
   const [d, setD] = useState<any>(null);
   const [cargando, setCargando] = useState(true);
   const [verProc, setVerProc] = useState(false);
+  const [resolviendo, setResolviendo] = useState('');
   const [nueva, setNueva] = useState(false);
   const [msg, setMsg] = useState('');
 
@@ -70,15 +72,24 @@ export default function CampoDelTurno({ assetId }: { assetId: string }) {
                 <div style={{ fontSize: 13.5, marginTop: 5, lineHeight: 1.5 }}>{n.texto}</div>
                 <div className="muted" style={{ fontSize: 11, marginTop: 3 }}>
                   {n.autor?.fullName || 'Alguien'} ·{' '}
-                  {new Date(n.createdAt).toLocaleDateString()}
+                  {fecha(n.createdAt)}
                   {n.workOrder?.code && ` · ${n.workOrder.code}`}
                 </div>
+                {/* Bloque 40: con try/catch y bloqueado mientras viaja. Antes,
+                    si fallaba, la nota seguía ahí y el técnico no sabía si se
+                    había registrado o no. */}
                 {puedeEscribir && (
                   <button className="btn-mini" style={{ marginTop: 6 }}
+                    disabled={resolviendo === n.id}
                     onClick={async () => {
-                      await api.patch(`/notas-campo/${n.id}/resolver`);
-                      setMsg('Aviso marcado como atendido.');
-                      cargar();
+                      setResolviendo(n.id);
+                      try {
+                        await api.patch(`/notas-campo/${n.id}/resolver`);
+                        setMsg('Aviso marcado como atendido.');
+                        await cargar();
+                      } catch (e: any) {
+                        setMsg(e?.response?.data?.message || 'No se pudo marcar como atendido.');
+                      } finally { setResolviendo(''); }
                     }}>
                     <Icono n="ok" size={13} /> Ya está resuelto
                   </button>

@@ -4,6 +4,7 @@ import BorrarDefinitivo from '../components/BorrarDefinitivo';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
 import { Titular } from '../components/Patron';
+import { plural } from '../formato';
 
 /**
  * LIMPIEZA DE DATOS (bloque 15) — exige el permiso «Borrar definitivamente».
@@ -75,7 +76,7 @@ export default function Limpieza() {
     setVaciando(true); setErrorModal('');
     try {
       const r = await api.post('/purga/vaciar-todo', { confirmacion: fraseVaciarTodo });
-      setHecho(`Base vacía: ${r.data.total} registro(s) borrados. Los usuarios y el árbol de planta siguen ahí.`);
+      setHecho(`Base vacía: ${plural(r.data.total, 'registro')} borrados. Los usuarios y el árbol de planta siguen ahí.`);
       setFraseVaciarTodo('');
       setOperativos(null);
       await cargar();
@@ -423,8 +424,8 @@ export default function Limpieza() {
             setHecho(
               aBorrar.tipo === 'usuario'
                 ? `Borrado el usuario ${r.email}.`
-                : `Borrado ${r.code} y ${r.arrastrado} registro(s) asociados.`
-                  + (r.conservado ? ` Se conservaron ${r.conservado} registro(s) que no dependen de la orden.` : ''),
+                : `Borrado ${r.code} y ${plural(r.arrastrado, 'registro')} asociados.`
+                  + (r.conservado ? ` Se conservaron ${plural(r.conservado, 'registro')} que no dependen de la orden.` : ''),
             );
             setABorrar(null);
             cargar();

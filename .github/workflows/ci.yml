@@ -209,6 +209,15 @@ jobs:
         working-directory: frontend
         run: npm run verificar:densidad
 
+      # 17 sitios usaban toLocaleDateString() SIN idioma. Sin idioma, el
+      # navegador usa el del sistema: en un PC en espanol sale 15/8/2026 y en
+      # uno en ingles 8/15/2026. El MISMO dato, con dia y mes intercambiados.
+      # Una fecha de mantenimiento mal leida es un trabajo hecho el mes que no
+      # toca -- un dato incorrecto que parece correcto.
+      - name: Fechas que se leen igual en cualquier PC
+        working-directory: frontend
+        run: npm run verificar:formato
+
       - name: Compilar
         working-directory: frontend
         run: npm run build

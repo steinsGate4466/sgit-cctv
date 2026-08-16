@@ -368,8 +368,12 @@ export default function Campanas() {
             <b>«Cuántos esperas» puede quedar vacío.</b> Si no lo sabes, no pongas un
             número: se daría por bueno y «faltan 3» sería una alarma falsa para siempre.
           </div>
+          {/* Bloque 40: se usa la ubicación elegida como clave y el índice
+              sólo mientras la fila está en blanco. Con el índice a secas,
+              quitar una fila del medio dejaba el texto escrito en la de
+              debajo — el usuario borra una zona y ve cómo otra cambia sola. */}
           {repartir.filas.map((f: any, i: number) => (
-            <div key={i} className="form-grid" style={{ borderTop: i ? '1px solid var(--border)' : 'none', paddingTop: i ? 12 : 0 }}>
+            <div key={f.locationId || `vacia-${i}`} className="form-grid" style={{ borderTop: i ? '1px solid var(--border)' : 'none', paddingTop: i ? 12 : 0 }}>
               <label className="campo campo-ancho">
                 <span>Zona</span>
                 <select value={f.locationId} onChange={(e) => {

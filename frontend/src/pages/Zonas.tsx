@@ -6,6 +6,7 @@ import Icono from '../components/Iconos';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
 import { enviarConRespaldo } from '../envio-seguro';
+import { fecha } from '../formato';
 
 /**
  * ZONAS VITALES PARA LA PRODUCCIÓN — bloque 26.
@@ -232,7 +233,7 @@ export default function Zonas() {
                     {z.declaradoPor || <span className="muted">—</span>}
                     {z.declaradoEn && (
                       <div className="muted" style={{ fontSize: 11 }}>
-                        {new Date(z.declaradoEn).toLocaleDateString()}
+                        {fecha(z.declaradoEn)}
                       </div>
                     )}
                   </td>

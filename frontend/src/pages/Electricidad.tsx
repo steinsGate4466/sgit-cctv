@@ -5,6 +5,7 @@ import BotonPurgar from '../components/BotonPurgar';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
 import { useDialogos } from '../components/Dialogos';
+import { plural } from '../formato';
 
 /**
  * ELECTRICIDAD — tableros, circuitos y qué cuelga de cada llave.
@@ -411,7 +412,7 @@ export default function Electricidad() {
       {impacto && (
         <Modal title={`Si salta el circuito ${impacto.circuito.numero}`} onClose={() => setImpacto(null)}>
           <div className="card peligro" style={{ marginTop: 0 }}>
-            <b style={{ fontSize: 18 }}>Se apagan {impacto.total} equipo(s)</b>
+            <b style={{ fontSize: 18 }}>Se apagan {plural(impacto.total, 'equipo')}</b>
             <div className="muted" style={{ fontSize: 12.5, marginTop: 4 }}>
               {impacto.circuito.tablero.codigo} · {PROTECCION[impacto.circuito.proteccion]}
               {impacto.circuito.amperajeA ? ` ${impacto.circuito.amperajeA}A` : ''}

@@ -125,8 +125,14 @@ export default function AssetPhotoPicker({ fotos, onChange }: Props) {
             {fotos.length} foto{fotos.length === 1 ? '' : 's'} lista{fotos.length === 1 ? '' : 's'} para subir
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {/* Bloque 40: la CLAVE es la url del objeto, no el índice.
+                Con el índice, al quitar la foto 2 React reutiliza su nodo para
+                la 3 y la vista previa que se ve no es la del archivo que
+                queda — se borra una y desaparece otra. `URL.createObjectURL`
+                devuelve un identificador único y estable mientras la foto
+                viva, que es exactamente lo que hace falta. */}
             {fotos.map((f, i) => (
-              <div key={i} style={{
+              <div key={f.url} style={{
                 border: '1px solid #e5e7eb', borderRadius: 8, padding: 6,
                 width: 128, position: 'relative',
               }}>

@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { useDialogos } from '../components/Dialogos';
+import { fecha } from '../formato';
 
 /**
  * Mantenimiento de Mejora — trabajos que no son reparación ni rutina:
  * upgrades, reubicaciones, cambio de modelo, estandarización de red.
  */
-const fmt = (d: string | null) => (d ? new Date(d).toLocaleDateString() : '—');
 
 export default function Improvements() {
   const { avisar } = useDialogos();
@@ -57,7 +57,7 @@ export default function Improvements() {
                 <td className="muted" style={{ fontSize: 12 }}>{w.zone || '—'}</td>
                 <td style={{ fontSize: 12 }}>{w.activity || '—'}</td>
                 <td><span className={'badge ' + (w.status === 'CERRADA' ? 'OPERATIVO' : w.status === 'CANCELADA' ? 'BAJA' : 'MANTENIMIENTO')}>{w.status}</span></td>
-                <td className="muted" style={{ fontSize: 12 }}>{fmt(w.scheduledDate)}</td>
+                <td className="muted" style={{ fontSize: 12 }}>{fecha(w.scheduledDate)}</td>
                 <td><button className="btn-mini" onClick={() => downloadOM(w)}>Informe</button></td>
               </tr>
             ))}

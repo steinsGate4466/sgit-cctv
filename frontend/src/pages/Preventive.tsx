@@ -5,6 +5,7 @@ import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
 import Icono from '../components/Iconos';
 import { useDialogos } from '../components/Dialogos';
+import { fecha, fechaHora } from '../formato';
 
 // Estado del plan -> clase de badge existente.
 const PLAN_BADGE: Record<string, string> = {
@@ -14,7 +15,6 @@ const PLAN_BADGE: Record<string, string> = {
 const PLAN_ES: Record<string, string> = {
   AL_DIA: 'Al día', PROXIMO: 'Próximo', VENCIDO: 'Vencido', SIN_PROGRAMAR: 'Sin programar', INACTIVO: 'Inactivo',
 };
-const fmt = (d: string | null) => (d ? new Date(d).toLocaleDateString() : '—');
 
 export default function Preventive() {
   const { confirmar, avisar } = useDialogos();
@@ -146,7 +146,7 @@ export default function Preventive() {
             <>
               <Icono n="automatico" size={15} /> <b>Generación automática activa</b> — el sistema crea solo las OM <b>preventivas</b> vencidas cada día a las {String(auto.hour).padStart(2, '0')}:00 (hora de planta).
               {auto.lastRunAt
-                ? <> Última ejecución: {new Date(auto.lastRunAt).toLocaleString()} ({auto.lastRunGenerated ?? 0} generadas).</>
+                ? <> Última ejecución: {fechaHora(auto.lastRunAt)} ({auto.lastRunGenerated ?? 0} generadas).</>
                 : <> Aún sin ejecuciones registradas.</>}
               <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>Correctivo, mejora y predictivo NO se generan solos: nacen de una incidencia o del análisis del equipo.</div>
             </>
@@ -176,8 +176,8 @@ export default function Preventive() {
                 <td className="muted">{p.asset?.location?.name || '—'}</td>
                 <td>{p.zoneCritical ? <span className="badge ALTA">Crítica</span> : <span className="badge BAJA">Normal</span>}</td>
                 <td>{p.intervalDays} días</td>
-                <td className="muted">{fmt(p.lastServiceAt)}</td>
-                <td className="muted">{fmt(p.nextDueAt)}</td>
+                <td className="muted">{fecha(p.lastServiceAt)}</td>
+                <td className="muted">{fecha(p.nextDueAt)}</td>
                 <td><span className={'badge ' + (PLAN_BADGE[p.statusPlan] || 'BAJA')}>{PLAN_ES[p.statusPlan] || p.statusPlan}</span></td>
                 {can('wo.create') && <td><button className="btn-mini" onClick={() => openEdit(p)}>Editar</button></td>}
               </tr>
@@ -201,7 +201,7 @@ export default function Preventive() {
                 <td className="muted" style={{ fontSize: 12 }}>{w.zone || '—'}</td>
                 <td style={{ fontSize: 12 }}>{w.activity || '—'}</td>
                 <td><span className={'badge ' + (w.status === 'CERRADA' ? 'OPERATIVO' : w.status === 'CANCELADA' ? 'BAJA' : 'MANTENIMIENTO')}>{w.status}</span></td>
-                <td className="muted" style={{ fontSize: 12 }}>{w.scheduledDate ? new Date(w.scheduledDate).toLocaleDateString() : '—'}</td>
+                <td className="muted" style={{ fontSize: 12 }}>{w.scheduledDate ? fecha(w.scheduledDate) : '—'}</td>
                 <td><button className="btn-mini" onClick={() => downloadOM(w)}>Informe</button></td>
               </tr>
             ))}

@@ -67,14 +67,38 @@ export default function Avisos() {
     }
   }
 
+  /* BLOQUE 40 — LOS BOTONES QUE FALLABAN EN SILENCIO.
+     -------------------------------------------------------------------------
+     Estas acciones no tenían `try/catch`. El `ErrorBoundary` NO atrapa errores
+     asíncronos, así que un 403 o un corte de red dejaba la promesa rechazada y
+     la pantalla exactamente igual: el usuario pulsa, no pasa nada, y vuelve a
+     pulsar. Sin mensaje y sin pista.
+
+     `ocupado` es lo otro que faltaba: mientras la petición viaja, el botón
+     queda bloqueado. Sin eso, un doble clic manda dos peticiones. */
+  const [ocupado, setOcupado] = useState('');
+
+  async function conAviso(id: string, fn: () => Promise<void>) {
+    setOcupado(id); setMsg('');
+    try {
+      await fn();
+    } catch (e: any) {
+      setMsg(e?.response?.data?.message || 'No se pudo completar. Vuelve a intentarlo.');
+    } finally { setOcupado(''); }
+  }
+
   async function probar() {
-    const { data } = await api.post('/avisos/probar', {});
-    setMsg(data.ok ? 'Mensaje enviado. Míralo en tu Telegram.' : `No se pudo: ${data.motivo || 'sin detalle'}`);
+    await conAviso('probar', async () => {
+      const { data } = await api.post('/avisos/probar', {});
+      setMsg(data.ok ? 'Mensaje enviado. Míralo en tu Telegram.' : `No se pudo: ${data.motivo || 'sin detalle'}`);
+    });
   }
 
   async function reintentar(id: string) {
-    await api.post(`/avisos/${id}/reintentar`, {});
-    await cargar();
+    await conAviso(id, async () => {
+      await api.post(`/avisos/${id}/reintentar`, {});
+      await cargar();
+    });
   }
 
   if (cargando) return <EsqueletoTablero kpis={4} paneles={1} />;
@@ -142,10 +166,13 @@ export default function Avisos() {
             {config?.token?.puesto && !config.token.desdeEntorno && (
               <button
                 className="btn-mini btn-danger"
+                disabled={ocupado === 'apagar'}
                 onClick={async () => {
                   if (!(await confirmar('¿Apagar los avisos por Telegram?'))) return;
-                  await api.post('/avisos/configuracion/token', { token: '' });
-                  await cargar();
+                  await conAviso('apagar', async () => {
+                    await api.post('/avisos/configuracion/token', { token: '' });
+                    await cargar();
+                  });
                 }}
               >
                 Apagar avisos
@@ -176,13 +203,18 @@ export default function Avisos() {
               <span>Vinculado. Los avisos te llegan a tu Telegram.</span>
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
-              <button className="btn-mini" onClick={probar}>Mandarme una prueba</button>
+              <button className="btn-mini" onClick={probar} disabled={ocupado === 'probar'}>
+                {ocupado === 'probar' ? 'Enviando…' : 'Mandarme una prueba'}
+              </button>
               <button
                 className="btn-mini btn-danger"
+                disabled={ocupado === 'desvincular'}
                 onClick={async () => {
                   if (!(await confirmar('¿Dejar de recibir avisos en Telegram?'))) return;
-                  await api.post('/avisos/mi-telegram/desvincular', {});
-                  await cargar();
+                  await conAviso('desvincular', async () => {
+                    await api.post('/avisos/mi-telegram/desvincular', {});
+                    await cargar();
+                  });
                 }}
               >
                 Desvincular

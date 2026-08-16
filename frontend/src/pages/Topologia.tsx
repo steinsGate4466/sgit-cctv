@@ -5,6 +5,7 @@ import Icono from '../components/Iconos';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, conAmbito } from '../components/FiltroAmbito';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import MapaRed from '../components/MapaRed';
+import { plural } from '../formato';
 
 /**
  * PUNTOS CRÍTICOS DE LA RED (bloque 7).
@@ -182,7 +183,7 @@ export default function Topologia() {
                       <span className="badge OPERATIVO">protegido por el anillo</span>
                     ) : (
                       <b style={{ color: e.camarasAfectadas > 5 ? 'var(--crit)' : 'var(--text)' }}>
-                        {e.camarasAfectadas} cámara(s)
+                        {plural(e.camarasAfectadas, 'cámara')}
                       </b>
                     )}
                   </td>
@@ -245,7 +246,7 @@ export default function Topologia() {
                     grabador. Pero convendría mirarlos.
                   </p>
                   <div className="muted" style={{ fontSize: 12 }}>
-                    {detalle.yaAislados.length} equipo(s).
+                    {plural(detalle.yaAislados.length, 'equipo')}.
                   </div>
                 </div>
               )}

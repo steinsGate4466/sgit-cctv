@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { api } from '../api/client';
 import { useVolverALaPantalla } from '../useVolverALaPantalla';
 import { Accion, Cifras, LoQueHayQueHacer, Titular, Tono } from '../components/Patron';
+import { fecha, plural } from '../formato';
 
 /**
  * ESTADO POR TREN — tablero de INFRAESTRUCTURA.
@@ -38,7 +39,6 @@ const STATUS_ES: Record<string, string> = {
   OPERATIVO: 'Operativo', FUERA_SERVICIO: 'Fuera de servicio', MANTENIMIENTO: 'En mantenimiento',
   CON_INCIDENCIA: 'Con incidencia', BAJA: 'Baja', STOCK: 'En stock',
 };
-const fmt = (d: any) => (d ? new Date(d).toLocaleDateString() : '—');
 
 /* =============================================================================
    BLOQUE 38 — EL TITULAR DEL TREN
@@ -225,7 +225,7 @@ export default function TrainBoard() {
           }}
         >
           <div style={{ fontSize: 13 }}>
-            <b>{sinUbicar.activos} activo(s) fuera del árbol.</b>{' '}
+            <b>{plural(sinUbicar.activos, 'activo')} fuera del árbol.</b>{' '}
             <span className="muted">
               No cuelgan de ningún tren, así que no cuentan en ninguna pestaña.
               No es un cuarto tren: es mapeo pendiente.
@@ -515,7 +515,7 @@ export default function TrainBoard() {
                      o.asset?.assetCode || '—',
                      <span style={{ fontSize: 12 }}>{o.activity || '—'}</span>,
                      (o.progressPct ?? 0) + '%',
-                     fmt(o.scheduledDate),
+                     fecha(o.scheduledDate),
                      o.vencida
                        ? <b style={{ color: 'var(--crit)' }}>vencida</b>
                        : <span className="muted">{o.status}</span>,
@@ -530,7 +530,7 @@ export default function TrainBoard() {
                      i.asset?.assetCode || '—',
                      <span style={{ fontSize: 12 }}>{i.title}</span>,
                      <span className={'badge ' + i.priority}>{i.priority}</span>,
-                     fmt(i.reportedAt),
+                     fecha(i.reportedAt),
                    ]} />
           )}
 

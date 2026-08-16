@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { api } from '../api/client';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, AvisoAmbito } from '../components/FiltroAmbito';
+import { plural } from '../formato';
 
 /**
  * AVANCE DEL MAPEO.
@@ -83,8 +84,8 @@ export default function Mapeo() {
         }}>
           <div style={{ fontWeight: 700, marginBottom: 6 }}>
             {rein.confirmadas > 0
-              ? `${rein.confirmadas} equipo(s) con reincidencia CONFIRMADA`
-              : `${rein.total} equipo(s) con posible reincidencia`}
+              ? `${plural(rein.confirmadas, 'equipo')} con reincidencia CONFIRMADA`
+              : `${plural(rein.total, 'equipo')} con posible reincidencia`}
             <span style={{ fontWeight: 400, fontSize: 12 }}> · últimos {rein.ventanaDias} días</span>
           </div>
           <div style={{ fontSize: 12, marginBottom: 8 }}>

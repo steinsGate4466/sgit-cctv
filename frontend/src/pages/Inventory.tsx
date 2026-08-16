@@ -7,6 +7,7 @@ import { useAuth } from '../auth/AuthContext';
 import InventarioHerramientas from '../components/InventarioHerramientas';
 import InventarioImportar from '../components/InventarioImportar';
 import { useDialogos } from '../components/Dialogos';
+import { fecha } from '../formato';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend, ResponsiveContainer,
 } from 'recharts';
@@ -249,7 +250,7 @@ export default function Inventory() {
                 <td style={{ fontWeight: 700 }}>{r.currentStock}</td>
                 <td className="muted">{r.minStock}</td>
                 <td>{stockBadge(r)}</td>
-                <td className="muted" style={{ fontSize: 12 }}>{r.lastCheckedAt ? new Date(r.lastCheckedAt).toLocaleDateString() : '—'}</td>
+                <td className="muted" style={{ fontSize: 12 }}>{r.lastCheckedAt ? fecha(r.lastCheckedAt) : '—'}</td>
                 <td style={{ whiteSpace: 'nowrap' }}>
                   {can('inventory.check') && <button className="btn-mini" onClick={() => { setCheckRow(r); setChk({ countedQty: String(r.currentStock), note: '' }); }}>Comprobar</button>}
                   {can('inventory.check') && <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => { setMoveRow(r); setMv({ type: 'RETIRO', quantity: '', sapCode: '', reason: '' }); }}>Movim.</button>}
