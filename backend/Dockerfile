@@ -67,6 +67,16 @@ COPY --from=builder --chown=node:node /app/node_modules ./node_modules
 COPY --from=builder --chown=node:node /app/dist          ./dist
 COPY --from=builder --chown=node:node /app/prisma        ./prisma
 COPY --from=builder --chown=node:node /app/package.json  ./package.json
+# Los scripts de DIAGNÓSTICO. No se copiaban, y se notó el 17/08 en Pisco:
+# `npm run diagnostico:roles` en la consola de Railway devolvió MODULE_NOT_FOUND
+# justo cuando hacía falta mirar la base viva antes de sembrar.
+#
+# Es la carpeta donde vive lo único que puede comparar el CÓDIGO contra la BASE
+# QUE ESTÁ CORRIENDO — y esa comprobación, por definición, sólo sirve en
+# producción. Dejarla fuera de la imagen era dejarla fuera del único sitio
+# donde se necesita. Son unos kilobytes de texto y ninguno se ejecuta al
+# arrancar: hay que invocarlos a mano.
+COPY --from=builder --chown=node:node /app/scripts        ./scripts
 
 # `node` es un usuario sin privilegios que ya viene en la imagen oficial.
 USER node
