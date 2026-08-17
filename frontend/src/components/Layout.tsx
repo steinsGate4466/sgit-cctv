@@ -31,6 +31,7 @@ const TITLES: Record<string, string> = {
   '/topologia': 'Puntos críticos de la red',
   '/riesgo': 'Dónde no vamos a poder arreglar',
   '/mis-camaras': 'Mis cámaras',
+  '/activos-por-tren': 'Qué hay en mi tren y cómo se llega',
   '/rotulado': 'Estándar de rotulado',
   '/monitoreo': 'Monitoreo de red',
   '/grabadores': 'Grabadores y canales',
@@ -174,6 +175,10 @@ export default function Layout() {
            la ataca y qué falta. Va de las primeras porque es la que abre un
            jefe de tren cuando le avisan por radio. */
         can('om.mirar') && <NavLink key="mcam" to="/mis-camaras"><Icono n="alerta" /> Mis cámaras</NavLink>,
+        /* Bloque 41. Va justo detrás porque son las dos mitades de la misma
+           pregunta: una dice qué falla AHORA, la otra qué hay en el tren y
+           cuánto de eso exige manlift — que es lo que Producción costea. */
+        can('om.mirar') && <NavLink key="apt" to="/activos-por-tren"><Icono n="acceso" /> Activos por tren</NavLink>,
         can('dashboard.read') && <NavLink key="bd" to="/bandeja"><Icono n="bandeja" /> Mi bandeja</NavLink>,
         can('dashboard.read') && <NavLink key="d" to="/dashboard"><Icono n="tablero" /> Dashboard</NavLink>,
         // Indicadores va junto al tablero: uno dice qué pasa hoy, el otro si

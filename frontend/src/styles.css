@@ -2515,3 +2515,115 @@ button.accion:focus-visible { outline: 2px solid #1f4e79; outline-offset: -2px; 
 .cam-materiales { list-style: none; margin: 0; padding: 0; }
 .cam-materiales li { padding: 6px 0; border-bottom: 1px solid var(--line); }
 .cam-materiales li:last-child { border-bottom: 0; }
+
+/* =============================================================================
+   ACTIVOS POR TREN — bloque 41
+   -----------------------------------------------------------------------------
+   El módulo que mira Producción para decidir si aprueba un manlift. Todo el
+   peso visual está puesto en dos cosas: el panel de subidas (lo que se traduce
+   en gasto) y el gris de «sin declarar» (lo que dice cuánto vale el resto).
+
+   EL GRIS NO ES DECORATIVO. En el resto del sistema verde significa «está
+   bien». Un equipo sin declarar no está bien: está sin medir. Si saliera en
+   verde, un tren a medio cargar parecería un tren resuelto.
+============================================================================= */
+
+/* ---- El panel de subidas: lo único que se traduce en una decisión de gasto -- */
+.subidas {
+  background: #fff7ed; border: 1px solid #f5dcb0; border-left: 4px solid var(--warn);
+  border-radius: 12px; padding: 14px 16px; margin: 14px 0;
+}
+.subidas-cabeza { display: flex; gap: 10px; align-items: flex-start; color: #78350f; }
+.subidas-cabeza b { font-size: 14.5px; line-height: 1.45; }
+.subidas-ahorro { font-size: 12.5px; color: #92500b; margin-top: 3px; }
+.subidas-lista { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.subida {
+  display: flex; align-items: center; gap: 8px; background: #fff;
+  border: 1px solid #f5dcb0; border-radius: 999px; padding: 5px 12px 5px 5px;
+}
+.subida-n {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 24px; height: 24px; border-radius: 999px;
+  background: var(--warn); color: #fff; font-size: 12px; font-weight: 700;
+}
+.subida-donde { font-size: 12.5px; color: #78350f; }
+
+/* ---- Filtros. Clase propia y no `.chip`, que ya significa otra cosa -------- */
+.filtros-acceso { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 10px; }
+.f-chip {
+  border: 1px solid var(--border); background: #fff; color: var(--muted);
+  /* 44 px de alto real contando el padding: es el mínimo para acertar con el
+     dedo. Esta pantalla se abre de pie delante del gabinete, no sólo en el PC. */
+  padding: 9px 14px; border-radius: 999px; font-size: 12.5px; cursor: pointer;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+.f-chip:hover { border-color: var(--steel, #94a3b8); }
+.f-chip.act { background: var(--navy, #1e293b); color: #fff; border-color: var(--navy, #1e293b); }
+.f-chip:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); }
+
+/* ---- Cabecera de grupo: gabinete, tablero o punto de campo ----------------- */
+.grupo-marcas { display: inline-flex; flex-wrap: wrap; gap: 6px; margin-left: 10px; vertical-align: middle; }
+.grupo-n { font-size: 11.5px; color: var(--muted); }
+.grupo-sub { font-size: 12.5px; color: var(--muted); margin: 4px 0 10px; line-height: 1.5; }
+.grupo-aviso { margin-bottom: 10px; font-size: 12.5px; }
+.badge.sindatos { background: #f1f4f7; color: #475569; border-color: #dbe2ea; }
+.badge.warn { background: #fff4e5; color: var(--warn); border-color: #f5dcb0; }
+.badge.crit { background: #fdecec; color: var(--crit); border-color: #f6c9c9; }
+
+/* ---- Una tarjeta por equipo -----------------------------------------------
+   Tarjeta y no fila de tabla: siete columnas no se leen en un teléfono, y esta
+   lista se consulta tanto en el PC del púlpito como delante del equipo.        */
+.activos-lista { display: grid; gap: 10px; }
+.activo-fila {
+  border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px;
+  background: #fff; border-left: 3px solid transparent;
+}
+.activo-fila.caido { border-left-color: var(--crit); background: #fffafa; }
+.activo-id { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; font-size: 13.5px; }
+.activo-que { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+.activo-ref { color: #94a3b8; }
+.activo-acceso { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.acc {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 6px;
+  border: 1px solid transparent;
+}
+.acc-m { font-weight: 400; opacity: .8; }
+.acc-elevador { background: #fff4e5; color: #b45309; border-color: #f5dcb0; }
+.acc-subida   { background: #eef4ff; color: #1d4ed8; border-color: #cfdefb; }
+.acc-pie      { background: #eaf5ed; color: #166534; border-color: #bfe9cf; }
+/* Gris, nunca verde: «no lo sé» no es «está bien». */
+.acc-sindatos { background: #f1f4f7; color: #475569; border-color: #dbe2ea; }
+.acc-propuesta, .acc-quien { font-size: 11.5px; color: var(--muted); }
+.activo-nota { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+.activo-choque {
+  margin-top: 8px; padding: 8px 10px; border-radius: 8px;
+  background: #fdecec; color: #7f1d1d; font-size: 12px; line-height: 1.5;
+}
+.activo-pie {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 8px; margin-top: 10px;
+}
+.activo-om { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 5px; }
+.aviso-dato { display: flex; align-items: center; gap: 6px; }
+
+/* ---- Declarar el acceso ---------------------------------------------------- */
+.declarar { padding: 20px 22px; width: 520px; max-width: 92vw; border-radius: 14px; overflow-y: auto; max-height: 90vh; }
+.declarar h3 { margin: 0 0 2px; font-size: 15.5px; display: flex; align-items: center; gap: 7px; }
+.declarar-sub { font-size: 12.5px; color: var(--muted); margin: 0 0 14px; }
+.medios { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 6px; }
+.medio {
+  border: 1px solid var(--border); background: #fff; color: var(--text);
+  padding: 9px 13px; border-radius: 8px; font-size: 12.5px; cursor: pointer;
+}
+.medio.act { background: var(--navy, #1e293b); color: #fff; border-color: var(--navy, #1e293b); }
+.medio:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); }
+
+@media (max-width: 620px) {
+  /* En el móvil la fila de acciones se apila y el botón ocupa el ancho: es el
+     que se pulsa con guante, de pie y con una mano. */
+  .activo-pie { flex-direction: column; align-items: stretch; }
+  .activo-pie .btn-mini { width: 100%; padding: 12px; font-size: 13px; }
+  .medio { flex: 1 1 45%; padding: 12px 10px; }
+  .declarar input, .declarar textarea { font-size: 16px; }
+}

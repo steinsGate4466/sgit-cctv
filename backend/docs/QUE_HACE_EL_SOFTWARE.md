@@ -1,7 +1,7 @@
 # SGIT-CCTV — Qué hace el software
 
 **Aceros Arequipa · Planta Pisco · Laminación (Trenes 1, 2 y 3)**
-Actualizado: 16 de agosto de 2026 · hasta el bloque 39
+Actualizado: 16 de agosto de 2026 · hasta el bloque 41
 
 ---
 
@@ -41,6 +41,36 @@ imagen:
 endpoint acepta un solo verbo y exige `om.mirar`, una llave estrecha creada
 para esto. Producción observa, Mantenimiento ejecuta, y esa frontera es la que
 permite compartir pantalla sin fricción.
+
+### «Activos por tren» — la pantalla del manlift
+
+La otra mitad de la pregunta. «Mis cámaras» dice qué falla ahora; ésta dice
+**qué hay en el tren, dónde está montado y cuánto de eso exige manlift**, que
+es lo que Producción costea.
+
+Los equipos salen agrupados por los tres sitios donde cambia la forma de
+llegar: dentro de un **gabinete**, dentro de un **tablero eléctrico** o en
+**campo**. Y arriba, lo único que se traduce en una decisión de gasto:
+
+> «3 equipos con trabajo pendiente exigen manlift, y están en 1 punto: se
+> pueden atender en 1 subida en vez de 3.»
+
+Ése es el ahorro. Hasta hoy cada subida se pedía suelta y se pagaba suelta,
+porque nadie tenía delante la lista que enseña que están en el mismo poste.
+
+**No hay soles en ninguna parte.** Se cuentan equipos y subidas. Una tarifa
+metida en el sistema envejece sola y a los seis meses da una cifra falsa con
+aspecto de exacta; el número que Producción puede decidir es cuántas veces
+sube el equipo.
+
+**Y lo que nadie ha declarado sale en gris, nunca en verde.** El medio de
+acceso se declara equipo por equipo —en la misma zona hay una cámara en la
+pared a 2 m y otra en el poste a 8 m— y mientras nadie lo diga, el sistema no
+supone que se llega a pie. Si lo supusiera, Producción vería un número bajo, lo
+aprobaría, y el día del trabajo faltaría el manlift.
+
+Declarar cómo se llega **no** es de Producción: es de quien instaló el equipo o
+subió la última vez. Queda con nombre y fecha.
 
 También tienen **«Mi cobertura»** (qué zonas están ciegas, ordenadas por lo que
 duele) y **«Zonas vitales»**, la única pantalla donde Producción escribe: dice

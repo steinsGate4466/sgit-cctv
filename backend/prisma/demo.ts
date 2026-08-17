@@ -90,6 +90,15 @@ async function main() {
       referencePlace: 'Poste 4, sobre la colada continua',
       locationId: zona.id,
       installDate: new Date('2021-03-15'),
+      /* Bloque 41. Declarada a propósito: es la mitad de la demostración del
+         módulo de activos por tren. Junto con la del horno —que está en la
+         MISMA zona— produce el titular que le interesa a Producción: dos
+         equipos pendientes que exigen manlift y se atienden en UNA subida. */
+      medioAcceso: 'MANLIFT',
+      alturaMetros: 8,
+      accesoNota: 'El manlift se posiciona desde el pasillo norte; con el tren en marcha no entra.',
+      accesoDeclaradoPorId: tecnico?.id ?? null,
+      accesoDeclaradoEn: haceHoras(700),
     },
   });
 
@@ -150,6 +159,35 @@ async function main() {
       referencePlace: 'Salida de horno de recalentamiento',
       locationId: zona.id,
       installDate: new Date('2019-08-02'),
+      medioAcceso: 'MANLIFT',
+      alturaMetros: 6.5,
+      accesoDeclaradoPorId: tecnico?.id ?? null,
+      accesoDeclaradoEn: haceHoras(700),
+    },
+  });
+
+  /* ------------------------------------------------------- CÁMARA 3 (bloque 41)
+     ESTA NO TIENE INCIDENCIA NI ORDEN, Y NO ES UN DESCUIDO.
+
+     Está OPERATIVA y SIN DECLARAR cómo se llega. Existe para enseñar lo que de
+     verdad diferencia a este módulo de una lista de inventario: el gris.
+
+     En la pantalla sale aparte, en gris, y NO suma al total de los que exigen
+     manlift — aunque la zona diga que hay que subir. Es la regla que evita que
+     Producción apruebe un número bajo y el día del trabajo falte el equipo.
+
+     Sin este caso, la demo sólo enseñaría el camino feliz. */
+  await prisma.asset.upsert({
+    where: { assetCode: 'DEMO-CAM-LECHO' },
+    update: {},
+    create: {
+      assetCode: 'DEMO-CAM-LECHO',
+      type: 'CAMERA', status: 'OPERATIVO', criticality: 'MEDIA',
+      brand: 'Hikvision', model: 'DS-2CD2143G2',
+      referencePlace: 'Lecho de enfriamiento, poste central',
+      locationId: zona.id,
+      installDate: new Date('2022-11-20'),
+      // medioAcceso queda a NULL a propósito: nadie lo ha declarado.
     },
   });
 
@@ -236,8 +274,11 @@ async function main() {
   console.log('  Listo. Cargado:');
   console.log('    · DEMO-CAM-COLADA  con DEMO-OM-0001 al 60 %, trabajando');
   console.log('    · DEMO-CAM-HORNO   con DEMO-OM-0002 EN ESPERA, falta un inyector PoE');
+  console.log('    · DEMO-CAM-LECHO   operativa y SIN DECLARAR cómo se llega');
   console.log('');
-  console.log('  Míralo en «Mis cámaras».');
+  console.log('  Míralo en «Mis cámaras» y en «Activos por tren».');
+  console.log('  Las dos primeras exigen manlift y están en la misma zona:');
+  console.log('  el tablero lo dice como UNA subida, no dos.');
   console.log('  Para dejar la base vacía antes del despliegue real:');
   console.log('    Limpieza -> «Dejar la base vacía» -> escribir DEJAR LA BASE VACIA');
   console.log('');

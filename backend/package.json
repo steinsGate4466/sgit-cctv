@@ -14,6 +14,7 @@
     "verificar:migraciones": "node scripts/verificar-migraciones.js",
     "verificar:constructores": "node scripts/verificar-constructores.js",
     "verificar:roles": "node scripts/verificar-roles.js",
+    "diagnostico:roles": "node scripts/diagnostico-roles.js",
     "verificar:node": "node scripts/verificar-node.js",
     "verificar:despliegue": "node scripts/verificar-despliegue.js",
     "verificar": "npm run verificar:inyeccion && npm run verificar:filtros && npm run verificar:campos && npm run verificar:migraciones && npm run verificar:constructores && npm run verificar:roles && npm run verificar:node && npm run verificar:despliegue",

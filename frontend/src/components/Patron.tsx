@@ -241,7 +241,10 @@ export function Cifras({ datos }: { datos: Array<{ n: number | null; de?: number
 export function Detalle({
   titulo, children, abiertoAlEntrar = false,
 }: {
-  titulo: string;
+  /* ReactNode y no string desde el bloque 41: la cabecera de un gabinete lleva
+     su icono y sus pastillas de «3 sin servicio». Con `string` había que pasar
+     el JSX con un `as any`, que es apagar la comprobación justo donde sirve. */
+  titulo: ReactNode;
   children: ReactNode;
   abiertoAlEntrar?: boolean;
 }) {

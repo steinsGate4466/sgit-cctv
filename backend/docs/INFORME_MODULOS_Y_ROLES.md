@@ -82,7 +82,18 @@ diagnostican como «la cámara está mala» durante meses.
 | **Zonas vitales** | **Producción declara qué se pierde si una zona se queda a ciegas** |
 | **Mi cobertura** | Qué se está dejando de ver, ordenado por lo que duele |
 | **Mis cámaras** | Qué falla, quién la ataca, cómo va y qué material falta |
+| **Activos por tren** | **Qué hay en el tren y cuánto exige manlift — el gasto que Producción aprueba** |
 | **Paradas** | En qué ventanas se puede intervenir con la línea detenida |
+
+**Activos por tren es el segundo sitio donde Producción decide algo con
+dinero.** Agrupa los equipos por dónde están montados —gabinete, tablero
+eléctrico o campo— porque son los tres sitios donde cambia la forma de llegar,
+y agrupa las subidas de manlift por punto: tres equipos pendientes en el mismo
+poste son una movilización, no tres.
+
+No muestra soles: cuenta equipos y subidas. Y lo que nadie ha declarado sale en
+gris y **no suma** al total, aunque la zona esté marcada de altura. Un número
+bajo se aprueba, y el día del trabajo falta el equipo.
 
 **Zonas vitales es el único sitio donde Producción escribe, y es el más
 importante de los cuatro.** Antes, la prioridad de una cámara la ponía

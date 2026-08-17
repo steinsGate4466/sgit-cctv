@@ -64,6 +64,8 @@ model User {
   zonasDeclaradas Location[]      @relation("ZonaDeclaradaPor")
   /// Zonas en las que esta persona firmó cómo se interviene (bloque 28).
   zonasIntervencion Location[]    @relation("ZonaIntervencionFirmada")
+  /// Equipos en los que esta persona declaró cómo se llega (bloque 41).
+  accesosDeclarados Asset[]       @relation("AccesoDeclaradoPor")
   // ---- Bloque 29 ----
   procedimientosCreados ProcedimientoRestauracion[] @relation("ProcedimientoCreadoPor")
   mejorasPropuestas     MejoraProcedimiento[]       @relation("MejoraPropuestaPor")
@@ -595,6 +597,25 @@ model Asset {
   tableroId     String?
   tableroMontaje TableroElectrico? @relation("EquiposEnTablero", fields: [tableroId], references: [id])
   cabinet       Cabinet?    @relation(fields: [cabinetId], references: [id])
+
+  // ---- CÓMO SE LLEGA A ESTE EQUIPO (bloque 41) ----
+  /// El medio de acceso, DECLARADO POR ACTIVO. NULL significa «nadie lo ha
+  /// dicho», que NO es lo mismo que «se llega a pie»: por eso no hay valor por
+  /// defecto. `Location.requiereAltura` sigue existiendo y sigue sirviendo para
+  /// PROPONER, pero la zona es demasiado gruesa para costear un manlift — en la
+  /// misma zona hay una cámara en la pared a 2 m y otra en el poste a 8 m.
+  medioAcceso   MedioAcceso?
+  /// Altura del punto de montaje. Desde 1.80 m es trabajo en altura (SSOMA).
+  alturaMetros  Float?
+  /// El detalle que no cabe en el enum: «el manlift no entra con el tren en
+  /// marcha, hay que posicionarlo desde el pasillo norte».
+  accesoNota    String?
+  /// Quién lo declaró. Si se da de baja, el dato sobrevive sin nombre: borrarlo
+  /// dejaría el equipo como no declarado y alguien subiría sin preparar nada.
+  accesoDeclaradoPorId String?
+  accesoDeclaradoPor   User?  @relation("AccesoDeclaradoPor", fields: [accesoDeclaradoPorId], references: [id], onDelete: SetNull)
+  accesoDeclaradoEn    DateTime?
+
   // ---- Campos SAP-ready ----
   sapId         String?     @unique
   costCenter    String?
@@ -667,6 +688,11 @@ model Asset {
   @@index([tableroId])
   @@index([cabinetId])
   @@index([train])
+  // Bloque 41. El tablero por tren separa constantemente «exige elevador» de
+  // «sin declarar», y la clave foránea necesita índice para que dar de baja a
+  // una persona no obligue a recorrer la tabla entera.
+  @@index([medioAcceso])
+  @@index([accesoDeclaradoPorId])
   observacion     AssetObservation?
   @@map("assets")
 }
@@ -1820,6 +1846,22 @@ model PreventivePlan {
 // manlift, izaje o andamio. El manlift es un recurso caro y el trabajo en altura
 // (desde 1.80 m) exige PETAR/IPERC/ATS. Por eso el técnico sustenta la solicitud
 // con fotos y datos de seguridad, y SOLO el Jefe de Mantenimiento la aprueba.
+
+/// CÓMO SE LLEGA A UN EQUIPO CONCRETO (bloque 41).
+///
+/// NO se reutiliza `AccessMeans` a propósito. Ése es el medio que se PIDE en
+/// una solicitud de altura, y nadie pide permiso para llegar caminando: no
+/// tiene A_PIE. Reutilizarlo obligaría a marcar «escalera» en una cámara del
+/// púlpito a la que se llega andando — un dato falso metido para poder guardar.
+enum MedioAcceso {
+  A_PIE        /// gabinete, púlpito, sala eléctrica, tablero a nivel de piso
+  ESCALERA     /// escalera portátil; bajo 1.80 m no es trabajo en altura
+  ANDAMIO
+  MANLIFT      /// plataforma elevadora — la cara, y la que costea Producción
+  GRUA         /// izaje; además del equipo suele exigir parar la grúa
+  LINEA_VIDA
+  OTRO         /// válvula de escape; cuenta como no resuelto, no como «a pie»
+}
 
 enum AccessMeans {
   MANLIFT           // plataforma elevadora

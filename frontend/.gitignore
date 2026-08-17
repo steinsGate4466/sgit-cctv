@@ -2,3 +2,8 @@ node_modules
 dist
 .env
 *.log
+
+# Temporales de Vite. Los crea al compilar y a veces no los borra si el
+# proceso se corta. Cambian de nombre en cada build, asi que si entraran al
+# repositorio ensuciarian el diff de cada commit a partir de ahi.
+vite.config.ts.timestamp-*
