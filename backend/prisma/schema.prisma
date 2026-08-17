@@ -226,6 +226,21 @@ model Location {
   /// Es la mejora de mayor impacto para el personal nuevo, que hoy recibe una
   /// orden con un código de activo y no tiene idea de dónde está.
   howToGet         String?
+  /// LA SIGLA DEL TREN (bloque 43). Sólo aplica a type=TREN.
+  ///
+  /// Es el identificador corto que va EN EL RÓTULO del equipo —la T1 de
+  /// `AA-CAM-T1-LECHO-014`— y el que se usa para el ámbito de un jefe de tren.
+  ///
+  /// Antes no existía: se sacaba cortando `Location.code` por el último guion
+  /// (`AASA-PISCO-T2` -> `T2`). Era una convención implícita que nadie declaró
+  /// y que se rompe sola: un tren creado como `AASA-PISCO-TREN1` daba rótulos
+  /// `AA-CAM-TREN-...` sin que nada avisara. Y el ámbito usaba el código
+  /// COMPLETO, así que había dos formas distintas de sacar «qué tren es» del
+  /// mismo campo — que es exactamente lo que hizo que chocaran.
+  ///
+  /// Se edita desde Ubicaciones, como todo lo de planta. Si está vacía se
+  /// sigue deduciendo del código, pero avisando.
+  siglaTren        String?
   // ---- Proceso de laminación (F8) ----
   /// Etapa del proceso que representa esta ubicación. Sólo aplica a type=ETAPA.
   stageId          String?
@@ -289,6 +304,9 @@ model Location {
   workOrders       WorkOrder[]
 
   @@index([parentId])
+  // Bloque 43. El índice existe en el SQL de la migración; declararlo aquí es
+  // obligatorio o Prisma genera una migración que lo borra (pasó el 17/08).
+  @@index([siglaTren])
   @@index([path])
   @@index([stageId])
   /// Bloque 26. Este índice lo CREA la migración, así que tiene que estar
@@ -709,6 +727,12 @@ model Asset {
   // una persona no obligue a recorrer la tabla entera.
   @@index([medioAcceso])
   @@index([accesoDeclaradoPorId])
+  // NOTA PARA EL FUTURO: un índice creado en el SQL de una migración TIENE que
+  // declararse también aquí. Si no, `prisma migrate dev` lo ve como algo que
+  // sobra en la base y genera una migración que lo BORRA — con una fecha que
+  // cae en medio del historial, así que en una base nueva se ejecutaría antes
+  // de que el índice exista y el despliegue se caería. Pasó el 17/08 con
+  // `locations_siglaTren_idx`.
   observacion     AssetObservation?
   @@map("assets")
 }

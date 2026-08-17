@@ -74,8 +74,10 @@ const EXENTOS = {
   'Jefe de Mantenimiento':
     'Es el administrador del sistema: tiene todos los permisos por definición.',
   'Jefe de Producción':
-    'Es nivel PLANTA, no nivel tren: compara las tres líneas y necesita el '
-    + 'tablero para hacerlo. El rol sectorizado es «Jefe de Tren».',
+    'Arrastra permisos de lectura de Mantenimiento por compatibilidad con los '
+    + 'usuarios que ya lo tienen. Está SECTORIZADO igual que el Jefe de Tren, '
+    + 'así que sólo los aplica sobre su propia línea. Al migrar esos usuarios a '
+    + '«Jefe de Tren» esta exención se borra.',
 };
 
 const texto = fs.readFileSync(SEED, 'utf8');

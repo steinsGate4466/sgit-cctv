@@ -156,11 +156,29 @@ export class RolesService {
     if (ambito.length > 0) {
       // Que no se guarde un tren que no existe: el usuario se quedaría sin
       // ver nada y nadie entendería por qué.
-      const existen = await this.prisma.location.findMany({
-        where: { code: { in: ambito } },
-        select: { code: true },
+      /* SE ACEPTA LA SIGLA («T1») Y TAMBIÉN EL CÓDIGO COMPLETO
+         («AASA-PISCO-T1»). Bloque 43.
+
+         Antes sólo valía el código completo, y el diálogo de Usuarios mandaba
+         la sigla: nunca se pudo guardar un ámbito desde esa pantalla. Se veía
+         en la propia ventana, que decía «sólo T1» y debajo, en rojo, que T1 no
+         existe en el árbol — las dos frases eran suyas.
+
+         La verdad ahora es la sigla, porque es lo que va en el rótulo del
+         equipo. El código completo se sigue aceptando para no romper los
+         ámbitos que ya están guardados así. */
+      const trenes = await this.prisma.location.findMany({
+        where: { type: 'TREN' },
+        select: { code: true, siglaTren: true },
       });
-      const conocidos = new Set(existen.map((e) => e.code.toUpperCase()));
+      const conocidos = new Set<string>();
+      for (const t of trenes) {
+        conocidos.add(t.code.toUpperCase());
+        if (t.siglaTren) conocidos.add(t.siglaTren.toUpperCase());
+        // La deducción de siempre, para trenes a los que nadie puso sigla.
+        const deducida = t.code.split('-').pop();
+        if (deducida) conocidos.add(deducida.toUpperCase());
+      }
       const raros = ambito.filter((t) => !conocidos.has(t));
       if (raros.length) {
         throw new BadRequestException(

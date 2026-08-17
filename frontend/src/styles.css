@@ -2631,3 +2631,46 @@ button.accion:focus-visible { outline: 2px solid #1f4e79; outline-offset: -2px; 
 /* La edad del dato (bloque 42). Discreta pero legible: no es una alerta, es
    una admisión. En el PC del pulpito la pantalla lleva horas abierta. */
 .edad-dato { font-size: 12px; color: var(--muted); margin: -6px 0 10px; }
+
+/* =============================================================================
+   DATOS QUE NO SE PARTEN — bloque 43
+   -----------------------------------------------------------------------------
+   `td { overflow-wrap: anywhere }` es una red de seguridad para que un texto
+   largo no reviente el diseño, y hace falta. Pero se aplica a TODAS las celdas,
+   y con la ventana estrecha partía una IP dígito a dígito:
+
+        1
+        9
+        2
+        .
+        1
+        6
+        8
+
+   Una IP, una MAC o un código de activo NO son texto: son un identificador. O
+   caben enteros o no valen para nada — nadie puede leer «192.168.1.100» en
+   vertical, y peor: alguien puede COPIAR mal el trozo que ve.
+
+   Por eso estos datos se quedan en una sola línea y, si no caben, se recortan
+   con puntos suspensivos. El valor completo sigue estando en la ficha del
+   equipo, que es donde se va a copiar de verdad.
+
+   `tabular-nums` alinea las cifras en columna: con IPs una debajo de otra, se
+   ve de un vistazo cuáles comparten subred.
+============================================================================= */
+.dato-fijo {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+  font-variant-numeric: tabular-nums;
+  max-width: 15ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* En pantalla estrecha la tabla se desplaza en horizontal en vez de aplastar
+   las columnas hasta lo ilegible. `.card` ya tiene overflow-x: auto; esto
+   impide que el navegador reparta el ancho que no hay. */
+@media (max-width: 900px) {
+  .card > table { min-width: 760px; }
+}

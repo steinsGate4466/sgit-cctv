@@ -12,15 +12,35 @@ export default function Users() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState<any>({ email: '', fullName: '', password: '', roleId: '' });
-  // Ámbito: a qué trenes mira ese usuario. Vacío = todos.
+  // Ámbito: a qué trenes mira ese usuario.
   const [ambitoDe, setAmbitoDe] = useState<any>(null);
   const [trenes, setTrenes] = useState<string[]>([]);
+  /* LOS TRENES SE LEEN DEL ÁRBOL, NO ESTÁN ESCRITOS AQUÍ.
+     -------------------------------------------------------------------------
+     Antes este diálogo tenía ['T1','T2','T3'] a mano. El árbol de planta usa
+     el código completo —AASA-PISCO-T1— así que el servidor rechazaba el
+     guardado con «estos trenes no existen en el árbol». El diálogo enseñaba
+     «Ahora mismo: sólo T1» y debajo, en rojo, que T1 no existe: las dos frases
+     eran suyas y se contradecían.
+
+     Es el mismo fallo que este proyecto persigue en todas partes: dos sitios
+     que dicen lo mismo y nada les obliga a coincidir. Y encima era invisible,
+     porque con la lista escrita a mano las casillas SIEMPRE salen bien; lo que
+     falla es el guardado, al final. */
+  const [trenesDeLaPlanta, setTrenesDeLaPlanta] = useState<any[] | null>(null);
   const { can } = useAuth();
 
   function abrirAmbito(u: any) {
     setAmbitoDe(u);
     setTrenes(u.ambitoTrenes || []);
     setError('');
+    /* Se piden al abrir y no al cargar la pantalla: la mayoría de las veces
+       nadie toca el ámbito, y así no se gasta una consulta en cada entrada. */
+    if (trenesDeLaPlanta === null) {
+      api.get('/dashboard/infra/trenes')
+        .then((r) => setTrenesDeLaPlanta(r.data?.trenes || []))
+        .catch(() => setTrenesDeLaPlanta([]));
+    }
   }
 
   async function guardarAmbito() {
@@ -107,33 +127,67 @@ export default function Users() {
 
       {ambitoDe && (
         <Modal title={`Qué trenes ve ${ambitoDe.fullName}`} onClose={() => setAmbitoDe(null)}>
+          {/* EL TEXTO DEPENDE DEL ROL. Con un rol sectorizado —Jefe de Tren—
+              no marcar nada NO significa «ve toda la planta»: significa que no
+              ve nada. Decir lo contrario haría que alguien guardara sin marcar
+              creyendo que le está dando acceso completo. */}
           <p className="muted" style={{ fontSize: 13, margin: '0 0 12px', lineHeight: 1.55 }}>
-            Sin ningún tren marcado, ve <b>toda la planta</b>. Marca uno o
-            varios para que sólo vea esos: es lo que se usa para el jefe de
-            línea de Producción.
+            {ambitoDe.role?.exigeAmbito ? (
+              <>
+                Este rol está <b>sectorizado</b>: sin ningún tren marcado
+                <b> no verá nada</b> y la aplicación se lo dirá. Marca el tren
+                que le corresponde.
+              </>
+            ) : (
+              <>
+                Sin ningún tren marcado, ve <b>toda la planta</b>. Marca uno o
+                varios para que sólo vea esos.
+              </>
+            )}
           </p>
-          {['T1', 'T2', 'T3'].map((t) => (
-            <label key={t} className="permiso">
+
+          {trenesDeLaPlanta === null ? (
+            <p className="muted" style={{ fontSize: 13 }}>Leyendo el árbol de planta…</p>
+          ) : trenesDeLaPlanta.length === 0 ? (
+            /* Sin árbol no se inventan casillas. Antes salían T1, T2 y T3
+               aunque la planta no tuviera ninguno cargado. */
+            <div className="card vacio">
+              <h3>Todavía no hay trenes en el árbol de planta</h3>
+              <p>Créalos en Ubicaciones y vuelve aquí a asignarlos.</p>
+            </div>
+          ) : trenesDeLaPlanta.map((t: any) => (
+            <label key={t.code} className="permiso">
               <input
                 type="checkbox"
-                checked={trenes.includes(t)}
+                checked={trenes.includes(t.sigla || t.code)}
                 onChange={() =>
-                  setTrenes((prev) =>
-                    prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t])
+                  /* Se guarda la SIGLA («T1»), no el código completo. Es lo
+                     que va en el rótulo del equipo y lo que el resto del
+                     sistema entiende por «qué tren es». */
+                  setTrenes((prev) => {
+                    const v = t.sigla || t.code;
+                    return prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v];
+                  })
                 }
               />
               <span>
-                <b>Tren {t.slice(1)}</b>
+                <b>{t.nombre || t.code}</b>
+                {t.sigla && <span className="muted" style={{ marginLeft: 6 }}>({t.sigla})</span>}
                 <span className="permiso-explica">
                   Ve los activos, el tablero y las órdenes de este tren.
                 </span>
               </span>
             </label>
           ))}
+
           <div className="sign-note" style={{ marginTop: 12 }}>
             {trenes.length === 0
-              ? 'Ahora mismo: ve TODA la planta.'
-              : `Ahora mismo: sólo ${trenes.join(', ')}. Lo que no esté ubicado en esos trenes no lo verá.`}
+              ? (ambitoDe.role?.exigeAmbito
+                ? 'Ahora mismo: NO VE NADA. Marca su tren antes de guardar.'
+                : 'Ahora mismo: ve TODA la planta.')
+              : `Ahora mismo: ${trenes
+                .map((c) => trenesDeLaPlanta?.find((t: any) => t.sigla === c || t.code === c)?.nombre || c)
+                .join(', ')}. Lo que no esté ubicado ahí no lo verá.`}
           </div>
           {error && <div className="error">{error}</div>}
           <button className="btn" onClick={guardarAmbito} disabled={saving}>

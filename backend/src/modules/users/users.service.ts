@@ -17,7 +17,13 @@ const userSelect = {
   // A qué trenes mira. Vacío = todos. Se devuelve para que la pantalla de
   // Usuarios pueda enseñarlo sin una segunda llamada.
   ambitoTrenes: true,
-  role: { select: { id: true, name: true } },
+  /* `exigeAmbito` viaja con el rol (bloque 42) porque cambia lo que significa
+     un ámbito vacío, y por tanto lo que la pantalla de Usuarios debe DECIR.
+     Con un rol normal, sin trenes marcados se ve toda la planta. Con un rol
+     sectorizado, sin trenes marcados no se ve NADA. Si el diálogo dijera lo
+     primero en los dos casos, alguien guardaría sin marcar creyendo que da
+     acceso completo y estaría dejando a esa persona fuera. */
+  role: { select: { id: true, name: true, exigeAmbito: true } },
 };
 
 @Injectable()

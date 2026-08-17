@@ -54,10 +54,29 @@ async function main() {
   /* La demo se cuelga del árbol REAL. Si no hay ubicaciones cargadas no se
      inventa una: sin árbol, el contexto de planta no resuelve tren ni zona y
      las tarjetas saldrían sin tren, que es peor que no tener demo. */
-  const zona = await prisma.location.findFirst({
-    where: { type: { in: ['ZONA', 'ETAPA'] as any } },
-    orderBy: { path: 'asc' },
-  });
+  /* DE DÓNDE CUELGA LA DEMO.
+     -------------------------------------------------------------------------
+     La primera versión exigía una ubicación de tipo ZONA o ETAPA y abortaba si
+     no la había. Estaba mal: la semilla crea Empresa -> Planta -> Tren -> Rack
+     y NINGUNA zona ni etapa, así que la demo no arrancaba nunca en una base
+     recién sembrada — que es justo el caso para el que se escribió.
+
+     Lo que la demo necesita de verdad no es una zona: es colgarse de algo que
+     RESUELVA UN TREN, porque el tren es lo que sectoriza las pantallas. Se
+     busca de lo más específico a lo más general y se comprueba el resultado,
+     en vez de exigir un tipo concreto.
+
+     Sigue sin inventarse nada: si no hay ni un tren en el árbol, aborta. */
+  const PREFERENCIA = ['ZONA', 'ETAPA', 'SALA', 'RACK', 'TREN'];
+  let zona: { id: string; name: string } | null = null;
+  for (const tipo of PREFERENCIA) {
+    zona = await prisma.location.findFirst({
+      where: { type: tipo as any },
+      orderBy: { path: 'asc' },
+      select: { id: true, name: true },
+    });
+    if (zona) break;
+  }
   if (!zona) {
     console.error(
       'No hay ubicaciones en el árbol. Ejecuta primero `npm run prisma:seed`:\n'
@@ -65,6 +84,7 @@ async function main() {
     );
     process.exit(1);
   }
+  console.log(`  Las cámaras de demo se cuelgan de: ${zona.name}`);
 
   const tecnico = await prisma.user.findFirst({
     where: { active: true }, orderBy: { createdAt: 'asc' },

@@ -592,7 +592,8 @@ export default function Assets() {
           <tbody>
             {visibles.map((a) => (
               <tr key={a.id} style={{ cursor: 'pointer' }} onClick={() => openDetail(a.id)}>
-                <td style={{ fontWeight: 600 }}>{a.assetCode}</td>
+                {/* `dato-fijo`: un código no se parte nunca. Ver styles.css. */}
+                <td className="dato-fijo" style={{ fontWeight: 600 }}>{a.assetCode}</td>
                 <td>{tEs(a.type)}</td>
                 <td style={{ minWidth: 74 }}>
                   {/* Avance de la ficha. Es lo que permite repartir el trabajo
@@ -617,7 +618,7 @@ export default function Assets() {
                     : <div className="muted" style={{ fontSize: 11, fontStyle: 'italic' }}>falta etapa</div>}
                 </td>
                 <td>{[a.brand, a.model].filter(Boolean).join(' ') || '—'}</td>
-                {can('credential.read') && <td className="muted" style={{ fontFamily: 'monospace', fontSize: 12 }}>{a.ip || '—'}</td>}
+                {can('credential.read') && <td className="muted dato-fijo" style={{ fontFamily: 'monospace', fontSize: 12 }}>{a.ip || '—'}</td>}
                 {can('credential.read') && (
                   <td className="muted" style={{ fontFamily: 'monospace', fontSize: 12 }}>
                     {/* La clave no viaja en el listado: se revela una a una y queda auditado. */}

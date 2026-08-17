@@ -66,6 +66,14 @@ export interface ContextoDePlanta {
   /** Código del tren (ej. AASA-PISCO-T2) o null si el activo no cuelga de uno. */
   trenCode: string | null;
   trenNombre: string | null;
+  /**
+   * La sigla corta del tren: la «T1» que va EN EL RÓTULO del equipo.
+   *
+   * Bloque 43. Antes no existía y el rotulado la sacaba cortando `trenCode`
+   * por el último guion. Ahora es un dato declarado y editable; si el tren no
+   * la tiene puesta se sigue deduciendo, pero el rótulo lo avisa.
+   */
+  trenSigla: string | null;
   /** Código de etapa (ej. DESBASTE) o null si falta asignarla. */
   etapaCode: string | null;
   etapaNombre: string | null;
@@ -152,6 +160,8 @@ export interface UbicacionDelArbol {
   intervencionFirmada?: string | null;
   intervencionMotivo?: string | null;
   requiereAltura?: boolean | null;
+  /** Bloque 43: sigla corta del tren, sólo en type=TREN. */
+  siglaTren?: string | null;
 }
 
 /** Una etapa del catálogo de proceso. */
@@ -180,7 +190,7 @@ export function calcularContexto(
   const base = (activo.criticality || 'MEDIA') as Criticidad;
 
   const ctx: ContextoDePlanta = {
-    trenCode: null, trenNombre: null,
+    trenCode: null, trenNombre: null, trenSigla: null,
     etapaCode: null, etapaNombre: null, etapaSecuencia: null,
     ambiente: null,
     criticidad: base,
@@ -274,6 +284,11 @@ export function calcularContexto(
     if (actual.type === 'TREN' && !ctx.trenCode) {
       ctx.trenCode = actual.code;
       ctx.trenNombre = actual.name;
+      /* Bloque 43. Si la sigla está declarada, manda. Si no, se deduce igual
+         que siempre —último segmento del código— para no cambiar ni un rótulo
+         de los que ya están pegados en planta. */
+      ctx.trenSigla = (actual.siglaTren || '').trim().toUpperCase()
+        || (actual.code || '').split('-').pop()?.toUpperCase() || null;
     }
 
     actual = actual.parentId ? porId.get(actual.parentId) : undefined;
@@ -325,6 +340,8 @@ export async function resolverContextoDePlanta(
       impactoSiSeCae: true, queSeVigila: true, revisarAntesDe: true,
       // Bloque 28 — cómo se interviene la zona.
       intervencionFirmada: true, intervencionMotivo: true, requiereAltura: true,
+      // Bloque 43 — la sigla del tren, para el rótulo y para el ámbito.
+      siglaTren: true,
     },
   });
   // `as const` es necesario: sin él TypeScript infiere un array en lugar de

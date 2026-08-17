@@ -35,7 +35,8 @@ export class InfraService {
     return this.prisma.location.findMany({
       where: { type: 'TREN' },
       orderBy: { code: 'asc' },
-      select: { id: true, code: true, name: true },
+      // `siglaTren` (bloque 43): lo que va en el rótulo y en el ámbito.
+      select: { id: true, code: true, name: true, siglaTren: true },
     });
   }
 
@@ -224,12 +225,17 @@ export class InfraService {
       bolsa(a.assetId ? trenDeActivo.get(a.assetId) ?? null : null).accesosPendientes++;
     }
 
-    const arma = (code: string | null, id: string | null, nombre: string) => {
+    const arma = (code: string | null, id: string | null, nombre: string, sigla?: string | null) => {
       // Un tren recién creado en el árbol todavía no tiene activos: debe salir
       // con ceros y todas sus claves, no como objeto vacío.
       const base = porTren.get(code) || contadoresVacios(code);
       return {
         id, code, nombre,
+        /* Bloque 43. La sigla («T1») es lo que va en el rótulo del equipo y lo
+           que guarda el ámbito de un jefe de tren. Si nadie la declaró se
+           deduce del código, igual que hacía el rotulado. */
+        sigla: (sigla || '').trim().toUpperCase()
+          || (code || '').split('-').pop()?.toUpperCase() || null,
         activos: base,
         cableado: contarCables(cablesPorTren.get(code) || []),
         gabinetes: gabPorTren.get(code) || { total: 0, sinFoto: 0, vacios: 0 },
@@ -253,7 +259,7 @@ export class InfraService {
         : trenes.filter((t) => alcanza(ambito, t.code));
 
     return {
-      trenes: visibles.map((t) => arma(t.code, t.id, t.name)),
+      trenes: visibles.map((t) => arma(t.code, t.id, t.name, (t as any).siglaTren)),
       // NO es un tren: es trabajo pendiente de asignar en el árbol. Va aparte
       // justamente para que nadie lo lea como si Laminación tuviera cuatro.
       // Con ámbito NO se entrega: lo sin ubicar puede estar en cualquier

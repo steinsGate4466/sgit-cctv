@@ -1,0 +1,30 @@
+{
+  // ===========================================================================
+  //  CONFIGURACIÓN PARA EJECUTAR `prisma/demo.ts` CON ts-node
+  //  -------------------------------------------------------------------------
+  //  Existe por un motivo muy concreto: PowerShell.
+  //
+  //  El script era así:
+  //
+  //      ts-node --compiler-options {"module":"commonjs"} prisma/demo.ts
+  //
+  //  En bash funciona. En PowerShell, que es la consola de esta máquina, las
+  //  comillas se pierden antes de llegar a ts-node y le llega `{module:commonjs}`,
+  //  que no es JSON válido:
+  //
+  //      SyntaxError: Expected property name or '}' in JSON at position 1
+  //
+  //  Se puede escapar, pero entonces el comando deja de funcionar en bash — y
+  //  el CI corre en Linux. Un script que sólo va en una consola es un script
+  //  que se rompe la mitad de las veces.
+  //
+  //  Con el archivo no hay nada que escapar y funciona igual en las dos.
+  // ===========================================================================
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    // El único motivo de todo esto: `demo.ts` se ejecuta directamente con
+    // Node, que necesita módulos CommonJS.
+    "module": "commonjs"
+  },
+  "include": ["demo.ts", "seed.ts"]
+}

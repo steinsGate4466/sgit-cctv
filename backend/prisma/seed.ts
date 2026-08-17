@@ -130,7 +130,7 @@ const PERMISSIONS = [
  * Es una lista corta y tiene que seguir siéndolo: cada nombre aquí es alguien
  * que dejará de ver la planta si nadie le asigna su tren.
  */
-const ROLES_SECTORIZADOS = ['Jefe de Tren'];
+const ROLES_SECTORIZADOS = ['Jefe de Tren', 'Jefe de Producción'];
 
 // ---- Roles y sus permisos ----
 const ROLES: Record<string, string[]> = {
@@ -188,8 +188,19 @@ const ROLES: Record<string, string[]> = {
      externo, que es sólo mirar. Pero Producción no viene a mirar: viene a
      DECIR qué zonas no pueden quedarse sin vista. Ése es su único permiso de
      escritura, y es el que integra a las tres áreas. */
-  /* JEFE DE PRODUCCIÓN — nivel PLANTA. Ve los tres trenes a propósito: es
-     quien compara líneas y decide dónde duele más. No lleva `exigeAmbito`. */
+  /* JEFE DE PRODUCCIÓN — TAMBIÉN SECTORIZADO.
+     -------------------------------------------------------------------------
+     Nació pensado como nivel planta, viendo los tres trenes para poder
+     comparar líneas. La planta dijo que no: en Producción nadie ve un tren que
+     no es el suyo, tampoco el jefe máximo de una línea.
+
+     No es una preferencia de pantalla, es contención de información. En Aceros
+     Arequipa lo que se ve de otra área se considera fuga, y el argumento vale
+     igual para un gerente que para un supervisor.
+
+     Si algún día hace falta una vista de las tres líneas juntas, se le asignan
+     los tres trenes a esa persona en concreto — que es una decisión con nombre
+     y apellidos, no un permiso que viene de serie con el rol. */
   'Jefe de Producción': [
     'om.mirar', 'cobertura.mirar', 'activos.mirar',
     'dashboard.read', 'incident.read', 'incident.create', 'wo.read',
@@ -339,6 +350,10 @@ async function main() {
       update: {},
       create: {
         code: `AASA-PISCO-T${n}`, name: `Tren ${n} (Laminación)`, type: 'TREN',
+        /* Bloque 43. La sigla que va EN EL RÓTULO del equipo: AA-CAM-T1-...
+           Antes se deducía cortando el código por el último guion, que
+           funcionaba de casualidad porque todos los trenes se llaman igual. */
+        siglaTren: `T${n}`,
         parentId: planta.id, path: `AASA/PISCO/T${n}`,
       },
     });
