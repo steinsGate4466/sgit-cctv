@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { resolverContextoDePlanta } from '../../common/plant-context';
-import { ambitoDelUsuario } from '../../common/ambito-usuario';
+import { alcanza, ambitoDelUsuario, veTodo } from '../../common/ambito-usuario';
 import { construirRejilla, buscarPorLoQueDiceElPulpito, CamaraDelGrabador } from './canales';
 
 /**
@@ -39,11 +39,11 @@ export class GrabadoresService {
     if (nvrs.length === 0) return { grabadores: [], sinAmbito: false };
 
     const ctx = await resolverContextoDePlanta(this.prisma, nvrs as any);
-    const { trenes, sinLimite } = await ambitoDelUsuario(this.prisma, userId);
+    const ambito = await ambitoDelUsuario(this.prisma, userId);
 
     const visibles = nvrs.filter((n) => {
       const t = ctx[n.id]?.trenCode ?? null;
-      if (!sinLimite && (!t || !trenes.includes(t))) return false;
+      if (!alcanza(ambito, t)) return false;
       if (tren && t !== tren.toUpperCase()) return false;
       return true;
     });
@@ -84,7 +84,10 @@ export class GrabadoresService {
           sinNombre: suyas.filter((c) => !c.nvrName || !c.nvrName.trim()).length,
         };
       }),
-      sinAmbito: !sinLimite && visibles.length === 0 && nvrs.length > 0,
+      /* «Hay grabadores pero ninguno es tuyo». Cubre también el caso nuevo del
+         bloque 42: rol sectorizado sin tren asignado, donde `visibles` queda
+         vacío y sin este aviso la pantalla parecería una planta sin NVR. */
+      sinAmbito: !veTodo(ambito) && visibles.length === 0 && nvrs.length > 0,
     };
   }
 

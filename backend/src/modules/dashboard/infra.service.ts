@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { ambitoDelUsuario } from '../../common/ambito-usuario';
+import { alcanza, ambitoDelUsuario, noVeNada, veTodo } from '../../common/ambito-usuario';
 import { PrismaService } from '../../prisma/prisma.service';
 import { computeEffectiveStatuses } from '../../common/asset-status';
 import { resolverContextoDePlanta } from '../../common/plant-context';
@@ -242,10 +242,15 @@ export class InfraService {
     // Se calcula todo y se entrega sólo lo suyo. Hacerlo antes obligaría a
     // duplicar el filtro dentro de cada contador, y ahí es donde se cuela el
     // que se olvida — el que enseña de más.
-    const { trenes: permitidos, sinLimite } = await ambitoDelUsuario(this.prisma, userId);
-    const visibles = sinLimite
-      ? trenes
-      : trenes.filter((t) => permitidos.includes((t.code || '').toUpperCase()));
+    const ambito = await ambitoDelUsuario(this.prisma, userId);
+    /* Bloque 42: con el rol sectorizado y sin tren asignado la lista queda
+       vacía. Antes este caso caía en «sin límite» y devolvía los tres trenes,
+       que es lo que se vio en la captura de Producción. */
+    const visibles = noVeNada(ambito)
+      ? []
+      : veTodo(ambito)
+        ? trenes
+        : trenes.filter((t) => alcanza(ambito, t.code));
 
     return {
       trenes: visibles.map((t) => arma(t.code, t.id, t.name)),
@@ -254,13 +259,16 @@ export class InfraService {
       // Con ámbito NO se entrega: lo sin ubicar puede estar en cualquier
       // sitio, y enseñárselo al jefe del Tren 2 sería enseñarle algo que
       // quizá no es suyo.
-      sinUbicar: sinLimite
+      sinUbicar: veTodo(ambito)
         ? {
             activos: porTren.get(null)?.total || 0,
             detalle: arma(null, null, 'Sin ubicación en el árbol'),
           }
         : null,
-      ambitoLimitado: !sinLimite,
+      ambitoLimitado: !veTodo(ambito),
+      /* El porqué, ya redactado en `ambito-usuario.ts`. Sin esto la pantalla
+         sale vacía y parece rota, cuando en realidad falta una asignación. */
+      motivoAmbito: ambito.motivo,
       limiteTramoM: LIMITE_TRAMO_M,
     };
   }
@@ -279,8 +287,8 @@ export class InfraService {
     // Pedir un tren ajeno escribiendo su código en la dirección es lo PRIMERO
     // que alguien prueba. Se responde 404, no 403: un 403 confirmaría que ese
     // tren existe, y aquí no hay ninguna razón para confirmárselo.
-    const { trenes: permitidos, sinLimite } = await ambitoDelUsuario(this.prisma, userId);
-    if (!sinLimite && !permitidos.includes((tren.code || '').toUpperCase())) {
+    const ambito = await ambitoDelUsuario(this.prisma, userId);
+    if (!alcanza(ambito, tren.code)) {
       throw new NotFoundException('No existe un tren con ese identificador.');
     }
 
@@ -453,8 +461,11 @@ export class InfraService {
    * abra sepa qué hacer con cada fila.
    */
   async sinUbicar(userId?: string | null) {
-    const { sinLimite } = await ambitoDelUsuario(this.prisma, userId);
-    if (!sinLimite) return { activos: [], total: 0, ambitoLimitado: true };
+    const ambito = await ambitoDelUsuario(this.prisma, userId);
+    /* Lo sin ubicar puede estar en cualquier sitio de la planta: sólo lo ve
+       quien no tiene límite. A un jefe de tren se le estaría enseñando algo
+       que quizá no es suyo. */
+    if (!veTodo(ambito)) return { activos: [], total: 0, ambitoLimitado: true };
     const activos = await this.prisma.asset.findMany({
       where: { deletedAt: null },
       select: {

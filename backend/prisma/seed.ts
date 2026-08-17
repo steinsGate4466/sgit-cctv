@@ -99,7 +99,38 @@ const PERMISSIONS = [
      hacer es MIRAR.
      ========================================================================== */
   'om.mirar',
+
+  /* ==========================================================================
+     BLOQUE 42 — LAS LLAVES PROPIAS DE PRODUCCIÓN
+     --------------------------------------------------------------------------
+     Se vio en planta: un jefe de línea con Gabinetes, Cableado, Electricidad,
+     Conexiones, Mi bandeja, Dashboard e Indicadores en el menú.
+
+     No fue un descuido al armar el rol: era el diseño. «Mi cobertura» colgaba
+     de `dashboard.read` —que abre el tablero de MANTENIMIENTO entero— y el
+     inventario del tren de `asset.read`. Las pantallas de Producción colgaban
+     de permisos de Mantenimiento, así que Producción acababa con el módulo de
+     Mantenimiento.
+
+     Ahora cada pantalla de Producción tiene su llave, y son estrechas por
+     definición: si alguien las concede por error, lo peor que pasa es que
+     MIREN su tren.
+     ========================================================================== */
+  'cobertura.mirar',
+  'activos.mirar',
 ];
+
+/**
+ * ROLES QUE NO VEN LA PLANTA ENTERA NUNCA (bloque 42).
+ *
+ * Sin tren asignado NO VEN NADA, y la pantalla lo explica. El resto de roles
+ * mantiene el comportamiento de siempre —ámbito vacío = todos los trenes—, así
+ * que aplicar esto no le quita acceso a nadie que lo tenga hoy.
+ *
+ * Es una lista corta y tiene que seguir siéndolo: cada nombre aquí es alguien
+ * que dejará de ver la planta si nadie le asigna su tren.
+ */
+const ROLES_SECTORIZADOS = ['Jefe de Tren'];
 
 // ---- Roles y sus permisos ----
 const ROLES: Record<string, string[]> = {
@@ -157,13 +188,50 @@ const ROLES: Record<string, string[]> = {
      externo, que es sólo mirar. Pero Producción no viene a mirar: viene a
      DECIR qué zonas no pueden quedarse sin vista. Ése es su único permiso de
      escritura, y es el que integra a las tres áreas. */
+  /* JEFE DE PRODUCCIÓN — nivel PLANTA. Ve los tres trenes a propósito: es
+     quien compara líneas y decide dónde duele más. No lleva `exigeAmbito`. */
   'Jefe de Producción': [
-    'om.mirar',
+    'om.mirar', 'cobertura.mirar', 'activos.mirar',
     'dashboard.read', 'incident.read', 'incident.create', 'wo.read',
     'troubleshooting.read', 'asset.read', 'location.read',
     'inventory.read', 'access.read',
     'zona.criticidad',
     'monitor.read', 'wo.report',
+  ],
+
+  /* ==========================================================================
+     JEFE DE TREN (bloque 42) — UNO POR TREN, Y SÓLO EL SUYO
+     --------------------------------------------------------------------------
+     ESTA PLANTILLA ES CORTA A PROPÓSITO. Cinco pantallas y ni una más:
+
+       Mis cámaras      (om.mirar)         qué falla ahora y qué se hace
+       Mis activos      (activos.mirar)    qué hay y cuánto exige manlift
+       Mi cobertura     (cobertura.mirar)  qué zonas están sin vista
+       Zonas vitales    (zona.criticidad)  LO ÚNICO QUE ESCRIBE
+       (y el detalle de su tren, vía location.read)
+
+     LO QUE NO LLEVA, Y ES LA PARTE IMPORTANTE:
+       · `dashboard.read`  -> abriría el tablero de Mantenimiento, Mi bandeja
+                              e Indicadores. Nada de eso es información de
+                              producción: son herramientas de decisión de otra
+                              área.
+       · `asset.read`      -> abriría el módulo de Activos con doce columnas y
+                              veintiocho campos, y con él la sección
+                              INFRAESTRUCTURA entera del menú.
+       · `wo.read`         -> las trescientas órdenes de la planta. Para ver la
+                              de SU cámara ya tiene `om.mirar`.
+       · `inventory.read`  -> el almacén es de Mantenimiento.
+
+     Y LLEVA `exigeAmbito` (ver más abajo): sin tren asignado no ve NADA, en
+     vez de ver los tres. En Aceros Arequipa que el jefe del Tren 1 vea el
+     Tren 3 no es ruido en pantalla: es información que sale de su área.
+
+     El JEFE DE TURNO usa esta misma plantilla: mismo alcance, mismo tren.
+     ========================================================================== */
+  'Jefe de Tren': [
+    'om.mirar', 'activos.mirar', 'cobertura.mirar',
+    'location.read',
+    'zona.criticidad',
   ],
   /* SUPERVISOR OPERATIVO DE TERCERÍA (bloque 28).
      Responde por la cuadrilla contratada, que cubre los tres trenes. Su
@@ -195,7 +263,19 @@ async function main() {
   // 2) Roles + asignación de permisos
   const roleIds: Record<string, string> = {};
   for (const [name, perms] of Object.entries(ROLES)) {
-    const role = await prisma.role.upsert({ where: { name }, update: {}, create: { name } });
+    /* BLOQUE 42 — `exigeAmbito` se ESCRIBE también al actualizar, y es
+       deliberado. El resto del upsert usa `update: {}` para no pisar lo que
+       alguien haya editado a mano desde la pantalla de Roles; aquí no vale esa
+       regla: si la plantilla dice que un Jefe de Tren sólo ve su tren y alguien
+       lo desmarca, la sectorización se pierde en silencio y nadie se entera
+       hasta que ve las tres pestañas. Es una regla de contención de
+       información, no una preferencia. */
+    const exigeAmbito = ROLES_SECTORIZADOS.includes(name);
+    const role = await prisma.role.upsert({
+      where: { name },
+      update: { exigeAmbito },
+      create: { name, exigeAmbito },
+    });
     roleIds[name] = role.id;
     for (const code of perms) {
       const permissionId = permMap.get(code)!;

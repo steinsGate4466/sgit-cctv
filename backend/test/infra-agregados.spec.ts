@@ -70,15 +70,57 @@ describe('contarPorTren', () => {
     expect(g.disponibilidadCamaras).toBe(50);
   });
 
-  it('MANTENIMIENTO no cuenta como caída: está intervenida, no perdida', () => {
+  /* =========================================================================
+     ESTA PRUEBA AFIRMABA EL FALLO. Bloque 42.
+     -------------------------------------------------------------------------
+     Decía «MANTENIMIENTO no cuenta como caída: está intervenida, no perdida»
+     y exigía disponibilidad 100. Con esa regla salió en la pantalla de un jefe
+     de línea la frase:
+
+         «2 de 6 equipos funcionando con normalidad (100 %)»
+
+     Cuatro equipos en mantenimiento: no eran «afectados», así que la
+     disponibilidad daba 100, y al lado el contador decía 2 de 6. Dos
+     definiciones de «está bien» en la misma línea de texto.
+
+     Y había una tercera definición: el panel del jefe de tren
+     (`camaras-caidas.service.ts`) sí contaba MANTENIMIENTO como ciega. O sea
+     que las dos pantallas de Producción se contradecían entre ellas.
+
+     Un equipo en mantenimiento NO ESTÁ DANDO SERVICIO. Que la intervención
+     esté planificada le importa a Mantenimiento; a Producción le importa que
+     el púlpito no ve. La disponibilidad baja, y eso es lo correcto: el número
+     anterior estaba inflado por los equipos que alguien estaba abriendo.
+     ========================================================================= */
+  it('MANTENIMIENTO baja la disponibilidad: intervenida es no disponible', () => {
     const r = contarPorTren([
       activo({ estado: 'OPERATIVO' }),
       activo({ estado: 'MANTENIMIENTO' }),
     ]);
     const g = r.get('T1')!;
     expect(g.enMantenimiento).toBe(1);
-    expect(g.camarasCaidas).toBe(0);
-    expect(g.disponibilidad).toBe(100);
+    expect(g.camarasCaidas).toBe(1);
+    expect(g.disponibilidad).toBe(50);
+  });
+
+  it('la disponibilidad NUNCA puede contradecir al contador de operativos', () => {
+    /* La prueba que impide que vuelva a pasar. Se mezclan los cuatro estados
+       en operación y se comprueba la identidad que antes no se cumplía:
+       el porcentaje TIENE que ser operativos sobre enOperacion. */
+    const r = contarPorTren([
+      activo({ estado: 'OPERATIVO' }),
+      activo({ estado: 'OPERATIVO' }),
+      activo({ estado: 'MANTENIMIENTO' }),
+      activo({ estado: 'CON_INCIDENCIA' }),
+      activo({ estado: 'FUERA_SERVICIO' }),
+      activo({ estado: 'MANTENIMIENTO' }),
+    ]);
+    const g = r.get('T1')!;
+    expect(g.enOperacion).toBe(6);
+    expect(g.operativos).toBe(2);
+    // 2 de 6 -> 33,3 %. Nunca más «2 de 6 (100 %)».
+    expect(g.disponibilidad).toBe(Number(((2 / 6) * 100).toFixed(1)));
+    expect(g.disponibilidad).toBeLessThan(100);
   });
 
   it('el avance del mapeo de un tren sin empezar es 0, no 100', () => {

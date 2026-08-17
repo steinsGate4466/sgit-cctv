@@ -1,0 +1,37 @@
+-- =============================================================================
+--  BLOQUE 42 — UN ÁMBITO VACÍO DEJA DE SIGNIFICAR «TODA LA PLANTA»
+-- =============================================================================
+--  QUÉ SE VIO EN PANTALLA
+--  Un usuario con rol de Producción tenía delante las tres pestañas de tren y
+--  las incidencias de las tres líneas. No porque nadie le concediera nada: su
+--  `ambitoTrenes` estaba vacío, y el vacío significaba «todos».
+--
+--  Un DATO QUE FALTA leído como PERMISO TOTAL. Es el fallo que este proyecto
+--  persigue en todas partes, escrito por mí en el bloque 4C.
+--
+--  Y en Aceros Arequipa no es un detalle de usabilidad: que el jefe del Tren 1
+--  vea lo del Tren 3 es informacion que sale de su area.
+--
+-- -----------------------------------------------------------------------------
+--  POR QUÉ ESTA MIGRACIÓN NO TOCA NI UN ROL EXISTENTE
+-- -----------------------------------------------------------------------------
+--  La tentación era marcar los roles de Producción como sectorizados aquí
+--  mismo. Sería un error grave: TODOS los usuarios actuales tienen el ámbito
+--  vacío, así que al desplegar se quedarían sin ver absolutamente nada, sin
+--  aviso previo y sin que nadie hubiera decidido restringirles.
+--
+--  Restringir es una decisión que toma una persona, no el efecto secundario de
+--  una migración. La columna nace en FALSE para todo el mundo. Sólo la
+--  plantilla «Jefe de Tren» —que la semilla crea a continuación— la trae en
+--  TRUE, y a esa plantilla se le asigna el tren al crear cada usuario.
+--
+--  Consecuencia buscada: aplicar esto no cambia lo que ve nadie. Lo que cambia
+--  es que a partir de ahora SE PUEDE sectorizar de verdad.
+--
+-- -----------------------------------------------------------------------------
+--  ADITIVA: una columna con valor por defecto. No reescribe la tabla en
+--  PostgreSQL 11+ y se puede aplicar con la planta trabajando.
+-- =============================================================================
+
+ALTER TABLE "roles"
+  ADD COLUMN "exige_ambito" BOOLEAN NOT NULL DEFAULT false;

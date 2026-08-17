@@ -81,6 +81,17 @@ model User {
   inspeccionesGrua InspeccionGrua[] @relation("InspeccionGruaPor")
 }
 
+/// BLOQUE 42 — hay roles que NO deben ver la planta entera nunca.
+///
+/// El ámbito por tren (`User.ambitoTrenes`) existía desde el bloque 4C, pero un
+/// ámbito vacío significaba «todos los trenes». Para el Jefe de Mantenimiento
+/// está bien. Para un jefe de tren convertía un dato que falta en permiso
+/// total, y en Aceros Arequipa ver la línea de otro no es ruido en pantalla:
+/// es información que sale de su área.
+///
+/// Con `exigeAmbito` en true, sin tren asignado NO SE VE NADA y la pantalla
+/// explica por qué. Nace en `false` para todos los roles existentes: nadie
+/// pierde acceso al desplegar. Sólo la plantilla «Jefe de Tren» lo lleva.
 model Role {
   id          String           @id @default(uuid())
   name        String           @unique // Administrador, Supervisor TI, Técnico, Consulta
@@ -89,6 +100,11 @@ model Role {
   /// Evita el fallo del que solo se sale por base de datos: quitarte a ti
   /// mismo 'user.manage' y quedarte fuera de la administración.
   sistema     Boolean          @default(false)
+  /// Bloque 42. Ver la cabecera del modelo: sin tren asignado, no ve nada.
+  /// Es de ROL y no de usuario a propósito — si fuera por persona, cada alta
+  /// nueva dependería de que alguien se acordara de marcar la casilla, y en
+  /// tres meses habría media plantilla viendo la planta entera.
+  exigeAmbito Boolean          @default(false) @map("exige_ambito")
   users       User[]
   permissions RolePermission[]
 

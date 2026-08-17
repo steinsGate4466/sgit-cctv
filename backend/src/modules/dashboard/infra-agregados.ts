@@ -18,7 +18,31 @@
 export const LIMITE_TRAMO_M = 90;
 
 const FUERA_DE_OPERACION = ['BAJA', 'STOCK'];
-const AFECTADO = ['FUERA_SERVICIO', 'CON_INCIDENCIA'];
+
+/* ============================================================================
+   BLOQUE 42 — «2 DE 6 EQUIPOS FUNCIONANDO CON NORMALIDAD (100 %)»
+   ----------------------------------------------------------------------------
+   Esa frase salió en la pantalla de un jefe de línea. Se contradice sola, y la
+   causa era que MANTENIMIENTO no estaba en esta lista.
+
+   Con cuatro equipos en mantenimiento: `afectados` daba 0, la disponibilidad
+   salía 100 %, y al lado el contador de operativos decía 2 de 6. Dos
+   definiciones distintas de «está bien» en la misma línea de texto.
+
+   Y había una tercera: `camaras-caidas.service.ts` llama CIEGA a
+   FUERA_SERVICIO + MANTENIMIENTO + CON_INCIDENCIA. Es decir, el panel del jefe
+   de tren contaba una cámara en mantenimiento como caída —correctamente, el
+   púlpito no la ve— mientras este tablero la contaba como disponible.
+
+   UN EQUIPO EN MANTENIMIENTO NO ESTÁ DANDO SERVICIO. Que la intervención esté
+   planificada le importa a Mantenimiento; a Producción le importa que no ve.
+   Ahora las tres pantallas dicen lo mismo.
+
+   Esto BAJA la disponibilidad que se venía enseñando. Es lo correcto: el
+   número anterior estaba inflado por los equipos que alguien estaba abriendo
+   en ese momento.
+============================================================================ */
+const AFECTADO = ['FUERA_SERVICIO', 'CON_INCIDENCIA', 'MANTENIMIENTO'];
 
 export interface ActivoAgregable {
   id: string;
@@ -130,8 +154,12 @@ export function contarPorTren(activos: ActivoAgregable[]): Map<string | null, Co
   }
 
   for (const g of acc.values()) {
-    const afectados = g.conIncidencia + g.fueraServicio;
-    g.disponibilidad = pct(g.enOperacion - afectados, g.enOperacion);
+    /* La disponibilidad se calcula CONTRA `operativos`, no restando una lista
+       de estados. Es la única forma de que no pueda volver a descuadrarse:
+       mientras se restaran estados enumerados a mano, cualquier estado nuevo
+       que alguien añada al enum quedaría fuera de la resta y volvería a salir
+       «2 de 6 al 100 %» sin que nada avise. */
+    g.disponibilidad = pct(g.operativos, g.enOperacion);
     g.disponibilidadCamaras = pct(g.camaras - g.camarasCaidas, g.camaras);
     // El avance del mapeo sí es 0 cuando no hay nada hecho: aquí un 100 por
     // defecto mentiría diciendo que un tren sin empezar está terminado.

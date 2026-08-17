@@ -27,12 +27,24 @@ export class ZonasController {
   @RequirePermissions('location.read')
   listar() { return this.zonas.listar(); }
 
-  /* LO QUE MIRA PRODUCCIÓN. Va con `dashboard.read`, no con un permiso nuevo:
-     un jefe de línea que ya ve el tablero tiene que poder ver su cobertura sin
-     que nadie le conceda nada. El recorte lo pone el ÁMBITO, no el permiso. */
+  /* LO QUE MIRA PRODUCCIÓN.
+     -------------------------------------------------------------------------
+     ANTES ESTO PEDÍA `dashboard.read`, y el comentario que había aquí decía
+     que era para no obligar a conceder un permiso nuevo. Era un error, y se
+     vio en planta: `dashboard.read` no abre esta pantalla, abre el TABLERO DE
+     MANTENIMIENTO —MTTR, avance del mapeo, órdenes vencidas— y de paso Mi
+     bandeja e Indicadores. Para que un jefe de tren viera su cobertura había
+     que darle la llave del módulo de gestión entero.
+
+     `cobertura.mirar` es la llave estrecha equivalente a `om.mirar`.
+
+     OJO: aquí NO se ponen los dos permisos. El guard los evalúa con `every`,
+     así que listar dos exigiría AMBOS y dejaría fuera justo a quien se quiere
+     dejar entrar. Nadie pierde acceso porque la migración se lo concede a todo
+     el que ya tenía `dashboard.read` — el mismo patrón del bloque 39. */
   @SinAmbito()   // el ámbito lo aplica el servicio, sobre el árbol derivado
   @Get('cobertura')
-  @RequirePermissions('dashboard.read')
+  @RequirePermissions('cobertura.mirar')
   coberturaPorZona(@CurrentUser() u: any, @Query('tren') tren?: string) {
     return this.cobertura.porZona(u?.userId, tren);
   }

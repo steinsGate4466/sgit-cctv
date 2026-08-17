@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { resolverContextoDePlanta } from '../../common/plant-context';
 import { computeEffectiveStatuses } from '../../common/asset-status';
-import { ambitoDelUsuario } from '../../common/ambito-usuario';
+import { alcanza, ambitoDelUsuario, noVeNada } from '../../common/ambito-usuario';
 import {
   accesoDeActivo, montajeDe, resumirAcceso,
   Acceso, CandidatoASubida, MedioAcceso, Montaje,
@@ -60,12 +60,17 @@ export class ActivosPorTrenService {
   private readonly INC_VIVA = ['ABIERTA', 'EN_DIAGNOSTICO', 'EN_PROCESO'];
 
   async porTren(trenCode: string, userId?: string) {
-    const { trenes, sinLimite } = await ambitoDelUsuario(this.prisma, userId);
+    const ambito = await ambitoDelUsuario(this.prisma, userId);
 
     /* EL ÁMBITO SE COMPRUEBA AQUÍ, NO EN LA PANTALLA. Un jefe del Tren 2 que
-       escriba T1 en la dirección recibe vacío, no el Tren 1. */
-    if (!sinLimite && trenes.length
-      && !trenes.some((t) => trenCode.toUpperCase().includes(t.toUpperCase()))) {
+       escriba T1 en la dirección recibe vacío, no el Tren 1.
+
+       Bloque 42: la comparación ya no se escribe a mano. `alcanza()` es la
+       única forma correcta de preguntarlo — la versión anterior usaba
+       `includes` sobre la cadena, y por subcadena el ámbito «T1» habría
+       alcanzado también a un futuro «T10». */
+    if (noVeNada(ambito)) return this.vacio(trenCode, ambito.motivo);
+    if (!alcanza(ambito, trenCode)) {
       return this.vacio(trenCode, 'Ese tren no está en tu ámbito.');
     }
 

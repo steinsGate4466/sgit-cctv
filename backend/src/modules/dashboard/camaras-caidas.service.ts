@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { resolverContextoDePlanta } from '../../common/plant-context';
 import { computeEffectiveStatuses } from '../../common/asset-status';
-import { ambitoDelUsuario } from '../../common/ambito-usuario';
+import { alcanza, ambitoDelUsuario, noVeNada } from '../../common/ambito-usuario';
 import { evaluarEspera } from '../maintenance/espera';
 import { proponer, resolver } from '../../common/intervenibilidad';
 import {
@@ -55,12 +55,13 @@ export class CamarasCaidasService {
   private readonly OM_VIVA = ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'] as const;
 
   async porTren(trenCode: string, userId?: string, verMateriales = false) {
-    const { trenes, sinLimite } = await ambitoDelUsuario(this.prisma, userId);
+    const ambito = await ambitoDelUsuario(this.prisma, userId);
 
     /* EL ÁMBITO SE COMPRUEBA AQUÍ, NO EN LA PANTALLA. Un jefe del Tren 2 que
-       escriba T1 en la dirección no ve el Tren 1: se le devuelve vacío. */
-    if (!sinLimite && trenes.length
-      && !trenes.some((t) => trenCode.toUpperCase().includes(t.toUpperCase()))) {
+       escriba T1 en la dirección no ve el Tren 1: se le devuelve vacío.
+       Bloque 42: la comparación va por `alcanza()`, que no confunde T1 con T10. */
+    if (noVeNada(ambito)) return this.vacio(trenCode, ambito.motivo);
+    if (!alcanza(ambito, trenCode)) {
       return this.vacio(trenCode, 'Ese tren no está en tu ámbito.');
     }
 

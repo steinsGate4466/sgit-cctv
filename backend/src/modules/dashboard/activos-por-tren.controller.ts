@@ -14,9 +14,14 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
  * =============================================================================
  *  DOS PERMISOS DISTINTOS EN UN MISMO CONTROLADOR, Y ES A PROPÓSITO
  * =============================================================================
- *  LEER la lista es `om.mirar`: la misma llave estrecha del panel de cámaras
- *  caídas. Producción tiene que poder ver qué hay en su tren y cuánto exige
- *  manlift sin que se le abra el módulo de Mantenimiento entero.
+ *  LEER la lista es `activos.mirar`. Nació usando `om.mirar` —la llave del
+ *  panel de cámaras caídas— y eso era forzarlo: son dos pantallas distintas y
+ *  puede haber quien deba ver el inventario de su tren sin ver las órdenes, o
+ *  al revés. Un permiso por pantalla es lo que permite decir que no a una sin
+ *  quitar la otra.
+ *
+ *  Lo que NO se hace es darle `asset.read`: eso abre el módulo de Activos con
+ *  sus doce columnas y veintiocho campos, pensado para el ingeniero.
  *
  *  DECLARAR cómo se llega a un equipo es `asset.update`. No es una opinión: es
  *  un dato de la ficha técnica, queda con nombre y fecha, y de él depende que
@@ -43,7 +48,7 @@ export class ActivosPorTrenController {
   /** Todo lo que hay en el tren, agrupado por dónde está montado. */
   @SinAmbito()
   @Get(':code/activos')
-  @RequirePermissions('om.mirar')
+  @RequirePermissions('activos.mirar')
   activos(@Param('code') code: string, @CurrentUser() user: any) {
     return this.svc.porTren(code, user?.userId);
   }

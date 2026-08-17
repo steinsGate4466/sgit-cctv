@@ -36,7 +36,7 @@ const Cableado = lazyConReintento(() => import('./pages/Cableado'));
 const Topologia = lazyConReintento(() => import('./pages/Topologia'));
 const Riesgo = lazyConReintento(() => import('./pages/Riesgo'));
 const MisCamaras = lazyConReintento(() => import('./pages/MisCamaras'));
-const ActivosPorTren = lazyConReintento(() => import('./pages/ActivosPorTren'));
+const MisActivos = lazyConReintento(() => import('./pages/MisActivos'));
 const Rotulado = lazyConReintento(() => import('./pages/Rotulado'));
 const Monitoreo = lazyConReintento(() => import('./pages/Monitoreo'));
 const Grabadores = lazyConReintento(() => import('./pages/Grabadores'));
@@ -104,7 +104,7 @@ export default function App() {
           <Route path="/topologia" element={<Topologia />} />
           <Route path="/riesgo" element={<Riesgo />} />
           <Route path="/mis-camaras" element={<MisCamaras />} />
-          <Route path="/activos-por-tren" element={<ActivosPorTren />} />
+          <Route path="/mis-activos" element={<MisActivos />} />
           <Route path="/rotulado" element={<Rotulado />} />
           <Route path="/monitoreo" element={<Monitoreo />} />
           <Route path="/grabadores" element={<Grabadores />} />

@@ -3,7 +3,10 @@ import { api } from '../api/client';
 import { EsqueletoTablero } from '../components/Esqueleto';
 import CamaraCaida from '../components/CamaraCaida';
 import { Cifras, ComoSeCalcula, Titular, Tono } from '../components/Patron';
-import { useVolverALaPantalla } from '../useVolverALaPantalla';
+import {
+  useVolverALaPantalla, useRefrescoDePulpito, useEdadDelDato,
+} from '../useVolverALaPantalla';
+import { plural } from '../formato';
 
 /**
  * MIS CÁMARAS — el panel del jefe de tren. Bloque 39.
@@ -37,6 +40,9 @@ export default function MisCamaras() {
   const [cargandoLista, setCargandoLista] = useState(true);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
+  // Bloque 42: la edad del dato. Esta pantalla vive abierta en el púlpito.
+  const [cargadoEn, setCargadoEn] = useState<number | null>(null);
+  const edad = useEdadDelDato(cargadoEn);
 
   useEffect(() => {
     api.get('/dashboard/infra/trenes')
@@ -55,6 +61,7 @@ export default function MisCamaras() {
     try {
       const r = await api.get(`/dashboard/tren/${encodeURIComponent(code)}/camaras`);
       setD(r.data);
+      setCargadoEn(Date.now());
     } catch (e: any) {
       setError(e?.response?.status === 403
         ? 'Tu usuario no tiene permiso para ver el trabajo sobre las cámaras.'
@@ -68,6 +75,10 @@ export default function MisCamaras() {
   /* Bloque 37: al volver del bolsillo se recarga. Con un técnico registrando
      avance en campo, esta pantalla se queda vieja en minutos. */
   useVolverALaPantalla(cargar);
+  /* Bloque 42. El PC del púlpito no cambia de pestaña en ocho horas, así que
+     `visibilitychange` no salta nunca y el jefe de tren estaría mirando la
+     madrugada. Sólo se activa en pantalla ancha: el móvil del técnico no. */
+  useRefrescoDePulpito(cargar);
 
   if (cargandoLista) return <div className="page"><EsqueletoTablero /></div>;
 
@@ -88,9 +99,18 @@ export default function MisCamaras() {
   const sinAtender = d?.camaras?.filter((c: any) => !c.orden).length ?? 0;
   const tono: Tono = !hay ? 'bien' : vitales || sinAtender ? 'grave' : 'atender';
 
+  /* El tren, escrito en el título. Un ámbito mal asignado se ve en un segundo
+     en vez de descubrirse en una reunión. */
+  const suTren = trenes.find((t) => t.code === code);
+
   return (
     <div className="page">
-      <h1 className="page-title">Mis cámaras</h1>
+      <h1 className="page-title">
+        Mis cámaras{suTren ? ` · ${suTren.nombre}` : ''}
+      </h1>
+      {edad !== null && edad >= 2 && (
+        <p className="edad-dato">Datos de hace {plural(edad, 'minuto')}.</p>
+      )}
 
       {/* El tren, si hay más de uno en el ámbito. Con uno solo no se pregunta:
           sería un desplegable de una opción. */}

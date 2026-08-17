@@ -149,6 +149,22 @@ export const CATALOGO_PERMISOS: GrupoPermisos[] = [
         explica: 'Ver la orden que se está haciendo: avance, última nota del técnico y qué material falta.',
         cuidado: 'Es SÓLO LECTURA. Se creó para que Producción pueda observar sin abrirle el módulo de Mantenimiento entero.',
       },
+      /* Bloque 42. Las otras dos llaves de Producción. Antes estas pantallas
+         colgaban de `dashboard.read` y `asset.read` —permisos de
+         Mantenimiento— y por eso a un jefe de línea se le abría el módulo de
+         infraestructura entero. */
+      {
+        code: 'activos.mirar',
+        nombre: 'Ver los activos de mi tren',
+        explica: 'El inventario del propio tren agrupado por gabinete, tablero y campo, con la altura y si exige manlift.',
+        cuidado: 'Sólo lectura. Declarar cómo se llega a un equipo necesita además «Editar activos».',
+      },
+      {
+        code: 'cobertura.mirar',
+        nombre: 'Ver qué zonas están sin vista',
+        explica: 'Las zonas del propio tren que se han quedado ciegas, ordenadas por lo que se pierde en cada una.',
+        cuidado: 'Sustituye a dar «Ver el tablero», que abría además el tablero de Mantenimiento, Mi bandeja e Indicadores.',
+      },
       {
         code: 'purga.definitiva',
         nombre: 'Borrar definitivamente (sin vuelta atrás)',

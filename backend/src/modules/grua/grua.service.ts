@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { resolverContextoDePlanta } from '../../common/plant-context';
-import { ambitoDelUsuario } from '../../common/ambito-usuario';
+import { alcanza, ambitoDelUsuario, noVeNada } from '../../common/ambito-usuario';
 import { CrearInspeccionGruaDto } from './dto/inspeccion-grua.dto';
 
 /**
@@ -50,12 +50,14 @@ export class GruaService {
 
     const activos = filas.map((f) => ({ id: f.assetId, locationId: f.asset?.locationId ?? null }));
     const ctx = await resolverContextoDePlanta(this.prisma, activos as any);
-    const { trenes, sinLimite } = await ambitoDelUsuario(this.prisma, userId);
+    const ambito = await ambitoDelUsuario(this.prisma, userId);
+    // Bloque 42: rol sectorizado sin tren asignado -> ni una fila.
+    if (noVeNada(ambito)) return [];
 
     return filas
       .filter((f) => {
         const t = ctx[f.assetId]?.trenCode ?? null;
-        if (!sinLimite && (!t || !trenes.includes(t))) return false;
+        if (!alcanza(ambito, t)) return false;
         if (tren && t !== tren.toUpperCase()) return false;
         return true;
       })

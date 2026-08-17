@@ -2627,3 +2627,7 @@ button.accion:focus-visible { outline: 2px solid #1f4e79; outline-offset: -2px; 
   .medio { flex: 1 1 45%; padding: 12px 10px; }
   .declarar input, .declarar textarea { font-size: 16px; }
 }
+
+/* La edad del dato (bloque 42). Discreta pero legible: no es una alerta, es
+   una admisión. En el PC del pulpito la pantalla lleva horas abierta. */
+.edad-dato { font-size: 12px; color: var(--muted); margin: -6px 0 10px; }

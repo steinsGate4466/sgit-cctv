@@ -31,7 +31,7 @@ const TITLES: Record<string, string> = {
   '/topologia': 'Puntos críticos de la red',
   '/riesgo': 'Dónde no vamos a poder arreglar',
   '/mis-camaras': 'Mis cámaras',
-  '/activos-por-tren': 'Qué hay en mi tren y cómo se llega',
+  '/mis-activos': 'Mis activos y cómo se llega a ellos',
   '/rotulado': 'Estándar de rotulado',
   '/monitoreo': 'Monitoreo de red',
   '/grabadores': 'Grabadores y canales',
@@ -170,15 +170,23 @@ export default function Layout() {
         /* «Mi cobertura» va de las primeras a propósito: es la pantalla de
            PRODUCCIÓN, y un jefe de línea que entre al sistema tiene que
            encontrarla sin recorrer un menú pensado para Mantenimiento. */
-        can('dashboard.read') && <NavLink key="cob" to="/cobertura"><Icono n="camara" /> Mi cobertura</NavLink>,
+        /* Bloque 42: `cobertura.mirar`, no `dashboard.read`. Con el permiso
+           del tablero, a un jefe de tren se le abrían además Dashboard,
+           Indicadores y Mi bandeja — herramientas de decisión de Mantenimiento
+           que él no usa y que le tapaban lo suyo. */
+        can('cobertura.mirar') && <NavLink key="cob" to="/cobertura"><Icono n="camara" /> Mi cobertura</NavLink>,
         /* Bloque 39. La pantalla que pidió Producción: qué cámara falla, quién
            la ataca y qué falta. Va de las primeras porque es la que abre un
            jefe de tren cuando le avisan por radio. */
         can('om.mirar') && <NavLink key="mcam" to="/mis-camaras"><Icono n="alerta" /> Mis cámaras</NavLink>,
         /* Bloque 41. Va justo detrás porque son las dos mitades de la misma
            pregunta: una dice qué falla AHORA, la otra qué hay en el tren y
-           cuánto de eso exige manlift — que es lo que Producción costea. */
-        can('om.mirar') && <NavLink key="apt" to="/activos-por-tren"><Icono n="acceso" /> Activos por tren</NavLink>,
+           cuánto de eso exige manlift — que es lo que Producción costea.
+           Bloque 42: se llamaba «Activos por tren» y pasa a «Mis activos». El
+           prefijo *Mi/Mis* ya significa «lo mío, sectorizado» en toda la
+           aplicación; «por tren» rompía el patrón e insinuaba que se puede
+           elegir tren, que es justo lo que un jefe de tren NO hace. */
+        can('activos.mirar') && <NavLink key="apt" to="/mis-activos"><Icono n="acceso" /> Mis activos</NavLink>,
         can('dashboard.read') && <NavLink key="bd" to="/bandeja"><Icono n="bandeja" /> Mi bandeja</NavLink>,
         can('dashboard.read') && <NavLink key="d" to="/dashboard"><Icono n="tablero" /> Dashboard</NavLink>,
         // Indicadores va junto al tablero: uno dice qué pasa hoy, el otro si

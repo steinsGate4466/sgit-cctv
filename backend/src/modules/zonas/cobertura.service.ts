@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { computeEffectiveStatuses } from '../../common/asset-status';
 import { resolverContextoDePlanta } from '../../common/plant-context';
-import { ambitoDelUsuario } from '../../common/ambito-usuario';
+import { alcanza, ambitoDelUsuario } from '../../common/ambito-usuario';
 import { ordenarZonas, titularDeCobertura, porcentajeCobertura } from './cobertura-orden';
 
 /**
@@ -51,7 +51,7 @@ export class CoberturaService {
   private readonly DUDOSA = ['CON_INCIDENCIA'];
 
   async porZona(userId?: string, trenPedido?: string | null) {
-    const { trenes, sinLimite } = await ambitoDelUsuario(this.prisma, userId);
+    const ambito = await ambitoDelUsuario(this.prisma, userId);
 
     const activos = await this.prisma.asset.findMany({
       where: { deletedAt: null },
@@ -91,10 +91,10 @@ export class CoberturaService {
       const c = ctx[a.id];
       // El ámbito se aplica AQUÍ y no en el `where`: la criticidad y el tren se
       // derivan del árbol, no son columnas, así que no se pueden filtrar en SQL.
-      if (!sinLimite && trenes.length) {
-        const suyo = (c?.trenCode || '').toUpperCase();
-        if (!trenes.some((t) => suyo.includes(t.toUpperCase()))) continue;
-      }
+      /* Bloque 42: por `alcanza()`. La versión anterior comparaba por
+         subcadena —`suyo.includes(t)`— y con eso el ámbito «T1» habría
+         cubierto también a un futuro «T10». */
+      if (!alcanza(ambito, c?.trenCode)) continue;
       if (trenPedido) {
         const suyo = (c?.trenCode || '').toUpperCase();
         if (!suyo.includes(trenPedido.toUpperCase())) continue;

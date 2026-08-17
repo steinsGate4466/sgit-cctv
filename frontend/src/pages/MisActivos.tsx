@@ -4,7 +4,9 @@ import Icono from '../components/Iconos';
 import { EsqueletoTablero } from '../components/Esqueleto';
 import { Cifras, ComoSeCalcula, Detalle, Titular, Tono } from '../components/Patron';
 import { useAuth } from '../auth/AuthContext';
-import { useVolverALaPantalla } from '../useVolverALaPantalla';
+import {
+  useVolverALaPantalla, useRefrescoDePulpito, useEdadDelDato,
+} from '../useVolverALaPantalla';
 import { plural } from '../formato';
 import DeclararAcceso from '../components/DeclararAcceso';
 
@@ -40,7 +42,7 @@ import DeclararAcceso from '../components/DeclararAcceso';
  *  riesgo» — y aquí importa el doble, porque un número bajo se aprueba y el día
  *  del trabajo falta el equipo.
  */
-export default function ActivosPorTren() {
+export default function MisActivos() {
   const { can } = useAuth();
   const puedeDeclarar = can('asset.update');
 
@@ -56,6 +58,10 @@ export default function ActivosPorTren() {
      encima haría bailar las cifras de arriba con cada clic. */
   const [filtro, setFiltro] = useState<'' | 'ELEVADOR' | 'SIN_DECLARAR' | 'CAIDOS'>('');
   const [editando, setEditando] = useState<any>(null);
+  /* Bloque 42. Cuándo se cargó de verdad, para poder decir la edad del dato.
+     En el PC del púlpito esta pantalla lleva ocho horas abierta. */
+  const [cargadoEn, setCargadoEn] = useState<number | null>(null);
+  const edad = useEdadDelDato(cargadoEn);
 
   useEffect(() => {
     api.get('/dashboard/infra/trenes')
@@ -74,6 +80,9 @@ export default function ActivosPorTren() {
     try {
       const r = await api.get(`/dashboard/tren/${encodeURIComponent(code)}/activos`);
       setD(r.data);
+      // Sólo al RECIBIR datos. Si se marcara al lanzar la petición, un fallo
+      // dejaría la pantalla diciendo «hace 0 min» sobre datos viejos.
+      setCargadoEn(Date.now());
     } catch (e: any) {
       setError(e?.response?.status === 403
         ? 'Tu usuario no tiene permiso para ver los activos de este tren.'
@@ -84,6 +93,9 @@ export default function ActivosPorTren() {
 
   useEffect(() => { cargar(); }, [cargar]);
   useVolverALaPantalla(cargar);
+  /* El púlpito no cambia de pestaña nunca, así que `visibilitychange` no salta
+     y sin esto se quedaría con los datos del inicio del turno. */
+  useRefrescoDePulpito(cargar);
 
   const grupos = useMemo(() => {
     const gs: any[] = d?.grupos ?? [];
@@ -113,9 +125,22 @@ export default function ActivosPorTren() {
       : r.sinDeclarar > 0 ? 'sindatos'
         : 'bien';
 
+  /* EL TREN VA EN EL TÍTULO, y no es decoración. El ámbito es un campo que
+     alguien tiene que mantener; si a un jefe de tren le asignan el que no es,
+     con el nombre delante se ve en un segundo en vez de descubrirse en una
+     reunión tres semanas después. */
+  const suTren = trenes.find((t) => t.code === code);
+
   return (
     <div className="page">
-      <h1 className="page-title">Activos por tren</h1>
+      <h1 className="page-title">
+        Mis activos{suTren ? ` · ${suTren.nombre}` : ''}
+      </h1>
+      {/* La edad del dato. En el púlpito la pantalla lleva horas abierta y
+          «todo en verde» puede ser de la madrugada. Se dice desde los 2 min. */}
+      {edad !== null && edad >= 2 && (
+        <p className="edad-dato">Datos de hace {plural(edad, 'minuto')}.</p>
+      )}
 
       {trenes.length > 1 && (
         <div className="train-tabs">

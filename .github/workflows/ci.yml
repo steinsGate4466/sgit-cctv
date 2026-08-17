@@ -132,6 +132,16 @@ jobs:
         working-directory: backend
         run: npm run verificar:roles
 
+      # La pantalla de Roles deja armar un rol marcando cuarenta casillas, y
+      # nada avisaba de que acabas de darle a Produccion el modulo de
+      # infraestructura entero. Paso: un jefe de linea con Gabinetes,
+      # Cableado, Electricidad, Conexiones, Mi bandeja e Indicadores en el
+      # menu. Esto impide que las PLANTILLAS de la semilla, que es de donde
+      # salen los roles nuevos, vuelvan a nacer asi.
+      - name: Roles de observacion sin llaves de operacion
+        working-directory: backend
+        run: npm run verificar:coherencia
+
       # Node 20 murio el 30/04/2026 y el proyecto siguio sobre el tres meses y
       # medio sin parches, porque una version sin soporte NO se rompe: sigue
       # funcionando igual. Esto lo caza, y ademas comprueba que Dockerfile, CI

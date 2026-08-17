@@ -2,7 +2,7 @@ import { CanActivate, ExecutionContext, Injectable, NotFoundException } from '@n
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CLAVE_AMBITO, RecursoConAmbito } from '../ambito.decorator';
-import { ambitoDelUsuario } from '../ambito-usuario';
+import { ambitoDelUsuario, noVeNada, veTodo } from '../ambito-usuario';
 import { filtroDeUbicaciones } from '../ambito-planta';
 
 /**
@@ -126,9 +126,17 @@ export class AmbitoGuard implements CanActivate {
     if (!userId) return true; // ya lo habría parado el guard de autenticación
 
     try {
-      const { trenes, sinLimite } = await ambitoDelUsuario(this.prisma, userId);
-      // REGLA 1: hoy todos tienen el ámbito vacío. Camino rápido y sin riesgo.
-      if (sinLimite) return true;
+      const ambito = await ambitoDelUsuario(this.prisma, userId);
+      const { trenes } = ambito;
+
+      /* BLOQUE 42. Rol sectorizado sin tren asignado: no alcanza a NINGÚN
+         recurso. Se responde 404 y no 403 a propósito, igual que el resto del
+         guard: un 403 confirma que el recurso existe, y a alguien que no puede
+         verlo tampoco se le confirma que está ahí. */
+      if (noVeNada(ambito)) throw new NotFoundException();
+
+      // Rol sin sectorizar: camino rápido, ve todo.
+      if (veTodo(ambito)) return true;
 
       const objetivo = await this.ubicacionDelRecurso(meta.recurso, id);
 

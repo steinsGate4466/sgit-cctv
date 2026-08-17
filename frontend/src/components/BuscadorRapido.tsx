@@ -52,7 +52,7 @@ const DESTINOS: Destino[] = [
   { ruta: '/ipam', nombre: 'Direccionamiento IP', seccion: 'Infraestructura', alias: 'ip subred vlan dhcp gateway que ip le pongo duplicada cidr', permiso: 'asset.read' },
   { ruta: '/topologia', nombre: 'Puntos críticos', seccion: 'Infraestructura', alias: 'impacto que se cae si falla mapa red', permiso: 'asset.read' },
   { ruta: '/mis-camaras', nombre: 'Mis cámaras', seccion: 'General', alias: 'camara caida falla que pasa con esa camara avance om jefe de tren produccion', permiso: 'om.mirar' },
-  { ruta: '/activos-por-tren', nombre: 'Activos por tren', seccion: 'General', alias: 'manlift altura gabinete tablero campo inventario por tren que hay en mi tren subida elevador andamio escalera acceso costo produccion', permiso: 'om.mirar' },
+  { ruta: '/mis-activos', nombre: 'Mis activos', seccion: 'General', alias: 'manlift altura gabinete tablero campo inventario por tren que hay en mi tren subida elevador andamio escalera acceso costo produccion activos por tren', permiso: 'activos.mirar' },
   { ruta: '/riesgo', nombre: 'Riesgo', seccion: 'Infraestructura', alias: 'obsolescencia repuesto sin recambio fin de soporte viejo no se arregla stock critico', permiso: 'asset.read' },
   { ruta: '/rotulado', nombre: 'Estándar de rotulado', seccion: 'Infraestructura', alias: 'etiqueta codigo color cable tia 606 nomenclatura como se llama', permiso: 'asset.read' },
   { ruta: '/monitoreo', nombre: 'Monitoreo', seccion: 'Infraestructura', alias: 'ping en linea caida disponible', permiso: 'monitor.read' },
@@ -77,7 +77,7 @@ const DESTINOS: Destino[] = [
   { ruta: '/users', nombre: 'Usuarios', seccion: 'Sistema', alias: 'personas cuentas alta baja contrasena', permiso: 'user.manage' },
   { ruta: '/roles', nombre: 'Roles y permisos', seccion: 'Sistema', alias: 'permiso perfil acceso ambito tren', permiso: 'role.manage' },
   { ruta: '/equipos', nombre: 'Equipos conocidos', seccion: 'Sistema', alias: 'pc ip mac desde que computadora dispositivo quien entra', permiso: 'asset.read' },
-  { ruta: '/cobertura', nombre: 'Mi cobertura', seccion: 'General', alias: 'produccion camaras viendo ciegas cobertura que cubro jefe de tren', permiso: 'dashboard.read' },
+  { ruta: '/cobertura', nombre: 'Mi cobertura', seccion: 'General', alias: 'produccion camaras viendo ciegas cobertura que cubro jefe de tren', permiso: 'cobertura.mirar' },
   { ruta: '/zonas', nombre: 'Zonas vitales', seccion: 'Infraestructura', alias: 'produccion critica importante prioridad vital zona', permiso: 'location.read' },
   { ruta: '/limpieza', nombre: 'Limpieza de datos', seccion: 'Sistema', alias: 'borrar purgar eliminar basura prueba', permiso: 'asset.delete' },
 ];

@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { resolverContextoDePlanta } from '../../common/plant-context';
-import { ambitoDelUsuario } from '../../common/ambito-usuario';
+import { alcanza, ambitoDelUsuario, noVeNada } from '../../common/ambito-usuario';
 
 /**
  * CONEXIONES DE RED (bloque 12.1).
@@ -45,10 +45,11 @@ export class ConexionesService {
     if (equipos.length === 0) return [];
 
     const ctx = await resolverContextoDePlanta(this.prisma, equipos as any);
-    const { trenes, sinLimite } = await ambitoDelUsuario(this.prisma, userId);
+    const ambito = await ambitoDelUsuario(this.prisma, userId);
+    if (noVeNada(ambito)) return [];
     const visibles = equipos.filter((s) => {
       const t = ctx[s.id]?.trenCode ?? null;
-      if (!sinLimite && (!t || !trenes.includes(t))) return false;
+      if (!alcanza(ambito, t)) return false;
       if (tren && t !== tren.toUpperCase()) return false;
       return true;
     });
@@ -128,19 +129,22 @@ export class ConexionesService {
       select: { id: true, locationId: true },
     });
     const ctx = await resolverContextoDePlanta(this.prisma, extremos as any);
-    const { trenes, sinLimite } = await ambitoDelUsuario(this.prisma, userId);
+    const ambito = await ambitoDelUsuario(this.prisma, userId);
 
     // Un enlace se ve si CUALQUIERA de sus extremos está en el ámbito: un
     // radioenlace entre el Tren 1 y el core le importa a los dos lados.
-    const alcanza = (id: string) => {
+    // (Se llamaba `alcanza` y se renombró: ahora ese nombre es la función
+    //  compartida de `ambito-usuario`, y una local con el mismo nombre la
+    //  taparía justo donde hay que llamarla.)
+    const entraEnAmbito = (id: string) => {
       const t = ctx[id]?.trenCode ?? null;
-      if (!sinLimite && (!t || !trenes.includes(t))) return false;
+      if (!alcanza(ambito, t)) return false;
       if (tren && t !== tren.toUpperCase()) return false;
       return true;
     };
 
     return filas
-      .filter((f) => alcanza(f.endpointAId) || alcanza(f.endpointBId))
+      .filter((f) => entraEnAmbito(f.endpointAId) || entraEnAmbito(f.endpointBId))
       .map((f) => ({
         id: f.id,
         medio: f.medium as string,

@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { resolverContextoDePlanta } from '../../common/plant-context';
-import { ambitoDelUsuario } from '../../common/ambito-usuario';
+import { alcanza, ambitoDelUsuario } from '../../common/ambito-usuario';
 import { GrafoRed, alcanzables, impactoDeCaida, porDanoPotencial } from './impacto';
 
 /**
@@ -117,11 +117,11 @@ export class NetworkService {
    */
   async puntosCriticos(userId?: string | null, tren?: string | null) {
     const { g, info } = await this.grafo();
-    const { trenes, sinLimite } = await ambitoDelUsuario(this.prisma, userId);
+    const ambito = await ambitoDelUsuario(this.prisma, userId);
 
     const visible = (id: string) => {
       const t = info.get(id)?.tren ?? null;
-      if (!sinLimite && (!t || !trenes.includes(t))) return false;
+      if (!alcanza(ambito, t)) return false;
       if (tren && t !== tren.toUpperCase()) return false;
       return true;
     };
@@ -231,11 +231,11 @@ export class NetworkService {
    */
   async mapa(userId?: string | null, tren?: string | null) {
     const { g, info } = await this.grafo();
-    const { trenes, sinLimite } = await ambitoDelUsuario(this.prisma, userId);
+    const ambito = await ambitoDelUsuario(this.prisma, userId);
 
     const permitido = (id: string) => {
       const t = info.get(id)?.tren ?? null;
-      if (!sinLimite && (!t || !trenes.includes(t))) return false;
+      if (!alcanza(ambito, t)) return false;
       if (tren && t !== tren.toUpperCase()) return false;
       return true;
     };
