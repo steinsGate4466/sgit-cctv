@@ -98,7 +98,21 @@ async function bootstrap() {
     next();
   });
 
-  app.setGlobalPrefix('api/v1');
+  /* `health` VA FUERA DEL PREFIJO. Bloque 44.
+     -------------------------------------------------------------------------
+     Estaba dentro, así que la ruta real era `/api/v1/health`. Y el HEALTHCHECK
+     del Dockerfile llama a `http://127.0.0.1:3000/health`, que devolvía 404:
+     el contenedor se marcaba como NO SANO en cada arranque y nadie lo miraba.
+
+     Es la clase de fallo que este proyecto persigue: no rompe nada visible
+     —la aplicación funciona— pero deja inservible justo la señal que sirve
+     para saber si funciona.
+
+     Un endpoint de salud vive en la raíz por convención, y es lo que esperan
+     el orquestador, el balanceador y cualquier vigilancia externa que se
+     enganche mañana. Los que apunten a `/api/v1/health` siguen funcionando: se
+     excluye la ruta del prefijo, no se mueve. */
+  app.setGlobalPrefix('api/v1', { exclude: ['health'] });
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }),
   );

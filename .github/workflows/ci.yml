@@ -316,3 +316,142 @@ jobs:
       - name: Verificar que la semilla funciona
         working-directory: backend
         run: npx prisma db seed
+
+  # ---------------------------------------------------------------------------
+  #  4) ARRANQUE REAL - el hueco que ya tumbo produccion una vez
+  # ---------------------------------------------------------------------------
+  #  QUE PREVIENE, EN CONCRETO
+  #  El 01/08 una dependencia inyectada por constructor no estaba declarada en
+  #  su modulo. Compilaba. Pasaba las pruebas. Y reventaba AL LEVANTAR, en
+  #  produccion, porque es un dato de tiempo de ejecucion.
+  #
+  #  Se anadio `verificar:inyeccion` para cazar ese caso concreto leyendo el
+  #  codigo, y funciona. Pero es un analisis estatico: sabe de constructores, no
+  #  sabe de una variable de entorno que falta, de una migracion que choca con
+  #  datos reales, ni de un modulo que se cae al inicializarse por cualquier
+  #  otro motivo.
+  #
+  #  LA UNICA PRUEBA DE QUE LA APLICACION ARRANCA ES ARRANCARLA. Hasta hoy eso
+  #  solo pasaba cuando Railway lo intentaba: en el peor momento posible, con la
+  #  planta esperando.
+  #
+  #  Este trabajo levanta Postgres, aplica las 38 migraciones, siembra, compila,
+  #  ARRANCA EL BACKEND DE VERDAD y le pide /health. Si no responde, falla aqui.
+  #
+  #  Va en un trabajo aparte y no dentro de `backend` a proposito: tarda minutos
+  #  porque levanta una base, y el resto de comprobaciones tienen que seguir
+  #  dando su respuesta en segundos.
+  # ---------------------------------------------------------------------------
+  arranque:
+    name: Arranque real - la aplicacion levanta y responde
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci_arranque
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_arranque?schema=public
+      # PRODUCCION a proposito. Es el modo en el que corre Pisco, y es el unico
+      # en el que se validan de verdad la clave de cifrado y los secretos: en
+      # desarrollo el codigo acepta valores por defecto y no probaria nada.
+      NODE_ENV: production
+      # Valores de USAR Y TIRAR, solo para este contenedor efimero. No son
+      # secretos: la base se destruye al terminar el trabajo. Los de Pisco viven
+      # en Railway y no aparecen en ningun archivo del repositorio.
+      CREDENTIAL_ENC_KEY: clave-de-integracion-continua-no-usar-en-planta-0001
+      JWT_SECRET: jwt-de-integracion-continua-no-usar-en-planta-0002
+      JWT_REFRESH_SECRET: refresh-de-integracion-continua-no-usar-en-planta-03
+      PORT: '3000'
+
+    steps:
+      - name: Descargar el codigo
+        uses: actions/checkout@v4
+
+      - name: Preparar Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependencias
+        working-directory: backend
+        run: npm ci
+
+      - name: Generar cliente Prisma
+        working-directory: backend
+        run: npx prisma generate
+
+      # Lo MISMO que hace el contenedor de Railway al arrancar. Si una migracion
+      # choca, se descubre aqui y no con la planta esperando.
+      - name: Aplicar migraciones como en produccion
+        working-directory: backend
+        run: npx prisma migrate deploy
+
+      # Compila la aplicacion Y la semilla, igual que el build real.
+      - name: Compilar
+        working-directory: backend
+        run: npm run build
+
+      - name: Sembrar
+        working-directory: backend
+        run: npx prisma db seed
+
+      # === EL PASO QUE NO EXISTIA ===
+      # Arranca el backend en segundo plano y espera a que /health responda.
+      # 60 segundos es de sobra: en local levanta en menos de diez. Si se agota,
+      # se vuelca el registro para poder ver POR QUE no arranco.
+      - name: Arrancar el backend y esperar a /health
+        working-directory: backend
+        run: |
+          node dist/main.js > arranque.log 2>&1 &
+          PID=$!
+          echo "Backend arrancando con PID $PID"
+
+          for i in $(seq 1 60); do
+            # `kill -0` no mata: comprueba que el proceso sigue vivo. Si se
+            # murio, no tiene sentido seguir esperando 50 segundos mas.
+            if ! kill -0 $PID 2>/dev/null; then
+              echo "::error::El backend MURIO durante el arranque."
+              cat arranque.log
+              exit 1
+            fi
+            if curl -fsS http://127.0.0.1:3000/health > /dev/null 2>&1; then
+              echo "OK: /health respondio a los $i segundos."
+              cat arranque.log
+              kill $PID 2>/dev/null || true
+              exit 0
+            fi
+            sleep 1
+          done
+
+          echo "::error::/health no respondio en 60 segundos."
+          cat arranque.log
+          kill $PID 2>/dev/null || true
+          exit 1
+
+      # El autochequeo del bloque 44 escribe en el registro si la base no
+      # coincide con el codigo. Aqui la base ACABA de sembrarse, asi que no
+      # deberia encontrar ni un error: si lo encuentra, es que la semilla y el
+      # codigo se han desincronizado y hay que verlo antes de desplegar.
+      - name: El autochequeo no encuentra errores sobre una base recien sembrada
+        working-directory: backend
+        run: |
+          if grep -q "ERROR(ES)" arranque.log; then
+            echo "::error::El autochequeo encontro errores en una base recien sembrada."
+            grep -E "Autochequeo|\[[A-Z_]+\]" arranque.log
+            exit 1
+          fi
+          echo "Autochequeo limpio sobre base recien sembrada."
+          grep -E "Autochequeo" arranque.log || true
