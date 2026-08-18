@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './prisma/prisma.module';
+import { AutochequeoService } from './common/autochequeo.service';
 import { HealthController } from './common/health.controller';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
@@ -97,6 +98,11 @@ import { RiesgoModule } from './modules/riesgo/riesgo.module';
   ],
   controllers: [HealthController],
   providers: [
+    /* BLOQUE 44. Al arrancar compara lo que el codigo espera contra lo que la
+       base TIENE, y lo escribe en el registro. No bloquea el arranque: un
+       chequeo que tumba el servicio convierte un problema de datos en una
+       caida de planta. El objetivo es que estos fallos dejen de ser mudos. */
+    AutochequeoService,
     // Seguridad por defecto en TODOS los endpoints:
     // 0) RitmoGuard limita el VOLUMEN de peticiones (12.2). Va PRIMERO a
     //    proposito: un bucle sin token valido se corta antes de gastar
