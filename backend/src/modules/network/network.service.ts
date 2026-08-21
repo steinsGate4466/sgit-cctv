@@ -3,6 +3,11 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { resolverContextoDePlanta } from '../../common/plant-context';
 import { alcanza, ambitoDelUsuario } from '../../common/ambito-usuario';
 import { GrafoRed, alcanzables, impactoDeCaida, porDanoPotencial } from './impacto';
+import { computeEffectiveStatuses } from '../../common/asset-status';
+import {
+  soportesDeCamaras, cadenaDeCamara, resumirDependencias,
+  EquipoParaDependencias, EnlaceParaDependencias,
+} from './dependencias';
 
 /**
  * TOPOLOGÍA Y ANÁLISIS DE IMPACTO (bloque 7).
@@ -282,5 +287,157 @@ export class NetworkService {
         .map((e) => ({ a: e.a, b: e.b, esAnillo: !!e.esAnillo })),
       generado: new Date().toISOString(),
     };
+  }
+
+  /**
+   * DE QUÉ DEPENDE CADA CÁMARA — bloque 47.
+   *
+   * ===========================================================================
+   *  POR QUÉ ESTE MÉTODO EXISTE SI YA ESTÁ `puntosCriticos`
+   * ===========================================================================
+   *  Porque contestan a personas distintas.
+   *
+   *    puntosCriticos  -> «¿dónde pongo el repuesto en caliente?». Es una
+   *                       decisión de Mantenimiento, y devuelve un ranking.
+   *    dependencias    -> «¿por qué me quedé sin ver la zona de enfriamiento?».
+   *                       Es una pregunta de Producción, y necesita frases.
+   *
+   *  Se podría haber metido todo en el mismo endpoint con un parámetro, y
+   *  sería peor: la pantalla de Producción arrastraría campos que no usa y
+   *  cualquier cambio para Mantenimiento la podría romper sin avisar.
+   *
+   * ===========================================================================
+   *  EL ESTADO ES EL DERIVADO, NO EL DE LA COLUMNA
+   * ===========================================================================
+   *  `grafo()` trae `asset.status`, que es lo que alguien escribió. Una antena
+   *  con una incidencia abierta sigue diciendo OPERATIVO en esa columna.
+   *
+   *  Aquí se recalcula con `computeEffectiveStatuses`, porque esta pantalla la
+   *  abre un jefe de tren para saber QUÉ PASA AHORA. Enseñarle «operativo»
+   *  sobre un equipo que tiene una incidencia abierta desde ayer sería la
+   *  mentira más cara del sistema: la que hace que deje de abrirlo.
+   */
+  async dependencias(userId?: string | null, tren?: string | null) {
+    const { g, info } = await this.grafo();
+
+    const ids = [...info.keys()];
+    const estados = await computeEffectiveStatuses(
+      this.prisma,
+      ids.map((id) => ({ id, status: info.get(id)!.estado })),
+    );
+
+    /* Los componentes (la fuente dentro de la antena) NO están en el grafo:
+       no son un salto de red, son una pieza. Se traen aparte para poder
+       enseñarlos dentro de su padre. */
+    const piezas = await this.prisma.asset.findMany({
+      where: { deletedAt: null, parteDeId: { not: null } },
+      select: { id: true, assetCode: true, type: true, status: true, parteDeId: true },
+    });
+
+    const equipos: EquipoParaDependencias[] = [
+      ...ids.map((id) => {
+        const i = info.get(id)!;
+        return {
+          id,
+          codigo: i.code,
+          tipo: i.tipo,
+          estado: estados[id] ?? i.estado,
+          sector: i.tren,
+          lugar: i.lugar,
+          parteDeId: null as string | null,
+        };
+      }),
+      ...piezas
+        // Sólo las que cuelgan de algo que está en el grafo; si el padre se
+        // dio de baja, la pieza no tiene dónde aparecer.
+        .filter((p) => info.has(p.parteDeId!))
+        .map((p) => ({
+          id: p.id,
+          codigo: p.assetCode,
+          tipo: p.type as string,
+          estado: (estados[p.id] ?? p.status) as string,
+          sector: info.get(p.parteDeId!)!.tren,
+          lugar: info.get(p.parteDeId!)!.lugar,
+          parteDeId: p.parteDeId,
+        })),
+    ];
+
+    const enlaces: EnlaceParaDependencias[] = g.enlaces.map(
+      (e) => ({ a: e.a, b: e.b, esAnillo: !!e.esAnillo }),
+    );
+
+    /* Se calcula sobre la red ENTERA y se recorta DESPUÉS, igual que en
+       `puntosCriticos` y por el mismo motivo: si el switch del core se cae, al
+       jefe del Tren 2 le afecta aunque ese switch no sea suyo. Calcular sólo
+       sobre su tren daría números más bonitos y falsos. */
+    const todos = soportesDeCamaras(equipos, enlaces);
+
+    const ambito = await ambitoDelUsuario(this.prisma, userId);
+    const filtro = tren ? tren.toUpperCase() : null;
+
+    /* Un soporte se muestra si el usuario alcanza SU sector o el de alguna de
+       las cámaras que sostiene. Lo segundo importa: el switch del core no es
+       de ningún tren, y es justo el que explica por qué te quedaste sin ver. */
+    const visible = (s: (typeof todos)[number]) => {
+      const sectores = [s.sector, ...s.camaras.map((c) => c.sector)];
+      if (!sectores.some((x) => alcanza(ambito, x))) return false;
+      if (filtro && !sectores.some((x) => x === filtro)) return false;
+      return true;
+    };
+
+    const soportes = todos.filter(visible).map((s) => ({
+      ...s,
+      // Dentro de un soporte visible, las cámaras de otro tren no se listan:
+      // el conteo ya está hecho, pero los códigos son información de otro.
+      camaras: s.camaras.filter((c) => alcanza(ambito, c.sector)
+        && (!filtro || c.sector === filtro)),
+      // Cuántas se lleva EN TOTAL, incluidas las que este usuario no ve. Sin
+      // esto, un jefe de tren leería «2 cámaras» de un equipo que tumba 30.
+      camarasEnTotal: s.camaras.length,
+    }));
+
+    return {
+      soportes,
+      titular: resumirDependencias(soportes),
+      motivoAmbito: ambito.motivo,
+      generado: new Date().toISOString(),
+    };
+  }
+
+  /** El camino de UNA cámara hasta el grabador, paso a paso. */
+  async cadena(assetId: string) {
+    const { g, info } = await this.grafo();
+    if (!info.has(assetId)) throw new NotFoundException('Esa cámara no está en la red.');
+
+    const ids = [...info.keys()];
+    const estados = await computeEffectiveStatuses(
+      this.prisma,
+      ids.map((id) => ({ id, status: info.get(id)!.estado })),
+    );
+    const piezas = await this.prisma.asset.findMany({
+      where: { deletedAt: null, parteDeId: { not: null } },
+      select: { id: true, assetCode: true, type: true, status: true, parteDeId: true },
+    });
+
+    const equipos: EquipoParaDependencias[] = [
+      ...ids.map((id) => {
+        const i = info.get(id)!;
+        return {
+          id, codigo: i.code, tipo: i.tipo, estado: estados[id] ?? i.estado,
+          sector: i.tren, lugar: i.lugar, parteDeId: null as string | null,
+        };
+      }),
+      ...piezas.filter((p) => info.has(p.parteDeId!)).map((p) => ({
+        id: p.id, codigo: p.assetCode, tipo: p.type as string,
+        estado: (estados[p.id] ?? p.status) as string,
+        sector: info.get(p.parteDeId!)!.tren, lugar: null,
+        parteDeId: p.parteDeId,
+      })),
+    ];
+
+    return cadenaDeCamara(
+      assetId, equipos,
+      g.enlaces.map((e) => ({ a: e.a, b: e.b, esAnillo: !!e.esAnillo })),
+    );
   }
 }

@@ -32,6 +32,7 @@ const TITLES: Record<string, string> = {
   '/riesgo': 'Dónde no vamos a poder arreglar',
   '/mis-camaras': 'Mis cámaras',
   '/vista-general': 'Vista general por sector',
+  '/dependencias': 'De qué depende cada cámara',
   '/mis-activos': 'Mis activos y cómo se llega a ellos',
   '/rotulado': 'Estándar de rotulado',
   '/monitoreo': 'Monitoreo de red',
@@ -191,6 +192,11 @@ export default function Layout() {
            aplicación; «por tren» rompía el patrón e insinuaba que se puede
            elegir tren, que es justo lo que un jefe de tren NO hace. */
         can('activos.mirar') && <NavLink key="apt" to="/mis-activos"><Icono n="acceso" /> Mis activos</NavLink>,
+        /* Bloque 47. Cierra el grupo de Producción: las tres anteriores dicen
+           QUÉ pasa, y ésta dice POR QUÉ — de qué cuelga cada cámara. No va con
+           «Puntos críticos», que es la misma información para el técnico de
+           red y con diagrama; aquí no hay diagrama a propósito. */
+        can('om.mirar') && <NavLink key="dep" to="/dependencias"><Icono n="mapeo" /> De qué depende</NavLink>,
         can('dashboard.read') && <NavLink key="bd" to="/bandeja"><Icono n="bandeja" /> Mi bandeja</NavLink>,
         can('dashboard.read') && <NavLink key="d" to="/dashboard"><Icono n="tablero" /> Dashboard</NavLink>,
         // Indicadores va junto al tablero: uno dice qué pasa hoy, el otro si

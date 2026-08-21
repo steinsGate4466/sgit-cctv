@@ -388,7 +388,7 @@ export default function Limpieza() {
             <li><b>Los registros de borrados anteriores nunca se van.</b> Esa cadena no se rompe.</li>
           </ul>
 
-          {errorModal && <div className="aviso-error" style={{ margin: '10px 0' }}>{errorModal}</div>}
+          {errorModal && <div role="alert" className="aviso-error" style={{ margin: '10px 0' }}>{errorModal}</div>}
 
           <label className="campo">
             <span>Borrar registros anteriores a</span>

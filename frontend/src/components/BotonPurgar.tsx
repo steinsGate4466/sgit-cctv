@@ -123,7 +123,7 @@ export default function BotonPurgar({
           }
         >
           {cargando && <p className="muted">Comprobando qué se llevaría por delante…</p>}
-          {error && <div className="aviso-error" style={{ marginBottom: 10 }}>{error}</div>}
+          {error && <div role="alert" className="aviso-error" style={{ marginBottom: 10 }}>{error}</div>}
 
           {previa && (
             <>

@@ -319,7 +319,7 @@ export default function Conexiones() {
             </>
           }
         >
-          {errorModal && <div className="aviso-error" style={{ marginBottom: 10 }}>{errorModal}</div>}
+          {errorModal && <div role="alert" className="aviso-error" style={{ marginBottom: 10 }}>{errorModal}</div>}
 
           <label className="campo">
             <span>Buscar el equipo</span>
@@ -377,7 +377,7 @@ export default function Conexiones() {
             </>
           }
         >
-          {errorModal && <div className="aviso-error" style={{ marginBottom: 10 }}>{errorModal}</div>}
+          {errorModal && <div role="alert" className="aviso-error" style={{ marginBottom: 10 }}>{errorModal}</div>}
 
           <label className="campo">
             <span>Extremo A</span>

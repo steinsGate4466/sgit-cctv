@@ -154,8 +154,8 @@ export default function Paradas() {
         </div>
       </div>
 
-      {msg && <div className="aviso-ok" onClick={() => setMsg('')}>{msg}</div>}
-      {error && <div className="aviso-error" onClick={() => setError('')}>{error}</div>}
+      {msg && <div role="status" className="aviso-ok aviso-cerrable" onClick={() => setMsg('')} title="Toca para cerrar este aviso">{msg}</div>}
+      {error && <div role="alert" className="aviso-error aviso-cerrable" onClick={() => setError('')} title="Toca para cerrar este aviso">{error}</div>}
 
       {/* LO QUE VIENE. Va arriba del todo porque es la pregunta de la mañana:
           «¿cuándo puedo tocar la línea?» */}
@@ -314,7 +314,7 @@ export default function Paradas() {
               {guardando ? 'Guardando…' : 'Apuntar'}
             </button>
           </>}>
-          {error && <div className="aviso-error">{error}</div>}
+          {error && <div role="alert" className="aviso-error">{error}</div>}
           <div className="card explica" style={{ marginTop: 0 }}>
             Apúntala con lo que sepas ahora. <b>La hora se puede mover después</b>,
             y cada movimiento queda registrado. Es mejor una parada apuntada con hora
@@ -379,7 +379,7 @@ export default function Paradas() {
               {guardando ? 'Guardando…' : 'Mover'}
             </button>
           </>}>
-          {error && <div className="aviso-error">{error}</div>}
+          {error && <div role="alert" className="aviso-error">{error}</div>}
           <label className="campo">
             <span>Nuevo inicio previsto</span>
             <input type="datetime-local" value={mover.inicioPrevisto}

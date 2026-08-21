@@ -172,8 +172,8 @@ export default function Electricidad() {
         </div>
       </div>
 
-      {msg && <div className="aviso-ok" onClick={() => setMsg('')}>{msg}</div>}
-      {error && <div className="aviso-error" onClick={() => setError('')}>{error}</div>}
+      {msg && <div role="status" className="aviso-ok aviso-cerrable" onClick={() => setMsg('')} title="Toca para cerrar este aviso">{msg}</div>}
+      {error && <div role="alert" className="aviso-error aviso-cerrable" onClick={() => setError('')} title="Toca para cerrar este aviso">{error}</div>}
 
       {resumen && (
         <div className="card">
@@ -443,7 +443,7 @@ export default function Electricidad() {
       {/* ---------- COLGAR UN EQUIPO ---------- */}
       {colgando && (
         <Modal title={`Colgar un equipo del circuito ${colgando.numero}`} onClose={() => { setColgando(null); setCandidatos([]); }}>
-          {error && <div className="aviso-error">{error}</div>}
+          {error && <div role="alert" className="aviso-error">{error}</div>}
           <div className="card explica" style={{ marginTop: 0 }}>
             Si es una <b>cámara PoE</b>, no marques que cuelga del breaker directamente:
             cuelga del switch. Marca «por PoE» para que quede claro y nadie baje la
@@ -484,7 +484,7 @@ export default function Electricidad() {
               {ocupado ? 'Guardando…' : 'Guardar medición'}
             </button>
           </>}>
-          {error && <div className="aviso-error">{error}</div>}
+          {error && <div role="alert" className="aviso-error">{error}</div>}
           <div className="card explica" style={{ marginTop: 0 }}>
             <b>La temperatura es la que más avisa.</b> Un borne por encima de 60 °C no
             es un riesgo: es una avería con fecha. Se aprieta o se cambia antes de que
@@ -523,7 +523,7 @@ export default function Electricidad() {
               {ocupado ? 'Guardando…' : 'Guardar'}
             </button>
           </>}>
-          {error && <div className="aviso-error">{error}</div>}
+          {error && <div role="alert" className="aviso-error">{error}</div>}
           <div className="form-grid">
             <label className="campo">
               <span>Código <b className="campo-req">*</b></span>
@@ -588,7 +588,7 @@ export default function Electricidad() {
               {ocupado ? 'Guardando…' : 'Guardar'}
             </button>
           </>}>
-          {error && <div className="aviso-error">{error}</div>}
+          {error && <div role="alert" className="aviso-error">{error}</div>}
           <div className="form-grid">
             <label className="campo">
               <span>Número <b className="campo-req">*</b></span>

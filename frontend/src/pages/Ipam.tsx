@@ -115,8 +115,8 @@ export default function Ipam() {
         </div>
       </div>
 
-      {msg && <div className="aviso-ok" onClick={() => setMsg('')}>{msg}</div>}
-      {error && <div className="aviso-error" onClick={() => setError('')}>{error}</div>}
+      {msg && <div role="status" className="aviso-ok aviso-cerrable" onClick={() => setMsg('')} title="Toca para cerrar este aviso">{msg}</div>}
+      {error && <div role="alert" className="aviso-error aviso-cerrable" onClick={() => setError('')} title="Toca para cerrar este aviso">{error}</div>}
 
       {/* ---------- LO QUE ESTÁ MAL ---------- */}
       {hallazgos && (
@@ -333,7 +333,7 @@ export default function Ipam() {
               {ocupado ? 'Guardando…' : 'Guardar'}
             </button>
           </>}>
-          {error && <div className="aviso-error">{error}</div>}
+          {error && <div role="alert" className="aviso-error">{error}</div>}
           <div className="form-grid">
             <label className="campo">
               <span>CIDR <b className="campo-req">*</b></span>
@@ -387,7 +387,7 @@ export default function Ipam() {
               {ocupado ? 'Guardando…' : 'Reservar'}
             </button>
           </>}>
-          {error && <div className="aviso-error">{error}</div>}
+          {error && <div role="alert" className="aviso-error">{error}</div>}
           <div className="form-grid">
             <label className="campo"><span>Tipo</span>
               <select value={reserva.tipo} onChange={(e) => setReserva({ ...reserva, tipo: e.target.value })}>

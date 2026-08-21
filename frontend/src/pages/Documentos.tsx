@@ -205,7 +205,7 @@ export default function Documentos() {
             </>
           }
         >
-          {errorModal && <div className="aviso-error" style={{ marginBottom: 10 }}>{errorModal}</div>}
+          {errorModal && <div role="alert" className="aviso-error" style={{ marginBottom: 10 }}>{errorModal}</div>}
 
           <label className="campo">
             <span>Título</span>

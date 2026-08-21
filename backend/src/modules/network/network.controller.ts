@@ -28,6 +28,27 @@ export class NetworkController {
     return this.red.mapa(user?.userId, tren);
   }
 
+  /**
+   * De qué depende cada cámara, en castellano de planta (bloque 47).
+   *
+   * Va con `om.mirar` y no con `asset.update` a propósito: es una pantalla
+   * de CONSULTA para Producción, que no toca la red y no debería necesitar
+   * un permiso de operación para entender por qué se quedó sin ver.
+   */
+  @Get('dependencias')
+  @RequirePermissions('om.mirar')
+  dependencias(@CurrentUser() user: any, @Query('tren') tren?: string) {
+    return this.red.dependencias(user?.userId, tren);
+  }
+
+  /** El camino de UNA cámara hasta el grabador. 'cadena' antes que ':id'. */
+  @SinAmbito()  // red: el ámbito se aplica en el servicio
+  @Get('cadena/:assetId')
+  @RequirePermissions('om.mirar')
+  cadena(@Param('assetId') assetId: string) {
+    return this.red.cadena(assetId);
+  }
+
   @SinAmbito()  // red: el ámbito se aplica en el servicio
   @Get('impacto/:assetId')
   @RequirePermissions('asset.read')

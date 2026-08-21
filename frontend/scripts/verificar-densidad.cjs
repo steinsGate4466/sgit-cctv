@@ -83,39 +83,35 @@ const EXENTAS = {
    ============================================================================= */
 const LINEA_BASE = {
   // pantalla:            [palabras, columnas, indicadores]
-  'Electricidad.tsx':     [526, 6, 0],
-  'Equipos.tsx':          [515, 7, 0],
-  'Limpieza.tsx':         [503, 7, 0],
-  'Instalaciones.tsx':    [455, 7, 0],
-  'Assets.tsx':           [400, 11, 0],
-  'Paradas.tsx':          [365, 10, 0],
-  'Ipam.tsx':             [357, 7, 0],
-  'Maintenance.tsx':      [336, 9, 0],
-  'Campanas.tsx':         [312, 7, 0],
-  'Incidents.tsx':        [278, 8, 0],
-  'Topologia.tsx':        [271, 6, 0],
+  'Electricidad.tsx':      [462, 6, 0],
+  'Equipos.tsx':           [478, 7, 0],
+  'Limpieza.tsx':          [413, 7, 0],
+  'Instalaciones.tsx':     [352, 7, 0],
+  'Assets.tsx':            [264, 11, 0],
+  'Paradas.tsx':           [289, 10, 0],
+  'Ipam.tsx':              [311, 7, 0],
+  'Maintenance.tsx':       [237, 9, 0],
+  'Campanas.tsx':          [272, 7, 0],
+  'Incidents.tsx':         [180, 8, 0],
+  'Topologia.tsx':         [247, 6, 0],
   // Convertida a medias en el bloque 38: el titular y las acciones ya están
   // arriba, pero dentro lleva OCHO vistas con su propio texto. Bajar de aquí
   // exige repasar las ocho, y eso es un bloque propio.
-  'TrainBoard.tsx':       [260, 4, 9],
-  'Gruas.tsx':            [255, 8, 0],
-  'Locations.tsx':        [255, 8, 0],
-  'Zonas.tsx':            [250, 8, 2],
-  'Monitoreo.tsx':        [244, 4, 5],
-  'Conexiones.tsx':       [288, 6, 0],
-  'Indicadores.tsx':      [220, 6, 0],
-  'Grabadores.tsx':       [212, 6, 0],
-  'Avisos.tsx':           [192, 4, 5],
+  'TrainBoard.tsx':        [177, 4, 9],
+  'Gruas.tsx':             [223, 8, 0],
+  'Locations.tsx':         [196, 8, 0],
+  'Zonas.tsx':             [215, 8, 2],
+  'Monitoreo.tsx':         [219, 4, 5],
+  'Conexiones.tsx':        [200, 6, 0],
+  'Indicadores.tsx':       [210, 6, 0],
+  'Grabadores.tsx':        [163, 6, 0],
+  'Avisos.tsx':            [162, 4, 5],
   // Recién hecha en el bloque 36 y ya pasa de columnas. Es la prueba de que
   // esto se degrada solo aunque quien escriba tenga la regla en la cabeza.
-  'Riesgo.tsx':           [192, 12, 1],
-  'Preventive.tsx':       [164, 8, 6],
-  'Inventory.tsx':        [161, 8, 6],
-  'Cableado.tsx':         [156, 7, 0],
-  'Documentos.tsx':       [199, 6, 0],
-  'Access.tsx':           [150, 8, 5],
+  'Riesgo.tsx':            [160, 12, 1],
+  'Documentos.tsx':        [143, 6, 0],
   // Quince indicadores. Es EL tablero, y aun así quince no se leen.
-  'Dashboard.tsx':        [140, 0, 15],
+  'Dashboard.tsx':         [112, 0, 15],
 };
 
 function sinComentarios(txt) {
@@ -151,8 +147,34 @@ for (const f of fs.readdirSync(PAGINAS).filter((x) => x.endsWith('.tsx'))) {
      O sea: el verificador veía los textos cortos e ignoraba justo los largos,
      que son los únicos que sobran. Habría dado luz verde a la pantalla más
      cargada posible mientras se quejaba de una etiqueta de tres palabras. */
+  /* ---------------------------------------------------------------------
+     FALLO DEL PROPIO VERIFICADOR, CORREGIDO EN EL BLOQUE 47.
+
+     Este recorte contaba CÓDIGO como si fuera texto de pantalla. La causa
+     son los genéricos de TypeScript: en
+
+         const [x, setX] = useState<Detalle | null>(null);
+         const [y, setY] = useState<string>('');
+
+     el `>` que cierra `<Detalle | null>` y el `<` que abre `<string>` forman
+     un par perfectamente válido para el patrón, así que TODO lo que hay en
+     medio —punto y coma, corchetes y nombres de variable incluidos— entraba
+     en la cuenta de «palabras que lee el jefe».
+
+     Assets.tsx pagaba 50 palabras por eso: es la pantalla con más `useState`
+     del sistema, y estaba siendo penalizada por su código, no por su texto.
+     El verificador llevaba desde el bloque 38 midiendo mal, y el ruido
+     escondía lo que sí importa.
+
+     El filtro es deliberadamente tonto y por eso no se equivoca: un texto de
+     interfaz no lleva nunca `;`, `=>`, `const` ni `=`. Si un fragmento los
+     lleva, no es una frase que alguien vaya a leer en pantalla.
+     --------------------------------------------------------------------- */
+  const pareceCodigo = (t) => /;|=>|\bconst\b|\blet\b|\breturn\b|==|\?\?/.test(t);
+
   const texto = (cuerpo.match(/>([^<>{}]{3,})</g) || [])
     .map((t) => t.slice(1, -1))
+    .filter((t) => !pareceCodigo(t))
     .join(' ');
   const palabras = texto.split(/\s+/).filter((p) => /[a-záéíóúñ]{2,}/i.test(p)).length;
 

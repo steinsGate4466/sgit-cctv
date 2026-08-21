@@ -557,7 +557,7 @@ export default function Assets() {
       )}
 
       {msg && (
-        <div className="aviso-ok" onClick={() => setMsg('')} title="Pulsa para cerrar">{msg}</div>
+        <div role="status" className="aviso-ok aviso-cerrable" onClick={() => setMsg('')} title="Toca para cerrar este aviso">{msg}</div>
       )}
       <AvisoAmbito valor={ambito} total={meta?.total} />
 
@@ -815,6 +815,12 @@ export default function Assets() {
                 onClick={() => openDetail(detail.parteDe.id)}>{detail.parteDe.assetCode}</b>.
             </p>
           )}
+          {/* ---- POR DÓNDE VIAJA LA IMAGEN (bloque 47) ----
+              Sólo en las cámaras, y sólo dentro de su ficha. Es la pregunta
+              que se hace el técnico delante del equipo: «¿y esto por dónde
+              sale?». Tenerlo aquí evita el viaje a Topología con el celular
+              en la mano y el manlift esperando. */}
+          {detail.type === 'CAMERA' && <CadenaDeLaCamara id={detail.id} />}
           {detail.accessRequests && detail.accessRequests.length > 0 ? (
               <>
                 {detail.accessRequests.map((ar: any) => (
@@ -1090,6 +1096,59 @@ export default function Assets() {
           <button className="btn" disabled={qSaving} onClick={saveQuick}>{qSaving ? 'Guardando…' : 'Guardar'}</button>
         </Modal>
       )}
+    </div>
+  );
+}
+
+/**
+ * POR DÓNDE VIAJA LA IMAGEN DE ESTA CÁMARA — bloque 47.
+ *
+ * Se carga APARTE y no dentro de `openDetail`. El motivo es de planta: el
+ * cálculo recorre el grafo de red entero, y la ficha del activo se abre
+ * cientos de veces al día para mirar la marca o la IP. Colgarlo de la carga
+ * principal haría más lenta la operación normal para servir un dato que casi
+ * nadie mira en ese momento.
+ *
+ * Si falla, no se dice nada. La ficha del activo tiene que seguir sirviendo
+ * aunque la red esté a medio cargar: un aviso rojo aquí haría creer que el
+ * problema es la cámara.
+ */
+function CadenaDeLaCamara({ id }: { id: string }) {
+  const [c, setC] = useState<any>(null);
+
+  useEffect(() => {
+    let vivo = true;
+    setC(null);
+    api.get(`/network/cadena/${id}`)
+      .then((r) => { if (vivo) setC(r.data); })
+      .catch(() => { /* silencio a propósito: ver el comentario de arriba */ });
+    return () => { vivo = false; };
+  }, [id]);
+
+  if (!c) return null;
+
+  return (
+    <div className="card" style={{ marginTop: 10 }}>
+      <div className="section-title">Por dónde va su imagen</div>
+      {c.llegaAlGrabador && (
+        <div className="cadena">
+          {c.eslabones.map((e: any, i: number) => (
+            <div key={e.id} className="cadena-paso">
+              {i > 0 && <span className="cadena-flecha" aria-hidden="true">→</span>}
+              <div className={`cadena-caja ${e.estado === 'OPERATIVO' ? '' : 'mal'}`}>
+                <b>{e.codigo}</b>
+                <span>{e.que}</span>
+                {/* La fuente dentro de la antena. El «+» evita una frase que
+                    se repetiría en cada caja y engorda la pantalla. */}
+                {e.piezas.map((p: any) => (
+                  <span key={p.id} className="cadena-pieza">+ {p.codigo}</span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <p className="muted" style={{ fontSize: 12.5, margin: '8px 0 0' }}>{c.resumen}</p>
     </div>
   );
 }

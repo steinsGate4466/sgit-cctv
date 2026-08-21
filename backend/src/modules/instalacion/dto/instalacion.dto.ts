@@ -82,8 +82,10 @@ export class EvaluarInstalacionDto {
   @IsOptional() @IsString() @MaxLength(20) gradoIpRequerido?: string;
 
   @IsOptional() @IsString() @MaxLength(1500) materialesEstimados?: string;
-  @IsOptional() @IsNumber() @Min(0) costoEstimado?: number;
-  @IsOptional() @IsString() @MaxLength(5) moneda?: string;
+  /* costoEstimado y moneda RETIRADOS en el bloque 47. El sistema no pone
+     precio a nada: cuenta materiales, metros y subidas de manlift. Si llegan
+     en el cuerpo de la petición, el ValidationPipe los descarta por
+     whitelist, así que tampoco se pueden colar a mano. */
 
   @IsOptional() @IsString() @MaxLength(600) notas?: string;
   /** true = cerrar la evaluación. false o ausente = guardar borrador. */

@@ -154,8 +154,8 @@ export default function Equipos() {
         </div>
       </div>
 
-      {msg && <div className="aviso-ok" onClick={() => setMsg('')}>{msg}</div>}
-      {error && <div className="aviso-error" onClick={() => setError('')}>{error}</div>}
+      {msg && <div role="status" className="aviso-ok aviso-cerrable" onClick={() => setMsg('')} title="Toca para cerrar este aviso">{msg}</div>}
+      {error && <div role="alert" className="aviso-error aviso-cerrable" onClick={() => setError('')} title="Toca para cerrar este aviso">{error}</div>}
 
       {/* Lo que falta por registrar. Es la lista de trabajo, así que va arriba. */}
       {huerfanas.length > 0 && (
@@ -243,7 +243,7 @@ export default function Equipos() {
             </>
           }
         >
-          {error && <div className="aviso-error">{error}</div>}
+          {error && <div role="alert" className="aviso-error">{error}</div>}
 
           <div className="form-grid">
             <label className="campo campo-ancho">
@@ -366,8 +366,8 @@ function DispositivosPanel({ disp, acceso, msg, error, setMsg, setError, decidir
         </div>
       </div>
 
-      {msg && <div className="aviso-ok" onClick={() => setMsg('')}>{msg}</div>}
-      {error && <div className="aviso-error" onClick={() => setError('')}>{error}</div>}
+      {msg && <div role="status" className="aviso-ok aviso-cerrable" onClick={() => setMsg('')} title="Toca para cerrar este aviso">{msg}</div>}
+      {error && <div role="alert" className="aviso-error aviso-cerrable" onClick={() => setError('')} title="Toca para cerrar este aviso">{error}</div>}
 
       {acceso && (
         <div className="card">
@@ -398,13 +398,13 @@ function DispositivosPanel({ disp, acceso, msg, error, setMsg, setError, decidir
             <div><b style={{ fontSize: 22, color: 'var(--crit)' }}>{acceso.bloqueados}</b><div className="muted" style={{ fontSize: 12 }}>bloqueados</div></div>
           </div>
           {acceso.modo === 'ESTRICTO' && !acceso.estrictoEfectivo && (
-            <div className="aviso-error" style={{ marginTop: 10 }}>
+            <div role="alert" className="aviso-error" style={{ marginTop: 10 }}>
               El modo está en ESTRICTO pero <b>no hay ningún aparato aprobado</b>, así que
               no se está bloqueando a nadie. Aprueba al menos uno.
             </div>
           )}
           {acceso.apagadoPorEntorno && (
-            <div className="aviso-error" style={{ marginTop: 10 }}>
+            <div role="alert" className="aviso-error" style={{ marginTop: 10 }}>
               Está apagado por la variable <code>ACCESO_DISPOSITIVO_OFF=1</code>.
             </div>
           )}

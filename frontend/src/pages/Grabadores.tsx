@@ -278,7 +278,7 @@ export default function Grabadores() {
           }
         >
           {cargandoRejilla && <EsqueletoTabla filas={3} />}
-          {rejilla?.error && <div className="aviso-error">No se pudo cargar la rejilla.</div>}
+          {rejilla?.error && <div role="alert" className="aviso-error">No se pudo cargar la rejilla.</div>}
 
           {rejilla && !rejilla.error && (
             <>
@@ -380,7 +380,7 @@ export default function Grabadores() {
             </>
           }
         >
-          {errorModal && <div className="aviso-error" style={{ marginBottom: 10 }}>{errorModal}</div>}
+          {errorModal && <div role="alert" className="aviso-error" style={{ marginBottom: 10 }}>{errorModal}</div>}
 
           <label className="campo">
             <span>Buscar la cámara</span>

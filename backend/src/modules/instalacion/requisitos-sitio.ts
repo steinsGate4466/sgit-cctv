@@ -55,9 +55,30 @@ const ENERGIA_Y_RED: GrupoCampos = {
   campos: ['hayEnergia', 'tipoEnergia', 'hayPuntoRed', 'gabineteCercano', 'metrosCable', 'rutaCable', 'necesitaPoe', 'switchDestinoId', 'nvrDestinoId', 'canalNvr'],
 };
 
+/**
+ * MATERIALES SÍ. DINERO NO — bloque 47.
+ *
+ * Este grupo se llamaba «Materiales y costo» y pedía un importe y una moneda.
+ * Se han quitado los dos, y no por simplificar: por una regla del proyecto.
+ *
+ * El sistema NUNCA pone precio a nada. Cuenta metros, equipos y subidas de
+ * manlift; el dinero lo pone quien tiene la tarifa, que no es Mantenimiento.
+ * Un «costo estimado» escrito por el técnico que va a hacer el trabajo se
+ * convierte, tres reuniones después, en el presupuesto contra el que se le
+ * mide — y a partir de ahí nadie vuelve a escribir un número sincero.
+ *
+ * Además desvía la conversación: en cuanto Producción ve una cifra en soles,
+ * la reunión deja de tratar de disponibilidad. La lista de materiales, que es
+ * lo que de verdad hace falta para comprar, se queda.
+ *
+ * Las columnas `costoEstimado` y `moneda` siguen en la base a propósito: si
+ * algún día se cargaron datos, borrar la columna los perdería. Simplemente ya
+ * no se piden, ni se guardan, ni se enseñan.
+ */
 const MATERIALES: GrupoCampos = {
-  titulo: 'Materiales y costo',
-  campos: ['materialesEstimados', 'costoEstimado', 'moneda'],
+  titulo: 'Materiales',
+  ayuda: 'Qué hay que comprar o sacar de almacén. Sin precios: el sistema cuenta materiales, no soles.',
+  campos: ['materialesEstimados'],
 };
 
 export const PERFILES: Record<string, PerfilSitio> = {
@@ -222,6 +243,4 @@ export const ETIQUETAS: Record<string, string> = {
   necesitaGabineteEstanco: '¿Necesita gabinete estanco?',
   gradoIpRequerido: 'Grado IP requerido',
   materialesEstimados: 'Materiales estimados (uno por línea)',
-  costoEstimado: 'Costo estimado',
-  moneda: 'Moneda',
 };

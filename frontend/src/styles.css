@@ -1505,9 +1505,25 @@ label.campo > span,
   padding: 11px 14px; border-radius: 10px; font-size: 13.5px; line-height: 1.5;
   margin-bottom: 14px; border: 1px solid transparent;
 }
-.aviso-ok { background: #e7f7ee; color: #14663a; border-color: #bfe9cf; cursor: pointer; }
+.aviso-ok { background: #e7f7ee; color: #14663a; border-color: #bfe9cf; }
 .aviso-error { background: #fdecec; color: #8c1414; border-color: #f6c9c9; }
 .aviso-ok b, .aviso-error b { font-weight: 700; }
+
+/* BLOQUE 47 — DOS FALLOS QUE ARRASTRABAN LOS 44 AVISOS DEL SISTEMA.
+   -------------------------------------------------------------------------
+   1) NINGUNO TENÍA `role`. Un aviso que aparece después de pulsar «Guardar»
+      es contenido nuevo que sale sin que nadie lo pida: sin `role="alert"`
+      (error) o `role="status"` (todo bien), un lector de pantalla no lo dice
+      NUNCA. La persona pulsa, no oye nada y vuelve a pulsar. Ya está puesto
+      en los 44, y `verificar:avisos` impide que vuelva a faltar.
+
+   2) EL CURSOR ESTABA AL REVÉS. `cursor: pointer` vivía en `.aviso-ok`, que
+      lo daba también al que NO se cierra al tocarlo —mano que no hace nada—
+      mientras los 8 avisos de ERROR que sí se cierran no tenían ninguna
+      pista de que se podían quitar. El cursor ahora depende de si hay algo
+      que pulsar, no del color del recuadro. */
+.aviso-cerrable { cursor: pointer; }
+.aviso-cerrable:hover { filter: brightness(.97); }
 
 /* ---- 3. Tarjeta de advertencia ------------------------------------------
    Franja roja a la izquierda: se distingue de una tarjeta normal con el
@@ -2723,4 +2739,90 @@ a.ta-fila:focus-visible { outline: 2px solid #1f4e79; outline-offset: 2px; }
 .color-chip {
   width: 26px; height: 26px; border-radius: 6px; flex: none; margin-top: 2px;
   border: 1px solid rgba(0,0,0,.18);
+}
+
+/* =========================================================================
+   BLOQUE 47 — «De qué depende cada cámara»
+
+   La lee un ingeniero de PRODUCCIÓN, no de sistemas. Por eso la frase pesa
+   más que la lista: el tamaño de letra no es decorativo, es la jerarquía de
+   lectura. Primero se entiende qué se deja de ver, después se mira el
+   detalle si hace falta.
+   ========================================================================= */
+.dep-intro { font-size: 13px; color: var(--muted); margin: -2px 0 14px; }
+
+/* La frase de impacto. Grande y sin adornos: es el producto de la pantalla. */
+.dep-frase {
+  font-size: 15px; line-height: 1.45; margin: 0 0 6px; font-weight: 600;
+  color: #1a2b45;
+}
+.dep-como {
+  font-size: 12.5px; line-height: 1.5; color: var(--muted); margin: 0 0 12px;
+}
+
+.dep-piezas, .dep-camaras { margin-top: 14px; }
+.dep-piezas h4, .dep-camaras h4 {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .5px;
+  color: var(--muted); margin: 0 0 8px; font-weight: 700;
+}
+
+/* Filas de 44 px: se pulsan con guante, igual que el resto del sistema. */
+.dep-camara, .dep-pieza {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  min-height: 44px; padding: 7px 10px; border-radius: 8px;
+  border: 1px solid var(--line); margin-bottom: 6px;
+  color: inherit; text-decoration: none; font-size: 13px;
+}
+.dep-camara:hover, .dep-pieza:hover { background: #f6f9fc; }
+.dep-camara:focus-visible, .dep-pieza:focus-visible {
+  outline: 2px solid #1f4e79; outline-offset: -2px;
+}
+.dep-camara b, .dep-pieza b { font-family: 'Consolas', 'SF Mono', monospace; font-size: 12.5px; }
+.dep-camara-lugar, .dep-pieza-que {
+  color: var(--muted); font-size: 12px; line-height: 1.4; flex: 1; min-width: 0;
+}
+
+/* El punto de estado. Lleva BORDE además de color: un daltónico distingue el
+   relleno hueco del macizo aunque los dos tonos le parezcan iguales. El color
+   nunca es el único portador del dato. */
+.punto {
+  width: 10px; height: 10px; border-radius: 50%; flex: none;
+  border: 2px solid transparent;
+}
+.punto.ok  { background: #1e7145; }
+.punto.mal { background: #fff; border-color: #b3261e; }
+
+.dep-ocultas {
+  font-size: 12px; color: var(--muted); font-style: italic;
+  margin: 10px 0 0; line-height: 1.45;
+}
+
+@media (max-width: 620px) {
+  /* En 320 px el lugar no cabe al lado del código: baja de línea entero en
+     vez de partirse a media palabra. */
+  .dep-camara, .dep-pieza { align-items: flex-start; }
+  .dep-camara-lugar, .dep-pieza-que { flex-basis: 100%; }
+}
+
+/* La cadena de la cámara, dentro de su ficha: cámara → antena → switch →
+   grabador. En horizontal cuando cabe; en el celular se apila en vertical y
+   la flecha gira, porque una fila de cuatro cajas en 320 px es ilegible. */
+.cadena { display: flex; flex-wrap: wrap; align-items: stretch; gap: 4px; }
+.cadena-paso { display: flex; align-items: center; gap: 4px; }
+.cadena-flecha { color: var(--muted); font-size: 15px; flex: none; }
+.cadena-caja {
+  display: flex; flex-direction: column; gap: 1px;
+  border: 1px solid var(--line); border-radius: 8px;
+  padding: 7px 10px; background: #fff; min-width: 118px;
+}
+.cadena-caja.mal { border-color: #b3261e; background: #fdeceb; }
+.cadena-caja b { font-family: 'Consolas', 'SF Mono', monospace; font-size: 12px; }
+.cadena-caja span { font-size: 11px; color: var(--muted); line-height: 1.35; }
+.cadena-pieza { font-style: italic; }
+
+@media (max-width: 620px) {
+  .cadena { flex-direction: column; }
+  .cadena-paso { flex-direction: column; align-items: stretch; }
+  .cadena-flecha { transform: rotate(90deg); text-align: center; }
+  .cadena-caja { min-width: 0; }
 }

@@ -54,7 +54,8 @@ const BOOLEANOS = new Set([
   'gruaSeDetiene', 'porCadenaPortacables', 'porAntena', 'hayLineaVista',
   'hayFalsoTecho', 'hayCanaleta', 'esClimatizado', 'necesitaGabineteEstanco',
 ]);
-const NUMEROS = new Set(['metrosCable', 'alturaMetros', 'distanciaEnlaceM', 'canalNvr', 'costoEstimado']);
+// `costoEstimado` fuera desde el bloque 47: aqui no se escriben soles.
+const NUMEROS = new Set(['metrosCable', 'alturaMetros', 'distanciaEnlaceM', 'canalNvr']);
 const LARGOS = new Set(['rutaCable', 'riesgos', 'materialesEstimados']);
 
 export default function Instalaciones() {
@@ -251,8 +252,8 @@ export default function Instalaciones() {
         </div>
       </div>
 
-      {msg && <div className="aviso-ok" onClick={() => setMsg('')}>{msg}</div>}
-      {error && <div className="aviso-error" onClick={() => setError('')}>{error}</div>}
+      {msg && <div role="status" className="aviso-ok aviso-cerrable" onClick={() => setMsg('')} title="Toca para cerrar este aviso">{msg}</div>}
+      {error && <div role="alert" className="aviso-error aviso-cerrable" onClick={() => setError('')} title="Toca para cerrar este aviso">{error}</div>}
 
       {resumen && (resumen.esperandoVisita > 0 || resumen.esperandoDecision > 0) && (
         <div className="card peligro">
@@ -337,7 +338,7 @@ export default function Instalaciones() {
               {guardando ? 'Guardando…' : 'Pedir'}
             </button>
           </>}>
-          {error && <div className="aviso-error">{error}</div>}
+          {error && <div role="alert" className="aviso-error">{error}</div>}
           <div className="card explica" style={{ marginTop: 0 }}>
             Aquí sólo se dice <b>qué</b> y <b>para qué</b>. Los metros de cable, la altura
             y si hace falta manlift <b>no te los pedimos</b>: eso se mide yendo al sitio.
@@ -498,7 +499,7 @@ export default function Instalaciones() {
             </div>
           )}
           {detalle.motivoRechazo && (
-            <div className="aviso-error">Motivo: {detalle.motivoRechazo}</div>
+            <div role="alert" className="aviso-error">Motivo: {detalle.motivoRechazo}</div>
           )}
         </Modal>
       )}
@@ -515,7 +516,7 @@ export default function Instalaciones() {
               {guardando ? 'Guardando…' : 'Visita terminada'}
             </button>
           </>}>
-          {error && <div className="aviso-error">{error}</div>}
+          {error && <div role="alert" className="aviso-error">{error}</div>}
           <div className="card explica" style={{ marginTop: 0 }}>
             <b>Se puede guardar a medias.</b> Estás en el sitio, con guantes. Apunta lo
             que lleves y sigue después: sólo al pulsar <b>Visita terminada</b> se exige
@@ -552,7 +553,7 @@ export default function Instalaciones() {
               {guardando ? 'Creando…' : 'Cerrar y crear el activo'}
             </button>
           </>}>
-          {error && <div className="aviso-error">{error}</div>}
+          {error && <div role="alert" className="aviso-error">{error}</div>}
           <div className="card explica" style={{ marginTop: 0 }}>
             Este es el paso que mete el equipo <b>en el inventario</b>. Sin él, la cámara
             queda puesta en la pared y fuera del sistema — que es justo el problema que

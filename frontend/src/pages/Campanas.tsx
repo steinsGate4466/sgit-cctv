@@ -132,8 +132,8 @@ export default function Campanas() {
         </div>
       </div>
 
-      {msg && <div className="aviso-ok" onClick={() => setMsg('')}>{msg}</div>}
-      {error && <div className="aviso-error" onClick={() => setError('')}>{error}</div>}
+      {msg && <div role="status" className="aviso-ok aviso-cerrable" onClick={() => setMsg('')} title="Toca para cerrar este aviso">{msg}</div>}
+      {error && <div role="alert" className="aviso-error aviso-cerrable" onClick={() => setError('')} title="Toca para cerrar este aviso">{error}</div>}
 
       <div className="filters">
         {puedeGestionar && (
@@ -252,7 +252,7 @@ export default function Campanas() {
                 disabled={ocupado || !revision.sePuedeAprobar}>Aprobar la zona</button>
             </>
           }>
-          {error && <div className="aviso-error">{error}</div>}
+          {error && <div role="alert" className="aviso-error">{error}</div>}
 
           {revision.zona.cargadaPorId === user?.id && (
             <div className="card peligro">
@@ -324,7 +324,7 @@ export default function Campanas() {
               {ocupado ? 'Creando…' : 'Crear'}
             </button>
           </>}>
-          {error && <div className="aviso-error">{error}</div>}
+          {error && <div role="alert" className="aviso-error">{error}</div>}
           <div className="form-grid">
             <label className="campo campo-ancho">
               <span>Nombre <b className="campo-req">*</b></span>
@@ -363,7 +363,7 @@ export default function Campanas() {
               {ocupado ? 'Guardando…' : 'Repartir'}
             </button>
           </>}>
-          {error && <div className="aviso-error">{error}</div>}
+          {error && <div role="alert" className="aviso-error">{error}</div>}
           <div className="card explica" style={{ marginTop: 0 }}>
             <b>«Cuántos esperas» puede quedar vacío.</b> Si no lo sabes, no pongas un
             número: se daría por bueno y «faltan 3» sería una alarma falsa para siempre.

@@ -72,8 +72,8 @@ export default function MiCuenta() {
         </div>
       </div>
 
-      {msg && <div className="aviso-ok">{msg}</div>}
-      {error && <div className="aviso-error" onClick={() => setError('')}>{error}</div>}
+      {msg && <div role="status" className="aviso-ok">{msg}</div>}
+      {error && <div role="alert" className="aviso-error aviso-cerrable" onClick={() => setError('')} title="Toca para cerrar este aviso">{error}</div>}
 
       <div className="card explica">
         <b>Aquí ves desde dónde está abierta tu cuenta.</b> Cada vez que entras

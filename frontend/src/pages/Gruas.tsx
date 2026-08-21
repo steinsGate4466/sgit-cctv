@@ -253,7 +253,7 @@ export default function Gruas() {
             </>
           }
         >
-          {errorModal && <div className="aviso-error" style={{ marginBottom: 10 }}>{errorModal}</div>}
+          {errorModal && <div role="alert" className="aviso-error" style={{ marginBottom: 10 }}>{errorModal}</div>}
 
           <div className="section-title" style={{ marginTop: 0 }}>Qué y dónde</div>
           <label className="campo">
