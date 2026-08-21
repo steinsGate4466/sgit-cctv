@@ -290,11 +290,76 @@ async function main() {
     });
   }
 
+  /* =========================================================================
+     BLOQUE 45/46 — LA CADENA REAL DE UNA ANTENA, Y UNA CÁMARA DE OFICINAS
+     -------------------------------------------------------------------------
+     Sin esto la demo no puede enseñar lo que más costó entender:
+
+         ANTENA ──AMARILLO──► FUENTE ──AZUL──► SWITCH
+                (datos + 24 V)         (sólo datos)
+
+     La FUENTE cuelga de la antena con `parteDeId`, así que NO sale suelta en
+     el listado de Activos: aparece dentro de la ficha de su antena. Es lo que
+     evita trescientas fuentes flotando sin saber cuál es de cuál.
+     ========================================================================= */
+  const oficinas = await prisma.location.findFirst({ where: { code: 'AASA-PISCO-OFI' } });
+
+  const antena = await prisma.asset.upsert({
+    where: { assetCode: 'DEMO-AP-PULPITO' },
+    update: {},
+    create: {
+      assetCode: 'DEMO-AP-PULPITO',
+      type: 'WIRELESS', status: 'OPERATIVO', criticality: 'ALTA',
+      brand: 'Ubiquiti', model: 'airMAX PMP',
+      referencePlace: 'Mástil del púlpito',
+      locationId: zona.id,
+      medioAcceso: 'MANLIFT', alturaMetros: 7,
+      accesoDeclaradoPorId: tecnico?.id ?? null, accesoDeclaradoEn: haceHoras(700),
+    },
+  });
+
+  /* La fuente NO lleva ubicación ni acceso propios: los HEREDA de la antena.
+     Preguntárselos otra vez sería pedir dos veces el mismo dato — y la fuente
+     está, por definición, donde está la antena. */
+  await prisma.asset.upsert({
+    where: { assetCode: 'DEMO-PSU-PULPITO' },
+    update: {},
+    create: {
+      assetCode: 'DEMO-PSU-PULPITO',
+      type: 'PSU', status: 'OPERATIVO', criticality: 'ALTA',
+      brand: 'Ubiquiti', model: 'PoE 24 V 0.5 A',
+      referencePlace: 'Gabinete del púlpito',
+      locationId: zona.id,
+      parteDeId: antena.id,
+    },
+  });
+
+  /* Una cámara de OFICINAS. El sector existe desde la semilla, pero sin un
+     activo dentro la vista general lo enseñaría vacío y parecería un fallo. */
+  if (oficinas) {
+    await prisma.asset.upsert({
+      where: { assetCode: 'DEMO-CAM-OFICINA' },
+      update: {},
+      create: {
+        assetCode: 'DEMO-CAM-OFICINA',
+        type: 'CAMERA', status: 'OPERATIVO', criticality: 'MEDIA',
+        brand: 'Hikvision', model: 'DS-2CD1043G2',
+        referencePlace: 'Pasillo de administración',
+        locationId: oficinas.id,
+        installDate: new Date('2023-05-10'),
+        medioAcceso: 'ESCALERA', alturaMetros: 2.6,
+        accesoDeclaradoPorId: tecnico?.id ?? null, accesoDeclaradoEn: haceHoras(700),
+      },
+    });
+  }
+
   console.log('');
   console.log('  Listo. Cargado:');
   console.log('    · DEMO-CAM-COLADA  con DEMO-OM-0001 al 60 %, trabajando');
   console.log('    · DEMO-CAM-HORNO   con DEMO-OM-0002 EN ESPERA, falta un inyector PoE');
   console.log('    · DEMO-CAM-LECHO   operativa y SIN DECLARAR cómo se llega');
+  console.log('    · DEMO-AP-PULPITO  antena, con DEMO-PSU-PULPITO como componente');
+  console.log('    · DEMO-CAM-OFICINA en el sector Oficinas');
   console.log('');
   console.log('  Míralo en «Mis cámaras» y en «Activos por tren».');
   console.log('  Las dos primeras exigen manlift y están en la misma zona:');

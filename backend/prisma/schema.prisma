@@ -557,6 +557,17 @@ enum AssetType {
   CABINET
   DECODER    // video wall / decoder Hikvision
   PC         // estación de visualización (iVMS-4200) — parte del mantenimiento CCTV
+  /// FUENTE / INYECTOR PoE (bloque 45). Es un activo propio y no un campo de la
+  /// antena porque SE QUEMA Y SE CAMBIA: genera su propia orden, su propio
+  /// historial y consume su propio repuesto de almacén. Hoy esas fallas se
+  /// registraban como «falló la antena» y el repuesto real era otro.
+  ///
+  /// Va SIEMPRE colgado de su equipo padre con `parteDeId`, nunca suelto en el
+  /// listado: trescientas fuentes flotando en Activos y nadie sabe cuál es de
+  /// cuál.
+  PSU
+  /// Teléfono IP. No es de CCTV, y por eso se marca: para que nadie lo toque.
+  PHONE
   OTHER
   /// Monitor del videowall del púlpito. Es activo propio y no un campo del
   /// decodificador porque se quema, se raya y pierde brillo: eso genera su
@@ -638,6 +649,24 @@ model Asset {
   /// defecto. `Location.requiereAltura` sigue existiendo y sigue sirviendo para
   /// PROPONER, pero la zona es demasiado gruesa para costear un manlift — en la
   /// misma zona hay una cámara en la pared a 2 m y otra en el poste a 8 m.
+  /// COMPONENTE DE OTRO ACTIVO (bloque 45).
+  ///
+  /// La fuente PoE de una antena, la carcasa de una cámara, el calefactor, el
+  /// conversor de medios: piezas que SE QUEMAN Y SE CAMBIAN sin que el equipo
+  /// padre desaparezca. Necesitan orden, incidencia, historial y repuesto —
+  /// exactamente lo que ya tiene un activo— así que son activos, no una tabla
+  /// aparte que obligaría a duplicar las cuatro cosas.
+  ///
+  /// LO QUE EVITA EL DESORDEN: el listado de Activos OCULTA los componentes por
+  /// defecto. Sólo aparecen dentro de la ficha de su equipo padre.
+  ///
+  /// Heredan del padre la ubicación, el tren, la zona y el acceso: la fuente
+  /// está donde está la antena, y si hay que subir con manlift se sube UNA vez
+  /// para las dos. No cuenta como una subida aparte.
+  parteDeId     String?
+  parteDe       Asset?      @relation("ComponentesDelActivo", fields: [parteDeId], references: [id], onDelete: SetNull)
+  componentes   Asset[]     @relation("ComponentesDelActivo")
+
   medioAcceso   MedioAcceso?
   /// Altura del punto de montaje. Desde 1.80 m es trabajo en altura (SSOMA).
   alturaMetros  Float?
@@ -726,6 +755,8 @@ model Asset {
   // «sin declarar», y la clave foránea necesita índice para que dar de baja a
   // una persona no obligue a recorrer la tabla entera.
   @@index([medioAcceso])
+  // Bloque 45. El listado filtra por «sin padre» en cada carga.
+  @@index([parteDeId])
   @@index([accesoDeclaradoPorId])
   // NOTA PARA EL FUTURO: un índice creado en el SQL de una migración TIENE que
   // declararse también aquí. Si no, `prisma migrate dev` lo ve como algo que
@@ -861,6 +892,19 @@ model AssetWireless {
 model AssetCable {
   id              String        @id @default(uuid())
   code            String?       // rótulo del tramo, si lo tiene
+  /// COLOR DE LA CHAQUETA (bloque 45).
+  ///
+  /// No es decoración: es el rótulo dicho en otro idioma, para quien está
+  /// delante del rack con una linterna. El sistema lo DEDUCE de los dos
+  /// extremos del tramo y avisa si lo declarado no coincide — pero no lo
+  /// corrige: puede haber un motivo, y decidirlo en silencio sería elegir cuál
+  /// de los dos datos vale.
+  ///
+  /// Apunta a un CATÁLOGO EDITABLE, no a un enum: un estándar de cableado es
+  /// justo lo que una empresa revisa, y un enum obliga a desplegar para añadir
+  /// un color.
+  colorId         String?
+  color           ColorDeCable? @relation(fields: [colorId], references: [id], onDelete: SetNull)
   category        CableCategory
   /// Longitud del tramo en metros. El almacén compra por rollo, pero el
   /// tramo instalado se mide en metros.
@@ -892,6 +936,10 @@ model AssetCable {
   @@index([fromAssetId])
   @@index([toAssetId])
   @@index([status])
+  // Bloque 45. Declarado aquí ADEMÁS de crearlo en el SQL: si sólo está en la
+  // migración, Prisma lo ve como algo que sobra en la base y genera otra que lo
+  // BORRA, con fecha en medio del historial. Pasó el 17/08 con la sigla de tren.
+  @@index([colorId])
   @@map("asset_cables")
 }
 
@@ -2984,4 +3032,45 @@ model ReservaIp {
   @@index([subredId])
   @@index([assetId])
   @@map("reservas_ip")
+}
+
+// =====================================================================
+//  CATÁLOGO DE COLORES DE CABLE — bloque 45
+//
+//  ANSI/TIA-606-C recomienda el color como ayuda visual pero NO impone
+//  cuál: no existe un color universal obligatorio. Lo exigible es la
+//  COHERENCIA — que, elegido el esquema, se mantenga idéntico en toda la
+//  instalación. El valor no está en cuál sea, está en que signifique
+//  SIEMPRE lo mismo.
+//
+//  POR ESO ES UNA TABLA Y NO UN ENUM. Un enum obliga a migración y
+//  despliegue para añadir un color, y un estándar de cableado es
+//  exactamente la clase de cosa que una empresa revisa. Regla del
+//  proyecto: todo lo de planta se edita desde la interfaz.
+//
+//  Se siembra con los seis acordados con Aceros Arequipa, pero COMO
+//  DATOS. Si mañana hay un séptimo, se añade desde la pantalla.
+// =====================================================================
+model ColorDeCable {
+  id        String  @id @default(uuid())
+  /// Estable: es lo que guarda el tramo. Cambiar el nombre no rompe nada.
+  code      String  @unique
+  nombre    String
+  /// Para qué sirve. Es lo que se lee en la leyenda de Rotulado.
+  uso       String
+  /// Por qué se separa de los demás. Sin esto la leyenda es una lista de
+  /// colores y nadie entiende la regla.
+  porQue    String?
+  /// Sólo para pintar la pastilla en pantalla. El dato de verdad es el nombre:
+  /// el técnico no mira un hexadecimal, mira el cable.
+  hex       String
+  orden     Int     @default(0)
+  /// DESACTIVAR EN VEZ DE BORRAR. Si alguien elimina un color que ya está en
+  /// doscientos tramos, se pierde el dato. Desactivado deja de ofrecerse en
+  /// formularios nuevos y sigue viéndose en los que lo tienen.
+  activo    Boolean @default(true)
+
+  tramos    AssetCable[]
+
+  @@map("colores_de_cable")
 }

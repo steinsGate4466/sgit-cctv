@@ -787,7 +787,35 @@ export default function Assets() {
 
           <div className="detail-sec">
             <h4><Icono n="seguridad" size={15} /> Accesibilidad del equipo</h4>
-            {detail.accessRequests && detail.accessRequests.length > 0 ? (
+            {/* ---- COMPONENTES (bloque 45) ----
+              La fuente PoE, el calefactor, el conversor: viven AQUÍ, dentro
+              de la ficha de su equipo, nunca sueltos en el listado. Cada uno
+              es un activo con su historial: «se quemó la fuente» deja de
+              registrarse como «falló la antena». */}
+          {(detail.componentes?.length ?? 0) > 0 && (
+            <div className="card" style={{ marginTop: 10 }}>
+              <div className="section-title">Componentes de este equipo</div>
+              {detail.componentes.map((c: any) => (
+                <div key={c.id} className="frow" style={{ cursor: 'pointer' }}
+                  onClick={() => openDetail(c.id)}>
+                  <span className="k">{tEs(c.type)}</span>
+                  <span className="v"><b>{c.assetCode}</b>{' '}
+                    <span className={'badge ' + c.status}>{sEs(c.status)}</span>
+                    {[c.brand, c.model].filter(Boolean).length > 0 &&
+                      <span className="muted"> · {[c.brand, c.model].filter(Boolean).join(' ')}</span>}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          {detail.parteDe && (
+            <p className="muted" style={{ fontSize: 12.5 }}>
+              Este equipo es un componente de{' '}
+              <b style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                onClick={() => openDetail(detail.parteDe.id)}>{detail.parteDe.assetCode}</b>.
+            </p>
+          )}
+          {detail.accessRequests && detail.accessRequests.length > 0 ? (
               <>
                 {detail.accessRequests.map((ar: any) => (
                   <div key={ar.id} className="frow">

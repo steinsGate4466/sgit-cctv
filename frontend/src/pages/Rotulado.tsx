@@ -65,12 +65,20 @@ export default function Rotulado() {
   // --- Revisor ---
   const [codigo, setCodigo] = useState('');
   const [revision, setRevision] = useState<any>(null);
+  /* Bloque 45. La leyenda de colores viene del CATÁLOGO, no está escrita
+     aquí: es la misma lista que usará el formulario de instalación y la
+     ficha de cableado. Si cada pantalla tuviera la suya, en seis meses
+     dirían cosas distintas. */
+  const [colores, setColores] = useState<any[]>([]);
 
   useEffect(() => {
     api.get('/estandares')
       .then((r) => setNorma(r.data))
       .catch(() => setError('No se pudo cargar el estándar.'))
       .finally(() => setCargando(false));
+    api.get('/estandares/colores')
+      .then((r) => setColores(r.data || []))
+      .catch(() => setColores([]));
   }, []);
 
   const generar = useCallback(async () => {
@@ -105,6 +113,31 @@ export default function Rotulado() {
         <b>{norma?.norma}</b>
         <div style={{ marginTop: 8 }}>{norma?.nota}</div>
       </div>
+
+      {/* ---------------- COLORES DE CHAQUETA (bloque 45) ----------------
+          El color es el rótulo dicho en otro idioma: AA-CAM-... y «cable
+          verde» significan lo mismo, uno para quien lee la etiqueta y otro
+          para quien está frente al rack con una linterna. */}
+      {colores.length > 0 && (
+        <div className="card">
+          <div className="section-title">Colores de chaqueta del cable</div>
+          <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
+            La norma no impone un color: exige coherencia. Éste es el estándar
+            interno de la planta, y se edita como cualquier catálogo.
+          </p>
+          <div className="leyenda-colores">
+            {colores.map((c) => (
+              <div key={c.code} className="color-item">
+                <span className="color-chip" style={{ background: c.hex }} />
+                <div>
+                  <b>{c.nombre}</b> — {c.uso}
+                  {c.porQue && <div className="muted" style={{ fontSize: 12 }}>{c.porQue}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ---------------- GENERADOR ---------------- */}
       <div className="card">

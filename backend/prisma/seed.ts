@@ -360,6 +360,39 @@ async function main() {
     trenes[`T${n}`] = t.id;
   }
 
+  /* ==========================================================================
+     SECTORES QUE NO SON TRENES DE LAMINACIÓN — bloque 46
+     --------------------------------------------------------------------------
+     OFICINAS y GRÚAS también tienen cámaras, y la planta pidió verlas como un
+     sector más: en la vista general, en Mis cámaras y en el ámbito de un jefe.
+
+     Son ubicaciones de tipo TREN a propósito, aunque no laminen nada. En este
+     sistema «TREN» significa LA UNIDAD DE SECTORIZACIÓN: lo que un rol puede
+     tener como ámbito, lo que sale como pestaña, lo que agrupa el tablero.
+     Inventar un tipo nuevo «SECTOR» habría obligado a tocar los catorce sitios
+     que hoy preguntan por TREN — y a mantener dos conceptos que se comportan
+     exactamente igual.
+
+     Consecuencia inmediata y buscada: aparecen SOLOS en la vista general, en
+     los selectores y en el diálogo de ámbito, sin una línea de código nueva.
+     Un jefe puede tener como ámbito «OFI» y ver únicamente las oficinas.
+     ========================================================================== */
+  for (const [codigo, sigla, nombre] of [
+    ['AASA-PISCO-OFI', 'OFI', 'Oficinas'],
+    ['AASA-PISCO-GRU', 'GRU', 'Grúas'],
+  ] as const) {
+    const t = await prisma.location.upsert({
+      where: { code: codigo },
+      update: {},
+      create: {
+        code: codigo, name: nombre, type: 'TREN',
+        siglaTren: sigla,
+        parentId: planta.id, path: `AASA/PISCO/${sigla}`,
+      },
+    });
+    trenes[sigla] = t.id;
+  }
+
   // Gabinete de ejemplo en Tren 1 (antes "Rack")
   const rackT1 = await prisma.location.upsert({
     where: { code: 'AASA-PISCO-T1-R01' },

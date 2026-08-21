@@ -31,6 +31,7 @@ const TITLES: Record<string, string> = {
   '/topologia': 'Puntos críticos de la red',
   '/riesgo': 'Dónde no vamos a poder arreglar',
   '/mis-camaras': 'Mis cámaras',
+  '/vista-general': 'Vista general por sector',
   '/mis-activos': 'Mis activos y cómo se llega a ellos',
   '/rotulado': 'Estándar de rotulado',
   '/monitoreo': 'Monitoreo de red',
@@ -178,6 +179,9 @@ export default function Layout() {
         /* Bloque 39. La pantalla que pidió Producción: qué cámara falla, quién
            la ataca y qué falta. Va de las primeras porque es la que abre un
            jefe de tren cuando le avisan por radio. */
+        /* Bloque 46. El indice por sector: Tren 1, 2, 3, Oficinas y Gruas.
+           Va PRIMERO porque es donde se entra a mirar si algo esta mal. */
+        can('om.mirar') && <NavLink key="vg" to="/vista-general"><Icono n="tablero" /> Vista general</NavLink>,
         can('om.mirar') && <NavLink key="mcam" to="/mis-camaras"><Icono n="alerta" /> Mis cámaras</NavLink>,
         /* Bloque 41. Va justo detrás porque son las dos mitades de la misma
            pregunta: una dice qué falla AHORA, la otra qué hay en el tren y

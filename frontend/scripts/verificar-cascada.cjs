@@ -26,7 +26,7 @@
 const fs = require('path') && require('fs');
 const path = require('path');
 
-const UMBRAL = 5;
+const UMBRAL = 2;
 const RUTA = path.join(__dirname, '..', 'src', 'styles.css');
 
 /** Duplicados legítimos: el segundo valor es el respaldo del primero. */

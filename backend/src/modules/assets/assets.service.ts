@@ -141,6 +141,12 @@ export class AssetsService {
 
     const where = {
       deletedAt: null,
+      /* Bloque 45. Los COMPONENTES (la fuente PoE de una antena, el calefactor
+         de una cámara) NO salen en el listado: trescientas fuentes sueltas y
+         nadie sabe cuál es de cuál. Viven dentro de la ficha de su equipo
+         padre. Si se filtra por tipo (p. ej. PSU) sí se enseñan, porque
+         entonces se están buscando a propósito. */
+      ...(q.type ? {} : { parteDeId: null }),
       type: q.type,
       status: q.status,
       // Si vienen los dos, manda el más específico: una ubicación concreta
@@ -371,6 +377,13 @@ export class AssetsService {
         cablesTo: true,
         cablesFrom: true,
         photos: { orderBy: { createdAt: 'asc' } },
+        /* Bloque 45. La fuente PoE, el calefactor, el conversor: viven DENTRO
+           de la ficha de su equipo, nunca sueltos en el listado. */
+        componentes: {
+          where: { deletedAt: null },
+          select: { id: true, assetCode: true, type: true, status: true, brand: true, model: true },
+        },
+        parteDe: { select: { id: true, assetCode: true, type: true } },
         preventivePlan: true,
         // Accesibilidad: si el activo es inaccesible (altura/manlift), se ve en su ficha.
         accessRequests: {
@@ -709,6 +722,13 @@ export class AssetsService {
       include: {
         location: true, cabinet: true,
         photos: { orderBy: { createdAt: 'asc' } },
+        /* Bloque 45. La fuente PoE, el calefactor, el conversor: viven DENTRO
+           de la ficha de su equipo, nunca sueltos en el listado. */
+        componentes: {
+          where: { deletedAt: null },
+          select: { id: true, assetCode: true, type: true, status: true, brand: true, model: true },
+        },
+        parteDe: { select: { id: true, assetCode: true, type: true } },
         preventivePlan: true,
         workOrders: {
           orderBy: { createdAt: 'desc' }, take: 10,

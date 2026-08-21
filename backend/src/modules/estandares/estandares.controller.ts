@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -20,6 +21,30 @@ import {
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('estandares')
 export class EstandaresController {
+  constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * EL CATÁLOGO DE COLORES DE CHAQUETA — bloque 45.
+   *
+   * Es la ÚNICA fuente de la leyenda: la lee Rotulado, la leerá el formulario
+   * de Instalar y la ficha de Cableado. Si cada pantalla tuviera su lista, en
+   * seis meses dirían cosas distintas — que es el fallo que este proyecto
+   * persigue en todas partes.
+   *
+   * Se sirven sólo los ACTIVOS: los desactivados siguen existiendo para los
+   * tramos viejos que los usan, pero no se ofrecen para tramos nuevos.
+   */
+  @SinAmbito()
+  @Get('colores')
+  @RequirePermissions('asset.read')
+  colores() {
+    return this.prisma.colorDeCable.findMany({
+      where: { activo: true },
+      orderBy: { orden: 'asc' },
+      select: { id: true, code: true, nombre: true, uso: true, porQue: true, hex: true },
+    });
+  }
+
   /** El código de color y las abreviaturas. Lo consulta la pantalla y el que
    *  está comprando patch cords. */
   @SinAmbito()

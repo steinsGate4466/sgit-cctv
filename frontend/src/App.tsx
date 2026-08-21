@@ -37,6 +37,7 @@ const Topologia = lazyConReintento(() => import('./pages/Topologia'));
 const Riesgo = lazyConReintento(() => import('./pages/Riesgo'));
 const MisCamaras = lazyConReintento(() => import('./pages/MisCamaras'));
 const MisActivos = lazyConReintento(() => import('./pages/MisActivos'));
+const VistaGeneral = lazyConReintento(() => import('./pages/VistaGeneral'));
 const Rotulado = lazyConReintento(() => import('./pages/Rotulado'));
 const Monitoreo = lazyConReintento(() => import('./pages/Monitoreo'));
 const Grabadores = lazyConReintento(() => import('./pages/Grabadores'));
@@ -105,6 +106,7 @@ export default function App() {
           <Route path="/riesgo" element={<Riesgo />} />
           <Route path="/mis-camaras" element={<MisCamaras />} />
           <Route path="/mis-activos" element={<MisActivos />} />
+          <Route path="/vista-general" element={<VistaGeneral />} />
           <Route path="/rotulado" element={<Rotulado />} />
           <Route path="/monitoreo" element={<Monitoreo />} />
           <Route path="/grabadores" element={<Grabadores />} />

@@ -1136,21 +1136,41 @@ textarea { resize: vertical; }
 /* =========================================================================
    BLOQUE 11 — franja "qué hago primero", riesgo de red y exportación
    ========================================================================= */
+/* OJO — POR QUÉ ESTAS REGLAS VAN ACOTADAS A `.accion-strip`.
+   -------------------------------------------------------------------------
+   La clase `.accion` la usan DOS componentes distintos que no tienen nada que
+   ver entre sí:
+
+     .accion-strip > .accion   la tarjeta grande del tablero (número arriba,
+                               etiqueta debajo: columna)
+     .acciones     > .accion   la fila de «Lo que hay que hacer» (icono y
+                               texto en línea: fila de 48 px)
+
+   Las dos estaban escritas sin acotar, así que la SEGUNDA —que va más abajo
+   en el archivo— ganaba la cascada y le quitaba a la primera su
+   `flex-direction: column`, su `gap` y su `padding`. El tablero se veía mal y
+   nadie lo relacionaba con una regla escrita mil líneas más abajo.
+
+   No se arregla poniendo `!important` ni moviendo bloques: se acota cada
+   componente a SU contenedor, que además documenta a quién pertenece cada
+   regla. Misma especificidad (0,2,0) en ambos y sin solapamiento posible,
+   porque un botón está dentro de una franja o dentro de una lista, nunca en
+   las dos. */
 .accion-strip { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
-.accion {
+.accion-strip .accion {
   text-align: left; cursor: pointer; border-radius: 10px; padding: 10px 14px;
   border: 1px solid var(--border, #dfe3ea); background: #fff; min-width: 170px;
   display: flex; flex-direction: column; gap: 2px; font-size: 12.5px;
   transition: box-shadow .15s, transform .08s;
 }
-.accion b { font-size: 20px; line-height: 1.1; }
-.accion span { color: var(--muted, #6b7280); font-size: 11.5px; }
-.accion:hover { box-shadow: 0 4px 12px rgba(20,40,80,.10); }
-.accion:active { transform: translateY(1px); }
-.accion.crit { border-left: 4px solid #b3261e; }
-.accion.crit b { color: #b3261e; }
-.accion.warn { border-left: 4px solid #e0a800; }
-.accion.warn b { color: #8a6100; }
+.accion-strip .accion b { font-size: 20px; line-height: 1.1; }
+.accion-strip .accion span { color: var(--muted, #6b7280); font-size: 11.5px; }
+.accion-strip .accion:hover { box-shadow: 0 4px 12px rgba(20,40,80,.10); }
+.accion-strip .accion:active { transform: translateY(1px); }
+.accion-strip .accion.crit { border-left: 4px solid #b3261e; }
+.accion-strip .accion.crit b { color: #b3261e; }
+.accion-strip .accion.warn { border-left: 4px solid #e0a800; }
+.accion-strip .accion.warn b { color: #8a6100; }
 .riesgo-strip {
   display: flex; gap: 14px; align-items: center; flex-wrap: wrap; cursor: pointer;
   background: #fdf6f5; border: 1px solid #ecd2cf; border-left: 4px solid #b3261e;
@@ -1273,9 +1293,16 @@ textarea { resize: vertical; }
 .card.vacio p { margin: 0 auto; max-width: 520px; font-size: 13px; color: var(--muted, #6b7280); }
 
 /* Foco visible en todo lo que se puede pulsar: en planta se navega con
-   guantes y a veces con teclado. Sin esto no se ve dónde estás. */
-button:focus-visible, a:focus-visible, input:focus-visible,
-select:focus-visible, textarea:focus-visible, [role="button"]:focus-visible {
+   guantes y a veces con teclado. Sin esto no se ve dónde estás.
+
+   `input`, `select` y `textarea` NO están en esta lista a propósito. Tienen
+   su propio foco más abajo (un halo, no un contorno) porque el contorno se
+   pega al borde del campo y se confunde con él. Nombrarlos aquí también no
+   cambiaba nada —la regla de abajo ganaba igual— pero dejaba la misma
+   propiedad declarada dos veces en dos sitios lejanos: el día que alguien
+   tocara ésta creería haber cambiado el foco de los campos y no habría
+   cambiado nada. Una sola regla manda sobre cada cosa. */
+button:focus-visible, a:focus-visible, [role="button"]:focus-visible {
   outline: 2px solid #1f4e79; outline-offset: 2px;
 }
 
@@ -2184,7 +2211,9 @@ table td, table th, .kpi .value, .indicador-valor, code {
   border-radius: 10px; overflow: hidden;
 }
 
-.accion {
+/* Acotado a `.acciones` por el mismo motivo explicado en `.accion-strip`:
+   son dos componentes distintos con el mismo nombre de clase. */
+.acciones .accion {
   display: flex; align-items: center; gap: 10px;
   /* 48 px de alto: por encima del mínimo de 44, porque estas filas se pulsan
      caminando. */
@@ -2192,10 +2221,10 @@ table td, table th, .kpi .value, .indicador-valor, code {
   border-top: 1px solid var(--line);
   color: inherit; text-decoration: none;
 }
-.accion:first-child { border-top: 0; }
-a.accion:hover { background: #f6f9fc; }
-a.accion:focus-visible { outline: 2px solid #1f4e79; outline-offset: -2px; }
-.accion svg { flex: none; color: var(--muted); }
+.acciones .accion:first-child { border-top: 0; }
+.acciones a.accion:hover { background: #f6f9fc; }
+.acciones a.accion:focus-visible { outline: 2px solid #1f4e79; outline-offset: -2px; }
+.acciones .accion svg { flex: none; color: var(--muted); }
 
 .accion-texto { flex: 1; min-width: 0; font-size: 14px; line-height: 1.35; }
 /* En móvil el «dónde» baja a su propia línea: en 320 px no cabe al lado y
@@ -2387,14 +2416,18 @@ a.ta-fila:focus-visible { outline: 2px solid #1f4e79; outline-offset: 2px; }
    se vean iguales — si no, la que navega dentro de la pantalla se
    distinguiría de la que navega fuera, y esa diferencia no significa nada
    para quien la usa. */
-button.accion {
+/* Acotado a `.acciones`: si se dejara suelto quedaría POR DEBAJO de
+   `.acciones .accion` en especificidad y el botón perdería su reseteo de
+   `border` y `background`. Es el mismo choque de nombres de antes, visto
+   desde el otro lado. */
+.acciones button.accion {
   width: 100%; font: inherit; text-align: left;
   background: none; border: 0; border-top: 1px solid var(--line);
   cursor: pointer;
 }
-button.accion:first-child { border-top: 0; }
-button.accion:hover { background: #f6f9fc; }
-button.accion:focus-visible { outline: 2px solid #1f4e79; outline-offset: -2px; }
+.acciones button.accion:first-child { border-top: 0; }
+.acciones button.accion:hover { background: #f6f9fc; }
+.acciones button.accion:focus-visible { outline: 2px solid #1f4e79; outline-offset: -2px; }
 
 /* =========================================================================
    BLOQUE 39 — LA TARJETA DE UNA CÁMARA CAÍDA
@@ -2673,4 +2706,21 @@ button.accion:focus-visible { outline: 2px solid #1f4e79; outline-offset: -2px; 
    impide que el navegador reparta el ancho que no hay. */
 @media (max-width: 900px) {
   .card > table { min-width: 760px; }
+}
+
+/* Vista general (bloque 46): los dos enlaces de cada sector. */
+.sector-enlaces { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.sector-enlaces .btn-mini { text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
+@media (max-width: 620px) {
+  .sector-enlaces { flex-direction: column; }
+  .sector-enlaces .btn-mini { width: 100%; padding: 12px; justify-content: center; }
+}
+
+/* Leyenda de colores de cable (bloque 45). La pastilla es grande a propósito:
+   se compara contra un cable real, no contra otro pixel. */
+.leyenda-colores { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.color-item { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; line-height: 1.45; }
+.color-chip {
+  width: 26px; height: 26px; border-radius: 6px; flex: none; margin-top: 2px;
+  border: 1px solid rgba(0,0,0,.18);
 }
