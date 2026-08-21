@@ -130,7 +130,60 @@ for (const { rel, abs } of archivos) {
   }
 }
 
-console.log(`\nDespliegue: ${archivos.length} Dockerfile revisados contra ${REGLAS.length} reglas.`);
+/* =============================================================================
+   LOS FLUJOS DE INTEGRACION CONTINUA — anadido en el bloque 47
+   -----------------------------------------------------------------------------
+   NACE DE UN FALLO REAL, Y DE LOS QUE PEOR SE DIAGNOSTICAN.
+
+   El trabajo «Arranque real» declara `NODE_ENV: production` a nivel de job,
+   porque es el modo en el que corre Pisco. Pero esa variable la ve TODO el
+   trabajo, `npm ci` incluido — y npm, al leer NODE_ENV=production, se salta
+   las devDependencies SIN DECIR NADA y termina en verde.
+
+   El trabajo moria tres pasos despues con `sh: 1: nest: not found`, que
+   apunta al compilador de NestJS y no tiene nada que ver: el paso culpable
+   habia salido con una marca verde.
+
+   Es exactamente el patron que este proyecto persigue: el paso que falla no
+   es el que se queja. Por eso la regla se comprueba sola.
+   ============================================================================= */
+const YAML_DIR = path.join(RAIZ, '.github', 'workflows');
+let flujos = 0;
+
+if (fs.existsSync(YAML_DIR)) {
+  for (const nombre of fs.readdirSync(YAML_DIR).filter((x) => /\.ya?ml$/.test(x))) {
+    const rel = `.github/workflows/${nombre}`;
+    const txt = fs.readFileSync(path.join(YAML_DIR, nombre), 'utf8');
+    flujos++;
+
+    /* Se parte por trabajo para no confundir un `NODE_ENV` de un job con el
+       `npm ci` de otro. Los jobs son las claves con dos espacios de sangria. */
+    const bloques = txt.split(/\n(?=  \w[\w-]*:\n)/);
+    for (const bloque of bloques) {
+      const enProduccion = /NODE_ENV:\s*['"]?production['"]?/.test(bloque);
+      if (!enProduccion) continue;
+      for (const linea of bloque.split('\n')) {
+        /* Solo lineas de EJECUCION. Se aprendio en el acto: la primera version
+           se quejaba del comentario que explica esta misma regla, porque la
+           frase menciona `npm ci`. Un verificador que salta con su propia
+           documentacion ensena a silenciarlo. */
+        if (/^\s*#/.test(linea)) continue;
+        if (!/^\s*(run:|-)\s/.test(linea)) continue;
+        if (!/npm ci\b/.test(linea)) continue;
+        if (/--include=dev/.test(linea)) continue;
+        fallar(
+          rel,
+          'un trabajo con NODE_ENV=production ejecuta `npm ci` sin '
+          + '`--include=dev`. npm se saltara las devDependencies en silencio y '
+          + 'el paso de compilar morira con «nest: not found», tres pasos mas '
+          + 'abajo y sin relacion aparente.',
+        );
+      }
+    }
+  }
+}
+
+console.log(`\nDespliegue: ${archivos.length} Dockerfile y ${flujos} flujo(s) de CI revisados contra ${REGLAS.length} reglas.`);
 
 if (errores) {
   console.error(`\n${errores} problema(s) que pueden costar datos o superficie de ataque.`);

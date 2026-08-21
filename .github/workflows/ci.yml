@@ -385,9 +385,24 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
+      # `--include=dev` NO ES DECORATIVO, Y AQUI SE PERDIO UNA TARDE.
+      # ---------------------------------------------------------------------
+      # Este trabajo declara `NODE_ENV: production` a nivel de JOB, porque es
+      # el modo en el que corre Pisco y el unico en el que se validan de verdad
+      # los secretos. Pero esa variable la ve TODO el trabajo, `npm ci`
+      # incluido — y npm, al leer NODE_ENV=production, se salta las
+      # devDependencies sin avisar de nada.
+      #
+      # Resultado: la instalacion terminaba en VERDE y el paso siguiente moria
+      # con `sh: 1: nest: not found`, que parece un problema del compilador de
+      # NestJS y no lo es: el fallo estaba tres pasos mas arriba, en un paso
+      # que decia haber ido bien.
+      #
+      # `--include=dev` lo pide explicitamente y deja de depender de una
+      # variable declarada en otra parte del archivo.
       - name: Instalar dependencias
         working-directory: backend
-        run: npm ci
+        run: npm ci --include=dev
 
       - name: Generar cliente Prisma
         working-directory: backend
