@@ -194,7 +194,35 @@ consulta colgada se queda colgada para siempre y va comiendo conexiones.
 Va **después** de que Prisma esté estable, no antes. Motivo: si algo se rompe
 tras mover las dos cosas, no se sabría cuál fue.
 
-NestJS 11 exige Node ≥ 20 — ya se cumple con Node 24.
+### Auditoría: qué de NestJS 11 nos toca
+
+Se revisó el proyecto contra la lista completa de cambios que rompen. El
+resultado es mejor de lo esperado: **casi ninguno aplica.**
+
+| Cambio de NestJS 11 | ¿Nos afecta? | Comprobación hecha |
+| --- | --- | --- |
+| **Express 5**: los comodines de ruta necesitan nombre (`/*` → `/*splat`) | **NO** | Cero rutas con `*` en los 30 controladores |
+| Express 5: `forRoutes('*')` en middleware | **NO** | No hay middleware propio: cero `implements NestModule` |
+| Express 5: las consultas anidadas (`filter[where]`, `item[]`) dejan de analizarse | **NO** | Ningún sitio las usa, ni en el backend ni en el frontend |
+| Fastify 5 y su CORS | **NO** | El proyecto usa Express |
+| **`Reflector.getAllAndOverride` devuelve `T \| undefined`** | **NO** | Se usa en 6 guardas y **las 6 ya comprobaban el vacío**: `if (!required)`, `if (!cupo)`, `especifico \|\| RITMO_GENERAL`, `meta?.recurso`. Escritas a la defensiva desde el principio |
+| Orden inverso al destruir (`OnModuleDestroy`) | **Irrelevante** | Sólo `PrismaService` lo implementa: cierra la conexión y no depende de nadie |
+| El middleware de módulos globales corre primero | **NO** | No hay middleware |
+| `CacheModule` migra a Keyv | **NO** | No se usa |
+| `TerminusModule`: nueva API de salud | **NO** | No se usa. El `/health` es un controlador propio |
+| `ConfigModule` v4: cambia la precedencia | **Mínimo** | Sólo `ConfigModule.forRoot({ isGlobal: true })`. Sin espacios de nombres, sin esquema de validación: no hay precedencia que cambiar |
+| Resolución de módulos dinámicos | **Bajo** | Podría afectar a pruebas que armen módulos con `Test.createTestingModule`. Las 926 pruebas del proyecto simulan Prisma directamente |
+| Node ≥ 20 obligatorio | **Cumplido** | Node 24 desde el bloque 51-N |
+
+### Lo que sí hubo que tocar
+
+**`@types/express` de 4 a 5.** NestJS 11 trae Express 5, y once controladores
+importan el tipo `Response` de Express. Con los tipos de la versión 4 sobre la
+librería 5, la compilación falla en sitios que no tienen nada que ver.
+
+**`@types/node` de 20 a 24.** Estaba en 20 mientras el proyecto corre sobre
+Node 24 desde hace un bloque. No rompía nada todavía, pero es la misma clase
+de desfase silencioso: los tipos describen un Node que no es el que ejecuta.
 
 ---
 
