@@ -6,6 +6,7 @@ import HistorialActivo from '../components/HistorialActivo';
 import Icono from '../components/Iconos';
 import { guardarPendiente } from '../cola-offline';
 import CampoDelTurno from '../components/CampoDelTurno';
+import ArranqueDiagnostico from '../components/ArranqueDiagnostico';
 
 /**
  * Ficha rápida del activo — destino del código QR pegado en el equipo.
@@ -122,6 +123,13 @@ export default function AssetScan() {
           de pie delante del equipo y esto es lo que necesita antes de tocar
           nada. La marca y el número de serie pueden esperar. */}
       <CampoDelTurno assetId={a.id} />
+
+      {/* BLOQUE 51 — POR DÓNDE EMPEZAR.
+          Va ANTES de la ficha técnica por el mismo motivo que el campo del
+          turno: el técnico está de pie delante del equipo, de noche, y lo que
+          necesita es saber si el problema es de aquí o de la antena. La marca
+          y el número de serie pueden esperar tres líneas más abajo. */}
+      <ArranqueDiagnostico assetId={a.id} />
 
       <div className="card scan-card">
         <Row k="Tipo" v={TYPE_ES[a.type] || a.type} />

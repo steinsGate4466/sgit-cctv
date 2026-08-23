@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@n
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { NetworkService } from './network.service';
 import { MapaDeRedService } from './mapa-de-red.service';
+import { ArranqueService } from './arranque.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
@@ -16,7 +17,26 @@ export class NetworkController {
   constructor(
     private readonly red: NetworkService,
     private readonly mapaRed: MapaDeRedService,
+    private readonly arranque: ArranqueService,
   ) {}
+
+  /**
+   * ARRANQUE DE DIAGNÓSTICO — bloque 51.
+   *
+   * Lo que el técnico necesita saber ANTES de moverse: de qué cuelga, si los
+   * vecinos están bien, si hay que bloquear, cuándo falló antes y si hay
+   * repuesto. Es la pantalla del QR a las tres de la mañana.
+   *
+   * Va con `wo.read`, no con `asset.read`: esto es para quien va a REPARAR.
+   * Producción tiene su vista propia y no necesita saber de tableros ni de
+   * repuestos.
+   */
+  @SinAmbito()  // se escanea un QR en planta: el equipo ya lo tienes delante
+  @Get('arranque/:assetId')
+  @RequirePermissions('wo.read')
+  arranqueDiagnostico(@Param('assetId') assetId: string) {
+    return this.arranque.delActivo(assetId);
+  }
 
   /**
    * MAPA DE RED SINTETIZADO — bloque 48.

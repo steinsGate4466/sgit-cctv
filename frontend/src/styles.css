@@ -3028,3 +3028,48 @@ a.ta-fila:focus-visible { outline: 2px solid #1f4e79; outline-offset: 2px; }
   .nota-datos em { flex-basis: 100%; margin-left: 0; }
   .hueco-quien { margin-left: 54px; }
 }
+
+/* =========================================================================
+   BLOQUE 51 — «Por dónde empezar», dentro de la ficha del QR
+
+   Se lee en un celular, de noche, en planta. Por eso: letra grande en la
+   frase que importa, filas de 40 px, y un icono distinto por gravedad —
+   no sólo un color, que con el reflejo del sol no se distingue.
+   ========================================================================= */
+.arranque {
+  border: 1px solid var(--line); border-left-width: 5px; border-radius: 10px;
+  padding: 13px 15px; margin: 12px 0; background: #fff;
+}
+.arranque-LOCAL          { border-left-color: #B45309; background: #FFFCF6; }
+.arranque-COMPARTIDO     { border-left-color: #B3261E; background: #FFFAFA; }
+.arranque-SIN_DETERMINAR { border-left-color: #829AB1; background: #FAFBFC; }
+
+.arranque-cabeza {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 11px; text-transform: uppercase; letter-spacing: .6px;
+  font-weight: 700; color: var(--muted); margin-bottom: 8px;
+}
+
+/* La frase del descarte. Es el producto de la pantalla: si sólo se lee esto,
+   ya se ahorró el viaje al sitio equivocado. */
+.arranque-descarta {
+  font-size: 15px; line-height: 1.5; font-weight: 600;
+  color: #1a2b45; margin: 0 0 8px;
+}
+.arranque-paso {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13.5px; font-weight: 600; color: #14487A;
+  background: #EAF1FB; border-radius: 7px; padding: 8px 11px; margin: 0 0 10px;
+}
+
+.arranque-pistas { list-style: none; margin: 0; padding: 0; }
+.pista {
+  display: flex; align-items: flex-start; gap: 8px;
+  min-height: 40px; padding: 8px 10px; border-radius: 7px;
+  font-size: 12.5px; line-height: 1.45; margin-bottom: 5px;
+}
+.pista svg { flex: none; margin-top: 2px; }
+.pista-PELIGRO { background: #FDECEC; color: #8C1414; font-weight: 600; }
+.pista-AVISO   { background: #FFF7E8; color: #8A5A00; }
+.pista-DATO    { background: #F0F4F8; color: #486581; }
+.pista-BIEN    { background: #E7F7EE; color: #0F5C3A; }
