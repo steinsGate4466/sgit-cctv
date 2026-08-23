@@ -1,5 +1,5 @@
 import { IsEnum, IsInt, IsOptional, IsString, MinLength } from 'class-validator';
-import { IncidentCategory, Priority } from '@prisma/client';
+import { IncidentCategory, Priority } from '../../../generated/prisma/client';
 
 export class CreateIncidentDto {
   @IsString() @MinLength(3) title: string;

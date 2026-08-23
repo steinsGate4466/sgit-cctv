@@ -2,7 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundEx
 import { BandejaSalidaService } from '../notificaciones/bandeja-salida.service';
 import { incidenciaCritica, tuReporteSeResolvio } from '../notificaciones/plantillas';
 import { resolverContextoDePlanta } from '../../common/plant-context';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../../generated/prisma/client';
 import * as argon2 from 'argon2';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';

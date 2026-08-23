@@ -1,5 +1,5 @@
 import { IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
-import { LocationType } from '@prisma/client';
+import { LocationType } from '../../../generated/prisma/client';
 
 export class CreateLocationDto {
   @IsString() @MinLength(2) code: string;

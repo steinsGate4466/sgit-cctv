@@ -8,7 +8,7 @@
   "author": "Cristhian Rondon Amanqui",
   "license": "UNLICENSED",
   "scripts": {
-    "build": "nest build && tsc prisma/seed.ts --outDir dist --rootDir prisma --module commonjs --target ES2021 --esModuleInterop --skipLibCheck",
+    "build": "nest build && tsc prisma/seed.ts --outDir dist --rootDir . --module commonjs --target ES2021 --esModuleInterop --skipLibCheck",
     "verificar:inyeccion": "node scripts/verificar-inyeccion.js",
     "verificar:filtros": "node scripts/verificar-filtros-prisma.js",
     "verificar:migraciones": "node scripts/verificar-migraciones.js",
@@ -37,9 +37,6 @@
     "verificar:bd": "node scripts/diagnostico-bd.js",
     "verificar:campos": "node scripts/verificar-campos-prisma.js"
   },
-  "prisma": {
-    "seed": "node dist/seed.js"
-  },
   "dependencies": {
     "@nestjs/common": "^10.4.0",
     "@nestjs/config": "^3.2.0",
@@ -48,16 +45,18 @@
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^10.4.0",
     "@nestjs/swagger": "^7.4.0",
-    "@prisma/client": "^6.19.3",
+    "@prisma/adapter-pg": "^7.9.1",
+    "@prisma/client": "^7.9.1",
     "argon2": "^0.40.3",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "dotenv": "^16.6.1",
     "exceljs": "^4.4.0",
     "minio": "^8.0.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pdfkit": "^0.15.0",
-    "prisma": "^6.19.3",
+    "prisma": "^7.9.1",
     "qrcode": "^1.5.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"

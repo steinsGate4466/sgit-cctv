@@ -1,6 +1,6 @@
 import { IsBoolean, IsEmail, IsEnum, IsInt, IsNumber, IsOptional, IsString, Min, MinLength } from 'class-validator';
 import { Type } from 'class-transformer';
-import { AccessMeans, AccessRequestStatus } from '@prisma/client';
+import { AccessMeans, AccessRequestStatus } from '../../../generated/prisma/client';
 
 /** Solicitud de acceso especial (trabajo en altura / manlift). La llena el técnico. */
 export class CreateAccessRequestDto {

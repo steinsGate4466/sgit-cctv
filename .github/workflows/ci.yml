@@ -302,24 +302,37 @@ jobs:
       - name: Comprobar que el esquema coincide con las migraciones
         working-directory: backend
         run: |
+          # PRISMA 7 (bloque 52): `--shadow-database-url` se ELIMINO de este
+          # comando. La base de sombra ahora se declara en prisma.config.ts,
+          # que es lo que lee el CLI. Si se deja el parametro viejo, el comando
+          # falla con "unknown option" y el paso se cae con un error que no
+          # tiene nada que ver con lo que este paso comprueba.
           if ! npx prisma migrate diff \
               --from-migrations ./prisma/migrations \
               --to-schema-datamodel ./prisma/schema.prisma \
-              --shadow-database-url "$DATABASE_URL" \
               --exit-code ; then
             echo "::error::El esquema (schema.prisma) tiene cambios SIN migracion."
             echo "Solucion: cd backend && npx prisma migrate dev --name <nombre-del-cambio>"
             exit 1
           fi
 
-      # `prisma db seed` ejecuta `node dist/seed.js` (asi esta configurado en
-      # package.json), de modo que la semilla hay que COMPILARLA antes. Sin este
+      # `prisma db seed` ejecuta `node dist/seed.js`. A partir de PRISMA 7
+      # (bloque 52) eso se declara en prisma.config.ts y NO en la clave
+      # `prisma` del package.json, que se elimino. Ademas la v7 ya no ejecuta
+      # la semilla sola despues de migrar: hay que invocarla, y por suerte
+      # aqui siempre se invoco a mano.
+      #
+      # La semilla hay que COMPILARLA antes. Sin este
       # paso falla con "Cannot find module dist/seed.js".
       # Solo se compila la semilla: no hace falta construir todo el backend,
       # de eso ya se encarga el trabajo `backend`.
       - name: Compilar la semilla
         working-directory: backend
-        run: npx tsc prisma/seed.ts --outDir dist --rootDir prisma --module commonjs --target ES2021 --esModuleInterop --skipLibCheck
+        # --rootDir . y no `prisma`: desde Prisma 7 la semilla importa el
+        # cliente desde src/generated, que esta FUERA de prisma/, y con el
+        # rootDir viejo TypeScript falla con TS6059. La salida pasa a ser
+        # dist/prisma/seed.js, que es lo que declara prisma.config.ts.
+        run: npx tsc prisma/seed.ts --outDir dist --rootDir . --module commonjs --target ES2021 --esModuleInterop --skipLibCheck
 
       # La semilla es el punto de partida de la planta. Si se rompe, el
       # despliegue queda sin roles, permisos ni jerarquia de Laminacion.

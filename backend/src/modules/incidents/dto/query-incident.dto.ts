@@ -1,6 +1,6 @@
 import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
 import { Type } from 'class-transformer';
-import { IncidentCategory, IncidentStatus, Priority } from '@prisma/client';
+import { IncidentCategory, IncidentStatus, Priority } from '../../../generated/prisma/client';
 
 export class QueryIncidentDto {
   @IsOptional() @IsEnum(IncidentStatus) status?: IncidentStatus;

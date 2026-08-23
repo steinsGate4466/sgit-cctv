@@ -5,10 +5,13 @@
 //         activos de ejemplo con topología PMP (anillo -> switch -> NVR ;
 //         FortiSwitch -> antena PMP púlpito -> suscriptoras -> cámaras).
 // =============================================================================
-import { PrismaClient } from '@prisma/client';
 import * as argon2 from 'argon2';
+import { clienteDeScript } from './cliente';
 
-const prisma = new PrismaClient();
+// Prisma 7 exige un adaptador de base de datos al crear el cliente. Se arma en
+// un solo sitio para que la semilla y la demo se conecten EXACTAMENTE igual
+// que la aplicación. Ver prisma/cliente.ts.
+const prisma = clienteDeScript();
 
 // ---- Catálogo de permisos ----
 const PERMISSIONS = [

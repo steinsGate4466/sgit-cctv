@@ -1,5 +1,5 @@
 import { IsBoolean, IsEmail, IsEnum, IsISO8601, IsOptional, IsString, MaxLength } from 'class-validator';
-import { RootCause } from '@prisma/client';
+import { RootCause } from '../../../generated/prisma/client';
 
 /** Cierre firmado de la OM. */
 export class CloseWorkOrderDto {

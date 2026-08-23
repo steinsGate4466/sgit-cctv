@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../../generated/prisma/client';
 import { revisarImagen } from '../../common/archivos-seguros';
 import * as argon2 from 'argon2';
 import { randomUUID } from 'crypto';

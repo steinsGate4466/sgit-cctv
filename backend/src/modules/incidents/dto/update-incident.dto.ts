@@ -1,6 +1,6 @@
 import { PartialType } from '@nestjs/swagger';
 import { IsBoolean, IsEnum, IsOptional, IsString } from 'class-validator';
-import { IncidentStatus } from '@prisma/client';
+import { IncidentStatus } from '../../../generated/prisma/client';
 import { CreateIncidentDto } from './create-incident.dto';
 
 export class UpdateIncidentDto extends PartialType(CreateIncidentDto) {

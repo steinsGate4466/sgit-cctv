@@ -1,6 +1,6 @@
 import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { Type } from 'class-transformer';
-import { AssetType, AssetStatus } from '@prisma/client';
+import { AssetType, AssetStatus } from '../../../generated/prisma/client';
 
 export class QueryAssetDto {
   @IsOptional() @IsEnum(AssetType) type?: AssetType;

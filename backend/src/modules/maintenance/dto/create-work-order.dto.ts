@@ -1,6 +1,6 @@
 import { IsEnum, IsInt, IsISO8601, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 import { Type } from 'class-transformer';
-import { WorkOrderType, RequestChannel } from '@prisma/client';
+import { WorkOrderType, RequestChannel } from '../../../generated/prisma/client';
 
 export class CreateWorkOrderDto {
   @IsOptional() @IsString() code?: string;        // opcional: código manual

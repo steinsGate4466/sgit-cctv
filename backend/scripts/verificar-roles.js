@@ -33,6 +33,7 @@
 ============================================================================= */
 const fs = require('fs');
 const path = require('path');
+const { seIgnora } = require('./carpetas-ignoradas');
 
 const RAIZ_BACK = path.join(__dirname, '..');
 const RAIZ_FRONT = path.join(RAIZ_BACK, '..', 'frontend', 'src');
@@ -44,7 +45,9 @@ function archivos(dir, exts = ['.ts', '.tsx']) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, e.name);
     if (e.isDirectory()) {
-      if (['node_modules', 'dist', '.git'].includes(e.name)) continue;
+      // Bloque 52: la lista vive en un solo sitio, y ahora incluye `generated`
+      // (el cliente de Prisma 7). Ver scripts/carpetas-ignoradas.js.
+      if (seIgnora(e.name)) continue;
       out.push(...archivos(p, exts));
     } else if (exts.includes(path.extname(e.name))) out.push(p);
   }

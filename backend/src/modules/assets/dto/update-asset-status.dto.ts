@@ -1,5 +1,5 @@
 import { IsEnum } from 'class-validator';
-import { AssetStatus } from '@prisma/client';
+import { AssetStatus } from '../../../generated/prisma/client';
 
 /**
  * Cambio de estado del activo — la ÚNICA edición permitida sin firma.

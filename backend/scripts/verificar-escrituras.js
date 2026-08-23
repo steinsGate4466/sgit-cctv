@@ -38,6 +38,7 @@
  */
 const fs = require('fs');
 const path = require('path');
+const { seIgnora } = require('./carpetas-ignoradas');
 
 const raiz = path.join(__dirname, '..');
 const schema = fs.readFileSync(path.join(raiz, 'prisma', 'schema.prisma'), 'utf8');
@@ -118,7 +119,11 @@ function clavesNivel1(src, abre) {
 function archivosTs(dir, acc = []) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, e.name);
-    if (e.isDirectory()) archivosTs(p, acc);
+    // Bloque 52: no se mira el codigo generado. Ver scripts/carpetas-ignoradas.js
+    if (e.isDirectory()) {
+      if (seIgnora(e.name)) continue;
+      archivosTs(p, acc);
+    }
     else if (e.name.endsWith('.ts') && !e.name.endsWith('.spec.ts')) acc.push(p);
   }
   return acc;

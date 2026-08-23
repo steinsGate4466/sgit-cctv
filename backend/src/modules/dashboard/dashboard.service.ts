@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AssetStatus, IncidentStatus, WorkOrderStatus } from '@prisma/client';
+import { AssetStatus, IncidentStatus, WorkOrderStatus } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { computeEffectiveStatuses } from '../../common/asset-status';
 import { resolverContextoDePlanta } from '../../common/plant-context';

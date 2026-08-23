@@ -1,6 +1,6 @@
 import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
 import { Type } from 'class-transformer';
-import { WorkOrderStatus, WorkOrderType } from '@prisma/client';
+import { WorkOrderStatus, WorkOrderType } from '../../../generated/prisma/client';
 
 export class QueryWorkOrderDto {
   @IsOptional() @IsEnum(WorkOrderStatus) status?: WorkOrderStatus;

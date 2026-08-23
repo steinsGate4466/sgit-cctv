@@ -4,7 +4,7 @@ import {
 import { Type } from 'class-transformer';
 import {
   SwitchRole, WirelessMode, MgmtNetwork, ScreenLayout, ScreenSource,
-} from '@prisma/client';
+} from '../../../generated/prisma/client';
 
 /**
  * FICHAS POR TIPO DE ACTIVO.

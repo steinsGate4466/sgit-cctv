@@ -5,13 +5,82 @@
 //          campos SAP-ready, auditoría append-only.
 // =============================================================================
 
+// =============================================================================
+//  EL GENERADOR DEL CLIENTE — Prisma 7 (bloque 52)
+// =============================================================================
+//  Antes decía `provider = "prisma-client-js"` y nada más. Ese generador está
+//  DEPRECADO: escribía el cliente dentro de `node_modules` y arrastraba un
+//  motor escrito en Rust —decenas de megas que había que descargar en cada
+//  construcción y levantar en cada arranque del contenedor—.
+//
+//  El generador nuevo produce TypeScript normal, sin motor. La imagen adelgaza,
+//  el contenedor arranca antes, y se acabaron los fallos al bajar binarios
+//  (nos pasó: `403 Forbidden` descargando el motor de Debian).
+//
+// -----------------------------------------------------------------------------
+//  `moduleFormat = "cjs"` — LA LÍNEA QUE SALVA EL PROYECTO
+// -----------------------------------------------------------------------------
+//  La guía oficial de actualización a Prisma 7 dice que hay que poner
+//  `"type": "module"` en el package.json y pasar todo a módulos ESM.
+//
+//  AQUÍ ESO NO SE PUEDE HACER. NestJS 11 no soporta ESM oficialmente
+//  (nestjs/nest#15331); llegará en NestJS 12. Y la forma en que fallaría es la
+//  peor: la inyección de dependencias deja de leer los tipos de constructor y
+//  la aplicación revienta al arrancar sin decir por qué. Ya nos pasó una vez
+//  con la inyección — por eso existe `verificar-inyeccion.js`.
+//
+//  La salida está en la referencia del generador, no en la guía: el generador
+//  `prisma-client` soporta ESM **y CommonJS** a través de `moduleFormat`. Con
+//  `cjs` el proyecto sigue siendo CommonJS y NestJS ni se entera.
+//
+//  NO CAMBIAR ESTA LÍNEA hasta que el proyecto esté en NestJS 12.
+//
+// -----------------------------------------------------------------------------
+//  `output` — ahora es obligatorio
+// -----------------------------------------------------------------------------
+//  Prisma 7 ya no genera dentro de `node_modules`. Se elige `src/generated`
+//  y no una carpeta fuera de `src/` a propósito: el `outDir` de TypeScript
+//  cuelga de `src`, y meter código compilable fuera cambiaría la forma de
+//  `dist/` en silencio — `dist/main.js` pasaría a `dist/src/main.js` y el
+//  contenedor arrancaría con «módulo no encontrado».
+//
+//  Esa carpeta NO se guarda en git (ver backend/.gitignore) y los once
+//  verificadores la ignoran (ver scripts/carpetas-ignoradas.js).
+// =============================================================================
 generator client {
-  provider = "prisma-client-js"
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+  runtime      = "nodejs"
 }
 
+// =============================================================================
+//  LA FUENTE DE DATOS — sin URL (Prisma 7, bloque 52)
+// =============================================================================
+//  Aquí decía `url = env("DATABASE_URL")`. Prisma 7 lo PROHÍBE y falla con:
+//
+//      P1012: The datasource property `url` is no longer supported in schema
+//             files.
+//
+//  El motivo del cambio es sensato: antes la dirección de la base estaba en un
+//  archivo que se guarda en el repositorio, aunque fuera detrás de una
+//  variable. Ahora el esquema declara SÓLO la forma de los datos, y quién se
+//  conecta y a dónde se decide fuera.
+//
+//  Dónde está ahora, que son dos sitios distintos y conviene no confundirlos:
+//
+//    · La HERRAMIENTA (generate, migrate, db seed) la lee de
+//      `backend/prisma.config.ts`, en el bloque `datasource`.
+//
+//    · La APLICACIÓN la lee en `src/prisma/prisma.service.ts`, donde se la
+//      pasa al adaptador de PostgreSQL.
+//
+//  Si un día esos dos apuntan a bases distintas, el síntoma es una migración
+//  aplicada donde no tocaba. Los dos salen de la MISMA variable de entorno
+//  `DATABASE_URL` precisamente para que eso no pueda pasar.
+// =============================================================================
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // =====================================================================

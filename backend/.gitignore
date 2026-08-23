@@ -1,0 +1,34 @@
+# =============================================================================
+#  BACKEND — lo que NO va al repositorio
+# =============================================================================
+
+# ---- El cliente de Prisma 7 -------------------------------------------------
+# Hasta Prisma 6 el cliente se generaba dentro de `node_modules` y nadie tenía
+# que pensar en él. Prisma 7 lo cambió: obliga a elegir una carpeta del
+# proyecto y escribe ahí ~200 archivos TypeScript.
+#
+# NO SE GUARDAN EN GIT, y es una decisión, no un descuido:
+#
+#   1. Son un DERIVADO de `schema.prisma`, igual que `dist/` lo es de `src/`.
+#      Guardar un derivado abre la puerta a que se desincronice del original
+#      —alguien toca el esquema, no regenera, y el commit lleva un cliente que
+#      no corresponde—. Ese desfase no lo caza ningún verificador.
+#
+#   2. Ensucian cada revisión de cambios: un campo nuevo en el esquema movería
+#      cientos de archivos y el cambio de verdad quedaría enterrado.
+#
+# Se regeneran solos donde hacen falta: el Dockerfile ejecuta `prisma generate`
+# en la etapa de construcción y el CI lo hace antes de compilar. En local, tras
+# tocar el esquema o tras un `npm ci`, hay que correrlo a mano.
+src/generated/
+
+# ---- Lo de siempre ----------------------------------------------------------
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Secretos. Nunca, bajo ningún concepto.
+.env
+.env.*
+!.env.example

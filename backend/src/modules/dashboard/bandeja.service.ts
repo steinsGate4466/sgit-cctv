@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { evaluarEspera, ordenarPorUrgencia } from '../maintenance/espera';
-import { WorkOrderStatus } from '@prisma/client';
+import { WorkOrderStatus } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 /**

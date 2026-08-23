@@ -67,6 +67,15 @@ COPY --from=builder --chown=node:node /app/node_modules ./node_modules
 COPY --from=builder --chown=node:node /app/dist          ./dist
 COPY --from=builder --chown=node:node /app/prisma        ./prisma
 COPY --from=builder --chown=node:node /app/package.json  ./package.json
+# PRISMA 7 (bloque 52): el CMD de abajo ejecuta `prisma migrate deploy` al
+# arrancar, y a partir de la v7 el CLI saca de AQUI la URL de la base y la ruta
+# de las migraciones — ya no del bloque `datasource` del esquema ni de la clave
+# `prisma` del package.json, que se eliminaron.
+#
+# Sin este COPY la imagen construye perfectamente y el contenedor MUERE AL
+# ARRANCAR diciendo que no encuentra la base de datos. El fallo aparece en
+# Railway, no aqui.
+COPY --from=builder --chown=node:node /app/prisma.config.ts ./prisma.config.ts
 # Los scripts de DIAGNÓSTICO. No se copiaban, y se notó el 17/08 en Pisco:
 # `npm run diagnostico:roles` en la consola de Railway devolvió MODULE_NOT_FOUND
 # justo cuando hacía falta mirar la base viva antes de sembrar.

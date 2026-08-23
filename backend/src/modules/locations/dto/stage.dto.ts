@@ -1,5 +1,5 @@
 import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
-import { Criticality, Environment } from '@prisma/client';
+import { Criticality, Environment } from '../../../generated/prisma/client';
 
 /**
  * Alta de etapa del proceso de laminación.

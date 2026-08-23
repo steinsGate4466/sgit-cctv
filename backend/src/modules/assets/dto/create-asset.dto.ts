@@ -1,5 +1,5 @@
 import { IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
-import { AssetType, AssetStatus, Criticality } from '@prisma/client';
+import { AssetType, AssetStatus, Criticality } from '../../../generated/prisma/client';
 
 export class CreateAssetDto {
   // Código / rótulo del activo. Formato LIBRE: el estándar de rotulamiento de Aceros

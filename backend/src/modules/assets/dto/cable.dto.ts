@@ -1,6 +1,6 @@
 import { IsBoolean, IsEnum, IsInt, IsISO8601, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 import { Type } from 'class-transformer';
-import { CableCategory, CableRoute, CableStatus } from '@prisma/client';
+import { CableCategory, CableRoute, CableStatus } from '../../../generated/prisma/client';
 
 /**
  * TRAMO DE CABLE entre dos puntos.

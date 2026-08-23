@@ -1,6 +1,6 @@
 import { PartialType } from '@nestjs/swagger';
 import { IsEnum, IsOptional, IsString } from 'class-validator';
-import { WorkOrderStatus } from '@prisma/client';
+import { WorkOrderStatus } from '../../../generated/prisma/client';
 import { CreateWorkOrderDto } from './create-work-order.dto';
 
 export class UpdateWorkOrderDto extends PartialType(CreateWorkOrderDto) {

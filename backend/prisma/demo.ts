@@ -41,9 +41,11 @@
  *                          Enseña lo que de verdad le interesa a Producción:
  *                          «hasta aquí se puede llegar, y falta comprar esto».
  */
-import { PrismaClient } from '@prisma/client';
+import { clienteDeScript } from './cliente';
 
-const prisma = new PrismaClient();
+// Ver prisma/cliente.ts: Prisma 7 exige adaptador y la conexión se define una
+// sola vez para los tres caminos (aplicación, semilla y demo).
+const prisma = clienteDeScript();
 
 /** Hace N horas, desde ahora. Para que la demo se lea igual a cualquier hora. */
 const haceHoras = (h: number) => new Date(Date.now() - h * 3_600_000);

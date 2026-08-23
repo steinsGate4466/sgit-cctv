@@ -23,13 +23,18 @@
  */
 const fs = require('fs');
 const path = require('path');
+const { seIgnora } = require('./carpetas-ignoradas');
 
 const SRC = path.join(__dirname, '..', 'src');
 
 function archivos(dir, acc = []) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, e.name);
-    if (e.isDirectory()) archivos(p, acc);
+    // Bloque 52: no se mira el codigo generado. Ver scripts/carpetas-ignoradas.js
+    if (e.isDirectory()) {
+      if (seIgnora(e.name)) continue;
+      archivos(p, acc);
+    }
     else if (/\.ts$/.test(e.name) && !/\.spec\.ts$/.test(e.name)) acc.push(p);
   }
   return acc;
