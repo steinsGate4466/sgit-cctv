@@ -1,4 +1,37 @@
 {
   "extends": "./tsconfig.json",
-  "exclude": ["node_modules", "dist", "test", "prisma", "**/*.spec.ts"]
+
+  // ===========================================================================
+  //  QUÉ NO ENTRA EN LA COMPILACIÓN DE LA APLICACIÓN
+  //  -------------------------------------------------------------------------
+  //  OJO CON ESTA LISTA: no es cosmética. TypeScript deduce la raíz de salida
+  //  del ANCESTRO COMÚN de todos los archivos que compila. Mientras todo cuelga
+  //  de `src/`, la salida es `dist/main.js`. En cuanto entra UN archivo de la
+  //  raíz del backend, el ancestro común pasa a ser el backend entero y la
+  //  salida se corre a `dist/src/main.js`.
+  //
+  //  Y eso NO da ningún error. Compila perfectamente. El fallo aparece al
+  //  arrancar el contenedor:
+  //
+  //      Error: Cannot find module '/app/dist/main.js'
+  //
+  //  Pasó el 23/08/2026 con `prisma.config.ts`, que Prisma 7 obliga a poner en
+  //  la raíz. La lista decía `"prisma"` y eso excluye la CARPETA `prisma/`,
+  //  no un archivo llamado `prisma.config.ts` que está al lado. Cuatro
+  //  reinicios en Railway hasta encontrarlo.
+  //
+  //  REGLA: cualquier archivo `.ts` que se añada en la raíz del backend tiene
+  //  que aparecer aquí. Si no, rompe el arranque en producción sin avisar.
+  // ===========================================================================
+  "exclude": [
+    "node_modules",
+    "dist",
+    "test",
+    "prisma",
+    "**/*.spec.ts",
+
+    // Configuración de la herramienta Prisma, no código de la aplicación.
+    // La lee el comando `prisma`, que compila TypeScript por su cuenta.
+    "prisma.config.ts"
+  ]
 }

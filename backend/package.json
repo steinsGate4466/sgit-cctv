@@ -8,7 +8,7 @@
   "author": "Cristhian Rondon Amanqui",
   "license": "UNLICENSED",
   "scripts": {
-    "build": "nest build && tsc prisma/seed.ts --outDir dist --rootDir . --module commonjs --target ES2021 --esModuleInterop --skipLibCheck",
+    "build": "nest build && tsc prisma/seed.ts --outDir dist --rootDir . --module commonjs --target ES2021 --esModuleInterop --skipLibCheck && npm run verificar:arranque",
     "verificar:inyeccion": "node scripts/verificar-inyeccion.js",
     "verificar:filtros": "node scripts/verificar-filtros-prisma.js",
     "verificar:migraciones": "node scripts/verificar-migraciones.js",
@@ -17,6 +17,7 @@
     "verificar:coherencia": "node scripts/verificar-coherencia-rol.js",
     "diagnostico:roles": "node scripts/diagnostico-roles.js",
     "verificar:node": "node scripts/verificar-node.js",
+    "verificar:arranque": "node scripts/verificar-arranque.js",
     "verificar:despliegue": "node scripts/verificar-despliegue.js",
     "verificar": "npm run verificar:inyeccion && npm run verificar:filtros && npm run verificar:campos && npm run verificar:migraciones && npm run verificar:constructores && npm run verificar:roles && npm run verificar:coherencia && npm run verificar:node && npm run verificar:despliegue",
     "start": "nest start",
