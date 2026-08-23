@@ -28,7 +28,15 @@ dist/
 coverage/
 *.tsbuildinfo
 
-# Secretos. Nunca, bajo ningún concepto.
+# ---- Secretos. Nunca, bajo ningún concepto ----------------------------------
+# Un secreto que llega al repositorio hay que darlo por quemado y cambiarlo,
+# aunque se borre en el commit siguiente: queda en el historial para siempre y
+# GitHub lo guarda aunque se fuerce el borrado.
+#
+# Las DOS plantillas sí se guardan, porque no llevan ningún valor real:
+#   .env.example          -> desarrollo local
+#   .env.compose.ejemplo  -> despliegue con docker compose en un servidor
 .env
 .env.*
 !.env.example
+!.env.compose.ejemplo

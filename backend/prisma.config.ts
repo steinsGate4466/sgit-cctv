@@ -87,5 +87,15 @@ export default defineConfig({
      --------------------------------------------------------------------------- */
   datasource: {
     url: process.env.DATABASE_URL ?? '',
+
+    /* La BASE DE SOMBRA: una base desechable donde `migrate diff` reproduce
+       las migraciones para compararlas con el esquema. Antes se le pasaba al
+       comando con `--shadow-database-url`; Prisma 7 eliminó ese parámetro y
+       ahora se declara aquí.
+
+       Si no hay una dedicada, se usa la misma dirección. Eso es lo que hacía
+       ya la integración continua, donde la base es un contenedor efímero que
+       se destruye al terminar. NUNCA se apunta a producción a mano. */
+    shadowDatabaseUrl: process.env.SHADOW_DATABASE_URL ?? process.env.DATABASE_URL ?? '',
   },
 });

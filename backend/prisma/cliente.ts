@@ -29,6 +29,11 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client';
+import {
+  ESPERA_DE_CONEXION_MS,
+  opcionesDeCifrado,
+  urlDeLaBase,
+} from '../src/prisma/conexion';
 
 /**
  * Crea un cliente listo para usar en un script suelto.
@@ -38,22 +43,19 @@ import { PrismaClient } from '../src/generated/prisma/client';
  * base de datos cuando el problema era el archivo `.env`.
  */
 export function clienteDeScript(): PrismaClient {
-  const url = process.env.DATABASE_URL;
-  if (!url) {
-    throw new Error(
-      'Falta DATABASE_URL. Revisa el archivo .env del backend antes de ejecutar este script.',
-    );
-  }
+  const url = urlDeLaBase();
 
   return new PrismaClient({
     adapter: new PrismaPg({
       connectionString: url,
-      // Mismo criterio que la aplicación: ver la explicación larga en
-      // src/prisma/prisma.service.ts.
-      ssl: { rejectUnauthorized: process.env.DB_SSL_ESTRICTO === 'true' },
-      connectionTimeoutMillis: 5_000,
-      // La semilla inserta cientos de filas: se le da más margen que a una
-      // consulta normal de pantalla.
+      // Mismo criterio que la aplicación, y del mismo archivo: cifrar sólo
+      // cuando el tráfico sale del equipo. Ver src/prisma/conexion.ts.
+      ssl: opcionesDeCifrado(url),
+      connectionTimeoutMillis: ESPERA_DE_CONEXION_MS,
+      /* Único valor que NO se comparte con la aplicación, y a propósito: la
+         semilla inserta cientos de filas de una vez. Con los 30 segundos de
+         una consulta de pantalla se cortaría a la mitad, dejando la base a
+         medio sembrar — que es peor que no sembrar. */
       query_timeout: 120_000,
       max: 5,
     }),
