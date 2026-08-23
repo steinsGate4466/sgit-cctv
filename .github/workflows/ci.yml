@@ -35,10 +35,10 @@ jobs:
       - name: Descargar el codigo
         uses: actions/checkout@v4
 
-      - name: Preparar Node 22
+      - name: Preparar Node 24
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
@@ -186,10 +186,10 @@ jobs:
       - name: Descargar el codigo
         uses: actions/checkout@v4
 
-      - name: Preparar Node 22
+      - name: Preparar Node 24
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -277,10 +277,10 @@ jobs:
       - name: Descargar el codigo
         uses: actions/checkout@v4
 
-      - name: Preparar Node 22
+      - name: Preparar Node 24
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
@@ -388,10 +388,10 @@ jobs:
       - name: Descargar el codigo
         uses: actions/checkout@v4
 
-      - name: Preparar Node 22
+      - name: Preparar Node 24
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           cache: npm
           cache-dependency-path: backend/package-lock.json
 

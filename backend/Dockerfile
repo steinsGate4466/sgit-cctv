@@ -37,7 +37,7 @@
 # =============================================================================
 
 # ---- Etapa 1: construcción ------------------------------------------------
-FROM node:22-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
 
 # python3/make/g++      -> compilar el binding nativo de argon2
@@ -55,7 +55,7 @@ RUN npx prisma generate && npm run build
 RUN npm prune --omit=dev
 
 # ---- Etapa 2: ejecución ---------------------------------------------------
-FROM node:22-alpine AS runner
+FROM node:24-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 

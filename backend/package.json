@@ -2,7 +2,7 @@
   "name": "sgit-cctv-backend",
   "version": "0.1.0",
   "engines": {
-    "node": ">=22.0.0 <25"
+    "node": ">=24.0.0 <26"
   },
   "description": "SGIT-CCTV — API de gestión de infraestructura y CCTV (Aceros Arequipa, Planta Pisco)",
   "author": "Cristhian Rondon Amanqui",

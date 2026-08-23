@@ -24,15 +24,44 @@
 const fs = require('fs');
 const path = require('path');
 
-/** Fin de vida oficial. Fuente: nodejs.org/en/about/eol */
+/**
+ * Fin de vida oficial.
+ * Fuente: github.com/nodejs/Release/blob/main/schedule.json
+ */
 const FIN_DE_VIDA = {
   16: '2023-09-11',
   18: '2025-04-30',
   20: '2026-04-30',
   22: '2027-04-30',
   24: '2028-04-30',
+  26: '2029-04-30',
 };
-/** Cuándo hay que volver a mirar esta tabla. */
+
+/* =============================================================================
+   ENTRADA EN MANTENIMIENTO — el hueco que dejó pasar Node 22 (bloque 51-N)
+   -----------------------------------------------------------------------------
+   Este verificador sólo miraba el FIN DE VIDA. Node 22 entró en mantenimiento
+   el 21/10/2025 y aquí no sonó nada, porque técnicamente le quedaba año y
+   medio de parches de seguridad. El proyecto se quedó en 22 hasta que el
+   usuario lo notó a mano en agosto de 2026, diez meses después.
+
+   Mantenimiento significa: SÓLO parches críticos y de seguridad. Ni
+   correcciones de rendimiento, ni compatibilidad con librerías nuevas, ni
+   arreglos de fallos normales. Es la antesala del fin de vida y es EL momento
+   de planificar el salto — no ocho meses antes de que muera, con prisa.
+
+   Mismo argumento que el resto del archivo: una versión en mantenimiento no
+   se rompe, sigue funcionando exactamente igual. Por eso nadie la actualiza.
+============================================================================= */
+const ENTRA_EN_MANTENIMIENTO = {
+  18: '2023-10-18',
+  20: '2024-10-22',
+  22: '2025-10-21',
+  24: '2026-10-20',
+  26: '2027-10-20',
+};
+
+/** Cuándo hay que volver a mirar estas dos tablas. */
 const REVISAR_TABLA_ANTES_DE = '2027-01-31';
 
 const RAIZ = path.join(__dirname, '..', '..');
@@ -57,6 +86,16 @@ if (!finActual) {
   );
 } else if (dias(finActual) < 120) {
   avisar(`Node ${mayorActual} muere el ${finActual}, dentro de ${dias(finActual)} días. Planifica el salto.`);
+}
+
+/* La versión con la que se ejecuta también se mira contra el mantenimiento.
+   Es el aviso más útil de los dos: dice que TU máquina va por detrás, y eso
+   es lo que hace que algo funcione en local y falle en el contenedor. */
+const mantActual = ENTRA_EN_MANTENIMIENTO[mayorActual];
+if (mantActual && dias(mantActual) < 0 && finActual && dias(finActual) >= 0) {
+  avisar(
+    `Node ${mayorActual} está en mantenimiento desde el ${mantActual}: sólo parches críticos.`,
+  );
 }
 
 // ---- 2. Que los tres sitios digan lo mismo ----
@@ -105,11 +144,30 @@ if (declaradas.size > 1) {
   );
 }
 
-// ---- 3. Que las versiones declaradas no estén muertas ----
+// ---- 3. Que las versiones declaradas no estén muertas NI EN MANTENIMIENTO ----
 for (const v of declaradas.keys()) {
-  const fin = FIN_DE_VIDA[Number(v)];
+  const n = Number(v);
+  const fin = FIN_DE_VIDA[n];
   if (fin && dias(fin) < 0) {
     fallar(`Se declara Node ${v}, que murió el ${fin}.`);
+    continue;
+  }
+
+  /* Mantenimiento: sólo parches críticos. Es AVISO y no error a propósito —
+     obligar a saltar el mismo día que una versión entra en mantenimiento
+     rompería despliegues por calendario, no por necesidad. Pero tiene que
+     SONAR: a Node 22 no le sonó nada durante diez meses. */
+  const mant = ENTRA_EN_MANTENIMIENTO[n];
+  if (mant && dias(mant) < 0) {
+    const meses = Math.round(Math.abs(dias(mant)) / 30);
+    const activa = Object.entries(ENTRA_EN_MANTENIMIENTO)
+      .filter(([k, f]) => dias(f) > 0 && FIN_DE_VIDA[Number(k)])
+      .sort((a, b) => Number(a[0]) - Number(b[0]))[0];
+    avisar(
+      `Node ${v} está EN MANTENIMIENTO desde el ${mant} (hace ${meses} meses): ` +
+      'sólo parches críticos, sin correcciones normales ni compatibilidad nueva.' +
+      (activa ? ` La LTS activa hoy es Node ${activa[0]}.` : ''),
+    );
   }
 }
 

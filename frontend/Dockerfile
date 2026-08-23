@@ -22,7 +22,7 @@
 # =============================================================================
 
 # ---- Etapa 1: construir ---------------------------------------------------
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 
 COPY package.json package-lock.json ./
@@ -35,7 +35,7 @@ ENV VITE_API_URL=$VITE_API_URL
 RUN npm run build
 
 # ---- Etapa 2: servir ------------------------------------------------------
-FROM node:22-alpine AS runner
+FROM node:24-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
