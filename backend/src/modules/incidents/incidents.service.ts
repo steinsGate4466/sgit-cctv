@@ -1,6 +1,6 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { BandejaSalidaService } from '../notificaciones/bandeja-salida.service';
-import { incidenciaCritica } from '../notificaciones/plantillas';
+import { incidenciaCritica, tuReporteSeResolvio } from '../notificaciones/plantillas';
 import { resolverContextoDePlanta } from '../../common/plant-context';
 import { Prisma } from '@prisma/client';
 import * as argon2 from 'argon2';
@@ -14,6 +14,12 @@ import { UpdateIncidentDto } from './dto/update-incident.dto';
 import { QueryIncidentDto } from './dto/query-incident.dto';
 import { ResolveIncidentDto } from './dto/resolve-incident.dto';
 import { computeEffectiveStatuses } from '../../common/asset-status';
+import { conReintentoDeCodigo, esChoqueDeUnicidad, siguienteCorrelativo } from '../../common/correlativo';
+import {
+  Criticidad,
+  firmaDeQuienReporta,
+  reporteDeProduccion,
+} from './reporte-de-produccion';
 // PDF: require para no depender de @types en el build.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PDFDocument = require('pdfkit');
@@ -29,10 +35,33 @@ export class IncidentsService {
     private avisos: BandejaSalidaService,
   ) {}
 
-  private async nextCode(): Promise<string> {
-    const year = new Date().getFullYear();
-    const count = await this.prisma.incident.count();
-    return `INC-${year}-${String(count + 1).padStart(4, '0')}`;
+  private readonly logger = new Logger('Incidencias');
+
+  /**
+   * EL CORRELATIVO, DEL ÚLTIMO CÓDIGO Y NO DE UN CONTEO.
+   *
+   * Antes era `count() + 1`. Eso funciona hasta la primera vez que se borra
+   * algo — y hay una pantalla de Limpieza que borra incidencias. Con 42
+   * incidencias, se borran 3, la siguiente pide INC-2026-0040… que ya existe.
+   * Y como `code` es único, la creación revienta con un error que no dice
+   * nada de lo que pasó realmente.
+   *
+   * Ahora se pide el mayor código DEL AÑO y se le suma uno, igual que en
+   * instalaciones y en órdenes. El prefijo lleva el año, así que la serie se
+   * reinicia sola en enero.
+   *
+   * Recibe el cliente porque dentro de una transacción hay que leer con el
+   * MISMO cliente: leer con `this.prisma` desde dentro miraría fuera de la
+   * transacción y devolvería un número obsoleto.
+   */
+  private async nextCode(cliente: Prisma.TransactionClient | PrismaService = this.prisma): Promise<string> {
+    const prefijo = `INC-${new Date().getFullYear()}-`;
+    const ultimo = await cliente.incident.findFirst({
+      where: { code: { startsWith: prefijo } },
+      orderBy: { code: 'desc' },
+      select: { code: true },
+    });
+    return siguienteCorrelativo(ultimo?.code ?? null, prefijo);
   }
 
   async create(dto: CreateIncidentDto) {
@@ -92,6 +121,216 @@ export class IncidentsService {
       ).catch(() => 0);
     }
     return inc;
+  }
+
+  /**
+   * ===========================================================================
+   *  EL REPORTE DE PRODUCCIÓN — bloque 51-B
+   * ===========================================================================
+   *  TRES campos: qué cámara, la zona si la sabe, y una foto si puede. Nada
+   *  más. Ni categoría, ni prioridad, ni sesiones del NVR. El Ing. Cañasas no
+   *  sabe esas cosas y no tiene por qué; lo que sabe es que no está viendo el
+   *  lecho de enfriamiento, y eso es exactamente lo que se le pide.
+   *
+   *  Todo lo demás lo pone el sistema:
+   *    · el tren        → del árbol de planta, no lo teclea nadie
+   *    · la prioridad   → de la criticidad DECLARADA de la zona
+   *    · la categoría   → CAMARA_SIN_IMAGEN, que es lo que él está viendo
+   *    · quién reportó  → de su sesión
+   *
+   *  POR QUÉ SE SERIALIZA POR ACTIVO
+   *  Cuando una cámara se cae en el púlpito, se cae para todos a la vez, y
+   *  tres personas tocan «reportar» en el mismo minuto. Sin el candado, los
+   *  tres leerían «no hay ninguna abierta» y crearían tres incidencias del
+   *  mismo problema. El `pg_advisory_xact_lock` las pone en fila por activo:
+   *  la primera crea, las otras dos se suman. Dura lo que dura la transacción
+   *  y no bloquea a nadie que trabaje sobre otro equipo.
+   *
+   *  La foto se sube FUERA de la transacción, a propósito: subir a MinIO puede
+   *  tardar segundos con la señal de planta, y tener la fila de la base
+   *  esperando por eso bloquearía a los demás reportando la misma cámara.
+   */
+  async reportarDesdeProduccion(
+    assetId: string,
+    userId: string,
+    zona?: string | null,
+    file?: any,
+  ) {
+    const activo = await this.prisma.asset.findFirst({
+      where: { id: assetId, deletedAt: null },
+      // `referencePlace` es el lugar de referencia en planta —«lecho de
+      // enfriamiento»—. Es lo que la gente usa para nombrar la cámara cuando
+      // no se sabe el código, así que es el mejor sustituto de la zona.
+      select: { id: true, assetCode: true, referencePlace: true, locationId: true },
+    });
+    if (!activo) throw new NotFoundException('Esa cámara no está en el sistema.');
+
+    const quien = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, fullName: true },
+    });
+    if (!quien) throw new BadRequestException('No se pudo identificar quién reporta.');
+
+    // Tren y criticidad declarada: los dos salen del árbol, no del formulario.
+    const ctx = await resolverContextoDePlanta(this.prisma, [activo] as any).catch(() => ({} as any));
+    const contexto = ctx?.[activo.id];
+
+    /* La foto se sube ANTES de entrar a la transacción. Ver la nota de arriba:
+       la señal de planta hace que esto tarde, y la transacción tiene que ser
+       corta. Si la subida falla, el reporte sigue: perder la foto es malo,
+       perder el aviso de que la línea no ve es peor. */
+    let fileId: string | null = null;
+    if (file?.buffer) {
+      const ext = (file.originalname?.split('.').pop() || 'jpg').toLowerCase();
+      const objeto = `inc/reporte/${assetId}/${Date.now()}-${randomUUID()}.${ext}`;
+      try {
+        await this.storage.put(objeto, file.buffer, file.mimetype || 'image/jpeg');
+        fileId = objeto;
+      } catch (e: any) {
+        this.logger.warn(`No se pudo guardar la foto del reporte de ${activo.assetCode}: ${e?.message}`);
+      }
+    }
+
+    const zonaLimpia = (zona || '').trim() || null;
+
+    /* El candado serializa a los que reportan LA MISMA cámara. Pero dos
+       personas reportando cámaras DISTINTAS a la vez pueden pedir el mismo
+       correlativo, y ahí choca la unicidad de `code`. Se reintenta con el
+       patrón ya probado del bloque 37: releer y volver, con espera al azar.
+       Va FUERA de la transacción porque un choque la aborta entera. */
+    const salida = await conReintentoDeCodigo(() => this.prisma.$transaction(async (tx) => {
+      // Una cámara, un reporte a la vez. Ver la nota del candado arriba.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${assetId}))`;
+
+      /* Sólo hacen falta las vivas y la última que se resolvió. Traer el
+         historial entero de una cámara con dos años de fallas sería pagar
+         una consulta grande para responder una pregunta pequeña. */
+      const delActivo = await tx.incident.findMany({
+        where: { assetId },
+        orderBy: { reportedAt: 'desc' },
+        take: 20,
+        select: {
+          id: true, code: true, status: true, priority: true,
+          reportedAt: true, resolvedAt: true,
+          avisos: { select: { userId: true } },
+          reportedById: true,
+        },
+      });
+
+      const decision = reporteDeProduccion({
+        activoCodigo: activo.assetCode,
+        activoNombre: activo.referencePlace,
+        zonaEscrita: zonaLimpia,
+        quienReportaId: quien.id,
+        quienReportaNombre: quien.fullName,
+        trenNombre: contexto?.trenNombre ?? null,
+        criticidadZona: (contexto?.criticidadProduccion ?? null) as Criticidad,
+        incidenciasDelActivo: delActivo.map((i) => ({
+          id: i.id,
+          code: i.code,
+          estado: i.status as string,
+          reportadaEn: i.reportedAt,
+          resueltaEn: i.resolvedAt,
+          prioridad: i.priority as any,
+          /* Quien la abrió también cuenta como avisador, aunque no tenga fila
+             en `incident_avisos`: si no, el que reportó primero podría volver
+             a reportar y el contador subiría a dos con una sola persona. */
+          yaAvisaronIds: [
+            ...(i.reportedById ? [i.reportedById] : []),
+            ...i.avisos.map((a) => a.userId),
+          ],
+        })),
+        ahora: new Date(),
+      });
+
+      if (decision.decision === 'NUEVA') {
+        const inc = await tx.incident.create({
+          data: {
+            code: await this.nextCode(tx),
+            title: decision.titulo,
+            category: 'CAMARA_SIN_IMAGEN',
+            priority: decision.prioridad,
+            assetId: activo.id,
+            zone: zonaLimpia,
+            canalOrigen: 'PRODUCCION',
+            reportedById: quien.id,
+            reaparecio: decision.reaparecio,
+            /* La firma va en la descripción y no en un campo suelto porque es
+               lo que se lee en la bandeja sin abrir nada. */
+            description: firmaDeQuienReporta(quien.fullName, contexto?.trenNombre ?? null),
+          },
+          select: { id: true, code: true, priority: true },
+        });
+        if (fileId) {
+          await tx.incidentEvidence.create({
+            data: { incidentId: inc.id, fileId, caption: 'Foto del púlpito' },
+          });
+        }
+        return { ...decision, incidenciaId: inc.id, incidenciaCodigo: inc.code };
+      }
+
+      if (decision.decision === 'SE_SUMA' && decision.incidenciaId) {
+        /* Si dos toques del MISMO dedo entran a la vez, el candado los pone en
+           fila pero el segundo ya no ve nada nuevo que crear. El índice único
+           lo rechaza, y eso NO es un error que deba ver el púlpito: es
+           exactamente el caso «ya lo reportaste». Reintentarlo ocho veces
+           daría ocho rechazos y una pantalla roja por tocar dos veces. */
+        const creado = await tx.incidentAviso
+          .create({
+            data: { incidentId: decision.incidenciaId, userId: quien.id, zona: zonaLimpia, fileId },
+          })
+          .catch((e: any) => {
+            if (esChoqueDeUnicidad(e)) return null;
+            throw e;
+          });
+        if (!creado) {
+          return {
+            ...decision,
+            decision: 'YA_LO_REPORTASTE' as const,
+            vecesReportada: decision.vecesReportada - 1,
+            sugiereSubirPrioridad: false,
+            respuesta: `Ya lo reportaste (${decision.incidenciaCodigo}). Sigue abierta.`,
+          };
+        }
+        if (fileId) {
+          await tx.incidentEvidence.create({
+            data: {
+              incidentId: decision.incidenciaId,
+              fileId,
+              caption: `Foto de ${quien.fullName}`,
+            },
+          });
+        }
+      }
+      return decision;
+    }));
+
+    /* El aviso al ingeniero va FUERA de la transacción y con `catch`: que
+       Telegram esté caído no puede impedir que Producción reporte. */
+    if (salida.decision === 'NUEVA' && (salida.prioridad === 'ALTA' || salida.prioridad === 'CRITICA')) {
+      await this.avisos.encolar(
+        'INCIDENCIA_ALTA',
+        incidenciaCritica({
+          code: salida.incidenciaCodigo || '',
+          titulo: salida.titulo,
+          equipo: activo.assetCode,
+          tren: contexto?.trenNombre ?? null,
+          prioridad: salida.prioridad,
+          reportaba: quien.fullName,
+          enlace: enlaceIncidencia(salida.incidenciaCodigo || ''),
+        }),
+        await this.avisos.destinatarios('INGENIERO').catch(() => []),
+        salida.incidenciaId,
+      ).catch(() => 0);
+    }
+
+    return {
+      ...salida,
+      equipo: activo.assetCode,
+      tren: contexto?.trenNombre ?? null,
+      firma: firmaDeQuienReporta(quien.fullName, contexto?.trenNombre ?? null),
+      fotoGuardada: !!fileId,
+    };
   }
 
   async findAll(q: QueryIncidentDto) {
@@ -216,6 +455,26 @@ export class IncidentsService {
       userId: signer!.id, action: 'RESOLVE', entity: 'incidents', entityId: id, ip,
       after: { firmadoPor: signer!.email, incidente: inc.code },
     });
+
+    /* SE LE CONTESTA A QUIEN AVISÓ — bloque 51-B.
+       El Ing. Cañasas reportó, alguien fue, la arregló, y él no se enteró
+       nunca. La próxima vez usa la radio. Este aviso es lo que hace que el
+       canal se siga usando; un canal que no contesta se abandona en dos
+       semanas. Va con `catch`: Telegram caído no puede impedir un cierre. */
+    if (updated.reportedById) {
+      await this.avisos.encolar(
+        'REPORTE_RESUELTO',
+        tuReporteSeResolvio({
+          code: updated.code,
+          equipo: updated.asset?.assetCode,
+          zona: updated.zone,
+          duracionMin: updated.mttrMinutes,
+          enlace: enlaceIncidencia(updated.code),
+        }),
+        await this.avisos.aUnaPersona(updated.reportedById).catch(() => []),
+        updated.id,
+      ).catch(() => 0);
+    }
     return updated;
   }
 

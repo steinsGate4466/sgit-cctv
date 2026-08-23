@@ -3073,3 +3073,50 @@ a.ta-fila:focus-visible { outline: 2px solid #1f4e79; outline-offset: 2px; }
 .pista-AVISO   { background: #FFF7E8; color: #8A5A00; }
 .pista-DATO    { background: #F0F4F8; color: #486581; }
 .pista-BIEN    { background: #E7F7EE; color: #0F5C3A; }
+
+/* =============================================================================
+   REPORTAR QUE NO SE VE — bloque 51-B. Lo usa Producción, de pie, con guantes.
+   -----------------------------------------------------------------------------
+   Las medidas de aquí no son estéticas: 52 px de alto es el mínimo con el que
+   se acierta un botón con el pulgar enguantado, y por eso el botón de abrir y
+   el de enviar los tienen. El resto de la aplicación la usa gente sentada; esto
+   no.
+   ============================================================================= */
+.reportar-abrir {
+  display: flex; align-items: center; justify-content: center; gap: 9px;
+  width: 100%; min-height: 52px; margin: 0 0 12px;
+  border: 1.5px solid #B3261E; border-radius: 9px;
+  background: #FFF5F5; color: #8C1414;
+  font-size: 15px; font-weight: 700; cursor: pointer;
+}
+.reportar-abrir:hover { background: #FDECEC; }
+
+.reportar {
+  border: 1.5px solid #B3261E; border-left-width: 4px; border-radius: 9px;
+  background: #FFFAFA; padding: 12px 13px; margin: 0 0 12px;
+}
+.reportar-hecho { border-color: #1E7A46; background: #F4FBF7; }
+
+.reportar-cabeza {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 14.5px; font-weight: 700; color: #8C1414; margin-bottom: 10px;
+}
+.reportar-hecho .reportar-cabeza { color: #0F5C3A; }
+
+.reportar-respuesta { margin: 0 0 8px; font-size: 14px; line-height: 1.45; color: #1F2933; }
+.reportar-dato      { margin: 0 0 4px; font-size: 13px; color: #486581; }
+
+.reportar-acciones { display: flex; gap: 9px; margin-top: 6px; }
+.reportar-enviar {
+  flex: 1; min-height: 52px;
+  border: none; border-radius: 9px; background: #B3261E; color: #fff;
+  font-size: 15px; font-weight: 700; cursor: pointer;
+}
+.reportar-enviar:hover:not(:disabled) { background: #8C1414; }
+.reportar-enviar:disabled { background: #C9A6A4; cursor: not-allowed; }
+.reportar-cancelar { min-height: 52px; padding: 0 16px; background: #fff; }
+
+/* Se dice en voz baja, pero se dice: quien reporta tiene que saber que no le
+   falta nada por llenar. Si no, se queda mirando la pantalla buscando el resto
+   del formulario. */
+.reportar-nota { margin: 10px 0 0; font-size: 12px; color: #627D98; line-height: 1.4; }

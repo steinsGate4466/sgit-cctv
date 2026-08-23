@@ -7,6 +7,7 @@ import Icono from '../components/Iconos';
 import { guardarPendiente } from '../cola-offline';
 import CampoDelTurno from '../components/CampoDelTurno';
 import ArranqueDiagnostico from '../components/ArranqueDiagnostico';
+import ReportarCaida from '../components/ReportarCaida';
 
 /**
  * Ficha rápida del activo — destino del código QR pegado en el equipo.
@@ -122,6 +123,13 @@ export default function AssetScan() {
           modelo. Va ARRIBA de la ficha técnica a propósito: el técnico está
           de pie delante del equipo y esto es lo que necesita antes de tocar
           nada. La marca y el número de serie pueden esperar. */}
+      {/* BLOQUE 51-B — LA PUERTA DE PRODUCCIÓN.
+          Va ARRIBA DEL TODO, antes incluso que el campo del turno, y sólo la
+          ve quien tiene `incident.create`. Quien escanea desde el púlpito
+          viene a decir UNA cosa: que no está viendo. Si para eso tiene que
+          bajar por la ficha técnica, no lo hace: coge la radio. */}
+      <ReportarCaida assetId={a.id} codigo={a.assetCode} />
+
       <CampoDelTurno assetId={a.id} />
 
       {/* BLOQUE 51 — POR DÓNDE EMPEZAR.

@@ -49,6 +49,11 @@ model User {
 
   workOrders   WorkOrder[] @relation("AssignedTechnician")
   incidents    Incident[]  @relation("IncidentResponsible")
+  /// Incidencias que esta persona LEVANTÓ (bloque 51-B). Es distinto de
+  /// `incidents`: aquella dice quién resuelve, ésta dice quién avisó.
+  incidenciasReportadas Incident[] @relation("IncidentReporter")
+  /// Sus avisos sumados a incidencias que ya estaban abiertas.
+  avisosDeProduccion    IncidentAviso[]
   auditLogs    AuditLog[]
   stockMovements StockMovement[]
   stockChecks    StockCheck[]
@@ -1456,13 +1461,63 @@ model Incident {
   proposalRisk    String?          // riesgo o consecuencia de no atenderla
   requiresThirdParty Boolean @default(false) // requiere apoyo de terceros (eléctrica, contratista)
 
+  // ---- Quién avisó y por qué vía (bloque 51-B) ----
+  /// Por dónde entró el aviso. Saberlo cambia cómo se lee el dato: una
+  /// incidencia abierta por Producción es una persona que se quedó sin ver;
+  /// una abierta por el monitoreo puede ser un equipo que ni se usaba.
+  canalOrigen     CanalOrigen      @default(SISTEMA)
+  /// Quién LEVANTÓ el aviso. No es el responsable de resolverlo.
+  reportedById    String?
+  reportedBy      User?            @relation("IncidentReporter", fields: [reportedById], references: [id])
+  /// La cámara se había dado por reparada y volvió a caer dentro de las 24 h.
+  /// Es una reparación fallida y se cuenta como tal.
+  reaparecio      Boolean          @default(false)
+
   workOrders      WorkOrder[]        // OM generadas a partir de esta incidencia
   evidences       IncidentEvidence[] // fotografías de campo
+  avisos          IncidentAviso[]    // los reportes repetidos del mismo problema
 
   @@index([assetId])
   @@index([status])
   @@index([category])
+  @@index([reportedById])
+  @@index([canalOrigen])
   @@map("incidents")
+}
+
+/// Por dónde entró el aviso de la incidencia (bloque 51-B).
+enum CanalOrigen {
+  PRODUCCION  // el púlpito: alguien de la línea se quedó sin ver
+  TECNICO     // el técnico de red lo detectó en ronda o en pantalla
+  MONITOREO   // lo levantó el agente de monitoreo automático
+  SISTEMA     // origen no declarado (todo lo anterior al bloque 51-B)
+}
+
+/// UN AVISO SUMADO A UNA INCIDENCIA QUE YA ESTABA ABIERTA (bloque 51-B).
+///
+/// Cinco personas del púlpito viendo la misma cámara apagada son UN incidente,
+/// no cinco. Pero son cinco personas sin ver, y ese número no existía en
+/// ninguna parte. Cada fila de aquí es una de ellas.
+///
+/// La restricción única sobre (incidencia, persona) es a propósito: en el
+/// púlpito, con el celular y mala señal, tocar «enviar» dos veces es lo normal.
+/// Sin ella el contador de impacto mentiría hacia arriba.
+model IncidentAviso {
+  id          String   @id @default(uuid())
+  incidentId  String
+  incident    Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  /// La zona que escribió quien avisó, si la escribió. Opcional siempre.
+  zona        String?
+  /// Foto del púlpito, si la subió. Opcional siempre.
+  fileId      String?
+  createdAt   DateTime @default(now())
+
+  @@unique([incidentId, userId])
+  @@index([incidentId])
+  @@index([userId])
+  @@map("incident_avisos")
 }
 
 // =====================================================================

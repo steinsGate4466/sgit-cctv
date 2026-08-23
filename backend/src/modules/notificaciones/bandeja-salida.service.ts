@@ -65,6 +65,26 @@ export class BandejaSalidaService {
     }
   }
 
+  /**
+   * UNA SOLA PERSONA, POR SU IDENTIFICADOR (bloque 51-B).
+   *
+   * Para avisar a quien levantó el reporte de que su cámara ya se ve. No es
+   * ni el ingeniero ni el técnico de turno: es alguien de Producción, y no
+   * tiene ningún permiso de mantenimiento que permita encontrarlo por rol.
+   *
+   * Devuelve vacío si no vinculó Telegram. Eso NO es un error: la mayoría de
+   * Producción no lo tendrá vinculado, y el reporte funciona igual — el
+   * resultado también se ve en la pantalla.
+   */
+  async aUnaPersona(userId?: string | null) {
+    if (!userId) return [];
+    const u = await this.prisma.user.findFirst({
+      where: { active: true, telegramChatId: { not: null }, id: userId },
+      select: { telegramChatId: true },
+    });
+    return u ? [u] : [];
+  }
+
   /** Quién debe enterarse de qué. Una sola consulta, y aquí se decide. */
   async destinatarios(tipo: 'INGENIERO' | 'TECNICO' | 'AMBOS', tecnicoId?: string | null) {
     // Un usuario recibe si TIENE CHAT VINCULADO y el permiso que corresponde.

@@ -115,6 +115,38 @@ export function incidenciaCritica(d: {
 }
 
 /**
+ * DE VUELTA A QUIEN AVISÓ — bloque 51-B.
+ *
+ * El Ing. Cañasas reportó que no ve la cámara del lecho. Alguien fue, la
+ * arregló, y él nunca se enteró. La próxima vez usa la radio.
+ *
+ * Este aviso cierra el círculo: le dice que su reporte sirvió. No es cortesía,
+ * es lo que hace que el sistema se siga usando. Un canal de reportes que no
+ * contesta se abandona en dos semanas.
+ *
+ * Va SIN SONIDO: es una buena noticia, no despierta a nadie.
+ */
+export function tuReporteSeResolvio(d: {
+  code: string; equipo?: string | null; zona?: string | null;
+  duracionMin?: number | null; enlace?: string | null;
+}): Aviso {
+  const horas = d.duracionMin != null ? Math.round((d.duracionMin / 60) * 10) / 10 : null;
+  return {
+    asunto: `✅ Ya se ve otra vez · ${d.equipo || d.code}`,
+    cuerpo:
+      'La cámara que reportaste ya está operativa.\n\n' +
+      linea('Equipo', d.equipo) +
+      linea('Dónde', d.zona) +
+      linea('Incidencia', d.code) +
+      // El tiempo sin visión se le devuelve a quien lo sufrió. Es SU dato:
+      // es el que puede decir si esas horas costaron producción.
+      linea('Tiempo sin visión', horas != null ? `${horas} h` : null) +
+      (d.enlace ? `\n${d.enlace}` : ''),
+    silencioso: true,
+  };
+}
+
+/**
  * Resumen diario. Va SIN SONIDO a propósito.
  *
  * Si todo suena igual, la gente silencia el bot entero — y ahí se acabó el
