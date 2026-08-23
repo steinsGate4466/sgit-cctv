@@ -1,5 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { secretoJwt, secretoRefresh } from '../../common/secreto-jwt';
+import { duracionDeToken, secretoJwt, secretoRefresh } from '../../common/secreto-jwt';
 import { randomUUID } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
@@ -242,13 +242,16 @@ export class AuthService {
     return {
       accessToken: await this.jwt.signAsync(payload, {
         secret: secretoJwt(),
-        expiresIn: process.env.JWT_EXPIRES_IN || '900s',
+        // Bloque 53: la duración se VALIDA. Un formato que la librería no
+        // entienda —«15minutos»— hacía que el token saliera sin caducidad, en
+        // silencio. Ver duracionDeToken() en common/secreto-jwt.ts.
+        expiresIn: duracionDeToken('JWT_EXPIRES_IN', '900s'),
       }),
       refreshToken: await this.jwt.signAsync(
         { sub: user.id, jti },
         {
           secret: secretoRefresh(),
-          expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
+          expiresIn: duracionDeToken('JWT_REFRESH_EXPIRES_IN', '7d'),
         },
       ),
       user: {

@@ -56,3 +56,63 @@ export function secretoRefresh(): string {
   }
   return 'desarrollo_local_refresh_no_usar_en_produccion';
 }
+
+/* =============================================================================
+   CUÁNTO DURA UN TOKEN — bloque 53
+   -----------------------------------------------------------------------------
+   POR QUÉ HACE FALTA ESTA FUNCIÓN
+
+   Hasta NestJS 10 esto se escribía así, sin más:
+
+       expiresIn: process.env.JWT_EXPIRES_IN || '900s'
+
+   NestJS 11 trae tipos más estrictos para `expiresIn`, y ya no acepta un
+   `string` cualquiera: exige un número de segundos o una duración con formato
+   («900s», «15m», «7d»). Con la variable de entorno tal cual, la compilación
+   falla:
+
+       Type 'string' is not assignable to type 'number | StringValue'
+
+   Se podría callar con un `as any` y seguir. NO se hace, porque el compilador
+   está señalando un agujero de verdad: hasta hoy, si alguien escribía en
+   Railway
+
+       JWT_EXPIRES_IN=15minutos
+
+   ...la librería no entendía ese formato y el token salía SIN CADUCIDAD. Una
+   sesión eterna, sin un solo error en el registro y sin forma de notarlo
+   mirando la pantalla.
+
+   Así que se comprueba de verdad. Si el formato es válido, se usa. Si no, se
+   avisa y se cae al valor por defecto — nunca a «sin caducidad».
+============================================================================= */
+
+/** Formato que entiende la librería: número + s | m | h | d. */
+type Duracion = `${number}${'s' | 'm' | 'h' | 'd'}`;
+
+const FORMATO_DURACION = /^\d+(s|m|h|d)$/;
+
+/**
+ * Lee una duración de las variables de entorno y la valida.
+ *
+ * @param variable  nombre de la variable, p. ej. `JWT_EXPIRES_IN`
+ * @param pordefecto valor si no está declarada o está mal escrita
+ */
+export function duracionDeToken(variable: string, pordefecto: Duracion): Duracion {
+  const v = (process.env[variable] || '').trim();
+  if (!v) return pordefecto;
+
+  if (!FORMATO_DURACION.test(v)) {
+    /* Aviso y no caída: una duración mal escrita no justifica dejar la planta
+       sin sistema. Pero tampoco se acepta en silencio, que es lo que pasaba
+       antes. El registro lo dice y el sistema usa un valor seguro. */
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[AVISO] ${variable}="${v}" no tiene un formato válido. Se esperan cosas como ` +
+      `900s, 15m, 8h o 7d. Se usa "${pordefecto}" en su lugar.\n` +
+      '        Ojo: un formato no reconocido hacía que el token saliera SIN caducidad.',
+    );
+    return pordefecto;
+  }
+  return v as Duracion;
+}
