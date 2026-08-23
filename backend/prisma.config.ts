@@ -88,14 +88,42 @@ export default defineConfig({
   datasource: {
     url: process.env.DATABASE_URL ?? '',
 
-    /* La BASE DE SOMBRA: una base desechable donde `migrate diff` reproduce
-       las migraciones para compararlas con el esquema. Antes se le pasaba al
-       comando con `--shadow-database-url`; Prisma 7 eliminó ese parámetro y
-       ahora se declara aquí.
+    /* ---------------------------------------------------------------------
+       LA BASE DE SOMBRA — SÓLO SI EXISTE UNA DE VERDAD
+       ---------------------------------------------------------------------
+       Es una base DESECHABLE donde `migrate diff` reproduce las migraciones
+       desde cero para compararlas con el esquema. Prisma la BORRA Y RECREA
+       en cada uso. Antes se pasaba al comando con `--shadow-database-url`;
+       Prisma 7 eliminó ese parámetro y se declara aquí.
 
-       Si no hay una dedicada, se usa la misma dirección. Eso es lo que hacía
-       ya la integración continua, donde la base es un contenedor efímero que
-       se destruye al terminar. NUNCA se apunta a producción a mano. */
-    shadowDatabaseUrl: process.env.SHADOW_DATABASE_URL ?? process.env.DATABASE_URL ?? '',
+       ESTO YA TUMBÓ PRODUCCIÓN UNA VEZ, el 23/08/2026. La primera versión
+       decía:
+
+           shadowDatabaseUrl: process.env.SHADOW_DATABASE_URL
+                              ?? process.env.DATABASE_URL ?? ''
+
+       ...es decir, «si no hay una dedicada, usa la principal». Y Prisma se
+       niega, con toda la razón del mundo:
+
+           Error: The shadow database you configured appears to be the same
+                  as the main database.
+
+       Menos mal que se niega: si la aceptara, borraría la base de Pisco para
+       hacer una comparación.
+
+       El daño real fue otro y más tonto: `migrate deploy` —que corre al
+       ARRANCAR el contenedor y que NO necesita base de sombra para nada—
+       también lee este archivo, vio la contradicción y se negó a arrancar.
+       Railway entró en bucle de reinicio.
+
+       Por eso ahora: si no hay una base de sombra DECLARADA Y DISTINTA, no se
+       declara ninguna. Sin base de sombra, `migrate deploy` funciona
+       perfectamente —sólo aplica lo pendiente— y `migrate diff` avisa por su
+       cuenta si la necesita.
+       --------------------------------------------------------------------- */
+    ...(process.env.SHADOW_DATABASE_URL
+      && process.env.SHADOW_DATABASE_URL !== process.env.DATABASE_URL
+      ? { shadowDatabaseUrl: process.env.SHADOW_DATABASE_URL }
+      : {}),
   },
 });

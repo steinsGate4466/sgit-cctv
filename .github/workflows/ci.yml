@@ -272,6 +272,19 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_shadow?schema=public
+      # DOS BASES DISTINTAS, y hace falta que sean dos.
+      #
+      # `migrate diff --from-migrations` reproduce las 40 migraciones desde
+      # cero para compararlas con el esquema, y para eso necesita una base
+      # DESECHABLE que BORRA Y RECREA. Prisma se niega —con razon— si esa base
+      # es la misma que la principal:
+      #
+      #   Error: The shadow database you configured appears to be the same as
+      #          the main database.
+      #
+      # Menos mal que se niega: si la aceptara, borraria la base principal para
+      # hacer una comparacion.
+      SHADOW_DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_sombra?schema=public
 
     steps:
       - name: Descargar el codigo
@@ -283,6 +296,13 @@ jobs:
           node-version: '24'
           cache: npm
           cache-dependency-path: backend/package-lock.json
+
+      # El servicio de PostgreSQL solo crea la base de POSTGRES_DB. La segunda
+      # —la desechable de arriba— hay que crearla a mano.
+      - name: Crear la base de sombra
+        run: |
+          PGPASSWORD=ci psql -h localhost -U ci -d ci_shadow \
+            -c 'CREATE DATABASE ci_sombra;'
 
       - name: Instalar dependencias
         working-directory: backend
