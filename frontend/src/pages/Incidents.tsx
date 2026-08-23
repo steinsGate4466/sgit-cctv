@@ -17,7 +17,7 @@ const CATEGORY_GROUPS: { label: string; items: string[] }[] = [
   { label: 'Entorno de planta', items: ['FALLA_GABINETE', 'AMBIENTAL_SIDERURGICO', 'SEGURIDAD_FISICA', 'CONFIGURACION_FIRMWARE', 'GENERAL'] },
 ];
 const CATEGORIES = CATEGORY_GROUPS.flatMap((g) => g.items);
-const PRIORITIES = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
+const PRIORITIES = ['BAJA', 'MEDIA', 'ALTA', 'Crítica'];
 const STATUSES = ['ABIERTA', 'EN_DIAGNOSTICO', 'EN_PROCESO', 'EN_ESPERA', 'RESUELTA', 'CERRADA'];
 // Estados que el técnico puede fijar. El cierre (RESUELTA/CERRADA) lo firma el Jefe.
 const NON_TERMINAL = ['ABIERTA', 'EN_DIAGNOSTICO', 'EN_PROCESO', 'EN_ESPERA'];

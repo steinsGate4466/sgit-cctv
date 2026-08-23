@@ -222,7 +222,7 @@ export default function Conexiones() {
 
               <div className="rejilla-puertos">
                 {Array.from({ length: Math.max(sw.capacidad || 0, ...sw.puertos.map((p: any) => p.numero), 0) }, (_, i) => i + 1).map((n) => {
-                  const p = sw.puertos.find((x: any) => x.numero === n);
+                  const p = sw.puertos.find((x: any) => x.número === n);
                   const eq = p?.equipo;
                   return (
                     <div

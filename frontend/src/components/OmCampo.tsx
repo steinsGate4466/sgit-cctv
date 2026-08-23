@@ -46,7 +46,7 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
   const [fin, setFin] = useState('');
   const [causa, setCausa] = useState('');
   const [sintoma, setSintoma] = useState('');
-  // OJO con el nombre: la propiedad `accion` ya es el modo de la pantalla
+  // OJO con el nombre: la propiedad `acción` ya es el modo de la pantalla
   // (abrir / avance / cerrar). Esta es la ACCIÓN REALIZADA del catálogo, y si
   // se llamara igual la taparía sin que TypeScript dijera nada.
   const [accionRealizada, setAccionRealizada] = useState('');

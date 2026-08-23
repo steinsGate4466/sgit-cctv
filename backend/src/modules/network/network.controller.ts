@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { NetworkService } from './network.service';
+import { MapaDeRedService } from './mapa-de-red.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
@@ -12,7 +13,23 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('network')
 export class NetworkController {
-  constructor(private readonly red: NetworkService) {}
+  constructor(
+    private readonly red: NetworkService,
+    private readonly mapaRed: MapaDeRedService,
+  ) {}
+
+  /**
+   * MAPA DE RED SINTETIZADO — bloque 48.
+   *
+   * Va con `asset.read` y no con `om.mirar`: aquí se enseñan direcciones IP y
+   * marcas de equipo, que es información de infraestructura. Producción tiene
+   * su vista propia en «De qué depende», sin direcciones.
+   */
+  @Get('mapa-de-red')
+  @RequirePermissions('asset.read')
+  mapaDeRed(@CurrentUser() user: any, @Query('tren') tren?: string) {
+    return this.mapaRed.mapa(user?.userId, tren);
+  }
 
   /** Ranking de puntos críticos. 'criticos' antes que ':id': lo específico primero. */
   @Get('criticos')

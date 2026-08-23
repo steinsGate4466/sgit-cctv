@@ -188,7 +188,7 @@ export default function Rotulado() {
               {generado.etiqueta?.linea2 && <div className="etiqueta-l2">{generado.etiqueta.linea2}</div>}
             </div>
 
-            {/* Los avisos NO impiden generar el código: lo marcan. Un equipo
+            {/* Los avisos NO impiden generar el codigo: lo marcan. Un equipo
                 sin zona asignada existe, y negarle rótulo sólo consigue que
                 se quede sin rotular. Pero el hueco tiene que verse. */}
             {generado.avisos?.length > 0 && (

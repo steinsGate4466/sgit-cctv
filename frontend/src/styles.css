@@ -2826,3 +2826,136 @@ a.ta-fila:focus-visible { outline: 2px solid #1f4e79; outline-offset: 2px; }
   .cadena-flecha { transform: rotate(90deg); text-align: center; }
   .cadena-caja { min-width: 0; }
 }
+
+/* =========================================================================
+   BLOQUE 48 — Mapa de red por gabinete y tablero
+
+   La planta tiene DOS redes y antes se pintaba como una. El color del
+   distintivo de red no es decoración: es lo primero que hay que distinguir
+   cuando se abre una caja y hay seis cables iguales.
+   ========================================================================= */
+.redes-tira { display: flex; flex-wrap: wrap; gap: 8px; margin: -2px 0 14px; }
+
+.red-chip {
+  display: inline-flex; align-items: center; gap: 6px; flex: none;
+  font-size: 11.5px; padding: 3px 9px; border-radius: 12px;
+  border: 1px solid transparent; white-space: nowrap;
+}
+.red-chip b { font-family: 'Consolas', 'SF Mono', monospace; font-size: 11px; }
+.red-vlan { font-size: 10.5px; opacity: .75; }
+
+/* Cada red, su color. Y además su NOMBRE escrito: el color nunca es el único
+   portador del dato, porque un daltónico no distingue estos dos azules. */
+.red-LAN_CAMARAS  { background: #E8F1FB; color: #14487A; border-color: #BBD5EE; }
+.red-RED_CCTV     { background: #E7F7EE; color: #0F5C3A; border-color: #BFE4CF; }
+.red-OTRA         { background: #F2F4F7; color: #486581; border-color: #D9E2EC; }
+.red-FUERA_DE_PLAN{ background: #FDECEC; color: #8C1414; border-color: #F6C9C9; }
+.red-SIN_IP       { background: #FFF7E8; color: #8A5A00; border-color: #F0DCB4; }
+
+.caja-nombre { font-weight: 400; color: var(--muted); font-size: 12.5px; margin-left: 8px; }
+
+/* El aviso del tablero eléctrico. Va dentro y arriba del todo: quien abre la
+   pestaña para ver qué hay tiene que leerlo antes que la lista. */
+.caja-aviso {
+  background: #FDECEC; border: 1px solid #F6C9C9; border-radius: 8px;
+  padding: 9px 12px; font-size: 12.5px; color: #8C1414; margin: 0 0 12px;
+  line-height: 1.45;
+}
+
+.nodo {
+  border: 1px solid var(--line); border-radius: 9px;
+  padding: 10px 12px; margin-bottom: 9px; background: #fff;
+}
+.nodo-mal { border-color: #E3B4B4; background: #FFFAFA; }
+
+.nodo-cabeza { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.nodo-codigo { font-family: 'Consolas', 'SF Mono', monospace; font-size: 12.5px;
+  font-weight: 600; color: inherit; text-decoration: none; }
+.nodo-codigo:hover { text-decoration: underline; }
+.nodo-marca { font-size: 11.5px; color: var(--muted); }
+
+.nodo-red { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 7px; }
+.nodo-ip { font-size: 12px; font-weight: 600; }
+.nodo-sinip { font-size: 11.5px; color: #8A5A00; font-style: italic; }
+.nodo-poe { font-size: 11.5px; color: var(--muted); }
+.nodo-poe.poe-lleno { color: #8A5A00; font-weight: 600; }
+
+.nodo-frontera { font-size: 12px; color: var(--muted); margin: 8px 0 0; line-height: 1.45; }
+.nodo-frontera b { font-size: 11.5px; }
+.nodo-frontera-mal { color: #8C1414; }
+
+.nodo-hijos { margin-top: 9px; display: grid; gap: 5px;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+.nodo-hijo {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  min-height: 40px; padding: 6px 9px; border-radius: 7px;
+  border: 1px solid var(--line); color: inherit; text-decoration: none; font-size: 12px;
+}
+.nodo-hijo:hover { background: #f6f9fc; }
+.nodo-hijo:focus-visible { outline: 2px solid #1f4e79; outline-offset: -2px; }
+.nodo-hijo b { font-size: 11.5px; }
+.nodo-hijo-puerto { font-size: 11px; color: var(--muted); }
+.nodo-hijo-lugar { font-size: 11px; color: var(--muted); flex-basis: 100%; }
+.nodo-otros { font-size: 11.5px; color: var(--muted); margin: 8px 0 0; }
+
+.hallazgo { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0;
+  border-top: 1px solid var(--line); }
+.hallazgo:first-child { border-top: 0; }
+.hallazgo-texto { flex: 1; min-width: 0; font-size: 12.5px; line-height: 1.5; }
+.hallazgo-que-hacer { display: block; color: var(--muted); font-size: 11.5px; margin-top: 3px; }
+
+@media (max-width: 620px) {
+  .nodo-hijos { grid-template-columns: 1fr; }
+  .caja-nombre { flex-basis: 100%; margin-left: 0; }
+}
+
+/* Fila de tabla vacía (bloque 48). Una tabla en blanco se lee como «se rompió»;
+   una frase dentro dice «todavía no hay nada», que es distinto. */
+.fila-vacia {
+  text-align: center; color: var(--muted); font-size: 12.5px;
+  padding: 22px 16px !important; line-height: 1.5; font-style: italic;
+}
+
+/* =========================================================================
+   BLOQUE 49 — «Por tren»: el selector y las zonas
+
+   Pastillas y no un <select>: en el púlpito se pulsa con guante, y la lista
+   nativa de un desplegable sale con la letra del sistema, minúscula.
+   ========================================================================= */
+.selector-tren { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+.pastilla-tren {
+  min-height: 42px; padding: 9px 20px; border-radius: 22px;
+  border: 1px solid var(--line); background: #fff;
+  font-size: 14px; cursor: pointer; color: inherit;
+  transition: background .12s, border-color .12s;
+}
+.pastilla-tren:hover { background: #f6f9fc; border-color: var(--steel); }
+.pastilla-tren.activa {
+  background: #102A43; border-color: #102A43; color: #fff; font-weight: 600;
+}
+.pastilla-tren:focus-visible { outline: 2px solid #1f4e79; outline-offset: 2px; }
+
+.sub-titulo {
+  font-size: 13px; text-transform: uppercase; letter-spacing: .6px;
+  color: var(--muted); font-weight: 700; margin: 22px 0 10px;
+}
+
+.zona-total { font-size: 11.5px; color: var(--muted); }
+
+.zona-frase { font-size: 14.5px; line-height: 1.5; margin: 0 0 10px; font-weight: 600; color: #1a2b45; }
+.zona-frase.mal { color: #8C1414; }
+/* Gris y no verde: «sin medir» no es «bien». El color lo dice antes que el texto. */
+.zona-frase.gris { color: var(--muted); font-weight: 400; font-style: italic; }
+
+.zona-tipos { display: flex; flex-wrap: wrap; gap: 7px; }
+.zona-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; padding: 5px 11px; border-radius: 14px;
+  background: var(--humo, #F0F4F8); color: #334E68; white-space: nowrap;
+}
+.zona-chip.aviso  { background: #FFF7E8; color: #8A5A00; }
+.zona-chip.peligro{ background: #FDECEC; color: #8C1414; }
+
+@media (max-width: 620px) {
+  .pastilla-tren { flex: 1 1 calc(50% - 4px); text-align: center; }
+}

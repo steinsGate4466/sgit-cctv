@@ -412,7 +412,7 @@ export default function TrainBoard() {
                      <b>{a.assetCode}</b>,
                      TYPE_ES[a.type] || a.type,
                      a.etapa || '—',
-                     a.ubicacion || '—',
+                     a.ubicación || '—',
                      <span className={'badge ' + a.criticidad}>{a.criticidad}</span>,
                      <span className={'badge ' + a.estado}>{STATUS_ES[a.estado] || a.estado}</span>,
                    ]} />
@@ -482,7 +482,7 @@ export default function TrainBoard() {
                    cabecera={['Grabador', 'Ubicación', 'Gabinete', 'Canales', 'Ocupados', 'Libres', 'Estado']}
                    fila={(g: any) => [
                      <b>{g.assetCode}</b>,
-                     g.ubicacion || g.referencia || '—',
+                     g.ubicación || g.referencia || '—',
                      g.gabinete || '—',
                      g.canales ?? <span className="muted">sin declarar</span>,
                      g.ocupados,

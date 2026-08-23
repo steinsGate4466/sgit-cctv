@@ -6,6 +6,7 @@ import { useAuth } from '../auth/AuthContext';
 import Icono from '../components/Iconos';
 import { useDialogos } from '../components/Dialogos';
 import { fecha, fechaHora } from '../formato';
+import { ComoSeCalcula } from '../components/Patron';
 
 // Estado del plan -> clase de badge existente.
 const PLAN_BADGE: Record<string, string> = {
@@ -148,7 +149,10 @@ export default function Preventive() {
               {auto.lastRunAt
                 ? <> Última ejecución: {fechaHora(auto.lastRunAt)} ({auto.lastRunGenerated ?? 0} generadas).</>
                 : <> Aún sin ejecuciones registradas.</>}
-              <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>Correctivo, mejora y predictivo NO se generan solos: nacen de una incidencia o del análisis del equipo.</div>
+              {/* La aclaración de qué NO se genera solo vive en «Cómo se
+                  calcula esto», al final de la pantalla: es metodología, y
+                  aquí competía por el sitio con el dato de la última
+                  ejecución, que es lo que se viene a mirar. */}
             </>
           ) : (
             <><Icono n="pausa" size={15} /> Generación automática desactivada. Las OM preventivas se crean con el botón “Generar OM vencidas”.</>
@@ -183,6 +187,12 @@ export default function Preventive() {
               </tr>
             ))}
             {!plans.length && <tr><td colSpan={8} className="muted" style={{ textAlign: 'center', padding: 30 }}>Sin planes preventivos. Crea uno con “+ Nuevo plan”.</td></tr>}
+          
+            {/* Caso vacío: una tabla en blanco se lee como «se rompió»,
+                no como «todavía no hay nada». */}
+            {!plans.length && (
+              <tr><td colSpan={8} className="fila-vacia">Todavía no hay planes preventivos.</td></tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -241,6 +251,18 @@ export default function Preventive() {
       </>
       )}
 
+      <ComoSeCalcula>
+        <p>
+          Sólo el <b>preventivo</b> se genera solo. Correctivo, mejora y
+          predictivo nacen de una incidencia o del análisis del equipo: no hay
+          calendario que los dispare.
+        </p>
+        <p>
+          El intervalo de cada plan sale de la <b>criticidad de la zona</b>, que
+          declara Producción: 30 días donde hay suciedad y 60 en el resto. Si la
+          zona cambia de criticidad, el intervalo cambia solo.
+        </p>
+      </ComoSeCalcula>
     </div>
   );
 }

@@ -8,6 +8,7 @@ import {
   contarPorTren, contarCables, contarCanales, pct, contadoresVacios,
   ActivoAgregable, TramoAgregable, GrabadorAgregable, LIMITE_TRAMO_M,
 } from './infra-agregados';
+import { zonasDelTren, titularDelTren, ActivoDeZona } from './zonas-del-tren';
 
 /**
  * TABLERO DE INFRAESTRUCTURA POR TREN.
@@ -501,4 +502,75 @@ export class InfraService {
       filas,
     };
   }
+
+  /**
+   * TODO LO DE UN TREN, AGRUPADO POR ZONA — bloque 49.
+   *
+   * ===========================================================================
+   *  POR QUÉ NO REUTILIZA `detalleTren`
+   * ===========================================================================
+   *  `detalleTren` devuelve el tablero completo: órdenes, incidencias, cables,
+   *  canales, accesos. Es mucho, y está bien que lo sea — lo abre un ingeniero.
+   *
+   *  Esto devuelve MENOS a propósito: sólo lo que hace falta para contestar
+   *  «¿cómo está mi tren?» de un vistazo. Un jefe de tren en el púlpito no
+   *  necesita descargar la lista de tramos de cable para saber si tiene una
+   *  cámara caída, y en la wifi de planta esa diferencia se nota.
+   *
+   * ===========================================================================
+   *  LA ZONA ES LA UBICACIÓN DECLARADA DEL ACTIVO
+   * ===========================================================================
+   *  No se inventa una agrupación: se usa dónde dice el árbol que está el
+   *  equipo. Si un activo cuelga de un rack, su «zona» es ese rack; si cuelga
+   *  de la zona, es la zona. Es el dato que alguien cargó, y agruparlo por otra
+   *  cosa daría una foto que no coincide con el inventario.
+   */
+  async porZonas(idOrCode: string, userId?: string | null) {
+    const tren = await this.prisma.location.findFirst({
+      where: { type: 'TREN', OR: [{ id: idOrCode }, { code: idOrCode }, { siglaTren: idOrCode }] },
+      select: { id: true, code: true, name: true, siglaTren: true },
+    });
+    /* 404 y no 403, igual que en `detalleTren`: un 403 confirmaría que ese
+       tren existe, y a quien no lo alcanza no hay razón para confirmárselo. */
+    if (!tren) throw new NotFoundException('No existe un tren con ese identificador.');
+    const ambito = await ambitoDelUsuario(this.prisma, userId);
+    if (!alcanza(ambito, tren.siglaTren || tren.code)) {
+      throw new NotFoundException('No existe un tren con ese identificador.');
+    }
+
+    const activos = await this.activosConTodo();
+    const ctx = await resolverContextoDePlanta(this.prisma, activos as any);
+    const eff = await computeEffectiveStatuses(this.prisma, activos as any);
+
+    const delTren = activos.filter((a) => ctx[a.id]?.trenCode === tren.code);
+
+    const filas: ActivoDeZona[] = delTren.map((a: any) => ({
+      id: a.id,
+      codigo: a.assetCode,
+      tipo: a.type as string,
+      estado: (eff[a.id] ?? a.status) as string,
+      zonaCode: a.location?.id ?? null,
+      zonaNombre: a.location?.name ?? null,
+      criticidad: ctx[a.id]?.criticidad ?? null,
+      zonaVital: !!ctx[a.id]?.zonaVital,
+      /* Sólo cuenta como subida lo DECLARADO. Un activo sin declarar no es
+         «a pie»: es desconocido, y contarlo como fácil haría que alguien
+         subiera sin preparar nada. */
+      exigeElevador: a.medioAcceso === 'MANLIFT' || a.medioAcceso === 'GRUA',
+      enTablero: !!a.tableroId,
+      lugar: a.referencePlace ?? null,
+    }));
+
+    const { zonas, totales } = zonasDelTren(filas);
+    const nombre = tren.name || tren.siglaTren || tren.code;
+
+    return {
+      tren: { id: tren.id, code: tren.code, sigla: tren.siglaTren, nombre },
+      titular: titularDelTren(nombre, totales),
+      totales,
+      zonas,
+      generado: new Date().toISOString(),
+    };
+  }
+
 }

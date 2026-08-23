@@ -5,6 +5,7 @@ import { GrabadoresService } from './grabadores.service';
 import { GrabadoresController } from './grabadores.controller';
 import { ConexionesService } from './conexiones.service';
 import { ConexionesController } from './conexiones.controller';
+import { MapaDeRedService } from './mapa-de-red.service';
 
 /**
  * MÓDULO DE RED Y TOPOLOGÍA — reservado para la fase F8.
@@ -38,7 +39,7 @@ import { ConexionesController } from './conexiones.controller';
  */
 @Module({
   controllers: [NetworkController, GrabadoresController, ConexionesController],
-  providers: [NetworkService, GrabadoresService, ConexionesService],
-  exports: [NetworkService, GrabadoresService, ConexionesService],
+  providers: [NetworkService, GrabadoresService, ConexionesService, MapaDeRedService],
+  exports: [NetworkService, GrabadoresService, ConexionesService, MapaDeRedService],
 })
 export class NetworkModule {}

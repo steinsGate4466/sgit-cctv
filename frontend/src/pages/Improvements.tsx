@@ -66,6 +66,12 @@ export default function Improvements() {
                 Sin mejoras registradas. Créalas desde <b>Mantenimiento</b> eligiendo el tipo “MEJORA”.
               </td></tr>
             )}
+          
+            {/* Caso vacío: una tabla en blanco se lee como «se rompió»,
+                no como «todavía no hay nada». */}
+            {!oms.length && (
+              <tr><td colSpan={7} className="fila-vacia">No hay órdenes de mejora registradas.</td></tr>
+            )}
           </tbody>
         </table>
       </div>

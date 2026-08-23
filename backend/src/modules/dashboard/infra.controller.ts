@@ -41,6 +41,21 @@ export class InfraController {
     return this.infra.sinUbicar(user?.userId);
   }
 
+  /**
+   * Todo lo de un tren agrupado por zona (bloque 49). Acepta id, código o
+   * sigla, porque el selector de la pantalla trabaja con siglas (T1, OFI).
+   *
+   * Va con `om.mirar` y no con `dashboard.read`: es la pantalla de Producción,
+   * y un jefe de tren no tiene por qué cargar con el permiso del tablero
+   * ejecutivo para ver su propio tren.
+   */
+  @SinAmbito()  // el servicio recorta por ámbito y responde 404 si no alcanza
+  @Get('tren/:idOrCode/zonas')
+  @RequirePermissions('om.mirar')
+  porZonas(@Param('idOrCode') idOrCode: string, @CurrentUser() user: any) {
+    return this.infra.porZonas(idOrCode, user?.userId);
+  }
+
   /** Tablero completo de un tren. Acepta el id o el código de la ubicación. */
   @SinAmbito()  // el tablero ya filtra por ámbito en el servicio
   @Get('tren/:idOrCode')

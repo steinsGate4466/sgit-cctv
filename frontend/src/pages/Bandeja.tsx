@@ -143,7 +143,7 @@ export default function Bandeja() {
               <span style={{ fontSize: 12, color: w.excedida ? 'var(--crit)' : undefined }}>
                 {w.excedida && <b>⚠ </b>}{w.texto}
               </span>,
-              w.tecnico || <span className="muted">sin asignar</span>,
+              w.técnico || <span className="muted">sin asignar</span>,
             ]}
             accion={() => navegar('/maintenance?status=EN_ESPERA')}
             textoAccion="Ir a órdenes"

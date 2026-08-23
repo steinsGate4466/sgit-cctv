@@ -32,7 +32,7 @@ export default function AssetScan() {
   const [a, setA] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
-  // 11.3 — abrir una OM parado frente al equipo, sin teclear su codigo.
+  // 11.3 — abrir una OM parado frente al equipo, sin teclear su código.
   const [abriendoOm, setAbriendoOm] = useState(false);
   const [actividad, setActividad] = useState('');
   const [creando, setCreando] = useState(false);

@@ -33,6 +33,8 @@ const TITLES: Record<string, string> = {
   '/mis-camaras': 'Mis cámaras',
   '/vista-general': 'Vista general por sector',
   '/dependencias': 'De qué depende cada cámara',
+  '/mapa-de-red': 'Mapa de red por gabinete y tablero',
+  '/por-tren': 'Por tren',
   '/mis-activos': 'Mis activos y cómo se llega a ellos',
   '/rotulado': 'Estándar de rotulado',
   '/monitoreo': 'Monitoreo de red',
@@ -182,6 +184,11 @@ export default function Layout() {
            jefe de tren cuando le avisan por radio. */
         /* Bloque 46. El indice por sector: Tren 1, 2, 3, Oficinas y Gruas.
            Va PRIMERO porque es donde se entra a mirar si algo esta mal. */
+        /* Bloque 49. VA PRIMERA de todo el grupo de Producción: es la que
+           contesta «cómo está mi tren», que es la pregunta con la que se entra
+           al sistema. Vista general enseña los cinco sectores a la vez; ésta
+           entra en uno y lo abre por zona. */
+        can('om.mirar') && <NavLink key="pt" to="/por-tren"><Icono n="tren" /> Por tren</NavLink>,
         can('om.mirar') && <NavLink key="vg" to="/vista-general"><Icono n="tablero" /> Vista general</NavLink>,
         can('om.mirar') && <NavLink key="mcam" to="/mis-camaras"><Icono n="alerta" /> Mis cámaras</NavLink>,
         /* Bloque 41. Va justo detrás porque son las dos mitades de la misma
@@ -234,6 +241,10 @@ export default function Layout() {
         // Conexiones va ANTES de Puntos críticos: primero se declara la red,
         // y sólo entonces el análisis de impacto tiene algo que analizar.
         can('asset.read') && <NavLink key="cx" to="/conexiones"><Icono n="puertos" /> Conexiones</NavLink>,
+        /* Bloque 48. Junto a Conexiones porque son las dos caras de lo mismo:
+           allí se DECLARA qué está enchufado dónde, y aquí se LEE la foto ya
+           agrupada por la caja física que el técnico abre. */
+        can('asset.read') && <NavLink key="mred" to="/mapa-de-red"><Icono n="gabinete" /> Mapa de red</NavLink>,
         // Va con Conexiones: primero se declara la red física, después el
         // direccionamiento que corre por encima.
         can('asset.read') && <NavLink key="ip" to="/ipam"><Icono n="ipam" /> Direccionamiento IP</NavLink>,
