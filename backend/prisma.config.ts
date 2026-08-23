@@ -35,7 +35,7 @@
    línea simplemente no encuentra archivo y sigue. No estorba.
 ============================================================================= */
 import 'dotenv/config';
-import { defineConfig, env } from 'prisma/config';
+import { defineConfig } from 'prisma/config';
 
 export default defineConfig({
   schema: 'prisma/schema.prisma',
@@ -61,7 +61,31 @@ export default defineConfig({
     seed: 'node dist/prisma/seed.js',
   },
 
+  /* ---------------------------------------------------------------------------
+     POR QUÉ NO SE USA EL AYUDANTE `env('DATABASE_URL')`
+     ---------------------------------------------------------------------------
+     Ese ayudante es ESTRICTO: si la variable no existe, revienta al CARGAR
+     este archivo, antes de saber siquiera qué comando se pidió. Y eso tumbó la
+     construcción de la imagen en Railway:
+
+         RUN npx prisma generate && npm run build
+         Failed to load config file "/app" as a TypeScript/JavaScript module.
+         Error: PrismaConfigEnvError: Cannot resolve environment variable:
+                DATABASE_URL.
+
+     El motivo es que Railway inyecta las variables AL EJECUTAR el contenedor,
+     no al construirlo. Durante el `docker build` no hay ninguna — y no tiene
+     por qué haberla: `prisma generate` lee el esquema y escribe archivos, NO
+     se conecta a ninguna base.
+
+     Así que la conexión se deja vacía si no está. No se pierde ninguna
+     protección: el comando que SÍ necesita la base —`migrate deploy`, que
+     corre al arrancar el contenedor, ya con las variables puestas— falla por
+     su cuenta y con un mensaje claro si la cadena viene vacía.
+
+     La regla, en una línea: construir no necesita base de datos; ejecutar sí.
+     --------------------------------------------------------------------------- */
   datasource: {
-    url: env('DATABASE_URL'),
+    url: process.env.DATABASE_URL ?? '',
   },
 });
