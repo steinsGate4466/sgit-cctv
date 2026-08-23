@@ -230,10 +230,91 @@ de desfase silencioso: los tipos describen un Node que no es el que ejecuta.
 
 | Bloque | Qué | Cuidado |
 | --- | --- | --- |
-| M5 | ESLint 8 → 10 | Cambia a «configuración plana»: hay que reescribir `.eslintrc.cjs` como `eslint.config.js`. También sube `eslint-plugin-react-hooks` (4.6 → 6.x) |
+| M5 | ESLint 8 → 10 | **HECHO.** Ver abajo |
 | M6 | React 18 → 19 + React Router | Se comprobó: **el código no usa ninguna API exclusiva de React 19**, así que el salto es de dependencias, no de código |
 | M7 | Vite 5 → 8 | Tres versiones mayores. Cierra de paso los fallos de esbuild |
 | M8 | Recharts 2 → 3, argon2, pdfkit | Recharts 3 tiene cambios reales de API en los gráficos: revisar pantalla por pantalla. **argon2 cifra las contraseñas: probar el login sí o sí** |
+
+---
+
+## M5 — ESLint 8 → 10 (hecho, bloque 54)
+
+ESLint 8 llegó a su **fin de vida el 05/10/2024** y el proyecto siguió sobre él
+**22 meses** sin un solo parche de seguridad. ESLint 9 también murió, el
+06/08/2026. Se salta directo a la 10.
+
+### Del formato viejo a la configuración plana
+
+`.eslintrc.cjs` → **`eslint.config.mjs`**. No es un cambio de nombre: ESLint 9
+retiró el formato antiguo y la 10 ya ni lo lee.
+
+Tres cosas que hubo que traducir:
+
+| Antes | Ahora | Por qué |
+| --- | --- | --- |
+| `env: { browser: true }` | `globals: globals.browser` | `env` se retiró. Sin esto, cada `window` y `fetch` sale como variable inexistente |
+| `plugins: ['react-hooks']` | `import` + `plugins: { 'react-hooks': reactHooks }` | Ya no se adivina el paquete por el nombre: se ve de dónde sale cada regla |
+| `ignorePatterns: [...]` | Un bloque `{ ignores: [...] }`, **el primero del array** | El orden importa: se aplica a lo que viene detrás |
+
+**Se llama `.mjs` y no `.js`** porque el `package.json` del frontend no declara
+`"type": "module"`. Un `eslint.config.js` se leería como CommonJS y fallaría
+con «Cannot use import statement outside a module».
+
+### El choque que costó encontrar: `brace-expansion`
+
+Tras instalar, ESLint reventaba entero:
+
+    TypeError: (0 , brace_expansion_1.expand) is not a function
+
+La causa estaba en un `overrides` del `package.json` que fijaba
+`brace-expansion: ^2.0.2` —puesto en su día para huir de una versión 1.x con
+un fallo conocido—. El `minimatch` que trae ESLint 10 necesita la 4 o
+superior, que exporta `{ expand }` en vez de la función suelta.
+
+**Se quitó el override.** Comprobado: sin él, npm resuelve `brace-expansion@5.0.9`,
+que está muy por encima de la versión vulnerable. El candado ya no protegía de
+nada y sí impedía actualizar. Es el patrón de siempre: una defensa que nadie
+revisa se convierte con el tiempo en un obstáculo.
+
+### La comprobación que de verdad importa
+
+El archivo de configuración antiguo lo dejaba escrito:
+
+> *«Subir de versión una herramienta de seguridad y no verificar que sigue
+> protegiendo es peor que dejar el aviso.»*
+
+Así que se probó. Se creó un componente con **el fallo exacto** que dejó la
+pantalla de Activos en blanco en producción —un hook después de un
+`if (cargando) return`— y ESLint 10 lo cazó:
+
+    error  React Hook "useState" is called conditionally... Did you
+           accidentally call a React Hook after an early return?
+           react-hooks/rules-of-hooks
+
+Código de salida 1. La red de seguridad sigue puesta.
+
+### De regalo: 5 supresiones muertas
+
+ESLint 10 avisa por defecto de los `// eslint-disable-next-line` que ya no
+tapan nada. Había cinco. Se quitaron con `--fix`.
+
+No es limpieza cosmética: una supresión muerta es una mina. El día que el
+código cambie y la regla vuelva a dispararse, ese comentario la silenciará sin
+que nadie se entere de que estaba ahí por otro motivo.
+
+**Resultado:** 0 errores y **los mismos 2 avisos** que con ESLint 8. Ninguna
+regresión.
+
+### Pendiente, anotado aquí para no perderlo
+
+El **backend tiene un `.eslintrc.js` y un script `lint`, pero ESLint NO está
+instalado ahí**. Ese script no puede funcionar: revienta con «eslint no se
+reconoce». Lleva así desde siempre y nadie lo notó porque el CI sólo corre el
+lint del frontend.
+
+Hay que decidir: o se instala ESLint en el backend y se migra también su
+configuración, o se retira el script para que nadie tropiece. No se toca en
+este bloque para no mezclarlo con la subida de versión.
 
 ---
 

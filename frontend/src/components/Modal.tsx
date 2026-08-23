@@ -86,7 +86,7 @@ export default function Modal({
     // Sin dependencias A PROPÓSITO: montar y desmontar, nada más. Ver el
     // comentario de arriba: cualquier dependencia que cambie por render
     // vuelve a robar el foco.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   return (

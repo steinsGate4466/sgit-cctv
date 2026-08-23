@@ -32,7 +32,7 @@ export default class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, info: ErrorInfo) {
     // Queda en la consola con la pila de componentes: es lo que dice EN QUÉ
     // pantalla y en qué punto reventó.
-    // eslint-disable-next-line no-console
+     
     console.error('[SGIT] Fallo al pintar', this.props.donde || '', error, info.componentStack);
   }
 

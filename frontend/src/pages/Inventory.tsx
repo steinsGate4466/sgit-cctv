@@ -88,7 +88,7 @@ export default function Inventory() {
   //
   // El buscador de texto NO va aquí a propósito: recargaría en cada letra.
   // Ese sigue disparándose con Enter, que es lo que ya hacía.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   useEffect(() => { setPagina(1); }, [fCat, onlyLow]);
   useEffect(() => { load(); }, [fCat, onlyLow, pagina]);
 
