@@ -29,8 +29,14 @@ docker compose exec api npx prisma migrate deploy
 ```
 
 ```powershell
-docker compose exec api node dist/seed.js
+docker compose exec api npx prisma db seed
 ```
+
+> **Ojo si venías de antes del bloque 52:** la semilla ya **no** está en
+> `dist/seed.js`, sino en `dist/prisma/seed.js`. Cambió porque desde Prisma 7
+> la semilla importa el cliente desde `src/generated`, y eso obligó a mover la
+> raíz de compilación. Lo más seguro es llamarla con `prisma db seed`, que lee
+> la ruta de `prisma.config.ts` y siempre acierta.
 
 ## Abrirlo
 
@@ -88,7 +94,33 @@ docker compose down -v
 
 ---
 
-## Tres cosas que hay que saber
+## Cuatro cosas que hay que saber
+
+**0. Docker NO ve tus cambios hasta que reconstruyes.** Es la trampa que más
+tiempo cuesta, porque no da ningún error: simplemente sigue corriendo el
+código viejo.
+
+Pasó el 23/08/2026 con Prisma 7. Se arregló un fallo, se probó en Windows, se
+subió a Git… y el contenedor seguía reventando con el error de antes. La
+imagen se había construido media hora atrás. `docker compose up -d` levanta
+**la imagen que ya existe**; no vuelve a compilar nada.
+
+Si tocaste **cualquier cosa** del backend o del frontend:
+
+```powershell
+docker compose up -d --build
+```
+
+Y si sólo cambió uno, para no esperar los cuatro minutos completos:
+
+```powershell
+docker compose up -d --build api
+```
+
+**Regla:** si el registro sigue diciendo lo mismo después de arreglar algo,
+la primera sospecha es la imagen, no el arreglo.
+
+
 
 **1. `CORS_ORIGIN` es obligatoria.** El backend **se niega a arrancar** en
 producción si no está declarada. Es deliberado: un servidor que levanta con

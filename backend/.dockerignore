@@ -1,4 +1,29 @@
+# =============================================================================
+#  QUE NO SE COPIA A LA IMAGEN
+# =============================================================================
+#  Cada archivo de esta lista es uno que NO viaja al contexto de construccion.
+#  Importa por dos motivos: la imagen queda mas pequena, y —el que de verdad
+#  duele— no se cuela dentro codigo generado en OTRA maquina.
+# =============================================================================
+
 node_modules
 dist
 .env
 *.log
+
+# ---- El cliente de Prisma 7 -------------------------------------------------
+# Desde el bloque 52 el cliente se genera en `src/generated` en vez de dentro
+# de node_modules. Si se copiara desde Windows, la imagen de Alpine arrancaria
+# con codigo generado para OTRO sistema operativo.
+#
+# No hace falta copiarlo: el Dockerfile ejecuta `npx prisma generate` en la
+# etapa de construccion y lo crea limpio, para el sistema del contenedor.
+src/generated
+
+# ---- Lo que solo sirve fuera de la imagen -----------------------------------
+coverage
+.git
+.github
+docs
+*.md
+
