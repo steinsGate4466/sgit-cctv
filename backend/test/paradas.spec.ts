@@ -175,17 +175,22 @@ describe('paradas · el número para la reunión', () => {
     const s = new ParadasService(prisma, auditFalso());
     const r = await s.fiabilidad(90);
 
+    /* Se comprueba que el tren SALE antes de mirar sus cifras. Si no saliera,
+       `find` devuelve undefined y sin esta línea el fallo sería un TypeError
+       ilegible en vez de «esperaba encontrar T2». */
     const t2 = r.trenes.find((t: any) => t.tren === 'T2');
-    expect(t2.total).toBe(2);
-    expect(t2.pctMovidas).toBe(50);
+    expect(t2).toBeDefined();
+    expect(t2!.total).toBe(2);
+    expect(t2!.pctMovidas).toBe(50);
     // 300−240 = +60 y 180−240 = −60 → media 0. Duran lo prometido de media,
     // pero se mueven la mitad de las veces: son dos problemas distintos y por
     // eso se enseñan en columnas distintas.
-    expect(t2.desviacionMediaMin).toBe(0);
-    expect(t2.ordenesColgadas).toBe(4);
+    expect(t2!.desviacionMediaMin).toBe(0);
+    expect(t2!.ordenesColgadas).toBe(4);
 
     const t1 = r.trenes.find((t: any) => t.tren === 'T1');
-    expect(t1.canceladas).toBe(1);
-    expect(t1.desviacionMediaMin).toBeNull(); // sin cierre no se inventa
+    expect(t1).toBeDefined();
+    expect(t1!.canceladas).toBe(1);
+    expect(t1!.desviacionMediaMin).toBeNull(); // sin cierre no se inventa
   });
 });

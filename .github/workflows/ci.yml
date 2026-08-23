@@ -157,6 +157,16 @@ jobs:
         working-directory: backend
         run: npm run verificar:despliegue
 
+      # El mismo agujero que tenia el frontend hasta el bloque 8, y que aqui
+      # duro hasta el 51. `nest build` usa tsconfig.build.json, que EXCLUYE
+      # test/ y **/*.spec.ts. Y ts-jest, al ver isolatedModules:true en el
+      # tsconfig, transpila SIN comprobar tipos. Resultado: 901 pruebas en
+      # verde y 8 errores de TypeScript en test/ que nadie veia, porque no
+      # habia un solo paso que mirara esos archivos. Este es ese paso.
+      - name: Verificar tipos (incluidas las pruebas)
+        working-directory: backend
+        run: npm run typecheck
+
       - name: Pruebas unitarias
         working-directory: backend
         run: npm test -- --ci --runInBand

@@ -514,8 +514,13 @@ describe('candidatas a basura · una orden esperando parada NO es basura', () =>
     const r = await s.candidatosOm();
 
     expect(r.map((x: any) => x.code).sort()).toEqual(['OT-1', 'OT-2']);
-    expect(r.find((x: any) => x.code === 'OT-1').enBlanco).toBe(false);
-    expect(r.find((x: any) => x.code === 'OT-2').enBlanco).toBe(true);
+
+    const ot1 = r.find((x: any) => x.code === 'OT-1');
+    const ot2 = r.find((x: any) => x.code === 'OT-2');
+    expect(ot1).toBeDefined();
+    expect(ot2).toBeDefined();
+    expect(ot1!.enBlanco).toBe(false);
+    expect(ot2!.enBlanco).toBe(true);
   });
 
   it('una orden legítima esperando parada, sin nada aún, sale con POCAS señales', async () => {
