@@ -82,13 +82,14 @@ export default function AsignarOm({ incidente, onHecho, onClose }: {
           los pone el técnico de red al detallarla, que es quien lo ve.
         </div>
 
-        <label>Tipo de trabajo</label>
-        <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+        <label>Tipo de trabajo
+          <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
           {WO_TYPES.map((t) => <option key={t} value={t}>{WO_TYPE_ES[t] || t}</option>)}
         </select>
+        </label>
 
-        <label>¿Qué hay que hacer?</label>
-        <textarea
+        <label>¿Qué hay que hacer?
+          <textarea
           rows={2}
           value={form.activity}
           onChange={(e) => setForm({ ...form, activity: e.target.value })}
@@ -96,24 +97,28 @@ export default function AsignarOm({ incidente, onHecho, onClose }: {
             ? 'Se rellenará con la incidencia si lo dejas vacío'
             : 'ej. Revisar las cámaras del lecho de enfriamiento'}
         />
+        </label>
 
-        <label>Equipo (opcional si aún no se sabe cuál)</label>
-        <select value={form.assetId} onChange={(e) => setForm({ ...form, assetId: e.target.value })}>
+        <label>Equipo (opcional si aún no se sabe cuál)
+          <select value={form.assetId} onChange={(e) => setForm({ ...form, assetId: e.target.value })}>
           <option value="">— lo determina el técnico —</option>
           {activos.map((a) => (
             <option key={a.id} value={a.id}>{a.assetCode}{a.referencePlace ? ` · ${a.referencePlace}` : ''}</option>
           ))}
         </select>
+        </label>
 
-        <label>¿A quién se lo asignas?</label>
-        <select value={form.technicianId} onChange={(e) => setForm({ ...form, technicianId: e.target.value })}>
+        <label>¿A quién se lo asignas?
+          <select value={form.technicianId} onChange={(e) => setForm({ ...form, technicianId: e.target.value })}>
           <option value="">— sin asignar —</option>
           {tecnicos.map((t) => <option key={t.id} value={t.id}>{t.fullName}</option>)}
         </select>
+        </label>
 
-        <label>Para cuándo (opcional)</label>
-        <input type="date" value={form.scheduledDate}
+        <label>Para cuándo (opcional)
+          <input type="date" value={form.scheduledDate}
           onChange={(e) => setForm({ ...form, scheduledDate: e.target.value })} />
+        </label>
         <div className="muted" style={{ fontSize: 11, marginTop: -6, marginBottom: 10 }}>
           Si lo dejas vacío, el sistema pone el plazo según la criticidad del
           equipo: lo crítico en dos días, lo de menos riesgo en veinte.

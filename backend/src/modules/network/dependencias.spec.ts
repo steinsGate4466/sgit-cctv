@@ -265,3 +265,56 @@ describe('rendimiento', () => {
     expect(s.find(buscar('SW0'))!.camaras).toHaveLength(30);
   });
 });
+
+describe('las dos preguntas: ¿graba? y ¿se ve?', () => {
+  /* La planta tiene DOS redes y el grabador es la frontera:
+       CÁMARA ─192.168.1.x─► switch de campo ─► NVR ─10.1.x.x─► Forti ─► púlpito
+     Del lado de las cámaras se pierde grabar Y ver. Del lado del púlpito sólo
+     ver: la imagen sigue guardándose. Antes el sistema no las distinguía. */
+  const PLANTA2: EquipoParaDependencias[] = [
+    eq('NVR', 'NVR'),
+    eq('SW-CAMPO', 'SWITCH', { segmento: 'LAN_CAMARAS' }),
+    eq('SW-FORTI', 'SWITCH', { segmento: 'RED_CCTV' }),
+    eq('CAM1', 'CAMERA', { segmento: 'LAN_CAMARAS' }),
+    eq('CAM2', 'CAMERA', { segmento: 'LAN_CAMARAS' }),
+  ];
+  const CABLES2: EnlaceParaDependencias[] = [
+    { a: 'NVR', b: 'SW-CAMPO' }, { a: 'NVR', b: 'SW-FORTI' },
+    { a: 'SW-CAMPO', b: 'CAM1' }, { a: 'SW-CAMPO', b: 'CAM2' },
+  ];
+
+  it('el switch de campo se lleva la grabación por delante', () => {
+    const s = soportesDeCamaras(PLANTA2, CABLES2).find(buscar('SW-CAMPO'))!;
+    expect(s.efecto).toBe('NI_GRABA_NI_SE_VE');
+    expect(s.queSePierde).toContain('no llega al grabador');
+  });
+
+  it('el troncal deja de verse pero SIGUE grabando', () => {
+    /* Ésta es la falla que más confunde en planta: el operador dice «no veo
+       la zona» y la grabación está intacta. */
+    const s = soportesDeCamaras(PLANTA2, CABLES2).find(buscar('SW-FORTI'));
+    const efecto = s ? s.efecto : 'GRABA_PERO_NO_SE_VE';
+    expect(efecto).toBe('GRABA_PERO_NO_SE_VE');
+  });
+
+  it('el grabador es la frontera: se lleva las dos cosas', () => {
+    const s = soportesDeCamaras(PLANTA2, CABLES2).find(buscar('NVR'))!;
+    expect(s.efecto).toBe('NI_GRABA_NI_SE_VE');
+  });
+
+  it('sin segmento conocido dice que no lo sabe, no adivina', () => {
+    /* Suponer lo peor llenaría la pantalla de alarmas falsas el primer día;
+       suponer lo mejor escondería una caída real. Las dos son mentiras. */
+    const s = soportesDeCamaras(PLANTA, CABLES).find(buscar('SW'))!;
+    expect(s.efecto).toBe('SIN_DETERMINAR');
+    expect(s.queSePierde).toContain('falta registrar su subred');
+  });
+
+  it('la frase de «se sigue grabando» no usa jerga', () => {
+    const s = soportesDeCamaras(PLANTA2, CABLES2);
+    const texto = s.map((x) => x.queSePierde).join(' ').toLowerCase();
+    for (const j of ['uplink', 'vlan', 'nvr', 'switchport', 'poe']) {
+      expect(texto).not.toContain(j);
+    }
+  });
+});

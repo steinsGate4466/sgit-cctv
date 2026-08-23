@@ -58,8 +58,8 @@ export default function FiltroAmbito({ valor, onChange }: {
   return (
     <>
       <div>
-        <label>Tren</label>
-        <select
+        <label>Tren
+          <select
           value={valor.tren}
           onChange={(e) => onChange({ ...valor, tren: e.target.value })}
         >
@@ -68,11 +68,12 @@ export default function FiltroAmbito({ valor, onChange }: {
             <option key={t.id} value={t.code}>{t.name}</option>
           ))}
         </select>
+        </label>
       </div>
 
       <div>
-        <label>Etapa del proceso</label>
-        <select
+        <label>Etapa del proceso
+          <select
           value={valor.etapa}
           onChange={(e) => onChange({ ...valor, etapa: e.target.value })}
         >
@@ -83,6 +84,7 @@ export default function FiltroAmbito({ valor, onChange }: {
             <option key={s.id} value={s.code}>{s.name}</option>
           ))}
         </select>
+        </label>
       </div>
 
       {hayFiltro && (

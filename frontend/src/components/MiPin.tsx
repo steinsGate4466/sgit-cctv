@@ -60,20 +60,23 @@ export default function MiPin({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
-        <label>Tu contraseña actual</label>
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+        <label>Tu contraseña actual
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
           required autoComplete="current-password" />
+        </label>
         <div className="muted" style={{ fontSize: 11, marginTop: -6, marginBottom: 10 }}>
           Se pide para que nadie pueda ponerte un PIN aprovechando tu sesión abierta.
         </div>
 
-        <label>PIN nuevo (4 a 8 dígitos)</label>
-        <input type="password" inputMode="numeric" pattern="\d{4,8}" maxLength={8}
+        <label>PIN nuevo (4 a 8 dígitos)
+          <input type="password" inputMode="numeric" pattern="\d{4,8}" maxLength={8}
           value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} required />
+        </label>
 
-        <label>Repite el PIN</label>
-        <input type="password" inputMode="numeric" pattern="\d{4,8}" maxLength={8}
+        <label>Repite el PIN
+          <input type="password" inputMode="numeric" pattern="\d{4,8}" maxLength={8}
           value={pin2} onChange={(e) => setPin2(e.target.value.replace(/\D/g, ''))} required />
+        </label>
         <div className="muted" style={{ fontSize: 11, marginTop: -6, marginBottom: 10 }}>
           No puede ser un dígito repetido (1111) ni una secuencia (1234).
         </div>

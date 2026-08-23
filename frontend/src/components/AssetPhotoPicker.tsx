@@ -95,26 +95,29 @@ export default function AssetPhotoPicker({ fotos, onChange }: Props) {
         encuentre después.
       </div>
 
-      <label>Tipo de fotografía</label>
-      <select value={kind} onChange={(e) => setKind(e.target.value)}>
+      <label>Tipo de fotografía
+        <select value={kind} onChange={(e) => setKind(e.target.value)}>
         {TIPOS_FOTO.map((t) => <option key={t.v} value={t.v}>{t.t}</option>)}
       </select>
+      </label>
       {ayuda && (
         <div className="muted" style={{ fontSize: 11, marginTop: -6, marginBottom: 8 }}>{ayuda}</div>
       )}
 
-      <label>Descripción (opcional)</label>
-      <input value={caption} onChange={(e) => setCaption(e.target.value)}
+      <label>Descripción (opcional)
+        <input value={caption} onChange={(e) => setCaption(e.target.value)}
         placeholder="Ej: vista desde el púlpito hacia la grúa 2" />
+      </label>
 
-      <label>Tomar o elegir foto</label>
-      <input
+      <label>Tomar o elegir foto
+        <input
         type="file"
         accept="image/*"
         capture="environment"
         multiple
         onChange={(e) => { agregar(e.target.files); e.currentTarget.value = ''; }}
       />
+      </label>
       <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
         En el celular abre la cámara directamente. Puedes agregar varias.
       </div>

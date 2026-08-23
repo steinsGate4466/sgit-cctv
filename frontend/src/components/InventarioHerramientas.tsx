@@ -178,17 +178,20 @@ export default function InventarioHerramientas() {
       {form && (
         <Modal title={form.id ? 'Editar herramienta' : 'Nueva herramienta'} onClose={() => setForm(null)}>
           <form onSubmit={guardar}>
-            <label>Nombre</label>
-            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+            <label>Nombre
+              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
               placeholder="Ej: Engrimpador RJ45" required />
+            </label>
 
-            <label>Código (opcional)</label>
-            <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })}
+            <label>Código (opcional)
+              <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })}
               placeholder="Si el taller las rotula" />
+            </label>
 
-            <label>Familia</label>
-            <input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
+            <label>Familia
+              <input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
               placeholder="Red, Eléctrica, Medición, Altura, Seguridad" />
+            </label>
 
             <label>Se sugiere en estos tipos de orden</label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
@@ -209,9 +212,10 @@ export default function InventarioHerramientas() {
               configuró en qué tipos aplica.
             </div>
 
-            <label>Nota para el técnico</label>
-            <input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            <label>Nota para el técnico
+              <input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })}
               placeholder="Ej: el del taller de red, no el eléctrico" />
+            </label>
 
             <button className="btn" disabled={guardando}>
               {guardando ? 'Guardando…' : 'Guardar herramienta'}

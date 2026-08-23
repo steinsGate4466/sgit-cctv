@@ -277,23 +277,28 @@ export default function Locations() {
           <form onSubmit={submit}>
             {!form.id && (
               <>
-                <label>Código</label>
-                <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="Ej: AASA-PISCO-T1-HORNO" required />
-                <label>Tipo</label>
-                <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+                <label>Código
+                  <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="Ej: AASA-PISCO-T1-HORNO" required />
+                </label>
+                <label>Tipo
+                  <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
                   {TYPES.map((t) => <option key={t} value={t}>{TYPE_ES[t]}</option>)}
                 </select>
+                </label>
               </>
             )}
-            <label>Nombre</label>
-            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ej: Horno — Tren 1" required />
-            <label>Pertenece a (ubicación padre)</label>
-            <select value={form.parentId} onChange={(e) => setForm({ ...form, parentId: e.target.value })}>
+            <label>Nombre
+              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ej: Horno — Tren 1" required />
+            </label>
+            <label>Pertenece a (ubicación padre)
+              <select value={form.parentId} onChange={(e) => setForm({ ...form, parentId: e.target.value })}>
               <option value="">— ninguna (raíz) —</option>
               {rows.filter((r) => r.id !== form.id).map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
             </select>
-            <label>Área responsable</label>
-            <input value={form.responsibleArea} onChange={(e) => setForm({ ...form, responsibleArea: e.target.value })} />
+            </label>
+            <label>Área responsable
+              <input value={form.responsibleArea} onChange={(e) => setForm({ ...form, responsibleArea: e.target.value })} />
+            </label>
             <button className="btn" disabled={saving}>{saving ? 'Guardando…' : 'Guardar ubicación'}</button>
           </form>
         </Modal>
@@ -304,41 +309,48 @@ export default function Locations() {
           <form onSubmit={submitStage}>
             {!stageForm.id && (
               <>
-                <label>Código corto</label>
-                <input value={stageForm.code} onChange={(e) => setStageForm({ ...stageForm, code: e.target.value })} placeholder="Ej: DESBASTE" required />
+                <label>Código corto
+                  <input value={stageForm.code} onChange={(e) => setStageForm({ ...stageForm, code: e.target.value })} placeholder="Ej: DESBASTE" required />
+                </label>
                 <div className="muted" style={{ fontSize: 11, marginTop: -6, marginBottom: 8 }}>
                   Sin espacios ni tildes. Se usa para armar el código de la ubicación.
                 </div>
               </>
             )}
-            <label>Nombre de la etapa</label>
-            <input value={stageForm.name} onChange={(e) => setStageForm({ ...stageForm, name: e.target.value })} placeholder="El nombre que usan en planta" required />
+            <label>Nombre de la etapa
+              <input value={stageForm.name} onChange={(e) => setStageForm({ ...stageForm, name: e.target.value })} placeholder="El nombre que usan en planta" required />
+            </label>
 
-            <label>Orden dentro del proceso</label>
-            <input type="number" min={1} value={stageForm.sequence} onChange={(e) => setStageForm({ ...stageForm, sequence: e.target.value })} placeholder="Vacío = al final" />
+            <label>Orden dentro del proceso
+              <input type="number" min={1} value={stageForm.sequence} onChange={(e) => setStageForm({ ...stageForm, sequence: e.target.value })} placeholder="Vacío = al final" />
+            </label>
 
-            <label>Ambiente</label>
-            <select value={stageForm.environment} onChange={(e) => setStageForm({ ...stageForm, environment: e.target.value, defaultIntervalDays: '' })}>
+            <label>Ambiente
+              <select value={stageForm.environment} onChange={(e) => setStageForm({ ...stageForm, environment: e.target.value, defaultIntervalDays: '' })}>
               {ambientes.map((a) => <option key={a.code} value={a.code}>{a.label} — cada {a.dias} días</option>)}
             </select>
+            </label>
             {ambienteDe(stageForm.environment) && (
               <div className="muted" style={{ fontSize: 11, marginTop: -6, marginBottom: 8 }}>
                 {ambienteDe(stageForm.environment).detalle}
               </div>
             )}
 
-            <label>Criticidad mínima de los activos aquí</label>
-            <select value={stageForm.baseCriticality} onChange={(e) => setStageForm({ ...stageForm, baseCriticality: e.target.value })}>
+            <label>Criticidad mínima de los activos aquí
+              <select value={stageForm.baseCriticality} onChange={(e) => setStageForm({ ...stageForm, baseCriticality: e.target.value })}>
               {Object.entries(CRIT_ES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
+            </label>
 
-            <label>Días entre mantenimientos preventivos</label>
-            <input type="number" min={1} value={stageForm.defaultIntervalDays}
+            <label>Días entre mantenimientos preventivos
+              <input type="number" min={1} value={stageForm.defaultIntervalDays}
               onChange={(e) => setStageForm({ ...stageForm, defaultIntervalDays: e.target.value })}
               placeholder={`Vacío = ${ambienteDe(stageForm.environment)?.dias ?? 60} (según el ambiente)`} />
+            </label>
 
-            <label>Qué vigila el CCTV aquí (opcional)</label>
-            <input value={stageForm.watches} onChange={(e) => setStageForm({ ...stageForm, watches: e.target.value })} placeholder="Ej: atascos, lazos, carga de material" />
+            <label>Qué vigila el CCTV aquí (opcional)
+              <input value={stageForm.watches} onChange={(e) => setStageForm({ ...stageForm, watches: e.target.value })} placeholder="Ej: atascos, lazos, carga de material" />
+            </label>
 
             <button className="btn" disabled={saving}>{saving ? 'Guardando…' : 'Guardar etapa'}</button>
           </form>
@@ -353,11 +365,12 @@ export default function Locations() {
               Repite para cada tren que tenga esta etapa: no todos los trenes
               tienen las mismas.
             </div>
-            <label>Tren</label>
-            <select value={assignTren} onChange={(e) => setAssignTren(e.target.value)}>
+            <label>Tren
+              <select value={assignTren} onChange={(e) => setAssignTren(e.target.value)}>
               <option value="">— elige un tren —</option>
               {trenes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
+            </label>
             <button className="btn" disabled={saving}>{saving ? 'Añadiendo…' : 'Añadir al tren'}</button>
           </form>
         </Modal>
@@ -367,8 +380,9 @@ export default function Locations() {
         <Modal title={'Foto de referencia · ' + photoFor.name} onClose={() => setPhotoFor(null)}>
           <form onSubmit={uploadPhoto}>
             <div className="sign-note">Sube una foto de referencia de la ubicación para identificarla en planta.</div>
-            <label>Imagen (JPG / PNG)</label>
-            <input type="file" accept="image/*" onChange={(e) => setPhotoFile(e.target.files?.[0] || null)} />
+            <label>Imagen (JPG / PNG)
+              <input type="file" accept="image/*" onChange={(e) => setPhotoFile(e.target.files?.[0] || null)} />
+            </label>
             <button className="btn" disabled={uploading}>{uploading ? 'Subiendo…' : 'Subir foto'}</button>
           </form>
         </Modal>

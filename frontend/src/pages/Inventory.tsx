@@ -230,8 +230,8 @@ export default function Inventory() {
 
       {/* Filtros */}
       <div className="filters">
-        <div style={{ flex: 1, minWidth: 180 }}><label>Buscar</label><input placeholder="nombre, código SAP, modelo…" value={fq} onChange={(e) => setFq(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} /></div>
-        <div><label>Categoría</label><select value={fCat} onChange={(e) => setFCat(e.target.value)}><option value="">Todas</option>{categories.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
+        <div style={{ flex: 1, minWidth: 180 }}><label>Buscar<input placeholder="nombre, código SAP, modelo…" value={fq} onChange={(e) => setFq(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} /></label></div>
+        <div><label>Categoría<select value={fCat} onChange={(e) => setFCat(e.target.value)}><option value="">Todas</option>{categories.map((c) => <option key={c} value={c}>{c}</option>)}</select></label></div>
         <div><label>&nbsp;</label><label style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 400 }}><input type="checkbox" checked={onlyLow} onChange={(e) => setOnlyLow(e.target.checked)} style={{ width: 'auto' }} /> Solo faltantes</label></div>
         <button className="btn-primary" onClick={load}>Buscar</button>
       </div>
@@ -300,21 +300,23 @@ export default function Inventory() {
           }
         >
           <form id="form-repuesto" onSubmit={save}>
-            <label>Nombre</label>
-            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-            <label>Código SAP (libre)</label>
-            <input value={form.sapCode || ''} onChange={(e) => setForm({ ...form, sapCode: e.target.value })} placeholder="Para retirar de almacén" />
+            <label>Nombre
+              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+            </label>
+            <label>Código SAP (libre)
+              <input value={form.sapCode || ''} onChange={(e) => setForm({ ...form, sapCode: e.target.value })} placeholder="Para retirar de almacén" />
+            </label>
             <div style={{ display: 'flex', gap: 10 }}>
-              <div style={{ flex: 1 }}><label>Categoría</label><input value={form.category || ''} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Cámara, Energía, Antena…" /></div>
-              <div style={{ flex: 1 }}><label>Modelo compatible</label><input value={form.model || ''} onChange={(e) => setForm({ ...form, model: e.target.value })} placeholder="DS-2CD1143G0-I" /></div>
+              <div style={{ flex: 1 }}><label>Categoría<input value={form.category || ''} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Cámara, Energía, Antena…" /></label></div>
+              <div style={{ flex: 1 }}><label>Modelo compatible<input value={form.model || ''} onChange={(e) => setForm({ ...form, model: e.target.value })} placeholder="DS-2CD1143G0-I" /></label></div>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
-              <div style={{ flex: 1 }}><label>Marca</label><input value={form.brand || ''} onChange={(e) => setForm({ ...form, brand: e.target.value })} /></div>
-              <div style={{ flex: 1 }}><label>Almacén</label><input value={form.warehouse || ''} onChange={(e) => setForm({ ...form, warehouse: e.target.value })} /></div>
+              <div style={{ flex: 1 }}><label>Marca<input value={form.brand || ''} onChange={(e) => setForm({ ...form, brand: e.target.value })} /></label></div>
+              <div style={{ flex: 1 }}><label>Almacén<input value={form.warehouse || ''} onChange={(e) => setForm({ ...form, warehouse: e.target.value })} /></label></div>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
-              <div style={{ flex: 1 }}><label>Stock actual</label><input type="number" min={0} value={form.currentStock} onChange={(e) => setForm({ ...form, currentStock: e.target.value })} /></div>
-              <div style={{ flex: 1 }}><label>Stock mínimo</label><input type="number" min={0} value={form.minStock} onChange={(e) => setForm({ ...form, minStock: e.target.value })} /></div>
+              <div style={{ flex: 1 }}><label>Stock actual<input type="number" min={0} value={form.currentStock} onChange={(e) => setForm({ ...form, currentStock: e.target.value })} /></label></div>
+              <div style={{ flex: 1 }}><label>Stock mínimo<input type="number" min={0} value={form.minStock} onChange={(e) => setForm({ ...form, minStock: e.target.value })} /></label></div>
             </div>
           </form>
         </Modal>
@@ -325,10 +327,12 @@ export default function Inventory() {
         <Modal title={'Comprobar stock · ' + checkRow.name} onClose={() => setCheckRow(null)}>
           <form onSubmit={submitCheck}>
             <div className="sign-note">Registra la cantidad física que hay hoy en almacén. Otras áreas pueden haber retirado material.</div>
-            <label>Cantidad comprobada</label>
-            <input type="number" min={0} value={chk.countedQty} onChange={(e) => setChk({ ...chk, countedQty: e.target.value })} required />
-            <label>Nota (opcional)</label>
-            <input value={chk.note} onChange={(e) => setChk({ ...chk, note: e.target.value })} />
+            <label>Cantidad comprobada
+              <input type="number" min={0} value={chk.countedQty} onChange={(e) => setChk({ ...chk, countedQty: e.target.value })} required />
+            </label>
+            <label>Nota (opcional)
+              <input value={chk.note} onChange={(e) => setChk({ ...chk, note: e.target.value })} />
+            </label>
             <button className="btn">Guardar comprobación</button>
           </form>
         </Modal>
@@ -338,14 +342,18 @@ export default function Inventory() {
       {moveRow && (
         <Modal title={'Movimiento · ' + moveRow.name} onClose={() => setMoveRow(null)}>
           <form onSubmit={submitMove}>
-            <label>Tipo</label>
-            <select value={mv.type} onChange={(e) => setMv({ ...mv, type: e.target.value })}>{MOVES.map((t) => <option key={t} value={t}>{t}</option>)}</select>
-            <label>Cantidad</label>
-            <input type="number" value={mv.quantity} onChange={(e) => setMv({ ...mv, quantity: e.target.value })} required />
-            <label>Código SAP (retiro/ingreso)</label>
-            <input value={mv.sapCode} onChange={(e) => setMv({ ...mv, sapCode: e.target.value })} />
-            <label>Motivo (opcional)</label>
-            <input value={mv.reason} onChange={(e) => setMv({ ...mv, reason: e.target.value })} />
+            <label>Tipo
+              <select value={mv.type} onChange={(e) => setMv({ ...mv, type: e.target.value })}>{MOVES.map((t) => <option key={t} value={t}>{t}</option>)}</select>
+            </label>
+            <label>Cantidad
+              <input type="number" value={mv.quantity} onChange={(e) => setMv({ ...mv, quantity: e.target.value })} required />
+            </label>
+            <label>Código SAP (retiro/ingreso)
+              <input value={mv.sapCode} onChange={(e) => setMv({ ...mv, sapCode: e.target.value })} />
+            </label>
+            <label>Motivo (opcional)
+              <input value={mv.reason} onChange={(e) => setMv({ ...mv, reason: e.target.value })} />
+            </label>
             <button className="btn">Registrar movimiento</button>
           </form>
         </Modal>
@@ -366,7 +374,7 @@ export default function Inventory() {
           {!(compat.assets || []).length && <div className="muted" style={{ fontSize: 12 }}>Sin activos vinculados directamente.</div>}
           {can('inventory.manage') && (
             <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-              <select value={linkAssetId} onChange={(e) => setLinkAssetId(e.target.value)} style={{ flex: 1 }}>
+              <select aria-label="&nbsp;" value={linkAssetId} onChange={(e) => setLinkAssetId(e.target.value)} style={{ flex: 1 }}>
                 <option value="">— vincular activo —</option>
                 {assets.map((a) => <option key={a.id} value={a.id}>{a.assetCode}</option>)}
               </select>

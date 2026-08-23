@@ -84,18 +84,20 @@ export default function Indicadores() {
       </div>
 
       <div className="filters">
-        <div><label>Periodo</label>
-          <select value={dias} onChange={(e) => setDias(Number(e.target.value))}>
+        <div><label>Periodo
+            <select value={dias} onChange={(e) => setDias(Number(e.target.value))}>
             <option value={30}>Últimos 30 días</option>
             <option value={90}>Últimos 90 días</option>
             <option value={180}>Últimos 6 meses</option>
             <option value={365}>Último año</option>
-          </select></div>
-        <div><label>Tren</label>
-          <select value={tren} onChange={(e) => setTren(e.target.value)}>
+          </select>
+          </label></div>
+        <div><label>Tren
+            <select value={tren} onChange={(e) => setTren(e.target.value)}>
             <option value="">Toda la planta</option>
             {['T1', 'T2', 'T3'].map((x) => <option key={x} value={x}>{x}</option>)}
-          </select></div>
+          </select>
+          </label></div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 12 }}>

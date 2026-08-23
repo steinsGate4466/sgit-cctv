@@ -183,11 +183,12 @@ export default function Cableado() {
 
       <div className="filters">
         <FiltroAmbito valor={ambito} onChange={setAmbito} />
-        <div><label>Estado</label>
-          <select value={fEstado} onChange={(e) => setFEstado(e.target.value)}>
+        <div><label>Estado
+            <select value={fEstado} onChange={(e) => setFEstado(e.target.value)}>
             <option value="">Todos</option>
             {Object.entries(ESTADO).map(([k, t]) => <option key={k} value={k}>{t}</option>)}
           </select>
+          </label>
         </div>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, alignSelf: 'flex-end', paddingBottom: 6 }}>
           <input type="checkbox" checked={soloFuera} onChange={(e) => setSoloFuera(e.target.checked)} />
@@ -289,34 +290,40 @@ export default function Cableado() {
       {form && (
         <Modal title={form.id ? 'Editar tramo' : 'Nuevo tramo de cable'} onClose={() => setForm(null)}>
           <form onSubmit={guardar}>
-            <label>Rótulo del tramo (opcional)</label>
-            <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })}
+            <label>Rótulo del tramo (opcional)
+              <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })}
               placeholder="Si el cable está rotulado en planta" />
+            </label>
 
-            <label>Desde (equipo de origen)</label>
-            <select value={form.fromAssetId} onChange={(e) => setForm({ ...form, fromAssetId: e.target.value })}>
+            <label>Desde (equipo de origen)
+              <select value={form.fromAssetId} onChange={(e) => setForm({ ...form, fromAssetId: e.target.value })}>
               <option value="">— sin definir —</option>
               {opciones.map((o) => <option key={o.id} value={o.id}>{o.assetCode} · {o.type}</option>)}
             </select>
+            </label>
 
-            <label>Puerto de origen</label>
-            <input type="number" min={1} value={form.fromPortNumber}
+            <label>Puerto de origen
+              <input type="number" min={1} value={form.fromPortNumber}
               onChange={(e) => setForm({ ...form, fromPortNumber: e.target.value })} placeholder="Ej: 8" />
+            </label>
 
-            <label>Hasta (equipo de destino)</label>
-            <select value={form.toAssetId} onChange={(e) => setForm({ ...form, toAssetId: e.target.value })}>
+            <label>Hasta (equipo de destino)
+              <select value={form.toAssetId} onChange={(e) => setForm({ ...form, toAssetId: e.target.value })}>
               <option value="">— sin definir —</option>
               {opciones.map((o) => <option key={o.id} value={o.id}>{o.assetCode} · {o.type}</option>)}
             </select>
+            </label>
 
-            <label>Categoría</label>
-            <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+            <label>Categoría
+              <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
               {Object.entries(CATEGORIA).map(([k, t]) => <option key={k} value={k}>{t}</option>)}
             </select>
+            </label>
 
-            <label>Metros</label>
-            <input type="number" min={0} step="0.5" value={form.meters}
+            <label>Metros
+              <input type="number" min={0} step="0.5" value={form.meters}
               onChange={(e) => setForm({ ...form, meters: e.target.value })} placeholder="Ej: 45" />
+            </label>
 
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
               <input type="checkbox" checked={!form.metersEstimated}
@@ -334,28 +341,32 @@ export default function Cableado() {
               <span>Cable blindado (STP / FTP)</span>
             </label>
 
-            <label>Ruta</label>
-            <select value={form.route} onChange={(e) => setForm({ ...form, route: e.target.value })}>
+            <label>Ruta
+              <select value={form.route} onChange={(e) => setForm({ ...form, route: e.target.value })}>
               <option value="">— sin definir —</option>
               {Object.entries(RUTA).map(([k, t]) => <option key={k} value={k}>{t}</option>)}
             </select>
+            </label>
             <div className="muted" style={{ fontSize: 11, marginTop: -6, marginBottom: 8 }}>
               Si va por bandeja compartida con fuerza y no está blindado, el
               sistema lo avisa: es causa habitual de fallas intermitentes.
             </div>
 
-            <label>Estado</label>
-            <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+            <label>Estado
+              <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
               {Object.entries(ESTADO).map(([k, t]) => <option key={k} value={k}>{t}</option>)}
             </select>
+            </label>
 
-            <label>Fecha de instalación</label>
-            <input type="date" value={form.installedAt}
+            <label>Fecha de instalación
+              <input type="date" value={form.installedAt}
               onChange={(e) => setForm({ ...form, installedAt: e.target.value })} />
+            </label>
 
-            <label>Observaciones</label>
-            <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            <label>Observaciones
+              <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })}
               rows={2} style={{ width: '100%', resize: 'vertical' }} />
+            </label>
 
             <button className="btn" disabled={saving}>{saving ? 'Guardando…' : 'Guardar tramo'}</button>
           </form>

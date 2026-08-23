@@ -160,11 +160,12 @@ export default function Access() {
       </div>
 
       <div className="filters">
-        <div><label>Estado</label>
-          <select value={fStatus} onChange={(e) => { setFStatus(e.target.value); load(e.target.value); }}>
+        <div><label>Estado
+            <select value={fStatus} onChange={(e) => { setFStatus(e.target.value); load(e.target.value); }}>
             <option value="">Todos</option>
             {STATUSES.map((s) => <option key={s} value={s}>{STATUS_ES[s]}</option>)}
           </select>
+          </label>
         </div>
         <div className="muted" style={{ fontSize: 12, alignSelf: 'flex-end', paddingBottom: 8 }}>
           El técnico marca el activo como inaccesible desde <b>Activos</b>; aquí se revisa y aprueba.
@@ -245,13 +246,15 @@ export default function Access() {
                 : 'Indica el motivo del rechazo o cómo debe replantearse el trabajo.'}
             </div>
             <label>{decide.status === 'APROBADO' ? 'Condiciones / indicaciones' : 'Motivo del rechazo'}</label>
-            <textarea value={decide.decisionNotes} onChange={(e) => setDecide({ ...decide, decisionNotes: e.target.value })}
+            <textarea aria-label="Nota de la solicitud" value={decide.decisionNotes} onChange={(e) => setDecide({ ...decide, decisionNotes: e.target.value })}
               rows={3} style={{ width: '100%', resize: 'vertical' }} />
             <h4 style={{ marginTop: 12, marginBottom: 4 }}><Icono n="firma" size={15} /> Firma del Jefe de Mantenimiento</h4>
-            <label>Correo</label>
-            <input type="email" value={decide.email} onChange={(e) => setDecide({ ...decide, email: e.target.value })} required />
-            <label>Contraseña</label>
-            <input type="password" value={decide.password} onChange={(e) => setDecide({ ...decide, password: e.target.value })} required />
+            <label>Correo
+              <input type="email" value={decide.email} onChange={(e) => setDecide({ ...decide, email: e.target.value })} required />
+            </label>
+            <label>Contraseña
+              <input type="password" value={decide.password} onChange={(e) => setDecide({ ...decide, password: e.target.value })} required />
+            </label>
             {sigError && <div className="error">{sigError}</div>}
             <button className="btn" disabled={signing || tries <= 0}>{signing ? 'Firmando…' : 'Firmar y registrar decisión'}</button>
           </form>

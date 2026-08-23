@@ -191,19 +191,21 @@ export default function Mapeo() {
 
       <div className="filters">
         <FiltroAmbito valor={ambito} onChange={setAmbito} />
-        <div><label>Tipo</label>
-          <select value={fTipo} onChange={(e) => setFTipo(e.target.value)}>
+        <div><label>Tipo
+            <select value={fTipo} onChange={(e) => setFTipo(e.target.value)}>
             <option value="">Todos</option>
             {Object.keys(d.porTipo || {}).map((t) => (
               <option key={t} value={t}>{TIPO_ES[t] || t}</option>
             ))}
           </select>
+          </label>
         </div>
-        <div><label>Criticidad</label>
-          <select value={fCrit} onChange={(e) => setFCrit(e.target.value)}>
+        <div><label>Criticidad
+            <select value={fCrit} onChange={(e) => setFCrit(e.target.value)}>
             <option value="">Todas</option>
             {['CRITICA', 'ALTA', 'MEDIA', 'BAJA'].map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
+          </label>
         </div>
         <button className="btn-mini" onClick={() => { setFTipo(''); setFCrit(''); }}>Limpiar</button>
       </div>

@@ -179,18 +179,21 @@ function NotaNueva({ assetId, onListo, onCancelar }: {
       <b style={{ fontSize: 13 }}>Un aviso para el que llegue después</b>
       {error && <div className="error" style={{ marginTop: 8 }}>{error}</div>}
 
-      <label>Qué tipo de aviso</label>
-      <select value={tipo} onChange={(e) => setTipo(e.target.value)}>
+      <label>Qué tipo de aviso
+        <select value={tipo} onChange={(e) => setTipo(e.target.value)}>
         {Object.entries(TIPO_NOTA).map(([k, v]) => <option key={k} value={k}>{v.et}</option>)}
       </select>
+      </label>
 
-      <label>El aviso</label>
-      <textarea value={texto} onChange={(e) => setTexto(e.target.value)}
+      <label>El aviso
+        <textarea value={texto} onChange={(e) => setTexto(e.target.value)}
         placeholder="La dejé conectada al puerto 8 del switch provisional; hay que pasarla al 3 cuando llegue el patch cord." />
+      </label>
 
-      <label>Caduca en (días)</label>
-      <input type="number" value={dias} min={0} max={365}
+      <label>Caduca en (días)
+        <input type="number" value={dias} min={0} max={365}
              onChange={(e) => setDias(Number(e.target.value))} />
+      </label>
       <small className="muted">
         Los avisos mueren solos. Si nunca caducaran, en seis meses aquí habría
         veinte viejos y nadie leería ninguno — ni el que sí importa.
@@ -244,13 +247,15 @@ function MejoraNueva({ procedimientoId, onListo }: {
       <b style={{ fontSize: 12.5 }}>Lo que aprendiste arreglándolo</b>
       {error && <div className="error" style={{ marginTop: 6 }}>{error}</div>}
 
-      <label>La mejora</label>
-      <textarea value={texto} onChange={(e) => setTexto(e.target.value)}
+      <label>La mejora
+        <textarea value={texto} onChange={(e) => setTexto(e.target.value)}
         placeholder="Antes de desmontar, prueba a reiniciar el PoE del puerto: en tres de cada cuatro veces vuelve sola y te ahorras subir." />
+      </label>
 
-      <label>Cuánto te llevó de verdad (minutos)</label>
-      <input type="number" value={minutos} min={1}
+      <label>Cuánto te llevó de verdad (minutos)
+        <input type="number" value={minutos} min={1}
              onChange={(e) => setMinutos(e.target.value ? Number(e.target.value) : '')} />
+      </label>
       <small className="muted">
         Sin este número no se puede saber si el procedimiento está mejorando.
       </small>

@@ -356,7 +356,7 @@ export default function Limpieza() {
               {Object.values(operativos).some((n) => (n as number) > 0) && (
                 <div style={{ marginTop: 14 }}>
                   <label>Escribe <code>DEJAR LA BASE VACIA</code> para confirmar</label>
-                  <input value={fraseVaciarTodo}
+                  <input aria-label="Escribe la frase de confirmación" value={fraseVaciarTodo}
                     onChange={(e) => setFraseVaciarTodo(e.target.value)}
                     placeholder="DEJAR LA BASE VACIA" autoComplete="off" />
                   <button className="btn-peligro" style={{ marginTop: 10 }}

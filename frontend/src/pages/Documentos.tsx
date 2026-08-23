@@ -125,8 +125,8 @@ export default function Documentos() {
     <div className="page">
       <div className="page-head">
         <div className="fila-busqueda" style={{ flex: 1 }}>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por título" />
-          <select value={categoria} onChange={(e) => setCategoria(e.target.value)}>
+          <input aria-label="Buscar documento" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por título" />
+          <select aria-label="Filtrar por categoría" value={categoria} onChange={(e) => setCategoria(e.target.value)}>
             <option value="">Todas las categorías</option>
             {CATEGORIAS.map((c) => <option key={c.v} value={c.v}>{c.t}</option>)}
           </select>

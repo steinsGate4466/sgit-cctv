@@ -215,13 +215,15 @@ export default function Electricidad() {
       )}
 
       <div className="filters">
-        <div><label>Buscar</label>
-          <input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Código, nombre o referencia…" style={{ minWidth: 220 }} /></div>
-        <div><label>Tren</label>
-          <select value={fTren} onChange={(e) => setFTren(e.target.value)}>
+        <div><label>Buscar
+            <input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Código, nombre o referencia…" style={{ minWidth: 220 }} />
+          </label></div>
+        <div><label>Tren
+            <select value={fTren} onChange={(e) => setFTren(e.target.value)}>
             <option value="">Todos</option>
             {['T1', 'T2', 'T3'].map((t) => <option key={t} value={t}>{t}</option>)}
-          </select></div>
+          </select>
+          </label></div>
         {can('asset.create') && (
           <button className="btn-primary" onClick={() => {
             setError('');

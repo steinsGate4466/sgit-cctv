@@ -186,6 +186,16 @@ function Soporte({ s }: { s: any }) {
       {/* La frase primero y sola: es lo único que se lleva quien mira cinco
           segundos. Debajo va el detalle para quien quiera entrar. */}
       <p className="dep-frase">{s.siCae}</p>
+
+      {/* LA SEGUNDA PREGUNTA (bloque 49). No es lo mismo dejar de GRABAR que
+          dejar de VER: la primera pierde la evidencia, la segunda sólo la
+          vigilancia en vivo. El operador reporta las dos igual —«no veo la
+          zona»— y quién lo atiende cambia por completo. */}
+      <p className={`dep-efecto efecto-${s.efecto}`}>
+        <Icono n={s.efecto === 'GRABA_PERO_NO_SE_VE' ? 'ojo' : s.efecto === 'SIN_DETERMINAR' ? 'nota' : 'alerta'} size={14} />
+        {' '}{s.queSePierde}
+      </p>
+
       <p className="dep-como">{s.comoFunciona}</p>
 
       <Cifras

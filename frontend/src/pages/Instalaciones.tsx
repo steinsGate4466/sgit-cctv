@@ -264,18 +264,21 @@ export default function Instalaciones() {
       )}
 
       <div className="filters">
-        <div><label>Buscar</label>
-          <input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Código, sitio, quién la pidió…" style={{ minWidth: 220 }} /></div>
-        <div><label>Estado</label>
-          <select value={fEstado} onChange={(e) => setFEstado(e.target.value)}>
+        <div><label>Buscar
+            <input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Código, sitio, quién la pidió…" style={{ minWidth: 220 }} />
+          </label></div>
+        <div><label>Estado
+            <select value={fEstado} onChange={(e) => setFEstado(e.target.value)}>
             <option value="">Todos</option>
             {Object.entries(ESTADO_ES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </select></div>
-        <div><label>Tipo de sitio</label>
-          <select value={fSitio} onChange={(e) => setFSitio(e.target.value)}>
+          </select>
+          </label></div>
+        <div><label>Tipo de sitio
+            <select value={fSitio} onChange={(e) => setFSitio(e.target.value)}>
             <option value="">Todos</option>
             {Object.entries(SITIO_ES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </select></div>
+          </select>
+          </label></div>
         <button className="btn-primary" onClick={() => {
           setError('');
           setNueva({ tipoSitio: 'PULPITO', tipoEquipo: 'CAMERA', cantidad: 1, tren: '', locationId: '', referenciaSitio: '', comoLlegar: '', justificacion: '', solicitadaPor: user?.fullName || '', areaSolicitante: '' });

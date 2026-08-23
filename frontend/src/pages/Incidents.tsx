@@ -248,11 +248,11 @@ export default function Incidents() {
 
       <div className="filters">
         <FiltroAmbito valor={ambito} onChange={setAmbito} />
-        <div style={{ flex: 1, minWidth: 160 }}><label>Buscar</label><input placeholder="código, título, zona…" value={fq} onChange={(e) => setFq(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} /></div>
-        <div><label>Categoría</label><select value={fCat} onChange={(e) => setFCat(e.target.value)}><option value="">Todas</option>{CATEGORY_GROUPS.map((g) => <optgroup key={g.label} label={g.label}>{g.items.map((c) => <option key={c} value={c}>{catEs(c)}</option>)}</optgroup>)}</select></div>
-        <div><label>Estado</label><select value={fStatus} onChange={(e) => setFStatus(e.target.value)}><option value="">Todos</option>{STATUSES.map((s) => <option key={s} value={s}>{stEs(s)}</option>)}</select></div>
-        <div><label>Desde</label><input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
-        <div><label>Hasta</label><input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
+        <div style={{ flex: 1, minWidth: 160 }}><label>Buscar<input placeholder="código, título, zona…" value={fq} onChange={(e) => setFq(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} /></label></div>
+        <div><label>Categoría<select value={fCat} onChange={(e) => setFCat(e.target.value)}><option value="">Todas</option>{CATEGORY_GROUPS.map((g) => <optgroup key={g.label} label={g.label}>{g.items.map((c) => <option key={c} value={c}>{catEs(c)}</option>)}</optgroup>)}</select></label></div>
+        <div><label>Estado<select value={fStatus} onChange={(e) => setFStatus(e.target.value)}><option value="">Todos</option>{STATUSES.map((s) => <option key={s} value={s}>{stEs(s)}</option>)}</select></label></div>
+        <div><label>Desde<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></label></div>
+        <div><label>Hasta<input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></label></div>
         <button className="btn-primary" onClick={load}>Buscar</button>
         <button className="btn-mini" onClick={clearFilters}>Limpiar</button>
       </div>
@@ -277,7 +277,7 @@ export default function Incidents() {
                 </td>
                 <td style={{ whiteSpace: 'nowrap' }}>
                   {can('incident.update') && openIssue(i) && (
-                    <select
+                    <select aria-label="Filtrar por tren"
                       value={NON_TERMINAL.includes(i.status) ? i.status : 'ABIERTA'}
                       onChange={(e) => changeStatus(i.id, e.target.value)}
                       title="Actualizar estado (avisa al Jefe de Mantenimiento)"
@@ -316,23 +316,28 @@ export default function Incidents() {
         <Modal title="Nueva incidencia" onClose={() => setShowForm(false)}>
           <form onSubmit={create}>
             <div className="sign-note">Registra qué está pasando en campo (haya o no una OM). Sirve como bitácora para analizar problemas de planta.</div>
-            <label>Título</label>
-            <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required minLength={3} />
+            <label>Título
+              <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required minLength={3} />
+            </label>
             <div style={{ display: 'flex', gap: 10 }}>
-              <div style={{ flex: 1 }}><label>Categoría</label><select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>{CATEGORY_GROUPS.map((g) => <optgroup key={g.label} label={g.label}>{g.items.map((c) => <option key={c} value={c}>{catEs(c)}</option>)}</optgroup>)}</select></div>
-              <div style={{ flex: 1 }}><label>Prioridad</label><select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>{PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}</select></div>
+              <div style={{ flex: 1 }}><label>Categoría<select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>{CATEGORY_GROUPS.map((g) => <optgroup key={g.label} label={g.label}>{g.items.map((c) => <option key={c} value={c}>{catEs(c)}</option>)}</optgroup>)}</select></label></div>
+              <div style={{ flex: 1 }}><label>Prioridad<select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>{PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}</select></label></div>
             </div>
-            <label>Zona / área (Horno, Laminación, Púlpito…)</label>
-            <input value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value })} />
-            <label>Activo afectado (opcional)</label>
-            <select value={form.assetId} onChange={(e) => setForm({ ...form, assetId: e.target.value })}>
+            <label>Zona / área (Horno, Laminación, Púlpito…)
+              <input value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value })} />
+            </label>
+            <label>Activo afectado (opcional)
+              <select value={form.assetId} onChange={(e) => setForm({ ...form, assetId: e.target.value })}>
               <option value="">— ninguno —</option>
               {assets.map((a) => <option key={a.id} value={a.id}>{a.assetCode}</option>)}
             </select>
-            <label>Descripción del problema</label>
-            <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} style={{ width: '100%', resize: 'vertical' }} />
-            <label>Cámaras afectadas (opcional)</label>
-            <input type="number" value={form.affectedCameras} onChange={(e) => setForm({ ...form, affectedCameras: e.target.value })} />
+            </label>
+            <label>Descripción del problema
+              <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} style={{ width: '100%', resize: 'vertical' }} />
+            </label>
+            <label>Cámaras afectadas (opcional)
+              <input type="number" value={form.affectedCameras} onChange={(e) => setForm({ ...form, affectedCameras: e.target.value })} />
+            </label>
             <button className="btn" disabled={saving}>{saving ? 'Guardando…' : 'Crear incidencia'}</button>
           </form>
         </Modal>
@@ -345,18 +350,21 @@ export default function Incidents() {
               Documenta <b>qué se propone hacer</b> para resolverlo de fondo. Esta información
               sustenta el pedido ante Jefatura y queda en el informe de la incidencia.
             </div>
-            <label>Propuesta de solución</label>
-            <textarea value={prop.proposal} onChange={(e) => setProp({ ...prop, proposal: e.target.value })}
+            <label>Propuesta de solución
+              <textarea value={prop.proposal} onChange={(e) => setProp({ ...prop, proposal: e.target.value })}
               rows={4} style={{ width: '100%', resize: 'vertical' }}
               placeholder="Ej: reemplazar el ramal eléctrico del gabinete GAB-T1-R01 y colocar breaker independiente de 16A; hoy comparte circuito con el tablero de iluminación y cae con la carga del horno." />
-            <label>Recursos / materiales requeridos</label>
-            <textarea value={prop.proposalCost} onChange={(e) => setProp({ ...prop, proposalCost: e.target.value })}
+            </label>
+            <label>Recursos / materiales requeridos
+              <textarea value={prop.proposalCost} onChange={(e) => setProp({ ...prop, proposalCost: e.target.value })}
               rows={2} style={{ width: '100%', resize: 'vertical' }}
               placeholder="Ej: 1 breaker 16A, 30 m cable THW 2.5 mm², 1 jornada de electricista" />
-            <label>Riesgo si no se atiende</label>
-            <textarea value={prop.proposalRisk} onChange={(e) => setProp({ ...prop, proposalRisk: e.target.value })}
+            </label>
+            <label>Riesgo si no se atiende
+              <textarea value={prop.proposalRisk} onChange={(e) => setProp({ ...prop, proposalRisk: e.target.value })}
               rows={2} style={{ width: '100%', resize: 'vertical' }}
               placeholder="Ej: pérdida recurrente de visión en el Tren 1 durante colada; riesgo de daño al NVR por caídas de tensión." />
+            </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400, marginTop: 10 }}>
               <input type="checkbox" checked={!!prop.requiresThirdParty}
                 onChange={(e) => setProp({ ...prop, requiresThirdParty: e.target.checked })} style={{ width: 'auto' }} />
@@ -371,10 +379,12 @@ export default function Incidents() {
         <Modal title="Fotografías de campo" onClose={() => setPhotoId(null)}>
           <form onSubmit={uploadPhoto}>
             <div className="sign-note">Sube fotos de lo que ocurre en campo. Se incrustan en el informe PDF de la incidencia.</div>
-            <label>Imagen (JPG / PNG)</label>
-            <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-            <label>Descripción (opcional)</label>
-            <input value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="Ej: cable UTP quemado en el área del horno" />
+            <label>Imagen (JPG / PNG)
+              <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+            </label>
+            <label>Descripción (opcional)
+              <input value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="Ej: cable UTP quemado en el área del horno" />
+            </label>
             <button className="btn" disabled={uploading}>{uploading ? 'Subiendo…' : 'Subir foto'}</button>
           </form>
           <div style={{ marginTop: 14 }}>
@@ -393,31 +403,39 @@ export default function Incidents() {
         <Modal title="Resolver incidencia (firmado)" onClose={() => setResolveId(null)}>
           <form onSubmit={submitResolve}>
             <div className="sign-note">Registra cómo se resolvió para el análisis de planta. Confirma tu identidad al final (firma auditada).</div>
-            <label>¿Qué se hizo para resolverlo?</label>
-            <textarea value={rf.solution} onChange={(e) => setRf({ ...rf, solution: e.target.value })} rows={2} style={{ width: '100%', resize: 'vertical' }} />
-            <label>Causa raíz</label>
-            <input value={rf.rootCause} onChange={(e) => setRf({ ...rf, rootCause: e.target.value })} />
-            <label>Materiales utilizados</label>
-            <textarea value={rf.materials} onChange={(e) => setRf({ ...rf, materials: e.target.value })} rows={2} style={{ width: '100%', resize: 'vertical' }} />
-            <label>Técnicos que intervinieron</label>
-            <input value={rf.interveners} onChange={(e) => setRf({ ...rf, interveners: e.target.value })} placeholder="Nombres separados por coma" />
-            <label>Responsable de la solución</label>
-            <input value={rf.responsibleName} onChange={(e) => setRf({ ...rf, responsibleName: e.target.value })} />
-            <label>Observaciones / recomendaciones</label>
-            <textarea value={rf.observations} onChange={(e) => setRf({ ...rf, observations: e.target.value })} rows={2} style={{ width: '100%', resize: 'vertical' }} />
+            <label>¿Qué se hizo para resolverlo?
+              <textarea value={rf.solution} onChange={(e) => setRf({ ...rf, solution: e.target.value })} rows={2} style={{ width: '100%', resize: 'vertical' }} />
+            </label>
+            <label>Causa raíz
+              <input value={rf.rootCause} onChange={(e) => setRf({ ...rf, rootCause: e.target.value })} />
+            </label>
+            <label>Materiales utilizados
+              <textarea value={rf.materials} onChange={(e) => setRf({ ...rf, materials: e.target.value })} rows={2} style={{ width: '100%', resize: 'vertical' }} />
+            </label>
+            <label>Técnicos que intervinieron
+              <input value={rf.interveners} onChange={(e) => setRf({ ...rf, interveners: e.target.value })} placeholder="Nombres separados por coma" />
+            </label>
+            <label>Responsable de la solución
+              <input value={rf.responsibleName} onChange={(e) => setRf({ ...rf, responsibleName: e.target.value })} />
+            </label>
+            <label>Observaciones / recomendaciones
+              <textarea value={rf.observations} onChange={(e) => setRf({ ...rf, observations: e.target.value })} rows={2} style={{ width: '100%', resize: 'vertical' }} />
+            </label>
             <div style={{ display: 'flex', gap: 10 }}>
-              <div style={{ flex: 1 }}><label>Cámaras afectadas</label><input type="number" value={rf.affectedCameras} onChange={(e) => setRf({ ...rf, affectedCameras: e.target.value })} /></div>
-              <div style={{ flex: 1 }}><label>Minutos sin visión</label><input type="number" value={rf.visionDownMin} onChange={(e) => setRf({ ...rf, visionDownMin: e.target.value })} /></div>
+              <div style={{ flex: 1 }}><label>Cámaras afectadas<input type="number" value={rf.affectedCameras} onChange={(e) => setRf({ ...rf, affectedCameras: e.target.value })} /></label></div>
+              <div style={{ flex: 1 }}><label>Minutos sin visión<input type="number" value={rf.visionDownMin} onChange={(e) => setRf({ ...rf, visionDownMin: e.target.value })} /></label></div>
             </div>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400, marginTop: 8 }}>
               <input type="checkbox" checked={!!rf.lineManagerNotified} onChange={(e) => setRf({ ...rf, lineManagerNotified: e.target.checked })} style={{ width: 'auto' }} />
               El jefe de línea está enterado del problema
             </label>
             <h4 style={{ marginTop: 12, marginBottom: 4 }}><Icono n="firma" size={15} /> Firma</h4>
-            <label>Correo</label>
-            <input type="email" value={rf.email} onChange={(e) => setRf({ ...rf, email: e.target.value })} required />
-            <label>Contraseña</label>
-            <input type="password" value={rf.password} onChange={(e) => setRf({ ...rf, password: e.target.value })} required />
+            <label>Correo
+              <input type="email" value={rf.email} onChange={(e) => setRf({ ...rf, email: e.target.value })} required />
+            </label>
+            <label>Contraseña
+              <input type="password" value={rf.password} onChange={(e) => setRf({ ...rf, password: e.target.value })} required />
+            </label>
             {sigError && <div className="error">{sigError}</div>}
             <button className="btn" disabled={signing || tries <= 0}>{signing ? 'Firmando…' : 'Firmar y resolver'}</button>
           </form>

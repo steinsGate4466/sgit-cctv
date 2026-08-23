@@ -246,7 +246,7 @@ function Cuadro({ p, cerrar }: { p: Peticion; cerrar: (v: any) => void }) {
         {p.mensaje && <p className="dlg-mensaje">{p.mensaje}</p>}
 
         {esPedir && (
-          <textarea
+          <textarea aria-label="Tu respuesta"
             className="dlg-campo"
             rows={3}
             value={texto}
@@ -262,7 +262,7 @@ function Cuadro({ p, cerrar }: { p: Peticion; cerrar: (v: any) => void }) {
             <label className="dlg-etiqueta">
               Escribe <b>{p.exigeEscribir}</b> para confirmar
             </label>
-            <input
+            <input aria-label="Escribe la confirmación"
               className="dlg-campo"
               value={texto}
               onChange={(e) => setTexto(e.target.value)}

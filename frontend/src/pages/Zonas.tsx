@@ -146,9 +146,10 @@ export default function Zonas() {
 
       <div className="filters">
         <div>
-          <label>Buscar zona</label>
-          <input value={filtro} onChange={(e) => setFiltro(e.target.value)}
+          <label>Buscar zona
+            <input value={filtro} onChange={(e) => setFiltro(e.target.value)}
                  placeholder="Nombre, código o qué se vigila" />
+          </label>
         </div>
         <div>
           <label>&nbsp;</label>
@@ -345,7 +346,7 @@ function EditorZona({ zona, onCerrar, onGuardado }: {
           ayuda="No el nombre de la zona: a qué da visión. «Salida del horno y entrada al desbaste»."
           ancho
         >
-          <input value={vigila} onChange={(e) => setVigila(e.target.value)}
+          <input aria-label="&nbsp;" value={vigila} onChange={(e) => setVigila(e.target.value)}
                  placeholder="Salida del horno y entrada al desbaste" />
         </Campo>
 
@@ -354,7 +355,7 @@ function EditorZona({ zona, onCerrar, onGuardado }: {
           ayuda={NIVELES.find((n) => n.v === nivel)?.ayuda}
           obligatorio={false}
         >
-          <select value={nivel} onChange={(e) => setNivel(e.target.value)}>
+          <select aria-label="&nbsp;" value={nivel} onChange={(e) => setNivel(e.target.value)}>
             {NIVELES.map((n) => <option key={n.v} value={n.v}>{n.et}</option>)}
           </select>
         </Campo>
@@ -363,7 +364,7 @@ function EditorZona({ zona, onCerrar, onGuardado }: {
           etiqueta="Revisar antes de"
           ayuda="La planta cambia. Una criticidad de hoy aplicada dentro de tres años sin que nadie la mire es una mentira con fecha."
         >
-          <input type="date" value={revisar} onChange={(e) => setRevisar(e.target.value)} />
+          <input aria-label="&nbsp;" type="date" value={revisar} onChange={(e) => setRevisar(e.target.value)} />
         </Campo>
 
         <Campo
@@ -373,7 +374,7 @@ function EditorZona({ zona, onCerrar, onGuardado }: {
           ayuda="Una frase. Es lo que va a leer el técnico a las tres de la mañana."
           ancho
         >
-          <textarea value={porQue} onChange={(e) => setPorQue(e.target.value)}
+          <textarea aria-label="&nbsp;" value={porQue} onChange={(e) => setPorQue(e.target.value)}
                     placeholder="Es el único punto desde el que se ve el colado; sin esa cámara no hay forma de saber si la barra salió bien." />
         </Campo>
 
@@ -382,7 +383,7 @@ function EditorZona({ zona, onCerrar, onGuardado }: {
           ayuda="El efecto concreto: se para la línea, se pierde la trazabilidad, no se ve a la cuadrilla en el foso."
           ancho
         >
-          <textarea value={impacto} onChange={(e) => setImpacto(e.target.value)}
+          <textarea aria-label="&nbsp;" value={impacto} onChange={(e) => setImpacto(e.target.value)}
                     placeholder="Se detiene el tren hasta restablecer la vista." />
         </Campo>
       </Seccion>
@@ -468,7 +469,7 @@ function FirmaIntervencion({ zona, onCerrar, onGuardado }: {
           etiqueta="Cómo se interviene"
           ayuda={INTERVENCION[nivel]?.ayuda}
         >
-          <select value={nivel} onChange={(e) => setNivel(e.target.value)}>
+          <select aria-label="&nbsp;" value={nivel} onChange={(e) => setNivel(e.target.value)}>
             <option value="">Sin firmar — el sistema pedirá parada</option>
             {Object.entries(INTERVENCION).filter(([k]) => k !== 'SIN_CLASIFICAR')
               .map(([k, v]) => <option key={k} value={k}>{v.et}</option>)}
@@ -493,7 +494,7 @@ function FirmaIntervencion({ zona, onCerrar, onGuardado }: {
           ayuda="Es lo que va a leer el técnico antes de acercarse, y lo que respalda tu firma si algún día hay que revisarla."
           ancho
         >
-          <textarea value={motivo} onChange={(e) => setMotivo(e.target.value)}
+          <textarea aria-label="&nbsp;" value={motivo} onChange={(e) => setMotivo(e.target.value)}
                     placeholder="El grabador está en la cabina del púlpito, cerrada y a 30 m de la línea. No hay exposición a la barra." />
         </Campo>
       </Seccion>

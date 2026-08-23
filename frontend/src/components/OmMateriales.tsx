@@ -251,7 +251,7 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
                           almacén: apuntar consumo de algo que no se retiró es
                           inventar. */}
                       {editable && m.status === 'RETIRADO' ? (
-                        <input type="number" min={0} step="0.5" defaultValue={m.usedQty ?? ''}
+                        <input aria-label="Cantidad realmente usada" type="number" min={0} step="0.5" defaultValue={m.usedQty ?? ''}
                           style={{ width: 70 }}
                           onBlur={(e) => marcarUsado(m, e.target.value)} />
                       ) : (m.usedQty ?? '—')}
@@ -291,8 +291,8 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
             <form onSubmit={agregar} style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #e5e7eb' }}>
               <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Agregar material</div>
 
-              <label>Del catálogo (con código SAP)</label>
-              <select value={nuevo.sparePartId}
+              <label>Del catálogo (con código SAP)
+                <select value={nuevo.sparePartId}
                 onChange={(e) => setNuevo({ ...nuevo, sparePartId: e.target.value })}>
                 <option value="">— no está catalogado —</option>
                 {repuestos.map((r) => (
@@ -302,6 +302,7 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
                   </option>
                 ))}
               </select>
+              </label>
               {rep && (
                 <div className="muted" style={{ fontSize: 11, marginTop: -6, marginBottom: 8 }}>
                   El catálogo refleja {rep.currentStock ?? '—'} {rep.unit || ''} en {rep.warehouse || 'almacén'}.
@@ -309,21 +310,23 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
               )}
 
               <label>Descripción {nuevo.sparePartId ? '(opcional)' : '(obligatoria)'}</label>
-              <input value={nuevo.description}
+              <input aria-label="Cantidad a retirar" value={nuevo.description}
                 onChange={(e) => setNuevo({ ...nuevo, description: e.target.value })}
                 placeholder="Ej: 30 m de cable Cat6 blindado" />
 
               <div style={{ display: 'flex', gap: 10 }}>
                 <div style={{ flex: 1 }}>
-                  <label>Cantidad prevista</label>
-                  <input type="number" min={0} step="0.5" value={nuevo.plannedQty}
+                  <label>Cantidad prevista
+                    <input type="number" min={0} step="0.5" value={nuevo.plannedQty}
                     onChange={(e) => setNuevo({ ...nuevo, plannedQty: e.target.value })} />
+                  </label>
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label>Unidad</label>
-                  <input value={nuevo.unit}
+                  <label>Unidad
+                    <input value={nuevo.unit}
                     onChange={(e) => setNuevo({ ...nuevo, unit: e.target.value })}
                     placeholder="rollo, unidad, metro" />
+                  </label>
                 </div>
               </div>
 
@@ -366,15 +369,16 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
 
           {editable && (
             <form onSubmit={registrarSwap} style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #e5e7eb' }}>
-              <label>Equipo retirado</label>
-              <select value={swap.removedAssetId}
+              <label>Equipo retirado
+                <select value={swap.removedAssetId}
                 onChange={(e) => setSwap({ ...swap, removedAssetId: e.target.value })}>
                 <option value="">— ninguno —</option>
                 {wo.asset && <option value={wo.asset.id}>{wo.asset.assetCode} (el de la orden)</option>}
               </select>
+              </label>
 
-              <label>Equipo instalado (desde almacén)</label>
-              <select value={swap.installedAssetId}
+              <label>Equipo instalado (desde almacén)
+                <select value={swap.installedAssetId}
                 onChange={(e) => setSwap({ ...swap, installedAssetId: e.target.value })}>
                 <option value="">— ninguno —</option>
                 {stock.map((a) => (
@@ -383,6 +387,7 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
                   </option>
                 ))}
               </select>
+              </label>
               {!stock.length && (
                 <div className="muted" style={{ fontSize: 11, marginTop: -6, marginBottom: 8 }}>
                   No hay equipos en almacén. Se registran como activos con estado
@@ -390,8 +395,9 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
                 </div>
               )}
 
-              <label>Nota</label>
-              <input value={swap.note} onChange={(e) => setSwap({ ...swap, note: e.target.value })} />
+              <label>Nota
+                <input value={swap.note} onChange={(e) => setSwap({ ...swap, note: e.target.value })} />
+              </label>
 
               <button className="btn" disabled={guardando} style={{ marginTop: 10 }}>
                 {guardando ? 'Registrando…' : 'Registrar reemplazo'}

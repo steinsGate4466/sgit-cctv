@@ -183,9 +183,10 @@ export default function Ipam() {
       )}
 
       <div className="filters">
-        <div><label>Buscar una IP o un nombre</label>
-          <input value={busca} onChange={(e) => setBusca(e.target.value)}
-            placeholder="10.20.4.87   ·   ¿de quién es esta IP?" style={{ minWidth: 260 }} /></div>
+        <div><label>Buscar una IP o un nombre
+            <input value={busca} onChange={(e) => setBusca(e.target.value)}
+            placeholder="10.20.4.87   ·   ¿de quién es esta IP?" style={{ minWidth: 260 }} />
+          </label></div>
         {puedeEditar && (
           <button className="btn-primary" onClick={() => {
             setError('');

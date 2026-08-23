@@ -145,14 +145,16 @@ export default function Roles() {
         <Modal title={edita.nuevo ? 'Nuevo rol' : `Editar: ${edita.nombre}`} onClose={() => setEdita(null)}>
           {edita.nuevo && (
             <>
-              <label>Nombre del rol</label>
-              <input value={nombre} onChange={(e) => setNombre(e.target.value)}
+              <label>Nombre del rol
+                <input value={nombre} onChange={(e) => setNombre(e.target.value)}
                 placeholder="Jefe de línea Tren 2" />
+              </label>
             </>
           )}
-          <label>Para qué es</label>
-          <input value={descripcion} onChange={(e) => setDescripcion(e.target.value)}
+          <label>Para qué es
+            <input value={descripcion} onChange={(e) => setDescripcion(e.target.value)}
             placeholder="Una frase: quién lo usa y para qué" />
+          </label>
 
           {/* PLANTILLAS. Antes eran diez botones con sólo el nombre, y elegir
               entre «Técnico de red» y «Técnico de campo (CCTV)» a ciegas es

@@ -261,19 +261,21 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
               </div>
             )}
 
-            <label>Hora real de inicio</label>
-            <input type="datetime-local" value={inicio} onChange={(e) => setInicio(e.target.value)} />
+            <label>Hora real de inicio
+              <input type="datetime-local" value={inicio} onChange={(e) => setInicio(e.target.value)} />
+            </label>
             <div className="muted" style={{ fontSize: 11, marginTop: -6, marginBottom: 10 }}>
               La que confirmaste por radio con Producción. Si lo dejas vacío se toma este momento.
             </div>
 
-            <label>Acompañante en campo</label>
-            <select value={acompanante} onChange={(e) => setAcompanante(e.target.value)}>
+            <label>Acompañante en campo
+              <select value={acompanante} onChange={(e) => setAcompanante(e.target.value)}>
               <option value="">— sin acompañante —</option>
               {tecnicos.map((t) => (
                 <option key={t.id} value={t.id}>{t.fullName} — {t.role?.name || t.roleName || ''}</option>
               ))}
             </select>
+            </label>
             <div className="muted" style={{ fontSize: 11, marginTop: -6, marginBottom: 10 }}>
               Queda registrado para trazabilidad y seguridad.
             </div>
@@ -301,7 +303,7 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
             </div>
 
             <label>Avance: <strong>{pct}%</strong></label>
-            <input type="range" min={0} max={100} step={5} value={pct}
+            <input aria-label="Porcentaje de avance" type="range" min={0} max={100} step={5} value={pct}
               onChange={(e) => setPct(Number(e.target.value))}
               style={{ width: '100%' }} />
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }} className="muted">
@@ -312,7 +314,7 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
               ¿Por qué no se avanzó más?
               {pct < (wo.progressPct ?? 0) && <span style={{ color: '#b91c1c' }}> (obligatorio: el avance baja)</span>}
             </label>
-            <textarea value={nota} onChange={(e) => setNota(e.target.value)} rows={3}
+            <textarea aria-label="Nota del avance" value={nota} onChange={(e) => setNota(e.target.value)} rows={3}
               style={{ width: '100%', resize: 'vertical' }}
               placeholder="Ej: la parada se acortó, Producción reinició antes / faltó manlift / no llegó el repuesto" />
 
@@ -382,8 +384,9 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
               </div>
             )}
 
-            <label>Hora real de cierre</label>
-            <input type="datetime-local" value={fin} onChange={(e) => setFin(e.target.value)} />
+            <label>Hora real de cierre
+              <input type="datetime-local" value={fin} onChange={(e) => setFin(e.target.value)} />
+            </label>
 
             {/* SÍNTOMA -> CAUSA -> ACCIÓN, en ese orden y separados.
                 El síntoma es lo que se VE; la causa lo que se DESCUBRE.
@@ -420,10 +423,11 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
               </div>
             )}
 
-            <label>Detalle (opcional)</label>
-            <textarea value={causaNota} onChange={(e) => setCausaNota(e.target.value)} rows={2}
+            <label>Detalle (opcional)
+              <textarea value={causaNota} onChange={(e) => setCausaNota(e.target.value)} rows={2}
               style={{ width: '100%', resize: 'vertical' }}
               placeholder="Lo que convenga dejar escrito para la próxima vez" />
+            </label>
 
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
               <input type="checkbox" checked={reincidente} onChange={(e) => setReincidente(e.target.checked)} />
@@ -440,11 +444,13 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
         {accion !== 'avance' && (
           <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #e5e7eb' }}>
             <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Firma electrónica</div>
-            <label>Correo</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-            <label>Contraseña</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+            <label>Correo
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            </label>
+            <label>Contraseña
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
               required autoComplete="current-password" />
+            </label>
           </div>
         )}
 
@@ -534,7 +540,7 @@ function ListaCatalogo({ etiqueta, valor, onChange, items, vacio }: {
   return (
     <>
       <label>{etiqueta}</label>
-      <select value={valor} onChange={(e) => onChange(e.target.value)}>
+      <select aria-label="Elegir del catálogo" value={valor} onChange={(e) => onChange(e.target.value)}>
         <option value="">— sin especificar —</option>
         {orden.map(([grupo, opciones]) => (
           <optgroup key={grupo} label={grupo}>

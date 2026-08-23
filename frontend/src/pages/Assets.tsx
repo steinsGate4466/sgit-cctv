@@ -564,22 +564,25 @@ export default function Assets() {
       <div className="filters">
         <FiltroAmbito valor={ambito} onChange={setAmbito} />
         <div style={{ flex: 1, minWidth: 180 }}>
-          <label>Buscar</label>
-          <input value={fq} onChange={(e) => setFq(e.target.value)} placeholder="código, marca, modelo, serie, IP, referencia…" />
+          <label>Buscar
+            <input value={fq} onChange={(e) => setFq(e.target.value)} placeholder="código, marca, modelo, serie, IP, referencia…" />
+          </label>
         </div>
-        <div><label>Tipo</label>
-          <select value={fType} onChange={(e) => setFType(e.target.value)}>
+        <div><label>Tipo
+            <select value={fType} onChange={(e) => setFType(e.target.value)}>
             <option value="">Todos</option>
             {TYPES.map((t) => <option key={t} value={t}>{tEs(t)}</option>)}
           </select>
+          </label>
         </div>
-        <div><label>Estado</label>
-          <select value={fStatus} onChange={(e) => setFStatus(e.target.value)}>
+        <div><label>Estado
+            <select value={fStatus} onChange={(e) => setFStatus(e.target.value)}>
             <option value="">Todos</option>
             {['OPERATIVO', 'MANTENIMIENTO', 'CON_INCIDENCIA', 'FUERA_SERVICIO', 'STOCK'].map((s) => (
               <option key={s} value={s}>{sEs(s)}</option>
             ))}
           </select>
+          </label>
         </div>
         <button className="btn-mini" onClick={() => { setFq(''); setFType(''); setFStatus(''); }}>Limpiar</button>
       </div>
@@ -762,7 +765,7 @@ export default function Assets() {
             <div className="detail-sec">
               <h4><Icono n="refrescar" size={15} /> Actualizar estado</h4>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} style={{ flex: 1 }}>
+                <select aria-label="Filtrar por tipo de equipo" value={newStatus} onChange={(e) => setNewStatus(e.target.value)} style={{ flex: 1 }}>
                   {STATES.map((t) => <option key={t} value={t}>{sEs(t)}</option>)}
                 </select>
                 <button className="btn-mini" disabled={savingStatus || newStatus === detail.status} onClick={saveStatus}>
@@ -863,7 +866,7 @@ export default function Assets() {
             )) : <div className="muted" style={{ fontSize: 12 }}>Sin fotografías.</div>}
             {can('asset.update') && (
               <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <select value={photoKind} onChange={(e) => setPhotoKind(e.target.value)}>
+                <select aria-label="Estado del equipo" value={photoKind} onChange={(e) => setPhotoKind(e.target.value)}>
                   {PHOTO_KINDS.map((k) => <option key={k} value={k}>{PHOTO_KIND_ES[k]}</option>)}
                 </select>
                 <input type="file" accept="image/*" onChange={(e) => setPhotoFile(e.target.files?.[0] || null)} />
@@ -953,24 +956,27 @@ export default function Assets() {
         >
           <form id="form-activo" onSubmit={submitNew}>
             <div className="sign-note">El activo contiene información sensible (IP, red, accesos). Confirma tu identidad con correo y contraseña; quedará auditado con tu firma quién {form.id ? 'editó' : 'registró'} el activo.</div>
-            <label>Código / rótulo del activo</label>
-            <input value={form.assetCode} onChange={(e) => setForm({ ...form, assetCode: e.target.value })} required />
+            <label>Código / rótulo del activo
+              <input value={form.assetCode} onChange={(e) => setForm({ ...form, assetCode: e.target.value })} required />
+            </label>
             <div style={{ display: 'flex', gap: 10 }}>
-              <div style={{ flex: 1 }}><label>Tipo</label><select value={form.type} onChange={(e) => { setForm({ ...form, type: e.target.value }); setSpec({}); }}>{TYPES.map((t) => <option key={t} value={t}>{tEs(t)}</option>)}</select></div>
-              <div style={{ flex: 1 }}><label>Criticidad</label><select value={form.criticality} onChange={(e) => setForm({ ...form, criticality: e.target.value })}>{CRITS.map((t) => <option key={t} value={t}>{cEs(t)}</option>)}</select></div>
+              <div style={{ flex: 1 }}><label>Tipo<select value={form.type} onChange={(e) => { setForm({ ...form, type: e.target.value }); setSpec({}); }}>{TYPES.map((t) => <option key={t} value={t}>{tEs(t)}</option>)}</select></label></div>
+              <div style={{ flex: 1 }}><label>Criticidad<select value={form.criticality} onChange={(e) => setForm({ ...form, criticality: e.target.value })}>{CRITS.map((t) => <option key={t} value={t}>{cEs(t)}</option>)}</select></label></div>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
-              <div style={{ flex: 1 }}><label>Marca</label><input value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} /></div>
-              <div style={{ flex: 1 }}><label>Modelo</label><input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} /></div>
+              <div style={{ flex: 1 }}><label>Marca<input value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} /></label></div>
+              <div style={{ flex: 1 }}><label>Modelo<input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} /></label></div>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
-              <div style={{ flex: 1 }}><label>N° de serie</label><input value={form.serialNumber} onChange={(e) => setForm({ ...form, serialNumber: e.target.value })} /></div>
-              <div style={{ flex: 1 }}><label>Estado</label><select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>{STATES.map((t) => <option key={t} value={t}>{sEs(t)}</option>)}</select></div>
+              <div style={{ flex: 1 }}><label>N° de serie<input value={form.serialNumber} onChange={(e) => setForm({ ...form, serialNumber: e.target.value })} /></label></div>
+              <div style={{ flex: 1 }}><label>Estado<select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>{STATES.map((t) => <option key={t} value={t}>{sEs(t)}</option>)}</select></label></div>
             </div>
-            <label>IP principal (sensible)</label>
-            <input value={form.ipAddress} onChange={(e) => setForm({ ...form, ipAddress: e.target.value })} placeholder="Ej: 172.16.10.21" />
-            <label>Contraseña del equipo (opcional)</label>
-            <input value={form.devicePass} onChange={(e) => setForm({ ...form, devicePass: e.target.value })} placeholder="clave de la cámara / NVR" />
+            <label>IP principal (sensible)
+              <input value={form.ipAddress} onChange={(e) => setForm({ ...form, ipAddress: e.target.value })} placeholder="Ej: 172.16.10.21" />
+            </label>
+            <label>Contraseña del equipo (opcional)
+              <input value={form.devicePass} onChange={(e) => setForm({ ...form, devicePass: e.target.value })} placeholder="clave de la cámara / NVR" />
+            </label>
             <label>Ubicación (obligatorio)</label>
             <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>
               De la ubicación se deducen el tren y la etapa del proceso. Elige el punto
@@ -987,7 +993,7 @@ export default function Assets() {
                 obligar a inventar uno daría dos registros para una sola cosa
                 física. Se elige uno de los dos, no los dos. */}
             <label>Gabinete{CABINET_REQUIRED.includes(form.type) && !form.tableroId ? ' (obligatorio para este tipo)' : ''}</label>
-            <select value={form.cabinetId}
+            <select aria-label="Elegir tablero eléctrico" value={form.cabinetId}
               onChange={(e) => setForm({ ...form, cabinetId: e.target.value, tableroId: e.target.value ? '' : form.tableroId })}
               disabled={!!form.tableroId}
               required={CABINET_REQUIRED.includes(form.type) && !form.tableroId}>
@@ -995,13 +1001,14 @@ export default function Assets() {
               {cabinets.map((c) => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
             </select>
 
-            <label>…o dentro de un tablero eléctrico</label>
-            <select value={form.tableroId}
+            <label>…o dentro de un tablero eléctrico
+              <select value={form.tableroId}
               onChange={(e) => setForm({ ...form, tableroId: e.target.value, cabinetId: e.target.value ? '' : form.cabinetId })}
               disabled={!!form.cabinetId}>
               <option value="">— no está en un tablero —</option>
               {tableros.map((t: any) => <option key={t.id} value={t.id}>{t.codigo} — {t.nombre}</option>)}
             </select>
+            </label>
             <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
               Para los switches pequeños atornillados dentro de un tablero. Se elige
               gabinete <b>o</b> tablero, no los dos: son dos sitios distintos y el
@@ -1012,11 +1019,12 @@ export default function Assets() {
                 Este tipo va montado en algún sitio: di en cuál, para poder encontrarlo en planta.
               </div>
             )}
-            <label>Lugar de referencia (texto libre)</label>
-            <input value={form.referencePlace} onChange={(e) => setForm({ ...form, referencePlace: e.target.value })} placeholder="Ej: Púlpito Tren 1, poste 3 lado norte" />
+            <label>Lugar de referencia (texto libre)
+              <input value={form.referencePlace} onChange={(e) => setForm({ ...form, referencePlace: e.target.value })} placeholder="Ej: Púlpito Tren 1, poste 3 lado norte" />
+            </label>
             <div style={{ display: 'flex', gap: 10 }}>
-              <div style={{ flex: 1 }}><label>Código SAP (activo)</label><input value={form.sapId} onChange={(e) => setForm({ ...form, sapId: e.target.value })} /></div>
-              <div style={{ flex: 1 }}><label>Área responsable</label><input value={form.responsibleArea} onChange={(e) => setForm({ ...form, responsibleArea: e.target.value })} /></div>
+              <div style={{ flex: 1 }}><label>Código SAP (activo)<input value={form.sapId} onChange={(e) => setForm({ ...form, sapId: e.target.value })} /></label></div>
+              <div style={{ flex: 1 }}><label>Área responsable<input value={form.responsibleArea} onChange={(e) => setForm({ ...form, responsibleArea: e.target.value })} /></label></div>
             </div>
             <AssetSpecFields
               tipo={form.type}
@@ -1028,10 +1036,12 @@ export default function Assets() {
             <AssetPhotoPicker fotos={fotosNuevas} onChange={setFotosNuevas} />
 
             <h4 style={{ marginTop: 14, marginBottom: 4 }}><Icono n="firma" size={15} /> Firma electrónica</h4>
-            <label>Correo</label>
-            <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
-            <label>Contraseña</label>
-            <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
+            <label>Correo
+              <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+            </label>
+            <label>Contraseña
+              <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
+            </label>
             {formErr && <div className="error">{formErr}</div>}
           </form>
         </Modal>
@@ -1089,10 +1099,12 @@ export default function Assets() {
       {quick && (
         <Modal title={'Editar IP y contraseña · ' + quick.assetCode} onClose={() => setQuick(null)}>
           <div className="sign-note">Edición en tiempo real de los accesos del equipo. Solo Jefe de Mantenimiento, Supervisor TI y Técnico de Red.</div>
-          <label>IP principal</label>
-          <input value={qIp} onChange={(e) => setQIp(e.target.value)} placeholder="172.16.x.x" />
-          <label>Contraseña del equipo</label>
-          <input value={qPass} onChange={(e) => setQPass(e.target.value)} placeholder="clave cámara / NVR" />
+          <label>IP principal
+            <input value={qIp} onChange={(e) => setQIp(e.target.value)} placeholder="172.16.x.x" />
+          </label>
+          <label>Contraseña del equipo
+            <input value={qPass} onChange={(e) => setQPass(e.target.value)} placeholder="clave cámara / NVR" />
+          </label>
           <button className="btn" disabled={qSaving} onClick={saveQuick}>{qSaving ? 'Guardando…' : 'Guardar'}</button>
         </Modal>
       )}

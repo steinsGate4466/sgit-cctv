@@ -131,8 +131,8 @@ export default function Login() {
             </div>
           )}
 
-          <label>Correo</label>
-          <input
+          <label>Correo
+            <input
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             type="email"
@@ -141,10 +141,11 @@ export default function Login() {
             autoFocus
             required
           />
+          </label>
 
           <label>Contraseña</label>
           <div className="input-pass">
-            <input
+            <input aria-label="Contraseña"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               type={showPass ? 'text' : 'password'}

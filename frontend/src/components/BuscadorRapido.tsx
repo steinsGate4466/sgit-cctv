@@ -164,7 +164,7 @@ export default function BuscadorRapido() {
   return (
     <div className="buscador-fondo" onMouseDown={(e) => { if (e.target === e.currentTarget) setAbierto(false); }}>
       <div className="buscador" role="dialog" aria-label="Buscar pantalla">
-        <input
+        <input aria-label="Buscar una pantalla"
           ref={entrada}
           value={texto}
           placeholder="¿A dónde quieres ir? Escribe «parada», «breaker», «manlift»…"

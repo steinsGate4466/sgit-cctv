@@ -199,16 +199,20 @@ export default function Users() {
       {showForm && (
         <Modal title="Nuevo usuario" onClose={() => setShowForm(false)}>
           <form onSubmit={create}>
-            <label>Nombre completo</label>
-            <input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} required />
-            <label>Correo</label>
-            <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
-            <label>Contraseña</label>
-            <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required minLength={8} />
-            <label>Rol</label>
-            <select value={form.roleId} onChange={(e) => setForm({ ...form, roleId: e.target.value })} required>
+            <label>Nombre completo
+              <input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} required />
+            </label>
+            <label>Correo
+              <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+            </label>
+            <label>Contraseña
+              <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required minLength={8} />
+            </label>
+            <label>Rol
+              <select value={form.roleId} onChange={(e) => setForm({ ...form, roleId: e.target.value })} required>
               {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
             </select>
+            </label>
             {error && <div className="error">{error}</div>}
             <button className="btn" disabled={saving}>{saving ? 'Guardando…' : 'Crear usuario'}</button>
           </form>

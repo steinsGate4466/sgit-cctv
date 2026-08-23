@@ -130,11 +130,13 @@ export default function AccessRequestForm({ assetId, assetCode, assets, onDone }
           la inaccesibilidad: <b>sin evidencia el Jefe no puede aprobarla</b>.
         </div>
         <form onSubmit={uploadPhoto}>
-          <label>Fotografía (JPG / PNG)</label>
-          <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-          <label>¿Qué muestra?</label>
-          <input value={caption} onChange={(e) => setCaption(e.target.value)}
+          <label>Fotografía (JPG / PNG)
+            <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+          </label>
+          <label>¿Qué muestra?
+            <input value={caption} onChange={(e) => setCaption(e.target.value)}
             placeholder="Ej: altura del montaje sobre el puente grúa" />
+          </label>
           {err && <div className="error">{err}</div>}
           <button className="btn-mini" style={{ marginTop: 10 }} disabled={uploading}>
             {uploading ? 'Subiendo…' : '+ Agregar fotografía'}
@@ -177,30 +179,34 @@ export default function AccessRequestForm({ assetId, assetCode, assets, onDone }
         </div>
       ) : (
         <>
-          <label>Activo inaccesible</label>
-          <select value={f.assetId} onChange={(e) => setF({ ...f, assetId: e.target.value })} required>
+          <label>Activo inaccesible
+            <select value={f.assetId} onChange={(e) => setF({ ...f, assetId: e.target.value })} required>
             <option value="">— selecciona —</option>
             {(assets || []).map((a) => <option key={a.id} value={a.id}>{a.assetCode}</option>)}
           </select>
+          </label>
         </>
       )}
 
-      <label>Motivo principal</label>
-      <select value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })}>
+      <label>Motivo principal
+        <select value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })}>
         {REASONS.map((r) => <option key={r.v} value={r.v}>{r.t}</option>)}
       </select>
+      </label>
 
       <div style={{ display: 'flex', gap: 10 }}>
         <div style={{ flex: 1 }}>
-          <label>Altura estimada (m)</label>
-          <input type="number" step="0.1" min="0" value={f.heightMeters}
+          <label>Altura estimada (m)
+            <input type="number" step="0.1" min="0" value={f.heightMeters}
             onChange={(e) => setF({ ...f, heightMeters: e.target.value, requiresPetar: Number(e.target.value) >= ALTURA_MIN ? true : f.requiresPetar })} />
+          </label>
         </div>
         <div style={{ flex: 1 }}>
-          <label>Medio requerido</label>
-          <select value={f.means} onChange={(e) => setF({ ...f, means: e.target.value })}>
+          <label>Medio requerido
+            <select value={f.means} onChange={(e) => setF({ ...f, means: e.target.value })}>
             {MEANS.map((m) => <option key={m} value={m}>{MEANS_ES[m]}</option>)}
           </select>
+          </label>
         </div>
       </div>
 
@@ -210,19 +216,22 @@ export default function AccessRequestForm({ assetId, assetCode, assets, onDone }
         </div>
       )}
 
-      <label>¿Dónde está montado?</label>
-      <select value={f.locationKind} onChange={(e) => setF({ ...f, locationKind: e.target.value })}>
+      <label>¿Dónde está montado?
+        <select value={f.locationKind} onChange={(e) => setF({ ...f, locationKind: e.target.value })}>
         {LOCATION_KINDS.map((k) => <option key={k} value={k}>{k}</option>)}
       </select>
+      </label>
 
-      <label>¿Por qué no se puede intervenir sin ese medio?</label>
-      <textarea value={f.justification} onChange={(e) => setF({ ...f, justification: e.target.value })}
+      <label>¿Por qué no se puede intervenir sin ese medio?
+        <textarea value={f.justification} onChange={(e) => setF({ ...f, justification: e.target.value })}
         rows={3} style={{ width: '100%', resize: 'vertical' }}
         placeholder="Ej: cámara a 7 m sobre la estructura del puente grúa; no hay punto de anclaje ni escalera fija, y el tránsito de material impide armar andamio." required />
+      </label>
 
-      <label>Ruta de acceso / restricciones</label>
-      <input value={f.accessRoute} onChange={(e) => setF({ ...f, accessRoute: e.target.value })}
+      <label>Ruta de acceso / restricciones
+        <input value={f.accessRoute} onChange={(e) => setF({ ...f, accessRoute: e.target.value })}
         placeholder="Ej: ingreso por nave 2; coordinar detención del puente grúa" />
+      </label>
 
       <h4 style={{ marginTop: 16, marginBottom: 6 }}><Icono n="seguridad" size={15} /> Seguridad (SSOMA)</h4>
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
@@ -240,19 +249,22 @@ export default function AccessRequestForm({ assetId, assetCode, assets, onDone }
         </label>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 12, color: 'var(--muted)' }}>Personal</span>
-          <input type="number" min={1} value={f.personnelCount}
+          <input aria-label="Impacto en producción" type="number" min={1} value={f.personnelCount}
             onChange={(e) => setF({ ...f, personnelCount: e.target.value })} style={{ width: 70 }} />
         </div>
       </div>
 
-      <label>EPP requerido</label>
-      <textarea value={f.eppDetail} onChange={(e) => setF({ ...f, eppDetail: e.target.value })} rows={2} style={{ width: '100%', resize: 'vertical' }} />
-      <label>Riesgos identificados</label>
-      <textarea value={f.risks} onChange={(e) => setF({ ...f, risks: e.target.value })} rows={2} style={{ width: '100%', resize: 'vertical' }}
+      <label>EPP requerido
+        <textarea value={f.eppDetail} onChange={(e) => setF({ ...f, eppDetail: e.target.value })} rows={2} style={{ width: '100%', resize: 'vertical' }} />
+      </label>
+      <label>Riesgos identificados
+        <textarea value={f.risks} onChange={(e) => setF({ ...f, risks: e.target.value })} rows={2} style={{ width: '100%', resize: 'vertical' }}
         placeholder="Ej: caída a distinto nivel, carga suspendida, calor radiante del horno" />
-      <label>Impacto en producción</label>
-      <input value={f.productionImpact} onChange={(e) => setF({ ...f, productionImpact: e.target.value })}
+      </label>
+      <label>Impacto en producción
+        <input value={f.productionImpact} onChange={(e) => setF({ ...f, productionImpact: e.target.value })}
         placeholder="Ej: detener puente grúa 40 min, coordinar con Jefe de Línea" />
+      </label>
 
       {err && <div className="error">{err}</div>}
       <button className="btn" disabled={saving}>{saving ? 'Registrando…' : 'Continuar a evidencia fotográfica →'}</button>

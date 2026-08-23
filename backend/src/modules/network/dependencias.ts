@@ -102,6 +102,12 @@ export interface EquipoParaDependencias {
   lugar?: string | null;
   /** Si es componente de otro activo (la fuente dentro de la antena). */
   parteDeId?: string | null;
+  /**
+   * En qué red vive, ya resuelto por `segmentos.ts` contra las subredes
+   * registradas. Opcional: sin él todo sale SIN_DETERMINAR, que es lo
+   * honesto mientras no haya plan de direcciones cargado.
+   */
+  segmento?: string | null;
 }
 
 export interface EnlaceParaDependencias {
@@ -130,6 +136,29 @@ export interface PiezaInterna {
   siFalla: string;
 }
 
+/**
+ * QUÉ SE PIERDE CUANDO ESTE EQUIPO CAE — bloque 49.
+ *
+ * La planta tiene DOS redes y el grabador es la frontera entre ellas, así que
+ * una caída no siempre significa lo mismo:
+ *
+ *   NI_GRABA_NI_SE_VE  el equipo está del lado de las cámaras. La imagen no
+ *                      llega al grabador: no se guarda y no se ve.
+ *   GRABA_PERO_NO_SE_VE  el equipo está del lado del púlpito. La cámara sigue
+ *                      grabando; lo que se pierde es poder mirarla en vivo.
+ *   SIN_DETERMINAR     no hay plan de direcciones cargado o el equipo no tiene
+ *                      IP. NO se supone lo peor ni lo mejor: se dice que no
+ *                      se sabe.
+ *
+ * La segunda es la que el sistema no sabía distinguir, y es la que más
+ * confunde en planta: el operador reporta «no veo la zona» y la grabación
+ * está intacta. Quién lo atiende y con qué urgencia cambia por completo.
+ */
+export type EfectoDeCaida =
+  | 'NI_GRABA_NI_SE_VE'
+  | 'GRABA_PERO_NO_SE_VE'
+  | 'SIN_DETERMINAR';
+
 export interface Soporte {
   id: string;
   codigo: string;
@@ -147,6 +176,10 @@ export interface Soporte {
   siCae: string;
   /** Cómo viaja la imagen, explicado sin jerga. */
   comoFunciona: string;
+  /** De qué lado de la frontera está, y por tanto qué se pierde. */
+  efecto: EfectoDeCaida;
+  /** La segunda pregunta, en una frase. */
+  queSePierde: string;
 }
 
 // ============================================================ el cálculo
@@ -264,6 +297,36 @@ function fraseComoFunciona(papel: Papel, cuantas: number): string {
  * definición, el equipo más importante de la planta — y esa lista no la sabe
  * nadie de memoria, ni el que instaló la red.
  */
+/**
+ * De qué lado de la frontera está un equipo, y qué se pierde si cae.
+ *
+ * El GRABADOR es la frontera, así que su caída se lleva las dos cosas. Del
+ * lado de las cámaras se pierde grabar Y ver; del lado del púlpito sólo ver.
+ *
+ * Sin segmento conocido devuelve SIN_DETERMINAR en vez de adivinar. Suponer
+ * lo peor llenaría la pantalla de alarmas falsas el primer día; suponer lo
+ * mejor escondería una caída real. Las dos suposiciones son mentiras, y la
+ * verdad —«no lo sé todavía»— es información útil: dice que falta cargar el
+ * plan de direcciones.
+ */
+function efectoDe(papel: Papel, segmento?: string | null): EfectoDeCaida {
+  if (papel === 'GRABADOR') return 'NI_GRABA_NI_SE_VE';
+  if (segmento === 'LAN_CAMARAS') return 'NI_GRABA_NI_SE_VE';
+  if (segmento === 'RED_CCTV') return 'GRABA_PERO_NO_SE_VE';
+  return 'SIN_DETERMINAR';
+}
+
+const QUE_SE_PIERDE: Record<EfectoDeCaida, string> = {
+  NI_GRABA_NI_SE_VE:
+    'No se graba ni se ve: la imagen no llega al grabador.',
+  GRABA_PERO_NO_SE_VE:
+    'Se sigue grabando, pero el púlpito deja de verlo en vivo. La imagen '
+    + 'queda guardada y se puede revisar después.',
+  SIN_DETERMINAR:
+    'No se puede decir si se dejaría de grabar o sólo de ver: a este equipo '
+    + 'le falta la dirección, o falta registrar su subred.',
+};
+
 export function soportesDeCamaras(
   equipos: EquipoParaDependencias[],
   enlaces: EnlaceParaDependencias[],
@@ -349,6 +412,8 @@ export function soportesDeCamaras(
       salvadoPorAnillo,
       siCae: fraseSiCae(papel, camaras, salvadoPorAnillo),
       comoFunciona: fraseComoFunciona(papel, camaras.length),
+      efecto: efectoDe(papel, eq.segmento),
+      queSePierde: QUE_SE_PIERDE[efectoDe(papel, eq.segmento)],
     });
   }
 

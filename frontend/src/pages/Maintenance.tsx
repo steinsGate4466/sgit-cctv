@@ -288,11 +288,11 @@ export default function Maintenance() {
 
       <div className="filters">
         <FiltroAmbito valor={ambito} onChange={setAmbito} />
-        <div style={{ flex: 1, minWidth: 180 }}><label>Buscar</label><input placeholder="código OM, incidencia, actividad, zona…" value={fq} onChange={(e) => setFq(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} /></div>
-        <div><label>Tipo</label><select value={fType} onChange={(e) => setFType(e.target.value)}><option value="">Todos</option>{TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select></div>
-        <div><label>Estado</label><select value={fStatus} onChange={(e) => setFStatus(e.target.value)}><option value="">Todos</option>{['ABIERTA', 'EN_PROCESO', 'EN_ESPERA', 'CERRADA', 'CANCELADA'].map((s) => <option key={s} value={s}>{s}</option>)}</select></div>
-        <div><label>Desde</label><input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
-        <div><label>Hasta</label><input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
+        <div style={{ flex: 1, minWidth: 180 }}><label>Buscar<input placeholder="código OM, incidencia, actividad, zona…" value={fq} onChange={(e) => setFq(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} /></label></div>
+        <div><label>Tipo<select value={fType} onChange={(e) => setFType(e.target.value)}><option value="">Todos</option>{TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select></label></div>
+        <div><label>Estado<select value={fStatus} onChange={(e) => setFStatus(e.target.value)}><option value="">Todos</option>{['ABIERTA', 'EN_PROCESO', 'EN_ESPERA', 'CERRADA', 'CANCELADA'].map((s) => <option key={s} value={s}>{s}</option>)}</select></label></div>
+        <div><label>Desde<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></label></div>
+        <div><label>Hasta<input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></label></div>
         <button className="btn-primary" onClick={load}>Buscar</button>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, alignSelf: 'flex-end', paddingBottom: 6 }}>
           <input type="checkbox" checked={soloSinDetallar} style={{ width: 'auto' }}
@@ -452,19 +452,22 @@ export default function Maintenance() {
       {showForm && (
         <Modal title="Nueva orden de mantenimiento" onClose={() => setShowForm(false)}>
           <form onSubmit={create}>
-            <label>Código OM (SAP)</label>
-            <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="N.º generado por SAP (si lo dejas vacío se asigna uno provisional)" />
-            <label>Tipo</label>
-            <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+            <label>Código OM (SAP)
+              <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="N.º generado por SAP (si lo dejas vacío se asigna uno provisional)" />
+            </label>
+            <label>Tipo
+              <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
               {TYPES.map((t) => <option key={t} value={t}>{WO_TYPE_ES[t] || t}</option>)}
             </select>
+            </label>
             {form.type === 'MAPEO' ? (
               <>
-                <label>Zona a levantar (obligatorio)</label>
-                <select value={form.locationId} onChange={(e) => setForm({ ...form, locationId: e.target.value, assetId: '' })} required>
+                <label>Zona a levantar (obligatorio)
+                  <select value={form.locationId} onChange={(e) => setForm({ ...form, locationId: e.target.value, assetId: '' })} required>
                   <option value="">— selecciona la ubicación —</option>
                   {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
                 </select>
+                </label>
                 <div className="muted" style={{ fontSize: 11, marginTop: -6, marginBottom: 10 }}>
                   Una orden de mapeo cubre una zona: el técnico levantará todos los
                   equipos que encuentre allí.
@@ -472,56 +475,66 @@ export default function Maintenance() {
               </>
             ) : (
               <>
-                <label>Activo</label>
-                <select value={form.assetId} onChange={(e) => setForm({ ...form, assetId: e.target.value })} required>
+                <label>Activo
+                  <select value={form.assetId} onChange={(e) => setForm({ ...form, assetId: e.target.value })} required>
                   <option value="">— selecciona —</option>
                   {assets.map((a) => <option key={a.id} value={a.id}>{a.assetCode}</option>)}
                 </select>
-                <label>O bien una zona completa (si afecta a varios equipos)</label>
-                <select value={form.locationId} onChange={(e) => setForm({ ...form, locationId: e.target.value })}>
+                </label>
+                <label>O bien una zona completa (si afecta a varios equipos)
+                  <select value={form.locationId} onChange={(e) => setForm({ ...form, locationId: e.target.value })}>
                   <option value="">— ninguna —</option>
                   {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
                 </select>
+                </label>
               </>
             )}
             {/* En cuanto se elige el activo aparece su historial: el ingeniero
                 decide con datos en vez de crear la orden a ciegas. */}
             {form.assetId && <HistorialActivo assetId={form.assetId} compacto />}
 
-            <label>Referencia del sitio</label>
-            <input value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value })}
+            <label>Referencia del sitio
+              <input value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value })}
               placeholder="Ej: columna 14, junto a la escalera norte, poste de la izquierda" />
+            </label>
             <div className="muted" style={{ fontSize: 11, marginTop: -6, marginBottom: 10 }}>
               El detalle que ayuda a encontrar el punto exacto en planta.
             </div>
-            <label>Incidencia relacionada (opcional)</label>
-            <select value={form.incidentId} onChange={(e) => setForm({ ...form, incidentId: e.target.value })}>
+            <label>Incidencia relacionada (opcional)
+              <select value={form.incidentId} onChange={(e) => setForm({ ...form, incidentId: e.target.value })}>
               <option value="">— ninguna —</option>
               {openIncidents.map((i) => <option key={i.id} value={i.id}>{i.code} — {i.title}</option>)}
             </select>
-            <label>Actividad / descripción</label>
-            <input value={form.activity} onChange={(e) => setForm({ ...form, activity: e.target.value })} />
-            <label>Responsable</label>
-            <input value={form.responsible} onChange={(e) => setForm({ ...form, responsible: e.target.value })} placeholder="Nombre del responsable de la OM" />
-            <label>Materiales (uno por línea)</label>
-            <textarea value={form.materials} onChange={(e) => setForm({ ...form, materials: e.target.value })} rows={3} style={{ width: '100%', resize: 'vertical' }} placeholder="Ej: 2x Conector RJ45 / 1x Fuente PoE 48V" />
+            </label>
+            <label>Actividad / descripción
+              <input value={form.activity} onChange={(e) => setForm({ ...form, activity: e.target.value })} />
+            </label>
+            <label>Responsable
+              <input value={form.responsible} onChange={(e) => setForm({ ...form, responsible: e.target.value })} placeholder="Nombre del responsable de la OM" />
+            </label>
+            <label>Materiales (uno por línea)
+              <textarea value={form.materials} onChange={(e) => setForm({ ...form, materials: e.target.value })} rows={3} style={{ width: '100%', resize: 'vertical' }} placeholder="Ej: 2x Conector RJ45 / 1x Fuente PoE 48V" />
+            </label>
             <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #e5e7eb' }}>
               <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Recepción del pedido</div>
               <div className="muted" style={{ fontSize: 11, marginBottom: 8 }}>
                 Producción crea la orden en SAP y la manda por WhatsApp. Registrarlo
                 aquí es lo que evita que se pierda de boca en boca.
               </div>
-              <label>¿Quién la pidió?</label>
-              <input value={form.requestedBy} onChange={(e) => setForm({ ...form, requestedBy: e.target.value })}
+              <label>¿Quién la pidió?
+                <input value={form.requestedBy} onChange={(e) => setForm({ ...form, requestedBy: e.target.value })}
                 placeholder="Nombre de quien la solicitó en Producción" />
-              <label>¿Por dónde llegó?</label>
-              <select value={form.requestChannel} onChange={(e) => setForm({ ...form, requestChannel: e.target.value })}>
+              </label>
+              <label>¿Por dónde llegó?
+                <select value={form.requestChannel} onChange={(e) => setForm({ ...form, requestChannel: e.target.value })}>
                 <option value="">— sin especificar —</option>
                 {CANALES.map((c) => <option key={c} value={c}>{CANAL_ES[c]}</option>)}
               </select>
-              <label>N.º de orden en SAP</label>
-              <input value={form.externalRef} onChange={(e) => setForm({ ...form, externalRef: e.target.value })}
+              </label>
+              <label>N.º de orden en SAP
+                <input value={form.externalRef} onChange={(e) => setForm({ ...form, externalRef: e.target.value })}
                 placeholder="Si Producción ya la creó en SAP" />
+              </label>
             </div>
 
             <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #e5e7eb' }}>
@@ -529,17 +542,19 @@ export default function Maintenance() {
               <div className="muted" style={{ fontSize: 11, marginBottom: 8 }}>
                 Es tentativa. El técnico confirmará por radio la hora real cuando esté en campo.
               </div>
-              <label>Hora estimada de parada</label>
-              <input type="datetime-local" value={form.plannedStopAt}
+              <label>Hora estimada de parada
+                <input type="datetime-local" value={form.plannedStopAt}
                 onChange={(e) => setForm({ ...form, plannedStopAt: e.target.value })} />
-              <label>Duración estimada (minutos)</label>
-              <input type="number" min={1} value={form.plannedDurationMin}
+              </label>
+              <label>Duración estimada (minutos)
+                <input type="number" min={1} value={form.plannedDurationMin}
                 onChange={(e) => setForm({ ...form, plannedDurationMin: e.target.value })}
                 placeholder="Ej: 120" />
+              </label>
             </div>
 
             <label style={{ marginTop: 14 }}>Fecha programada</label>
-            <input type="date" value={form.scheduledDate} onChange={(e) => setForm({ ...form, scheduledDate: e.target.value })} />
+            <input aria-label="Fecha programada" type="date" value={form.scheduledDate} onChange={(e) => setForm({ ...form, scheduledDate: e.target.value })} />
             <button className="btn" disabled={saving}>{saving ? 'Guardando…' : 'Crear OM'}</button>
           </form>
         </Modal>
@@ -549,20 +564,24 @@ export default function Maintenance() {
         <Modal title="Registrar intervención" onClose={() => setIntId(null)}>
           <form onSubmit={submitIntervention}>
             <div className="sign-note">Registra qué se está interviniendo en el equipo. El cierre definitivo lo realiza el Jefe de Mantenimiento.</div>
-            <label>Zona de intervención</label>
-            <input value={intForm.zone} onChange={(e) => setIntForm({ ...intForm, zone: e.target.value })} placeholder="Ej: Horno, Tren 1, Púlpito…" />
-            <label>Actividad realizada</label>
-            <input value={intForm.activity} onChange={(e) => setIntForm({ ...intForm, activity: e.target.value })} />
-            <label>Diagnóstico / detalle de la intervención</label>
-            <input value={intForm.diagnosis} onChange={(e) => setIntForm({ ...intForm, diagnosis: e.target.value })} />
-            <label>Materiales utilizados (uno por línea)</label>
-            <textarea value={intForm.materials} onChange={(e) => setIntForm({ ...intForm, materials: e.target.value })} rows={3} style={{ width: '100%', resize: 'vertical' }} placeholder="Ej: 2x Conector RJ45 / 1x Fuente PoE 48V" />
+            <label>Zona de intervención
+              <input value={intForm.zone} onChange={(e) => setIntForm({ ...intForm, zone: e.target.value })} placeholder="Ej: Horno, Tren 1, Púlpito…" />
+            </label>
+            <label>Actividad realizada
+              <input value={intForm.activity} onChange={(e) => setIntForm({ ...intForm, activity: e.target.value })} />
+            </label>
+            <label>Diagnóstico / detalle de la intervención
+              <input value={intForm.diagnosis} onChange={(e) => setIntForm({ ...intForm, diagnosis: e.target.value })} />
+            </label>
+            <label>Materiales utilizados (uno por línea)
+              <textarea value={intForm.materials} onChange={(e) => setIntForm({ ...intForm, materials: e.target.value })} rows={3} style={{ width: '100%', resize: 'vertical' }} placeholder="Ej: 2x Conector RJ45 / 1x Fuente PoE 48V" />
+            </label>
             <label>Condición del equipo (checklist)</label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 6 }}>
               {CONDITION_ITEMS.map((item) => (
                 <div key={item} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 13 }}>{item}</span>
-                  <select
+                  <select aria-label="Condición del equipo (checklist)"
                     value={intForm.condition?.[item] || 'OK'}
                     onChange={(e) => setIntForm({ ...intForm, condition: { ...(intForm.condition || {}), [item]: e.target.value } })}
                     style={{ width: 140 }}
@@ -573,10 +592,11 @@ export default function Maintenance() {
               ))}
             </div>
             <div className="muted" style={{ fontSize: 11, marginBottom: 6 }}>Marca “Observado” o “Cambiar” lo que amerite; alimenta el análisis de reemplazo y el predictivo.</div>
-            <label>Estado</label>
-            <select value={intForm.status} onChange={(e) => setIntForm({ ...intForm, status: e.target.value })}>
+            <label>Estado
+              <select value={intForm.status} onChange={(e) => setIntForm({ ...intForm, status: e.target.value })}>
               {WORK_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
+            </label>
             <button className="btn" disabled={intSaving}>{intSaving ? 'Guardando…' : 'Guardar intervención'}</button>
           </form>
         </Modal>
@@ -608,10 +628,12 @@ export default function Maintenance() {
         <Modal title="Fotografías de la intervención" onClose={() => setPhotoId(null)}>
           <form onSubmit={uploadPhoto}>
             <div className="sign-note">Sube fotos del trabajo realizado. Se incrustarán en el informe PDF de la OM.</div>
-            <label>Imagen (JPG / PNG)</label>
-            <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-            <label>Descripción (opcional)</label>
-            <input value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="Ej: cámara T1 antes de la limpieza" />
+            <label>Imagen (JPG / PNG)
+              <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+            </label>
+            <label>Descripción (opcional)
+              <input value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="Ej: cámara T1 antes de la limpieza" />
+            </label>
             <button className="btn" disabled={uploading}>{uploading ? 'Subiendo…' : 'Subir foto'}</button>
           </form>
           <div style={{ marginTop: 14 }}>

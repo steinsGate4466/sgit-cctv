@@ -100,11 +100,12 @@ export default function RutinasEditor() {
       {editable && disponibles.length > 0 && (
         <div className="filters" style={{ marginTop: 12 }}>
           <div>
-            <label>Crear rutina para</label>
-            <select value={nuevoTipo} onChange={(e) => setNuevoTipo(e.target.value)}>
+            <label>Crear rutina para
+              <select value={nuevoTipo} onChange={(e) => setNuevoTipo(e.target.value)}>
               <option value="">— tipo de activo —</option>
               {disponibles.map((t) => <option key={t.v} value={t.v}>{t.t}</option>)}
             </select>
+            </label>
           </div>
           <div>
             <label>&nbsp;</label>
@@ -187,17 +188,20 @@ export default function RutinasEditor() {
         <form className="panel" style={{ marginTop: 12 }} onSubmit={guardarPunto}>
           <h3>{punto.id ? 'Editar punto' : 'Nuevo punto de la rutina'}</h3>
 
-          <label>¿Qué hay que comprobar?</label>
-          <input value={punto.text} onChange={(e) => setPunto({ ...punto, text: e.target.value })}
+          <label>¿Qué hay que comprobar?
+            <input value={punto.text} onChange={(e) => setPunto({ ...punto, text: e.target.value })}
             placeholder="ej. Limpiar el lente y comprobar imagen en el púlpito" required />
+          </label>
 
-          <label>Cómo se hace o con qué (opcional)</label>
-          <input value={punto.help || ''} onChange={(e) => setPunto({ ...punto, help: e.target.value })}
+          <label>Cómo se hace o con qué (opcional)
+            <input value={punto.help || ''} onChange={(e) => setPunto({ ...punto, help: e.target.value })}
             placeholder="ej. Paño de microfibra, sin alcohol" />
+          </label>
 
-          <label>Orden</label>
-          <input type="number" value={punto.sequence}
+          <label>Orden
+            <input type="number" value={punto.sequence}
             onChange={(e) => setPunto({ ...punto, sequence: e.target.value })} />
+          </label>
 
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontWeight: 400 }}>
             <input type="checkbox" checked={!!punto.critical} style={{ width: 'auto' }}

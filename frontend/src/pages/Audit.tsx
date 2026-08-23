@@ -114,11 +114,12 @@ export default function Audit() {
       </div>
 
       <div className="filters">
-        <div><label>Desde</label><input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
-        <div><label>Hasta</label><input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
+        <div><label>Desde<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></label></div>
+        <div><label>Hasta<input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></label></div>
         <div style={{ flex: 1, minWidth: 180 }}>
-          <label>Buscar</label>
-          <input placeholder="usuario, acción, activo, IP…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <label>Buscar
+            <input placeholder="usuario, acción, activo, IP…" value={q} onChange={(e) => setQ(e.target.value)} />
+          </label>
         </div>
         <button className="btn-primary" onClick={load}>Aplicar fechas</button>
         <button

@@ -67,13 +67,14 @@ export default function DetallarOm({ wo, onHecho, onClose }: {
           {asignado && <> · sobre <b>{asignado.assetCode}</b></>}
         </div>
 
-        <label>Equipo sobre el que se va a trabajar</label>
-        <select value={form.assetId} onChange={(e) => setForm({ ...form, assetId: e.target.value })}>
+        <label>Equipo sobre el que se va a trabajar
+          <select value={form.assetId} onChange={(e) => setForm({ ...form, assetId: e.target.value })}>
           <option value="">— sin equipo (trabajo de zona) —</option>
           {activos.map((a) => (
             <option key={a.id} value={a.id}>{a.assetCode}{a.referencePlace ? ` · ${a.referencePlace}` : ''}</option>
           ))}
         </select>
+        </label>
 
         {cambiaAlcance && (
           <div style={{
@@ -85,20 +86,23 @@ export default function DetallarOm({ wo, onHecho, onClose }: {
               Está bien hacerlo si el problema es otro. Pero el ingeniero tiene
               que poder ver qué pidió y qué se hizo, así que explica por qué.
             </div>
-            <label>Motivo</label>
-            <input value={form.scopeNote} required
+            <label>Motivo
+              <input value={form.scopeNote} required
               onChange={(e) => setForm({ ...form, scopeNote: e.target.value })}
               placeholder="ej. la cámara está bien; el que no da enlace es el switch del rack 3" />
+            </label>
           </div>
         )}
 
-        <label>Qué se va a hacer</label>
-        <textarea rows={2} value={form.activity}
+        <label>Qué se va a hacer
+          <textarea rows={2} value={form.activity}
           onChange={(e) => setForm({ ...form, activity: e.target.value })} />
+        </label>
 
-        <label>Duración estimada (minutos)</label>
-        <input type="number" min={0} value={form.plannedDurationMin}
+        <label>Duración estimada (minutos)
+          <input type="number" min={0} value={form.plannedDurationMin}
           onChange={(e) => setForm({ ...form, plannedDurationMin: e.target.value })} />
+        </label>
         {tipica ? (
           <div className="muted" style={{ fontSize: 11, marginTop: -6, marginBottom: 10 }}>
             Las últimas {tipica.muestras} órdenes de este tipo en este equipo
@@ -115,9 +119,10 @@ export default function DetallarOm({ wo, onHecho, onClose }: {
           </div>
         )}
 
-        <label>Parada prevista (opcional)</label>
-        <input type="datetime-local" value={form.plannedStopAt}
+        <label>Parada prevista (opcional)
+          <input type="datetime-local" value={form.plannedStopAt}
           onChange={(e) => setForm({ ...form, plannedStopAt: e.target.value })} />
+        </label>
 
         {form.assetId && (
           <div style={{ marginTop: 12 }}>

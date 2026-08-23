@@ -8,6 +8,7 @@ import {
   soportesDeCamaras, cadenaDeCamara, resumirDependencias,
   EquipoParaDependencias, EnlaceParaDependencias,
 } from './dependencias';
+import { segmentoDe, SubredRegistrada } from './segmentos';
 
 /**
  * TOPOLOGÍA Y ANÁLISIS DE IMPACTO (bloque 7).
@@ -30,14 +31,19 @@ export class NetworkService {
   /** Arma el grafo de toda la planta una sola vez. */
   private async grafo(): Promise<{
     g: GrafoRed;
-    info: Map<string, { code: string; tipo: string; lugar: string | null; estado: string; tren: string | null }>;
+    info: Map<string, {
+      code: string; tipo: string; lugar: string | null; estado: string;
+      tren: string | null;
+      /** Bloque 49: hace falta para saber de qué lado de la frontera está. */
+      ip: string | null;
+    }>;
   }> {
     const [activos, puertos, enlaces, camaras] = await Promise.all([
       this.prisma.asset.findMany({
         where: { deletedAt: null, status: { notIn: ['BAJA', 'STOCK'] } },
         select: {
           id: true, assetCode: true, type: true, status: true,
-          referencePlace: true, locationId: true,
+          referencePlace: true, locationId: true, ipAddress: true,
         },
       }),
       this.prisma.switchPort.findMany({
@@ -61,6 +67,7 @@ export class NetworkService {
         lugar: a.referencePlace,
         estado: a.status as string,
         tren: ctx[a.id]?.trenCode ?? null,
+        ip: a.ipAddress ?? null,
       }]),
     );
 
@@ -334,6 +341,16 @@ export class NetworkService {
       select: { id: true, assetCode: true, type: true, status: true, parteDeId: true },
     });
 
+    /* Las subredes son lo que permite contestar la SEGUNDA pregunta: si un
+       equipo está del lado de las cámaras o del lado del púlpito. Sin ellas
+       cargadas, el cálculo devuelve «no se sabe» en vez de adivinar. */
+    const subredes = await this.prisma.subred.findMany({
+      select: { cidr: true, nombre: true, proposito: true, vlan: true },
+    });
+    const subs: SubredRegistrada[] = subredes.map((x) => ({
+      cidr: x.cidr, nombre: x.nombre, proposito: String(x.proposito), vlan: x.vlan,
+    }));
+
     const equipos: EquipoParaDependencias[] = [
       ...ids.map((id) => {
         const i = info.get(id)!;
@@ -345,6 +362,7 @@ export class NetworkService {
           sector: i.tren,
           lugar: i.lugar,
           parteDeId: null as string | null,
+          segmento: segmentoDe(i.ip, subs).segmento,
         };
       }),
       ...piezas

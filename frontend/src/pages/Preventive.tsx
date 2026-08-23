@@ -225,21 +225,24 @@ export default function Preventive() {
           <form onSubmit={submit}>
             {!form.assetCode && (
               <>
-                <label>Activo</label>
-                <select value={form.assetId} onChange={(e) => setForm({ ...form, assetId: e.target.value })} required>
+                <label>Activo
+                  <select value={form.assetId} onChange={(e) => setForm({ ...form, assetId: e.target.value })} required>
                   <option value="">— selecciona —</option>
                   {assets.map((a) => <option key={a.id} value={a.id}>{a.assetCode}</option>)}
                 </select>
+                </label>
               </>
             )}
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400, marginTop: 10 }}>
               <input type="checkbox" checked={!!form.zoneCritical} onChange={(e) => setForm({ ...form, zoneCritical: e.target.checked, intervalDays: e.target.checked ? 30 : 60 })} style={{ width: 'auto' }} />
               Zona crítica (cerca del horno / suciedad) → 30 días
             </label>
-            <label>Intervalo (días)</label>
-            <input type="number" min={1} value={form.intervalDays} onChange={(e) => setForm({ ...form, intervalDays: e.target.value })} />
-            <label>Último mantenimiento (opcional)</label>
-            <input type="date" value={form.lastServiceAt} onChange={(e) => setForm({ ...form, lastServiceAt: e.target.value })} />
+            <label>Intervalo (días)
+              <input type="number" min={1} value={form.intervalDays} onChange={(e) => setForm({ ...form, intervalDays: e.target.value })} />
+            </label>
+            <label>Último mantenimiento (opcional)
+              <input type="date" value={form.lastServiceAt} onChange={(e) => setForm({ ...form, lastServiceAt: e.target.value })} />
+            </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400, marginTop: 10 }}>
               <input type="checkbox" checked={!!form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} style={{ width: 'auto' }} />
               Plan activo

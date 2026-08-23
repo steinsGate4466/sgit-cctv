@@ -146,13 +146,14 @@ export default function Avisos() {
             </p>
           )}
 
-          <label>Token del bot</label>
-          <input
+          <label>Token del bot
+            <input
             value={token}
             onChange={(e) => setToken(e.target.value)}
             placeholder={config?.token?.puesto ? 'Pega uno nuevo para reemplazarlo' : '1234567890:AAF...'}
             autoComplete="off"
           />
+          </label>
           <span className="campo-msg">
             Se comprueba contra Telegram antes de guardarlo, y queda cifrado
             en la base igual que las credenciales de las cámaras.

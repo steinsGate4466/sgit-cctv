@@ -193,7 +193,7 @@ export default function AssetScan() {
         <div className="card scan-card" style={{ marginTop: 12 }}>
           <b style={{ fontSize: 13.5 }}>Abrir orden correctiva en {a.assetCode}</b>
           {omError && <div className="error" style={{ display: 'block', marginTop: 8 }}>{omError}</div>}
-          <textarea
+          <textarea aria-label="Nota de campo"
             value={actividad}
             onChange={(e) => setActividad(e.target.value)}
             placeholder="¿Qué se va a hacer? (ej: cámara sin imagen, revisar alimentación PoE)"

@@ -236,18 +236,20 @@ export default function Paradas() {
 
       <div className="filters">
         <div>
-          <label>Tren</label>
-          <select value={fTren} onChange={(e) => setFTren(e.target.value)}>
+          <label>Tren
+            <select value={fTren} onChange={(e) => setFTren(e.target.value)}>
             <option value="">Todos</option>
             {['T1', 'T2', 'T3'].map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
+          </label>
         </div>
         <div>
-          <label>Estado</label>
-          <select value={fEstado} onChange={(e) => setFEstado(e.target.value)}>
+          <label>Estado
+            <select value={fEstado} onChange={(e) => setFEstado(e.target.value)}>
             <option value="">Todos</option>
             {Object.entries(ESTADO_ES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
+          </label>
         </div>
         {puede && (
           <button className="btn-primary" onClick={() => {

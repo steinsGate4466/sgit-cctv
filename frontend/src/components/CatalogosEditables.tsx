@@ -186,13 +186,15 @@ export default function CatalogosEditables() {
         <form className="panel" style={{ marginTop: 12 }} onSubmit={guardar}>
           <h3>{form.id ? 'Editar entrada' : 'Nueva entrada en ' + info?.t}</h3>
 
-          <label>Nombre — como lo diría el técnico</label>
-          <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+          <label>Nombre — como lo diría el técnico
+            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
             placeholder="ej. Conector RJ45 mal ponchado" required />
+          </label>
 
-          <label>Familia — para agrupar la lista</label>
-          <input value={form.group} onChange={(e) => setForm({ ...form, group: e.target.value })}
+          <label>Familia — para agrupar la lista
+            <input value={form.group} onChange={(e) => setForm({ ...form, group: e.target.value })}
             placeholder="ej. Cableado" list="familias-catalogo" />
+          </label>
           <datalist id="familias-catalogo">
             {[...new Set((datos?.items || []).map((i: any) => i.group).filter(Boolean))].map((g: any) => (
               <option key={g} value={g} />
@@ -203,12 +205,14 @@ export default function CatalogosEditables() {
             elige la primera que se ve. Agrupadas se encuentran.
           </div>
 
-          <label>Orden dentro de su familia</label>
-          <input type="number" value={form.sequence}
+          <label>Orden dentro de su familia
+            <input type="number" value={form.sequence}
             onChange={(e) => setForm({ ...form, sequence: e.target.value })} />
+          </label>
 
-          <label>Nota interna (opcional)</label>
-          <input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+          <label>Nota interna (opcional)
+            <input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+          </label>
 
           {form.id && (
             <div className="muted" style={{ fontSize: 11, marginTop: 8 }}>

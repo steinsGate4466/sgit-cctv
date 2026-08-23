@@ -171,19 +171,24 @@ export default function Cabinets() {
           }
         >
           <form id="form-gabinete" onSubmit={submit}>
-            <label>Rótulo (código del gabinete)</label>
-            <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="Ej: GAB-T1-R01" required />
-            <label>Nombre</label>
-            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ej: Gabinete R-01 (Tren 1)" required />
-            <label>Ubicación</label>
-            <select value={form.locationId} onChange={(e) => setForm({ ...form, locationId: e.target.value })}>
+            <label>Rótulo (código del gabinete)
+              <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="Ej: GAB-T1-R01" required />
+            </label>
+            <label>Nombre
+              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ej: Gabinete R-01 (Tren 1)" required />
+            </label>
+            <label>Ubicación
+              <select value={form.locationId} onChange={(e) => setForm({ ...form, locationId: e.target.value })}>
               <option value="">— sin ubicación —</option>
               {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
-            <label>Lugar de referencia</label>
-            <input value={form.referencePlace} onChange={(e) => setForm({ ...form, referencePlace: e.target.value })} placeholder="Ej: Sala de equipos — Tren 1" />
-            <label>Notas</label>
-            <input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+            </label>
+            <label>Lugar de referencia
+              <input value={form.referencePlace} onChange={(e) => setForm({ ...form, referencePlace: e.target.value })} placeholder="Ej: Sala de equipos — Tren 1" />
+            </label>
+            <label>Notas
+              <input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+            </label>
           </form>
         </Modal>
       )}
@@ -192,8 +197,9 @@ export default function Cabinets() {
         <Modal title={'Foto del gabinete · ' + photoFor.code} onClose={() => setPhotoFor(null)}>
           <form onSubmit={uploadPhoto}>
             <div className="sign-note">Sube una foto del gabinete para ubicarlo e identificarlo en planta.</div>
-            <label>Imagen (JPG / PNG)</label>
-            <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+            <label>Imagen (JPG / PNG)
+              <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+            </label>
             <button className="btn" disabled={uploading}>{uploading ? 'Subiendo…' : 'Subir foto'}</button>
           </form>
         </Modal>

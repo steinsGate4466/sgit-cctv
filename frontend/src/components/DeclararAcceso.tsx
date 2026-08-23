@@ -102,10 +102,11 @@ export default function DeclararAcceso({ activo, alCerrar, alGuardar }: {
         </div>
         {elegido && <small className="muted">{elegido.ayuda}</small>}
 
-        <label>Altura del punto de montaje (metros) — opcional</label>
-        <input type="number" inputMode="decimal" step="0.1" min="0" max="120"
+        <label>Altura del punto de montaje (metros) — opcional
+          <input type="number" inputMode="decimal" step="0.1" min="0" max="120"
           value={altura} onChange={(e) => setAltura(e.target.value)}
           placeholder="8.5" />
+        </label>
         <small className="muted">
           Si no la sabes, déjalo vacío. Un número inventado es peor que un hueco:
           el hueco se ve y se pregunta.
@@ -113,9 +114,10 @@ export default function DeclararAcceso({ activo, alCerrar, alGuardar }: {
 
         {choque && <div className="card peligro" style={{ marginTop: 10 }}>{choque}</div>}
 
-        <label>Algo más que haya que saber — opcional</label>
-        <textarea value={nota} onChange={(e) => setNota(e.target.value)} maxLength={500}
+        <label>Algo más que haya que saber — opcional
+          <textarea value={nota} onChange={(e) => setNota(e.target.value)} maxLength={500}
           placeholder="El manlift no entra con el tren en marcha; hay que posicionarlo desde el pasillo norte." />
+        </label>
 
         <div className="card-acciones" style={{ marginTop: 14 }}>
           <button className="btn-mini" onClick={alCerrar} disabled={guardando}>Cancelar</button>

@@ -144,9 +144,10 @@ export default function Monitoreo() {
             «PC del púlpito Tren 2». Si mañana hay tres agentes, el nombre es
             lo único que los distingue.
           </p>
-          <label>Nombre</label>
-          <input value={nombre} onChange={(e) => setNombre(e.target.value)}
+          <label>Nombre
+            <input value={nombre} onChange={(e) => setNombre(e.target.value)}
                  placeholder="PC del púlpito Tren 2" />
+          </label>
           {error && <div className="error">{error}</div>}
           <button className="btn" onClick={crear} disabled={nombre.trim().length < 3}>
             Crear y generar token
