@@ -56,6 +56,14 @@ export class InfraController {
     return this.infra.porZonas(idOrCode, user?.userId);
   }
 
+  /** Qué tan completos están los datos de la planta (bloque 50). */
+  @SinAmbito()  // la calidad de los datos es un problema de planta, no de un tren
+  @Get('salud-de-datos')
+  @RequirePermissions('asset.update')
+  salud() {
+    return this.infra.salud();
+  }
+
   /** Tablero completo de un tren. Acepta el id o el código de la ubicación. */
   @SinAmbito()  // el tablero ya filtra por ámbito en el servicio
   @Get('tren/:idOrCode')

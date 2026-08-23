@@ -51,6 +51,7 @@ const DESTINOS: Destino[] = [
   { ruta: '/conexiones', nombre: 'Conexiones de red', seccion: 'Infraestructura', alias: 'puerto switch enlace fibra anillo poe vlan', permiso: 'asset.read' },
   { ruta: '/ipam', nombre: 'Direccionamiento IP', seccion: 'Infraestructura', alias: 'ip subred vlan dhcp gateway que ip le pongo duplicada cidr', permiso: 'asset.read' },
   { ruta: '/mapa-de-red', nombre: 'Mapa de red', seccion: 'Infraestructura', alias: 'gabinete tablero switch hikvision tplink fortinet segmento red camaras 192.168 10.1 cctv poe puertos que hay dentro del tablero', permiso: 'asset.read' },
+  { ruta: '/salud-de-datos', nombre: 'Salud de los datos', seccion: 'Infraestructura', alias: 'calidad datos completitud que falta cargar huecos ip duplicada sin ubicacion inventario incompleto', permiso: 'asset.update' },
   { ruta: '/topologia', nombre: 'Puntos críticos', seccion: 'Infraestructura', alias: 'impacto que se cae si falla mapa red', permiso: 'asset.read' },
   { ruta: '/por-tren', nombre: 'Por tren', seccion: 'General', alias: 'selector tren 1 2 3 elegir sector por zona todo del tren como esta mi tren zonas vitales manlift', permiso: 'om.mirar' },
   { ruta: '/vista-general', nombre: 'Vista general', seccion: 'General', alias: 'sectores por tren oficinas gruas desplegable resumen indice todo', permiso: 'om.mirar' },

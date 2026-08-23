@@ -35,6 +35,7 @@ const TITLES: Record<string, string> = {
   '/dependencias': 'De qué depende cada cámara',
   '/mapa-de-red': 'Mapa de red por gabinete y tablero',
   '/por-tren': 'Por tren',
+  '/salud-de-datos': 'Salud de los datos',
   '/mis-activos': 'Mis activos y cómo se llega a ellos',
   '/rotulado': 'Estándar de rotulado',
   '/monitoreo': 'Monitoreo de red',
@@ -245,6 +246,10 @@ export default function Layout() {
            allí se DECLARA qué está enchufado dónde, y aquí se LEE la foto ya
            agrupada por la caja física que el técnico abre. */
         can('asset.read') && <NavLink key="mred" to="/mapa-de-red"><Icono n="gabinete" /> Mapa de red</NavLink>,
+        /* Bloque 50. Junto a Limpieza en espíritu, pero aquí arriba porque es
+           lo primero que hay que mirar al empezar a cargar la planta: dice qué
+           falta y quién lo carga. */
+        can('asset.update') && <NavLink key="sdd" to="/salud-de-datos"><Icono n="ok" /> Salud de los datos</NavLink>,
         // Va con Conexiones: primero se declara la red física, después el
         // direccionamiento que corre por encima.
         can('asset.read') && <NavLink key="ip" to="/ipam"><Icono n="ipam" /> Direccionamiento IP</NavLink>,

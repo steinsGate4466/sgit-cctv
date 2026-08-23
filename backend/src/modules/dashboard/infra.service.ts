@@ -9,6 +9,7 @@ import {
   ActivoAgregable, TramoAgregable, GrabadorAgregable, LIMITE_TRAMO_M,
 } from './infra-agregados';
 import { zonasDelTren, titularDelTren, ActivoDeZona } from './zonas-del-tren';
+import { saludDeDatos, ActivoParaSalud } from './salud-de-datos';
 
 /**
  * TABLERO DE INFRAESTRUCTURA POR TREN.
@@ -571,6 +572,57 @@ export class InfraService {
       zonas,
       generado: new Date().toISOString(),
     };
+  }
+
+
+  /**
+   * SALUD DE LOS DATOS — bloque 50.
+   *
+   * ===========================================================================
+   *  POR QUÉ NO RECORTA POR ÁMBITO COMO EL RESTO
+   * ===========================================================================
+   *  Todas las demás pantallas recortan por tren. Ésta no, y es deliberado:
+   *  la calidad de los datos es un problema de la PLANTA, no de un sector.
+   *  Un jefe de tren que viera sólo sus huecos creería que el resto está bien.
+   *
+   *  Se protege con `asset.update` en vez de con un permiso de lectura: la
+   *  lista es una tarea de carga, y sólo tiene sentido para quien puede
+   *  ejecutarla. Enseñarle deberes a quien no puede hacerlos es ruido.
+   */
+  async salud() {
+    const activos = await this.prisma.asset.findMany({
+      where: { deletedAt: null, status: { notIn: ['BAJA'] } },
+      select: {
+        id: true, assetCode: true, type: true, locationId: true,
+        ipAddress: true, medioAcceso: true, alturaMetros: true,
+        brand: true, model: true, serialNumber: true, updatedAt: true,
+        camera: { select: { nvrId: true, ipAddress: true } },
+        switchDev: { select: { mgmtIp: true } },
+      },
+    });
+
+    const ctx = await resolverContextoDePlanta(this.prisma, activos as any);
+
+    const filas: ActivoParaSalud[] = activos.map((a: any) => ({
+      id: a.id,
+      codigo: a.assetCode,
+      tipo: a.type as string,
+      tren: ctx[a.id]?.trenCode ?? null,
+      tieneUbicacion: !!a.locationId,
+      /* La IP buena de una cámara vive en su extensión; la de un switch, en
+         su IP de gestión. Mirar sólo el campo general daría por vacío lo que
+         sí está cargado, y la nota saldría peor de lo que es. */
+      ip: a.camera?.ipAddress || a.ipAddress || a.switchDev?.mgmtIp || null,
+      nvrId: a.camera?.nvrId ?? null,
+      medioAcceso: a.medioAcceso ?? null,
+      alturaMetros: a.alturaMetros ?? null,
+      marca: a.brand ?? null,
+      modelo: a.model ?? null,
+      serie: a.serialNumber ?? null,
+      editadoEn: a.updatedAt ?? null,
+    }));
+
+    return { ...saludDeDatos(filas), generado: new Date().toISOString() };
   }
 
 }

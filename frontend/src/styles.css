@@ -2972,3 +2972,59 @@ a.ta-fila:focus-visible { outline: 2px solid #1f4e79; outline-offset: 2px; }
 .efecto-NI_GRABA_NI_SE_VE   { background: #FDECEC; color: #8C1414; }
 .efecto-GRABA_PERO_NO_SE_VE { background: #FFF7E8; color: #8A5A00; }
 .efecto-SIN_DETERMINAR      { background: #F0F4F8; color: #486581; font-style: italic; }
+
+/* =========================================================================
+   BLOQUE 50 — Salud de los datos
+   ========================================================================= */
+.nota-datos {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  padding: 18px 22px; border-radius: 12px; margin: 14px 0 6px;
+  border: 1px solid var(--line); background: #fff;
+}
+.nota-datos b { font-size: 48px; line-height: 1; font-weight: 700; }
+.nota-datos span { font-size: 15px; color: var(--muted); }
+.nota-datos em { font-size: 12.5px; color: var(--muted); font-style: normal; margin-left: auto; }
+.nota-bien b  { color: #0F7B4F; }
+.nota-atender b { color: #8A5A00; }
+.nota-grave b { color: #8C1414; }
+
+.dims { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+.dim { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; background: #fff; }
+/* La que no se puede medir se ve distinta a simple vista: no es un suspenso,
+   es una casilla que todavía no aplica. */
+.dim-sinmedir { background: #FAFBFC; border-style: dashed; }
+.dim-cabeza { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.dim-nombre { font-size: 14px; font-weight: 600; }
+.dim-valor { font-size: 15px; font-weight: 700; }
+.dim-valor.ok { color: #0F7B4F; } .dim-valor.medio { color: #8A5A00; }
+.dim-valor.mal { color: #8C1414; } .dim-valor.gris { color: var(--muted); font-size: 12.5px; font-weight: 400; }
+
+.dim-barra { height: 6px; border-radius: 3px; background: #EEF1F5; margin: 9px 0 8px; overflow: hidden; }
+.dim-barra span { display: block; height: 100%; border-radius: 3px; }
+.dim-barra .ok { background: #1E7145; } .dim-barra .medio { background: #D97706; }
+.dim-barra .mal { background: #B3261E; } .dim-barra .gris { background: #D9E2EC; }
+.dim-que { font-size: 11.5px; color: var(--muted); line-height: 1.45; margin: 0; }
+
+.huecos { display: flex; flex-direction: column; gap: 6px; }
+.hueco-fila {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  min-height: 48px; padding: 9px 12px; border-radius: 9px;
+  border: 1px solid var(--line); background: #fff;
+}
+.hueco-n {
+  flex: none; min-width: 42px; text-align: center;
+  font-size: 18px; font-weight: 700; color: #8A5A00;
+}
+.hueco-txt { flex: 1; min-width: 200px; }
+.hueco-txt b { font-size: 13.5px; display: block; }
+.hueco-ej { font-size: 11.5px; color: var(--muted); font-family: 'Consolas', 'SF Mono', monospace; }
+.hueco-quien {
+  display: inline-flex; align-items: center; gap: 5px; flex: none;
+  font-size: 11.5px; padding: 4px 10px; border-radius: 12px;
+  background: #EAF1FB; color: #14487A; white-space: nowrap;
+}
+@media (max-width: 620px) {
+  .dims { grid-template-columns: 1fr; }
+  .nota-datos em { flex-basis: 100%; margin-left: 0; }
+  .hueco-quien { margin-left: 54px; }
+}
