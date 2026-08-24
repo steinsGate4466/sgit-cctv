@@ -23,14 +23,14 @@ export class CablesController {
   constructor(private readonly cables: CablesService) {}
 
   @Get()
-  @RequirePermissions('asset.read')
+  @RequirePermissions('infra.read')
   findAll(@Query() q: QueryCableDto) {
     return this.cables.findAll(q);
   }
 
   /** Resumen para el tablero: total, fuera de norma, sin medir, dañados. */
   @Get('resumen')
-  @RequirePermissions('asset.read')
+  @RequirePermissions('infra.read')
   resumen() {
     return this.cables.resumen();
   }

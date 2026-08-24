@@ -16,7 +16,7 @@ export class GrabadoresController {
   constructor(private readonly grabadores: GrabadoresService) {}
 
   @Get()
-  @RequirePermissions('asset.read')
+  @RequirePermissions('red.read')
   lista(@CurrentUser() user: any, @Query('tren') tren?: string) {
     return this.grabadores.lista(user?.userId, tren);
   }
@@ -27,21 +27,21 @@ export class GrabadoresController {
    * controlador de red y por el mismo motivo.
    */
   @Get('traducir')
-  @RequirePermissions('asset.read')
+  @RequirePermissions('red.read')
   traducir(@CurrentUser() user: any, @Query('q') q: string) {
     return this.grabadores.traducir(user?.userId, q || '');
   }
 
   @SinAmbito()  // grabadores: el ámbito se aplica en el servicio
   @Get(':id/rejilla')
-  @RequirePermissions('asset.read')
+  @RequirePermissions('red.read')
   rejilla(@Param('id') id: string) {
     return this.grabadores.rejilla(id);
   }
 
   @SinAmbito()  // grabadores: el ámbito se aplica en el servicio
   @Get(':id/candidatas')
-  @RequirePermissions('asset.read')
+  @RequirePermissions('red.read')
   candidatas(@Param('id') id: string, @Query('q') q?: string) {
     return this.grabadores.candidatas(id, q);
   }

@@ -15,7 +15,7 @@ export class IpamController {
   constructor(private readonly ipam: IpamService) {}
 
   @Get('subredes')
-  @RequirePermissions('asset.read')
+  @RequirePermissions('red.read')
   subredes() { return this.ipam.listarSubredes(); }
 
   @Post('subredes')
@@ -26,22 +26,22 @@ export class IpamController {
 
   /** Lo que está mal en el direccionamiento, por gravedad. */
   @Get('hallazgos')
-  @RequirePermissions('asset.read')
+  @RequirePermissions('red.read')
   hallazgos() { return this.ipam.hallazgos(); }
 
   @Get('buscar')
-  @RequirePermissions('asset.read')
+  @RequirePermissions('red.read')
   buscar(@Query('q') q: string) { return this.ipam.buscar(q); }
 
   @SinAmbito()  // una subred es de la red, no de un tren concreto
   @Get('subredes/:id/mapa')
-  @RequirePermissions('asset.read')
+  @RequirePermissions('red.read')
   mapa(@Param('id') id: string) { return this.ipam.mapa(id); }
 
   /** «¿Qué IP le pongo?» — la razón de ser del módulo. */
   @SinAmbito()  // idem
   @Get('subredes/:id/libres')
-  @RequirePermissions('asset.read')
+  @RequirePermissions('red.read')
   libres(@Param('id') id: string, @Query('n') n?: string) {
     return this.ipam.siguienteLibre(id, Number(n) > 0 ? Number(n) : 5);
   }

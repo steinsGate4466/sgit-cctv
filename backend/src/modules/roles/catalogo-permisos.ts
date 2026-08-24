@@ -87,7 +87,55 @@ export const CATALOGO_PERMISOS: GrupoPermisos[] = [
     nota: 'Sólo consultar. Nada de esto modifica nada.',
     permisos: [
       { code: 'dashboard.read', nombre: 'Ver tableros', explica: 'Estado por tren, indicadores y avance del mapeo.' },
-      { code: 'asset.read', nombre: 'Ver activos', explica: 'Cámaras, NVR, switches, gabinetes y su estado.' },
+      /* ======================================================================
+         LOS TRES PERMISOS EN QUE SE PARTIÓ `asset.read` — bloque 55
+         ----------------------------------------------------------------------
+         POR QUÉ SE PARTIÓ
+
+         `asset.read` abría DIECISÉIS pantallas y 66 endpoints. Era una llave
+         maestra: cualquier rol que necesitara ver la ficha de una cámara se
+         llevaba, de propina, el direccionamiento IP de la planta, el plano
+         eléctrico, el mapa de la red y el estándar de rotulado.
+
+         Lo encontró el propio usuario mirando su menú: entró como Jefe de
+         línea de Producción y vio el módulo de infraestructura entero. No le
+         habían dado permisos de más — es que NO EXISTÍA forma de dar «ver
+         activos» sin dar todo lo demás.
+
+         Y para Aceros Arequipa eso importa de verdad: la sectorización por
+         tren no sirve de nada si un jefe de línea puede listar las IP de las
+         otras dos líneas.
+
+         EL CORTE SE HIZO POR LO QUE ENSEÑA LA PANTALLA, no por dónde vive el
+         código. Tres preguntas distintas, tres llaves distintas:
+
+           ¿QUÉ hay?        -> asset.read   (el inventario)
+           ¿CÓMO está       -> infra.read   (la obra física)
+            construido?
+           ¿CÓMO está       -> red.read     (la red)
+            conectado?
+         ====================================================================== */
+      {
+        code: 'asset.read',
+        nombre: 'Ver activos',
+        explica: 'El inventario: cámaras, grabadores, switches y gabinetes, con su ficha y su estado. '
+          + 'También el avance del mapeo y las instalaciones en curso.',
+      },
+      {
+        code: 'infra.read',
+        nombre: 'Ver la obra física',
+        explica: 'Cableado, tableros eléctricos, estándar de rotulado y riesgo de obsolescencia. '
+          + 'Es CÓMO está construida la planta, no qué equipos hay.',
+        cuidado: 'Enseña el plano eléctrico y las rutas de cable de TODA la planta. '
+          + 'Un jefe de línea no lo necesita para saber si su cámara ve.',
+      },
+      {
+        code: 'red.read',
+        nombre: 'Ver la red',
+        explica: 'Conexiones entre equipos, mapa de red, puntos críticos y direccionamiento IP.',
+        cuidado: 'Es el plano de la red industrial: direcciones, enlaces y qué se cae si falla cada nodo. '
+          + 'Se concede a quien responde por la red, no a quien la usa.',
+      },
       { code: 'location.read', nombre: 'Ver ubicaciones', explica: 'El árbol de planta: tren, etapa, zona, gabinete.' },
       { code: 'incident.read', nombre: 'Ver incidencias', explica: 'Qué se ha reportado y en qué va.' },
       { code: 'wo.read', nombre: 'Ver órdenes', explica: 'Las OM: qué hay abierto, en espera y cerrado.' },
@@ -287,6 +335,7 @@ export const PLANTILLAS_DE_ROL: {
       'de las cámaras y NO se reparte con una plantilla: se concede a mano, persona por ' +
       'persona, después de crear el rol. Una plantilla se pulsa sin leer; eso no.',
     permisos: [
+      'infra.read', 'red.read',
       'dashboard.read', 'troubleshooting.read', 'asset.read', 'asset.create',
       'asset.update', 'location.read', 'location.manage',
       'incident.read', 'incident.create', 'incident.update',
@@ -304,6 +353,7 @@ export const PLANTILLAS_DE_ROL: {
       'Detalla y ejecuta en campo las órdenes que le asignan. Las credenciales de los ' +
       'equipos se le dan a mano si de verdad las necesita, no de serie.',
     permisos: [
+      'infra.read', 'red.read',
       'dashboard.read', 'asset.read', 'asset.update', 'location.read',
       'incident.read', 'incident.create', 'incident.update',
       'wo.read', 'wo.report', 'wo.update',
@@ -319,6 +369,7 @@ export const PLANTILLAS_DE_ROL: {
       'Igual que el de red pero SIN credenciales de equipos. Es el perfil por ' +
       'defecto de la cuadrilla: la mayoría no necesita entrar al grabador.',
     permisos: [
+      'infra.read',
       'dashboard.read', 'asset.read', 'asset.update', 'location.read',
       'incident.read', 'incident.create', 'incident.update',
       'wo.read', 'wo.report', 'wo.update',

@@ -21,7 +21,7 @@ export class RiesgoController {
 
   @SinAmbito()  // la obsolescencia es del MODELO, y los modelos no son de un tren
   @Get('obsolescencia')
-  @RequirePermissions('asset.read')
+  @RequirePermissions('infra.read')
   equipos(@Query('anos') anos?: string) {
     const n = Number(anos);
     return this.r.equipos(Number.isFinite(n) && n > 0 ? n : 8);

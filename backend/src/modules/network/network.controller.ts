@@ -46,21 +46,21 @@ export class NetworkController {
    * su vista propia en «De qué depende», sin direcciones.
    */
   @Get('mapa-de-red')
-  @RequirePermissions('asset.read')
+  @RequirePermissions('red.read')
   mapaDeRed(@CurrentUser() user: any, @Query('tren') tren?: string) {
     return this.mapaRed.mapa(user?.userId, tren);
   }
 
   /** Ranking de puntos críticos. 'criticos' antes que ':id': lo específico primero. */
   @Get('criticos')
-  @RequirePermissions('asset.read')
+  @RequirePermissions('red.read')
   criticos(@CurrentUser() user: any, @Query('tren') tren?: string) {
     return this.red.puntosCriticos(user?.userId, tren);
   }
 
   /** El mapa para dibujar. 'mapa' antes de ':assetId', como siempre. */
   @Get('mapa')
-  @RequirePermissions('asset.read')
+  @RequirePermissions('red.read')
   mapa(@CurrentUser() user: any, @Query('tren') tren?: string) {
     return this.red.mapa(user?.userId, tren);
   }
@@ -88,7 +88,7 @@ export class NetworkController {
 
   @SinAmbito()  // red: el ámbito se aplica en el servicio
   @Get('impacto/:assetId')
-  @RequirePermissions('asset.read')
+  @RequirePermissions('red.read')
   impacto(@Param('assetId') assetId: string) {
     return this.red.impacto(assetId);
   }

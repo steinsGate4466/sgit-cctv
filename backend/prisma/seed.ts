@@ -17,6 +17,8 @@ const prisma = clienteDeScript();
 const PERMISSIONS = [
   'user.read', 'user.manage',
   'asset.create', 'asset.read', 'asset.update', 'asset.delete',
+  // Bloque 55: `asset.read` era una llave maestra de 16 pantallas. Partido en tres.
+  'infra.read', 'red.read',
   'location.read', 'location.manage',
   'wo.create', 'wo.read', 'wo.update', 'wo.approve',
   'incident.create', 'incident.read', 'incident.update', 'incident.close',
@@ -144,6 +146,7 @@ const ROLES: Record<string, string[]> = {
   // Supervisor TI: supervisa TODO, pero el CIERRE/resolución de incidencias y OM
   // queda reservado al Jefe de Mantenimiento (sin incident.close ni wo.approve).
   'Supervisor TI': [
+    'infra.read', 'red.read',
     'user.read', 'asset.create', 'asset.read', 'asset.update',
     'location.read', 'location.manage',
     'wo.read', 'wo.update',
@@ -160,6 +163,7 @@ const ROLES: Record<string, string[]> = {
   // Técnico: rol de campo. Registra y llena formularios (incidencias y OT), actualiza su
   // trabajo; NO borra, NO aprueba, NO cierra, NO gestiona usuarios ni credenciales.
   'Técnico': [
+    'infra.read',
     'asset.read', 'asset.update', 'location.read',
     'wo.read', 'wo.update',
     'incident.create', 'incident.read', 'incident.update',
@@ -171,6 +175,7 @@ const ROLES: Record<string, string[]> = {
   ],
   // Técnico de Red: como el Técnico, pero PUEDE ver datos de red y credenciales (accesos).
   'Técnico de Red': [
+    'infra.read', 'red.read',
     'asset.read', 'asset.update', 'location.read',
     'wo.read', 'wo.update',
     'incident.create', 'incident.read', 'incident.update',
@@ -207,7 +212,7 @@ const ROLES: Record<string, string[]> = {
   'Jefe de Producción': [
     'om.mirar', 'cobertura.mirar', 'activos.mirar',
     'dashboard.read', 'incident.read', 'incident.create', 'wo.read',
-    'troubleshooting.read', 'asset.read', 'location.read',
+    'troubleshooting.read', 'location.read',
     'inventory.read', 'access.read',
     'zona.criticidad',
     'monitor.read', 'wo.report',

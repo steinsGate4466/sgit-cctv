@@ -160,9 +160,38 @@ a { color: inherit; text-decoration: none; }
   .login-note { margin-top: 12px; }
 }
 label { display: block; font-size: 12px; margin: 14px 0 6px; }
-input, select {
+/* ============================================================================
+   EL `textarea` FALTABA AQUÍ — bloque 56
+   ----------------------------------------------------------------------------
+   Esta regla decía `input, select` y dejaba fuera al `textarea`. Los tres
+   campos comparten el resto de estilos unas líneas más abajo (borde, foco,
+   texto de ejemplo), así que el olvido no se veía… hasta que un textarea caía
+   dentro de un `<label>`.
+
+   El `label` es `display: block`, y un `input` con `width: 100%` se coloca
+   debajo ocupando toda la línea. Un `textarea` SIN ese ancho se queda con su
+   tamaño por defecto —unas 20 columnas— y, como es en línea, se sienta AL LADO
+   del texto de la etiqueta en vez de debajo. Encima, y descolocado.
+
+   Se vio en el diálogo «Cómo se llega a este equipo»: el campo «Algo más que
+   haya que saber» aparecía montado sobre su propio rótulo, a la derecha.
+   Lo encontró el usuario en una captura.
+
+   Es un fallo de 2 caracteres que llevaba meses ahí. Ningún verificador lo
+   caza: el HTML es correcto, los tipos son correctos y la pantalla compila.
+   Sólo se ve mirándola.
+   ============================================================================ */
+input, select, textarea {
   width: 100%; border: 1px solid var(--border); outline: none;
 }
+
+/* Aquí se había añadido además un `min-height: 5.5em`. Lo rechazó
+   `verificar:cascada`, y con razón: más abajo ya existe `textarea` con
+   `min-height: 42px`, que gana por ir después. La regla nueva no habría hecho
+   nada y habría quedado como una mentira en la hoja de estilos.
+
+   La altura NO era el fallo. El fallo era el ancho, y ya está arriba. Si algún
+   día 42px se queda corto, se cambia ESA regla — no se añade otra encima. */
 .btn { width: 100%; margin-top: 20px; padding: 11px; border: none; color: #fff; font-weight: 600; font-size: 14px; cursor: pointer; }
 .btn:hover { background: var(--navy-2); }
 .btn:disabled { opacity: .6; cursor: default; }

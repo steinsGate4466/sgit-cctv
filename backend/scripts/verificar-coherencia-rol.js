@@ -73,11 +73,46 @@ const DE_OPERACION = {
 const EXENTOS = {
   'Jefe de Mantenimiento':
     'Es el administrador del sistema: tiene todos los permisos por definición.',
+  /* ==========================================================================
+     LA EXENCIÓN DEL «JEFE DE PRODUCCIÓN» SE BORRÓ EN EL BLOQUE 55
+     --------------------------------------------------------------------------
+     Decía esto, y decía también cuándo dejaría de valer:
+
+       «Arrastra permisos de lectura de Mantenimiento por compatibilidad con
+        los usuarios que ya lo tienen. Está SECTORIZADO igual que el Jefe de
+        Tren, así que sólo los aplica sobre su propia línea. Al migrar esos
+        usuarios a "Jefe de Tren" esta exención se borra.»
+
+     La parte de «sólo los aplica sobre su propia línea» era CIERTA para los
+     datos y FALSA para el menú. El ámbito filtra lo que devuelve el servidor;
+     no decide qué pantallas aparecen. Con `asset.read` en el rol, el menú
+     mostraba Cableado, Electricidad, Direccionamiento IP, Mapa de red, Puntos
+     críticos y Rotulado — de toda la planta, no de su tren.
+
+     Lo descubrió el usuario mirando su propio menú y preguntando si eso estaba
+     bien. Una exención escrita «hasta que migremos» se queda para siempre si
+     nadie la mira: doce bloques después seguía ahí.
+
+     El bloque 55 partió `asset.read` en tres y se lo retiró. Eso cierra el
+     agujero que se vio en pantalla.
+
+     PERO EL VERIFICADOR ENCONTRÓ DOS MÁS, y ésos no son decisión de quien
+     programa. Por eso la exención no se borra: se ESTRECHA. Antes tapaba el
+     rol entero; ahora nombra exactamente lo que queda y por qué sigue ahí.
+     ========================================================================== */
   'Jefe de Producción':
-    'Arrastra permisos de lectura de Mantenimiento por compatibilidad con los '
-    + 'usuarios que ya lo tienen. Está SECTORIZADO igual que el Jefe de Tren, '
-    + 'así que sólo los aplica sobre su propia línea. Al migrar esos usuarios a '
-    + '«Jefe de Tren» esta exención se borra.',
+    'PENDIENTE DE DECISIÓN DEL INGENIERO — bloque 55. Se le retiró `asset.read`, '
+    + 'que le abría el módulo de infraestructura entero. Quedan DOS y ninguno es '
+    + 'una decisión técnica:\n'
+    + '             · `wo.read` le abre Preventivo, Correctivo, Predictivo, Mejora, '
+    + 'Órdenes, Cámaras de grúa y Ventanas de parada. Para ver el trabajo sobre SUS '
+    + 'cámaras ya tiene `om.mirar`. La duda real es «Ventanas de parada»: las paradas '
+    + 'las anuncia Producción, aunque en Pisco se avisan por radio y es el técnico '
+    + 'quien pregunta.\n'
+    + '             · `inventory.read` le abre el almacén, que es de Mantenimiento. '
+    + 'Puede tener sentido para que vea si hay repuesto de su cámara antes de reclamar.\n'
+    + '             Quitar de más se nota tarde: alguien en planta sin la pantalla que '
+    + 'necesita. Así que se dejan hasta que el ingeniero diga.',
 };
 
 const texto = fs.readFileSync(SEED, 'utf8');

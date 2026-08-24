@@ -20,19 +20,19 @@ export class ConexionesController {
   ) {}
 
   @Get('switches')
-  @RequirePermissions('asset.read')
+  @RequirePermissions('red.read')
   switches(@CurrentUser() user: any, @Query('tren') tren?: string) {
     return this.conexiones.switches(user?.userId, tren);
   }
 
   @Get('enlaces')
-  @RequirePermissions('asset.read')
+  @RequirePermissions('red.read')
   enlaces(@CurrentUser() user: any, @Query('tren') tren?: string) {
     return this.conexiones.enlaces(user?.userId, tren);
   }
 
   @Get('candidatos')
-  @RequirePermissions('asset.read')
+  @RequirePermissions('red.read')
   candidatos(@Query('q') q?: string) {
     return this.conexiones.candidatos(q);
   }

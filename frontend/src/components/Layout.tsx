@@ -229,39 +229,39 @@ export default function Layout() {
         can('asset.read') && <NavLink key="ins" to="/instalaciones"><Icono n="instalar" /> Instalaciones</NavLink>,
         can('asset.read') && <NavLink key="g" to="/cabinets"><Icono n="gabinete" /> Gabinetes</NavLink>,
         can('asset.read') && <NavLink key="u" to="/locations"><Icono n="ubicacion" /> Ubicaciones</NavLink>,
-        can('asset.read') && <NavLink key="cb" to="/cableado"><Icono n="cableado" /> Cableado</NavLink>,
+        can('infra.read') && <NavLink key="cb" to="/cableado"><Icono n="cableado" /> Cableado</NavLink>,
         // Electricidad va con la infraestructura: de los tableros cuelga la
         // alimentación de las cámaras, y ahí empieza media caída.
-        can('asset.read') && <NavLink key="el" to="/electricidad"><Icono n="electricidad" /> Electricidad</NavLink>,
+        can('infra.read') && <NavLink key="el" to="/electricidad"><Icono n="electricidad" /> Electricidad</NavLink>,
         can('asset.read') && <NavLink key="mp" to="/mapeo"><Icono n="mapeo" /> Avance del mapeo</NavLink>,
         // Campañas va junto al avance: uno cuenta, el otro CONTROLA la calidad.
         can('asset.read') && <NavLink key="cmp" to="/campanas"><Icono n="ok" /> Campañas de mapeo</NavLink>,
         // Va junto a Puntos críticos porque son la misma conversación: uno
         // dice qué se cae, el otro traduce lo que grita el púlpito.
-        can('asset.read') && <NavLink key="gr" to="/grabadores"><Icono n="grabador" /> Grabadores</NavLink>,
+        can('red.read') && <NavLink key="gr" to="/grabadores"><Icono n="grabador" /> Grabadores</NavLink>,
         // Conexiones va ANTES de Puntos críticos: primero se declara la red,
         // y sólo entonces el análisis de impacto tiene algo que analizar.
-        can('asset.read') && <NavLink key="cx" to="/conexiones"><Icono n="puertos" /> Conexiones</NavLink>,
+        can('red.read') && <NavLink key="cx" to="/conexiones"><Icono n="puertos" /> Conexiones</NavLink>,
         /* Bloque 48. Junto a Conexiones porque son las dos caras de lo mismo:
            allí se DECLARA qué está enchufado dónde, y aquí se LEE la foto ya
            agrupada por la caja física que el técnico abre. */
-        can('asset.read') && <NavLink key="mred" to="/mapa-de-red"><Icono n="gabinete" /> Mapa de red</NavLink>,
+        can('red.read') && <NavLink key="mred" to="/mapa-de-red"><Icono n="gabinete" /> Mapa de red</NavLink>,
         /* Bloque 50. Junto a Limpieza en espíritu, pero aquí arriba porque es
            lo primero que hay que mirar al empezar a cargar la planta: dice qué
            falta y quién lo carga. */
         can('asset.update') && <NavLink key="sdd" to="/salud-de-datos"><Icono n="ok" /> Salud de los datos</NavLink>,
         // Va con Conexiones: primero se declara la red física, después el
         // direccionamiento que corre por encima.
-        can('asset.read') && <NavLink key="ip" to="/ipam"><Icono n="ipam" /> Direccionamiento IP</NavLink>,
+        can('red.read') && <NavLink key="ip" to="/ipam"><Icono n="ipam" /> Direccionamiento IP</NavLink>,
         // 12.7 — cierra el permiso huerfano: `document.read` existia desde F0
         // y no habia pantalla que lo usara.
         can('document.read') && <NavLink key="dc" to="/documentos"><Icono n="etiqueta" /> Manuales y planos</NavLink>,
-        can('asset.read') && <NavLink key="tp" to="/topologia"><Icono n="critico" /> Puntos críticos</NavLink>,
+        can('red.read') && <NavLink key="tp" to="/topologia"><Icono n="critico" /> Puntos críticos</NavLink>,
         /* Bloque 36: el backend de riesgo llevaba semanas calculando y no
            había forma de verlo. Un cálculo sin enlace, para la planta, no
            existe. */
-        can('asset.read') && <NavLink key="rg" to="/riesgo"><Icono n="alerta" /> Riesgo</NavLink>,
-        can('asset.read') && <NavLink key="rt" to="/rotulado"><Icono n="etiqueta" /> Rotulado</NavLink>,
+        can('infra.read') && <NavLink key="rg" to="/riesgo"><Icono n="alerta" /> Riesgo</NavLink>,
+        can('infra.read') && <NavLink key="rt" to="/rotulado"><Icono n="etiqueta" /> Rotulado</NavLink>,
         can('monitor.read') && <NavLink key="mo" to="/monitoreo"><Icono n="reloj" /> Monitoreo</NavLink>,
         can('access.read') && <NavLink key="ac" to="/access"><Icono n="acceso" /> Accesibilidad</NavLink>,
       ].filter(Boolean) as ReactNode[],

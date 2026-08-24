@@ -36,7 +36,7 @@ export class EstandaresController {
    */
   @SinAmbito()
   @Get('colores')
-  @RequirePermissions('asset.read')
+  @RequirePermissions('infra.read')
   colores() {
     return this.prisma.colorDeCable.findMany({
       where: { activo: true },
@@ -49,7 +49,7 @@ export class EstandaresController {
    *  está comprando patch cords. */
   @SinAmbito()
   @Get()
-  @RequirePermissions('asset.read')
+  @RequirePermissions('infra.read')
   todo() {
     return {
       norma: 'ANSI/TIA-606-C (2017) — Administración de infraestructura de telecomunicaciones',
@@ -67,7 +67,7 @@ export class EstandaresController {
   /** Propone el rótulo de un equipo nuevo. */
   @SinAmbito()
   @Get('rotulo')
-  @RequirePermissions('asset.read')
+  @RequirePermissions('infra.read')
   rotulo(
     @Query('tipo') tipo: string,
     @Query('tren') tren?: string,
@@ -85,7 +85,7 @@ export class EstandaresController {
    *  un formato imposible no entra, un desfase con el árbol sólo avisa. */
   @SinAmbito()
   @Post('revisar-rotulo')
-  @RequirePermissions('asset.read')
+  @RequirePermissions('infra.read')
   revisar(@Body() dto: { codigo?: string; tipoActivo?: string; trenCode?: string }) {
     return revisarCodigo(dto?.codigo ?? '', dto);
   }

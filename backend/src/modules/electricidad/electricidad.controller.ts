@@ -15,11 +15,11 @@ export class ElectricidadController {
   constructor(private readonly e: ElectricidadService) {}
 
   @Get('resumen')
-  @RequirePermissions('asset.read')
+  @RequirePermissions('infra.read')
   resumen() { return this.e.resumen(); }
 
   @Get('tableros')
-  @RequirePermissions('asset.read')
+  @RequirePermissions('infra.read')
   tableros(@Query() q: any) { return this.e.listarTableros(q || {}); }
 
   @Post('tableros')
@@ -30,7 +30,7 @@ export class ElectricidadController {
 
   @SinAmbito()  // el tablero declara su tren; el ámbito se aplica al listar
   @Get('tableros/:id')
-  @RequirePermissions('asset.read')
+  @RequirePermissions('infra.read')
   tablero(@Param('id') id: string) { return this.e.detalleTablero(id); }
 
   @SinAmbito()  // idem
@@ -59,13 +59,13 @@ export class ElectricidadController {
      Arrastra los tableros aguas abajo y la cascada de red. */
   @SinAmbito()  // el tablero declara su tren; el ámbito se aplica al listar
   @Get('tableros/:id/impacto')
-  @RequirePermissions('asset.read')
+  @RequirePermissions('infra.read')
   impactoTablero(@Param('id') id: string) { return this.e.impactoTablero(id); }
 
   /** «Si salta esta llave, ¿qué se apaga?» */
   @SinAmbito()  // el circuito cuelga de su tablero, que ya declara el tren
   @Get('circuitos/:id/impacto')
-  @RequirePermissions('asset.read')
+  @RequirePermissions('infra.read')
   impacto(@Param('id') id: string) { return this.e.impactoCircuito(id); }
 
   @SinAmbito()  // idem
@@ -85,7 +85,7 @@ export class ElectricidadController {
   /** «¿Qué llave le corta la luz a este equipo?» — la pregunta de campo. */
   @AmbitoDe('asset', 'assetId')
   @Get('activo/:assetId')
-  @RequirePermissions('asset.read')
+  @RequirePermissions('infra.read')
   deActivo(@Param('assetId') assetId: string) { return this.e.alimentacionDeActivo(assetId); }
 
   @Post('mediciones')
