@@ -135,7 +135,15 @@ const PERMISSIONS = [
  * Es una lista corta y tiene que seguir siéndolo: cada nombre aquí es alguien
  * que dejará de ver la planta si nadie le asigna su tren.
  */
-const ROLES_SECTORIZADOS = ['Jefe de Tren', 'Jefe de Producción'];
+/* Roles que NO tienen sentido sin un tren asignado (bloque 42-A).
+   `Jefe de Producción` estaba aquí y NO EXISTE: ni la semilla ni las
+   plantillas lo crean nunca. El nombre real del suplente es
+   «Jefe de línea (Producción)», que es el que genera la plantilla. Ese
+   literal fantasma es el mismo que hizo fallar la migración del bloque 55:
+   una cadena que no coincide con nada no da error, simplemente no hace nada. */
+const ROLES_SECTORIZADOS = [
+  'Jefe de Tren', 'Jefe de línea (Producción)', 'Operador de Púlpito',
+];
 
 // ---- Roles y sus permisos ----
 const ROLES: Record<string, string[]> = {
@@ -209,13 +217,27 @@ const ROLES: Record<string, string[]> = {
      Si algún día hace falta una vista de las tres líneas juntas, se le asignan
      los tres trenes a esa persona en concreto — que es una decisión con nombre
      y apellidos, no un permiso que viene de serie con el rol. */
-  'Jefe de Producción': [
-    'om.mirar', 'cobertura.mirar', 'activos.mirar',
-    'dashboard.read', 'incident.read', 'incident.create', 'wo.read',
-    'troubleshooting.read', 'location.read',
-    'inventory.read', 'access.read',
-    'zona.criticidad',
-    'monitor.read', 'wo.report',
+  /* RENOMBRADO EN EL BLOQUE 62-A — antes se llamaba «Jefe de Producción».
+     -------------------------------------------------------------------------
+     HABÍA DOS ROLES PARA EL MISMO PUESTO: éste, creado por la semilla, y
+     «Jefe de línea (Producción)», creado desde la plantilla de la interfaz.
+     Nadie lo notó porque los dos funcionaban... hasta que la migración del
+     bloque 55 excluyó a uno y el usuario real tenía el otro. Resultado:
+     Producción se llevó `infra.read` y `red.read` — el plano eléctrico y el
+     direccionamiento IP de toda la planta.
+
+     Un puesto, un nombre. El de la plantilla gana porque es el que ve el
+     usuario cuando crea el rol desde la pantalla.
+
+     El rol viejo «Jefe de Producción» que ya exista en la base NO se borra
+     desde aquí: si alguien lo tiene asignado, borrarlo lo dejaría sin
+     permisos sin avisar. Se retira a mano desde la pantalla de Roles cuando
+     se compruebe que no lo usa nadie. */
+  'Jefe de línea (Producción)': [
+    'dashboard.read', 'location.read',
+    'activos.mirar', 'cobertura.mirar', 'om.mirar',
+    'incident.read', 'incident.create', 'wo.report',
+    'monitor.read',
   ],
 
   /* ==========================================================================
@@ -247,11 +269,33 @@ const ROLES: Record<string, string[]> = {
 
      El JEFE DE TURNO usa esta misma plantilla: mismo alcance, mismo tren.
      ========================================================================== */
+  /* OPERADOR DE PÚLPITO (bloque 63-A) — el perfil más estrecho del sistema.
+     Ve las cámaras de su tren y avisa. Tres permisos y ninguno más: cada
+     pantalla de sobra es un segundo más buscando el botón de reportar cuando
+     un cuadro se pone en negro. El detalle de por qué NO lleva cada uno de
+     los otros está en la plantilla de `catalogo-permisos.ts`. */
+  'Operador de Púlpito': [
+    'activos.mirar',
+    'incident.create', 'incident.read',
+  ],
+  /* LOS DOS CARGOS DEL TREN (bloque 62-A).
+     TITULAR. Ve lo mismo que su suplente y además DECLARA zonas vitales, que
+     es la única decisión que reordena las prioridades de todo el tren.
+     Se mantiene alineado con la plantilla de `catalogo-permisos.ts`: si las
+     dos listas se separan, el rol creado desde la interfaz y el creado por la
+     semilla dejan de ser el mismo rol, y nadie se entera hasta que alguien no
+     puede abrir una pantalla. */
   'Jefe de Tren': [
-    'om.mirar', 'activos.mirar', 'cobertura.mirar',
-    'location.read',
+    'dashboard.read', 'location.read',
+    'activos.mirar', 'cobertura.mirar', 'om.mirar',
+    'incident.read', 'incident.create', 'wo.report',
+    'monitor.read',
     'zona.criticidad',
   ],
+  /* El SUPLENTE —«Jefe de línea (Producción)»— se define más abajo, donde
+     estaba el antiguo «Jefe de Producción» al que sustituye. Es idéntico a
+     este titular MENOS `zona.criticidad`: cubrir a ciegas no es cubrir, pero
+     decidir por el titular tampoco. */
   /* SUPERVISOR OPERATIVO DE TERCERÍA (bloque 28).
      Responde por la cuadrilla contratada, que cubre los tres trenes. Su
      escritura fuerte es una sola: FIRMAR en qué zonas se puede trabajar con

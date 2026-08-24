@@ -8,6 +8,9 @@ import { guardarPendiente } from '../cola-offline';
 import CampoDelTurno from '../components/CampoDelTurno';
 import ArranqueDiagnostico from '../components/ArranqueDiagnostico';
 import ReportarCaida from '../components/ReportarCaida';
+import AvisoDeIntervencion from '../components/AvisoDeIntervencion';
+import TrabajoDesdeElQR from '../components/TrabajoDesdeElQR';
+import ReportarAveria from '../components/ReportarAveria';
 
 /**
  * Ficha rápida del activo — destino del código QR pegado en el equipo.
@@ -77,12 +80,16 @@ export default function AssetScan() {
     }
   }
 
+  /* Bloque 62-A: se recarga la ficha tras anotar avance, para que el estado
+     de la orden que se ve sea el de verdad y no el de hace un minuto. */
+  const [recarga, setRecarga] = useState(0);
+
   useEffect(() => {
     api.get('/assets/' + id)
       .then((r) => setA(r.data))
       .catch(() => setErr('No se encontró el activo. Verifica la etiqueta o consulta al Jefe de Mantenimiento.'))
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, recarga]);
 
   if (loading) return <div className="loading">Cargando equipo…</div>;
   if (err) return <div className="scan-wrap"><div className="error">{err}</div></div>;
@@ -101,6 +108,17 @@ export default function AssetScan() {
         <span className={'badge ' + estado}>{STATUS_ES[estado] || estado}</span>
       </div>
 
+      {/* BLOQUE 62-B — CÓMO SE INTERVIENE ESTA ZONA.
+          Va por ENCIMA incluso de «ya hay trabajo abierto», y es la única cosa
+          que se le adelanta. El orden aquí no es estético: si el técnico sólo
+          lee una línea de esta pantalla antes de empezar a trabajar, tiene que
+          ser ésta. Que la orden esté duplicada cuesta una hora; que suba a una
+          zona que exige parada cuesta otra cosa.
+
+          El dato ya se calculaba desde el bloque 28 y moría en el backend.
+          Modelo + cálculo ≠ función: sin pantalla, no existe. */}
+      <AvisoDeIntervencion planta={a.planta} zona={a.location?.name} />
+
       {/* LO PRIMERO DE TODO: ¿YA HAY ALGUIEN EN ESTO?
           Es la misma lección que el gabinete. Sin esto, el técnico escanea,
           ve "fuera de servicio", abre una orden nueva... y resulta que ya
@@ -118,6 +136,12 @@ export default function AssetScan() {
           ))}
         </div>
       )}
+
+      {/* BLOQUE 62-A — TRABAJAR LA ORDEN AQUÍ MISMO.
+          Va PEGADO al aviso de «ya hay trabajo abierto» porque son la misma
+          conversación: enterarse de que hay una orden y no poder tocarla es
+          justo lo que obligaba a bajar a la oficina. */}
+      <TrabajoDesdeElQR ordenes={abiertas} alGuardar={() => setRecarga((n) => n + 1)} />
 
       {/* Bloque 29: lo que dejó el turno anterior y cómo se restaura este
           modelo. Va ARRIBA de la ficha técnica a propósito: el técnico está
@@ -240,12 +264,17 @@ export default function AssetScan() {
             tener que buscar el equipo entre cientos... y al pulsar acababa
             en una lista donde tenía que buscarlo. Justo lo que el QR venía
             a evitar. */}
-        {can('incident.create') && (
-          <button className="btn-primary"
-                  onClick={() => nav(`/incidents?assetId=${a.id}&nuevo=1`)}>
-            <Icono n="incidencia" size={16} /> Reportar incidencia de este equipo
-          </button>
-        )}
+        {/* BLOQUE 62-A — el parte se rellena AQUÍ.
+            Antes este botón navegaba a `/incidents?nuevo=1`, o sea que sacaba
+            al técnico del QR justo después de haber escaneado para no tener
+            que buscar el equipo. Ahora el equipo ya viene puesto y la avería
+            se registra sin cambiar de pantalla. */}
+        <ReportarAveria
+          assetId={a.id}
+          codigo={a.assetCode}
+          zona={a.location?.name}
+          alCrear={() => setRecarga((n) => n + 1)}
+        />
         {can('wo.read') && (
           <button className="btn-mini" onClick={() => nav(`/maintenance?q=${a.assetCode}`)}>
             <Icono n="orden" size={14} /> Órdenes de este equipo

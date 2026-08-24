@@ -631,3 +631,198 @@ de 1366 —la de los púlpitos— y las tablas salen con scroll horizontal.
   no cuesta nada porque no se pierde acceso.
 - **«Lo último»**: de 38 pantallas cada persona usa cinco. Las últimas
   visitadas suben arriba. Se ajusta solo a cada uno, sin configurar nada.
+
+---
+
+## 11. Bloque 62 — el QR que avisa, y dos agujeros de permisos
+
+### 62-B · El dato más caro estaba calculado y sin enseñar
+
+Desde el bloque 28 el sistema sabe **cómo se interviene cada zona** —en marcha,
+con permiso eléctrico, con permiso de altura, o con el tren parado—, lo deriva
+del ambiente y lo firma una persona con nombre y fecha.
+
+Y `assets.service.findOne` **no copiaba esos cinco campos a `asset.planta`**. El
+técnico escaneaba el QR de pie delante de la cámara y la pantalla le contaba la
+marca, el modelo y la IP, pero **no que ahí abajo pasa barra caliente**.
+
+Es el mismo error del mapa de red y del módulo de documentos, ya escrito aquí:
+*modelo + cálculo ≠ función. Sin pantalla, no existe.* Sólo que esta vez lo que
+no existía era una advertencia de seguridad.
+
+**Tres reglas del aviso, y no se aflojan:**
+
+- **Va arriba del todo**, por encima incluso de «ya hay trabajo abierto». Si el
+  técnico lee una sola línea de esa pantalla, tiene que ser ésta.
+- **Se pinta `intervencionAplica`, nunca la propuesta.** Sin firma vale
+  `EXIGE_PARADA`. Y si la ficha no trae el dato, se pinta el caso más
+  restrictivo: falla hacia el lado seguro.
+- **No hay variante verde.** Ni el caso más suave celebra nada. Un verde de
+  «todo correcto» en una pantalla de seguridad se aprende a ignorar en una
+  semana, y entonces ya no protege el día que importa.
+
+### 62-A · Producción veía el plano eléctrico de toda la planta
+
+**El usuario lo vio en pantalla**, no un verificador: entró con su cuenta de
+Producción y le salía INFRAESTRUCTURA entera —Cableado, Electricidad,
+Grabadores, Mapa de red, Direccionamiento IP, Puntos críticos—.
+
+**Causa raíz: había DOS roles para el MISMO puesto.** `Jefe de Producción` en la
+semilla y `Jefe de línea (Producción)` en las plantillas de la interfaz. Nadie
+lo notó porque los dos funcionaban.
+
+Hasta que la migración del bloque 55 repartió los permisos nuevos comparando
+contra literales:
+
+```sql
+WHERE r."name" NOT IN ('Jefe de Producción', 'Jefe de Tren')
+```
+
+Excluyó a uno; el usuario real tenía el otro. **La migración escrita para CERRAR
+el agujero fue la que lo abrió.**
+
+#### La regla que queda
+
+> **Una migración reparte permisos por lo que el rol PUEDE HACER, nunca por cómo
+> se llama.** El nombre se edita desde la interfaz: es un dato de usuario. Y
+> cuando no coincide, el SQL **no falla, no hace nada**. Falla ABRIENDO, que es
+> el peor modo de fallar.
+
+La corrección (`20260902000000_reparto_infra_red_por_capacidad`) conserva
+`infra.read` y `red.read` sólo en los roles que ya tienen `asset.create`,
+`asset.update`, `asset.delete` o `location.manage`. **No hay un solo nombre de
+rol en ese archivo.** Probado contra las 11 plantillas: acierta a los tres que
+deben conservarlo y no toca a los otros ocho.
+
+#### Verificador 11 — `verificar:sql-roles`
+
+Ya existía `verificar-roles`, nacido de este mismo error, que prohíbe los
+literales de rol en TypeScript. **No miraba SQL**, y por ahí entró.
+
+El nuevo distingue dos cosas, que es lo que le costó estar bien:
+
+1. **Rol fantasma** (error siempre): literal que no existe ni en la semilla ni
+   en las plantillas.
+2. **Comparación por nombre en migración NUEVA** (error a partir del corte). Las
+   anteriores están aplicadas y son inmutables: quedan como deuda declarada.
+
+Hay una tabla `RENOMBRADOS` para que un nombre viejo en una migración vieja sea
+historia y no rojo eterno. **Un verificador que no se puede poner en verde se
+desactiva.**
+
+*Dos falsos positivos en la primera versión, los dos por la expresión regular:
+`'Jefe de Mantenimiento': PERMISSIONS` no lleva corchete, y el catálogo de
+permisos también usa la clave `nombre:`.*
+
+### Los dos cargos del tren
+
+Decidido por el usuario: **el Jefe de Tren manda**; el **Jefe de línea le cubre**
+cuando no está.
+
+> **Ven lo mismo, decide uno solo.** Cubrir a ciegas no es cubrir, así que la
+> lectura es idéntica. La única diferencia es `zona.criticidad`: declarar una
+> zona vital reordena las prioridades del tren entero, y eso no rota con el
+> turno.
+
+Una diferencia de un permiso se explica en una frase; una de seis nadie sabe
+justificarla seis meses después. Hay dos pruebas que fijan la diferencia
+**exacta y en los dos sentidos**.
+
+`Jefe de Tren` tampoco tenía plantilla: existía en la semilla y no se podía
+crear otro desde la interfaz. Ya la tiene.
+
+### Tres defectos que salieron de rebote
+
+- **`soloMira()` no reconocía la familia `*.mirar`.** Sólo miraba el sufijo
+  `.read`, así que contaba `om.mirar` como escritura y la pantalla de Roles
+  marcaba «no es de sólo consulta» a un Jefe de Tren que no modifica nada. Un
+  aviso que miente enseña a desconfiar de todos los avisos. **Se arregló la
+  función, no la prueba.**
+- **El verificador de coherencia me cazó a mí.** Puse `asset.read` y `wo.read`
+  en los dos cargos «porque hacen falta para el QR». Tenía razón él: abren
+  INFRAESTRUCTURA y Mantenimiento enteros, que es justo lo que se cerraba. Se
+  quitaron. **A un verificador propio se le hace caso o se borra; lo que no se
+  puede es discutirle y dejarlo puesto.**
+- **`.tsbuildinfo` sin ignorar.** `tsc -b` deja una caché con rutas absolutas de
+  la máquina. Añadido al `.gitignore`.
+
+### Y una falsa alarma que conviene recordar
+
+Cinco archivos salían como modificados —cuatro migraciones y `RESPALDO_BD.ps1`—
+y **el contenido era idéntico**: sólo cambiaba el fin de línea (CRLF ↔ LF) por
+mezclar Windows con el entorno del agente. Importa porque **Prisma guarda un
+checksum de cada migración**: si esos archivos entran cambiados al repositorio,
+el despliegue muere con «migration was modified after it was applied».
+
+**Antes de dar la alarma por una migración modificada, comparar sin los `\r`.**
+
+### 62-A · El QR deja de ser una pantalla para LEER
+
+Tres botones que no existían, y todos por el mismo motivo: el dato estaba y
+no había forma de actuar sobre él desde donde se está trabajando.
+
+**1. Anotar el avance de la orden.** El QR enseñaba «OM-42 abierta — limpieza»
+y ahí se acababa: para decir que la había hecho había que bajar a la oficina y
+buscarla entre trescientas. Se apunta en un papel, y el papel se pierde.
+
+**2. Reportar avería.** El botón existía y hacía `nav('/incidents?nuevo=1')`:
+te SACABA del QR justo después de haber escaneado para no tener que buscar el
+equipo. Ahora el parte se rellena ahí, con el equipo ya puesto.
+
+**3. `id` en la ficha.** El `select` de `workOrders` no traía el identificador,
+así que la ficha listaba órdenes sobre las que era imposible actuar.
+
+#### Dos formularios, uno por oficio
+
+Decisión del usuario: *«lo más probable es que el incidente lo hagan en
+púlpito, así que el formulario para ellos es distinto: se autocompleta. Si es
+un técnico, ahí sí tiene que ser más complejo.»*
+
+- **Producción** mira un monitor y sabe UNA cosa: que no está viendo. Su
+  formulario es un botón (`ReportarCaida`, bloque 51-B). **Pedirle la
+  categoría es pedirle que adivine, y una categoría adivinada ensucia para
+  siempre la estadística de qué falla más.**
+- **El técnico** está con la tapa abierta y sí distingue óptica sucia de cable
+  cortado. Suyo es `ReportarAveria`, con catálogo de cinco motivos.
+
+**El reparto va por CAPACIDAD:** el detallado exige además `wo.update`, que
+Producción no tiene. Ni un nombre de rol.
+
+#### La deducción que pidió ya estaba, a medias
+
+*«Si se va UNA cámara lo más probable es que haya perdido energía; si se van
+TODAS de golpe, que haya caído el switch.»* Eso es exactamente el veredicto
+`LOCAL` / `COMPARTIDO` de `arranque-de-diagnostico.ts`. Lo que faltaba era la
+primera mitad: en `LOCAL` decía «revisa este equipo y su tramo», que es cierto
+pero no dice por dónde. Ahora manda **empezar por la corriente**, porque se
+comprueba en un minuto desde el gabinete y el cable exige subir.
+
+#### Quién puede qué — y esto no se afloja «porque en campo hay prisa»
+
+| Acción | Permiso | Quién |
+|---|---|---|
+| Anotar avance | `wo.update` | Técnico |
+| Abrir la orden | `wo.update` | Técnico |
+| **Cerrar la orden** | **`wo.approve`** | **Sólo el Jefe de Mantenimiento** |
+
+Cada avance guarda `reportedById` **y** pasa por auditoría. Y se dice en
+pantalla **antes** de pulsar: *«queda con tu nombre y la hora; la cierra el
+Jefe»*. Un sistema que audita en silencio se siente como una trampa; uno que
+lo avisa por delante se usa con confianza.
+
+**`test/qr-en-campo.spec.ts`** fija las ocho reglas leyendo el CÓDIGO, no el
+comportamiento — el fallo típico no es escribir mal el permiso, es quitarlo
+«un momento para probar». Probado aflojando el cierre a `wo.update`: se cae.
+
+#### Dos verificadores míos me cazaron a mí, otra vez
+
+- **`verificar:etiquetas`**: puse un `<textarea>` sin `<label>` que lo envuelva.
+  Con guantes, que tocar el texto enfoque el campo es la diferencia entre
+  escribir la nota y no escribirla.
+- **La prueba de jerga de redes**: escribí «ha perdido el PoE». La lista
+  prohibida incluye `poe`, y con razón: eso lo lee quien esté delante del
+  equipo. Se dice igual sin siglas — «la corriente que le llega por el cable
+  de red»— y se entiende mejor.
+
+**A un verificador propio se le hace caso o se borra.** Discutirle y dejarlo
+puesto es la peor de las tres opciones.

@@ -248,7 +248,24 @@ export const CODIGOS_VALIDOS: ReadonlySet<string> = new Set(
    Si algún día alguien mueve una casilla de sitio en la pantalla, esto no se
    entera — que es justo lo que se quiere. */
 const NO_MODIFICAN_NUNCA = (code: string) =>
-  code.endsWith('.read') || code === 'wo.report';
+  code.endsWith('.read')
+  /* LA FAMILIA `*.mirar` FALTABA — corregido en el bloque 62-A.
+     -------------------------------------------------------------------------
+     `activos.mirar`, `om.mirar` y `cobertura.mirar` son de SÓLO LECTURA por
+     definición: se crearon precisamente para dar una pantalla concreta sin
+     abrir el módulo entero, y así lo dice `verificar-coherencia-rol.js`, que
+     los usa para reconocer un «rol de observación».
+
+     Pero esta función sólo miraba el sufijo `.read`, así que los contaba como
+     ESCRITURA. Consecuencia real: la pantalla de Roles marcaba «no es de sólo
+     consulta» a un Jefe de Tren que no puede modificar absolutamente nada —
+     un aviso que miente enseña a desconfiar de todos los avisos.
+
+     Salió al separar los dos cargos del tren: la prueba de escrituras del
+     Jefe de línea devolvió `om.mirar` y `cobertura.mirar` como si escribieran.
+     Se arregla la función, no la prueba. */
+  || code.endsWith('.mirar')
+  || code === 'wo.report';
 
 const MODIFICAN = new Set(
   CATALOGO_PERMISOS
@@ -299,17 +316,124 @@ export const PLANTILLAS_DE_ROL: {
   /** true si este perfil sólo tiene sentido con ámbito de tren asignado. */
   necesitaAmbito?: boolean;
 }[] = [
+  /* =========================================================================
+     LOS DOS CARGOS DEL TREN — bloque 62-A
+     -------------------------------------------------------------------------
+     EL FALLO QUE ESTO CIERRA
+
+     «Jefe de Tren» existía en la semilla y NO tenía plantilla aquí: no se
+     podía crear otro desde la interfaz. Y encima estaban invertidos — el
+     suplente tenía 9 permisos y el titular 5.
+
+     LA JERARQUÍA REAL DE PLANTA (decidida por el usuario)
+
+       · JEFE DE TREN   → titular del tren completo. MANDA.
+       · JEFE DE LÍNEA  → responde por su línea o su turno, y CUBRE al Jefe
+                          de Tren cuando no está.
+
+     LA REGLA QUE LOS SEPARA: **VEN LO MISMO, DECIDE UNO SOLO.**
+
+     El suplente necesita ver exactamente lo mismo que el titular —si cubre a
+     ciegas, no cubre— pero NO declara zonas vitales. Motivo: cuando el
+     titular vuelve no se encuentra con decisiones tomadas por otro que
+     tenga que revisar una por una. Declarar una zona vital cambia la
+     prioridad de las órdenes de todo el tren; eso tiene un dueño y no rota
+     con el turno.
+
+     La única diferencia entre las dos listas es `zona.criticidad`. A
+     propósito: una diferencia de un permiso se explica en una frase, y una
+     de seis nadie sabe justificarla seis meses después.
+
+     `asset.read` LO LLEVAN LOS DOS, y no es negociable: sin él no se puede
+     abrir la ficha del equipo, o sea que no se puede escanear el QR ni
+     reportar una cámara caída — que es justo para lo que Producción entra
+     al sistema (bloque 51-B).
+     ========================================================================= */
+  /* =========================================================================
+     OPERADOR DE PÚLPITO — bloque 63-A
+     -------------------------------------------------------------------------
+     EL PERFIL MÁS ESTRECHO DEL SISTEMA, Y A PROPÓSITO.
+
+     Es la persona que está delante del monitor ocho horas. No decide nada, no
+     planifica nada y no arregla nada: VE que un cuadro se puso en negro y lo
+     dice. Ése es todo su trabajo aquí, y todo lo demás que se le pinte en la
+     pantalla es ruido que le hace tardar más en encontrar el botón.
+
+     TRES PERMISOS. Ni uno más:
+
+       · `activos.mirar`   → las cámaras de SU tren, para saber cuál se cayó.
+       · `incident.create` → decirlo. Es la única escritura que tiene.
+       · `incident.read`   → ver si lo que iba a reportar ya está reportado.
+                             Sin esto, la misma cámara entra cinco veces en un
+                             turno y el técnico sale cinco veces al mismo sitio.
+
+     LO QUE NO LLEVA, Y POR QUÉ CADA COSA:
+
+       · `dashboard.read`  → indicadores de gestión. No es su trabajo, y un
+                             MTTR en su pantalla no le ayuda a reportar antes.
+       · `cobertura.mirar` → «qué zonas están sin vista» es una decisión de
+                             cobertura del Jefe de Tren.
+       · `om.mirar`        → el trabajo de mantenimiento no es asunto suyo.
+       · `zona.criticidad` → declarar zonas vitales reordena las prioridades
+                             de todo el tren. Eso es del titular.
+       · `location.read`   → NO le hace falta: `activos.mirar` ya le devuelve
+                             sus equipos con su ubicación resuelta. Añadirlo
+                             sería abrirle el árbol de planta entero por una
+                             comodidad que nadie ha pedido.
+
+     Y ES EL FORMULARIO CORTO (bloque 62-A): como no tiene `wo.update`, ve
+     `ReportarCaida` —un botón— y no el catálogo de cinco motivos del técnico.
+     Pedirle a quien mira un monitor que clasifique la avería es pedirle que
+     adivine, y una categoría adivinada ensucia la estadística para siempre.
+     ========================================================================= */
   {
-    nombre: 'Jefe de línea (Producción)',
-    paraQuien: 'Jefe de turno o de línea del Tren 1, 2 o 3.',
+    nombre: 'Operador de Púlpito',
+    paraQuien: 'Quien está delante del monitor en el púlpito del Tren 1, 2 o 3.',
     descripcion:
-      'Ve qué se está viendo y qué no en SU tren, y DECLARA qué zonas no pueden ' +
-      'quedarse a ciegas. No interviene equipos: ésa es la única escritura que tiene.',
+      'Ve las cámaras de SU tren y avisa cuando una deja de dar imagen. Nada más: ' +
+      'ni indicadores, ni órdenes, ni declarar zonas. Un botón y a seguir mirando.',
+    advertencia:
+      'Es el perfil más estrecho a propósito. Si a esta persona le hace falta algo ' +
+      'más, casi siempre lo que hace falta es el rol de Jefe de línea, no ampliar ' +
+      'éste: cada pantalla de más es un segundo más buscando el botón de avisar.',
     necesitaAmbito: true,
     permisos: [
-      'dashboard.read', 'asset.read', 'location.read', 'incident.read',
-      'incident.create', 'wo.read', 'wo.report', 'monitor.read',
+      'activos.mirar',
+      'incident.create', 'incident.read',
+    ],
+  },
+  {
+    nombre: 'Jefe de Tren',
+    paraQuien: 'Titular del Tren 1, 2 o 3. El que responde por el tren completo.',
+    descripcion:
+      'Ve todo lo que pasa con las cámaras de SU tren y es el único que DECLARA ' +
+      'qué zonas no pueden quedarse a ciegas. No interviene equipos.',
+    advertencia:
+      'Declarar una zona vital reordena las prioridades de mantenimiento de todo el ' +
+      'tren. Es el único permiso de este perfil que decide por los demás, y por eso ' +
+      'no lo lleva el Jefe de línea aunque esté cubriendo.',
+    necesitaAmbito: true,
+    permisos: [
+      'dashboard.read', 'location.read',
+      'activos.mirar', 'cobertura.mirar', 'om.mirar',
+      'incident.read', 'incident.create', 'wo.report',
+      'monitor.read',
       'zona.criticidad',
+    ],
+  },
+  {
+    nombre: 'Jefe de línea (Producción)',
+    paraQuien: 'Jefe de turno o de línea. Cubre al Jefe de Tren cuando no está.',
+    descripcion:
+      'Ve EXACTAMENTE lo mismo que el Jefe de Tren de su tren, para poder cubrirle ' +
+      'con criterio. Reporta lo que no se está viendo y abre incidencias. No declara ' +
+      'zonas vitales: esa decisión se queda con el titular.',
+    necesitaAmbito: true,
+    permisos: [
+      'dashboard.read', 'location.read',
+      'activos.mirar', 'cobertura.mirar', 'om.mirar',
+      'incident.read', 'incident.create', 'wo.report',
+      'monitor.read',
     ],
   },
   {

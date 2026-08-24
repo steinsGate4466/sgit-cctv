@@ -100,19 +100,30 @@ const EXENTOS = {
      programa. Por eso la exención no se borra: se ESTRECHA. Antes tapaba el
      rol entero; ahora nombra exactamente lo que queda y por qué sigue ahí.
      ========================================================================== */
-  'Jefe de Producción':
-    'PENDIENTE DE DECISIÓN DEL INGENIERO — bloque 55. Se le retiró `asset.read`, '
-    + 'que le abría el módulo de infraestructura entero. Quedan DOS y ninguno es '
-    + 'una decisión técnica:\n'
-    + '             · `wo.read` le abre Preventivo, Correctivo, Predictivo, Mejora, '
-    + 'Órdenes, Cámaras de grúa y Ventanas de parada. Para ver el trabajo sobre SUS '
-    + 'cámaras ya tiene `om.mirar`. La duda real es «Ventanas de parada»: las paradas '
-    + 'las anuncia Producción, aunque en Pisco se avisan por radio y es el técnico '
-    + 'quien pregunta.\n'
-    + '             · `inventory.read` le abre el almacén, que es de Mantenimiento. '
-    + 'Puede tener sentido para que vea si hay repuesto de su cámara antes de reclamar.\n'
-    + '             Quitar de más se nota tarde: alguien en planta sin la pantalla que '
-    + 'necesita. Así que se dejan hasta que el ingeniero diga.',
+  /* CERRADO EN EL BLOQUE 62-A — la exención de «Jefe de Producción» ya no existe.
+     -------------------------------------------------------------------------
+     Aquí había una exención marcada «PENDIENTE DE DECISIÓN DEL INGENIERO» que
+     dejaba pasar `wo.read` e `inventory.read` en el rol de Producción. Se
+     cierra por tres cosas que pasaron a la vez:
+
+       1. EL ROL SE RENOMBRÓ. «Jefe de Producción» y «Jefe de línea
+          (Producción)» eran DOS roles para el MISMO puesto —uno en la semilla,
+          otro en las plantillas—. Esa duplicidad es la que hizo fallar la
+          migración del bloque 55: excluyó a uno y el usuario real tenía el
+          otro. Ahora es un solo nombre.
+
+       2. LA JERARQUÍA QUEDÓ DECIDIDA por el usuario: el Jefe de Tren es el
+          titular y el Jefe de línea le cubre. Ven lo mismo; sólo el titular
+          declara zonas vitales.
+
+       3. Y CON ESO, LOS PERMISOS ANCHOS SOBRAN. Los dos perfiles se quedan
+          con la familia `*.mirar`, que es exactamente lo suyo: `activos.mirar`
+          en vez de `asset.read`, `om.mirar` en vez de `wo.read`. La exención
+          desaparece porque desaparece el motivo, que es la única forma
+          honesta de cerrar una.
+
+     Una exención huérfana NO se deja escrita: acabaría cubriendo a un rol
+     futuro que se llamara igual. El propio verificador lo comprueba. */
 };
 
 const texto = fs.readFileSync(SEED, 'utf8');

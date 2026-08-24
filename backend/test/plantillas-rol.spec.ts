@@ -98,20 +98,29 @@ describe('plantillas de rol', () => {
     expect(conFirma.sort()).toEqual(['Supervisor Operativo de Tercería']);
   });
 
-  it('EL JEFE DE LÍNEA SÓLO ESCRIBE DOS COSAS', () => {
-    /* Antes esta prueba exigía `soloMira(jefe) === true` porque el ingeniero
-       lo pidió con estas palabras: "solo mirar, no intervenir". Y funcionó:
-       se cayó en cuanto Producción recibió capacidad de escritura, que es
-       exactamente para lo que estaba puesta.
+  it('EL JEFE DE LÍNEA SÓLO ESCRIBE UNA COSA', () => {
+    /* HISTORIA DE ESTA PRUEBA — se ha caído dos veces, las dos a propósito.
 
-       La decisión se tomó a propósito en el bloque 26: Producción DECLARA qué
-       zonas son vitales, porque nadie más sabe hacerlo. Así que la regla no se
-       borra, se APRIETA: puede escribir exactamente dos cosas y ninguna más.
-       Si mañana aparece una tercera, esto vuelve a caerse. */
+       1ª) Exigía `soloMira(jefe) === true` ("solo mirar, no intervenir"). Se
+           cayó cuando el bloque 26 le dio a Producción la declaración de zonas
+           vitales. Se APRETÓ en vez de borrarse: dos escrituras exactas.
+
+       2ª) Se cayó en el bloque 62-A, al separar los dos cargos del tren. El
+           usuario aclaró la jerarquía real: el JEFE DE TREN es el titular y el
+           JEFE DE LÍNEA le CUBRE cuando no está. Ven lo mismo —cubrir a ciegas
+           no es cubrir— pero sólo el titular DECIDE. Así que `zona.criticidad`
+           se fue al Jefe de Tren y aquí queda UNA sola escritura.
+
+       Que esta prueba se caiga es la señal de que alguien tocó el reparto de
+       poder del tren. Se actualiza mirando la decisión, nunca aflojando la
+       comprobación. Si mañana aparece una segunda escritura, vuelve a caerse. */
     const jefe = permisosDe('Jefe de línea');
-    const ESCRITURAS_PERMITIDAS = ['zona.criticidad', 'incident.create'];
+    const ESCRITURAS_PERMITIDAS = ['incident.create'];
     const escribe = jefe.filter((c) => !soloMira([c]));
     expect(escribe.sort()).toEqual([...ESCRITURAS_PERMITIDAS].sort());
+    // Declarar zonas vitales reordena las prioridades del tren entero: es del
+    // titular, y no rota con el turno aunque el suplente esté cubriendo.
+    expect(jefe).not.toContain('zona.criticidad');
     // Y sobre todo: no autoriza a nadie a acercarse a la línea.
     expect(jefe).not.toContain('zona.intervencion');
     expect(jefe).toContain('wo.report');   // sí puede descargar el informe
@@ -120,6 +129,57 @@ describe('plantillas de rol', () => {
     expect(jefe).not.toContain('wo.update');
     expect(jefe).not.toContain('wo.approve');
     expect(jefe).not.toContain('incident.close');
+  });
+
+  /* ==========================================================================
+     LOS DOS CARGOS DEL TREN — bloque 62-A
+     --------------------------------------------------------------------------
+     ESTO NACE DE UN FALLO QUE SE VIO EN PANTALLA. El usuario entró con su
+     cuenta de Producción y le salía el módulo de INFRAESTRUCTURA entero:
+     Cableado, Electricidad, Grabadores, Mapa de red, Direccionamiento IP.
+
+     La causa: había DOS roles para el MISMO puesto —«Jefe de Producción» en
+     la semilla y «Jefe de línea (Producción)» en las plantillas— y la
+     migración del bloque 55 excluyó a uno mientras el usuario real tenía el
+     otro. Además «Jefe de Tren» ni siquiera tenía plantilla: no se podía
+     crear otro desde la interfaz.
+
+     Estas dos pruebas fijan la relación para que no se vuelva a torcer sola.
+     ========================================================================== */
+  it('EL JEFE DE TREN Y EL JEFE DE LÍNEA VEN LO MISMO', () => {
+    /* El de línea CUBRE al de tren cuando no está. Si viera menos, cubriría a
+       ciegas — y cubrir a ciegas no es cubrir. La única diferencia legítima
+       es de DECISIÓN, nunca de visibilidad. */
+    const tren = permisosDe('Jefe de Tren');
+    const linea = permisosDe('Jefe de línea');
+
+    const lecturaTren = tren.filter((c) => soloMira([c])).sort();
+    const lecturaLinea = linea.filter((c) => soloMira([c])).sort();
+    expect(lecturaLinea).toEqual(lecturaTren);
+  });
+
+  it('SÓLO EL TITULAR DECIDE: la diferencia es EXACTAMENTE zona.criticidad', () => {
+    /* Declarar una zona vital reordena las prioridades de mantenimiento del
+       tren entero. Eso tiene dueño y no rota con el turno.
+
+       Se comprueba la diferencia EXACTA, en los dos sentidos. Sólo con
+       «el titular tiene zona.criticidad» se podría colar cualquier otro
+       permiso de más en cualquiera de los dos y nadie se enteraría. */
+    const tren = permisosDe('Jefe de Tren');
+    const linea = permisosDe('Jefe de línea');
+
+    expect(tren.filter((c) => !linea.includes(c)).sort()).toEqual(['zona.criticidad']);
+    expect(linea.filter((c) => !tren.includes(c))).toEqual([]);
+  });
+
+  it('LOS DOS CARGOS DEL TREN EXIGEN ÁMBITO', () => {
+    /* Un jefe de tren sin tren asignado los ve los tres. La plantilla tiene
+       que decirlo para que quien crea el rol no se lo salte. */
+    for (const nombre of ['Jefe de Tren', 'Jefe de línea']) {
+      const p = PLANTILLAS_DE_ROL.find((x) => x.nombre.includes(nombre));
+      expect(p).toBeDefined();
+      expect(p!.necesitaAmbito).toBe(true);
+    }
   });
 
   it('el técnico de red SÍ puede trabajar la orden, pero no cerrarla', () => {

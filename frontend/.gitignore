@@ -7,3 +7,9 @@ dist
 # proceso se corta. Cambian de nombre en cada build, asi que si entraran al
 # repositorio ensuciarian el diff de cada commit a partir de ahi.
 vite.config.ts.timestamp-*
+
+# Cache incremental de TypeScript (`tsc -b`). Es un artefacto de compilacion
+# con rutas absolutas de la maquina que lo genero: si entra al repositorio,
+# cada persona lo modifica en cada typecheck y ensucia todos los diffs.
+# Apareci­o al correr `tsc -b --noEmit` en el bloque 62.
+*.tsbuildinfo

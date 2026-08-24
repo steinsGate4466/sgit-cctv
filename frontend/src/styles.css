@@ -361,6 +361,93 @@ select optgroup { font-weight: 700; color: var(--navy); }
 .scan-card .frow .v { text-align: right; margin-left: auto; word-break: break-word; }
 .scan-note { background: #eef4ff; border: 1px solid #dbe6fb; color: var(--steel);
   padding: 10px 12px; border-radius: 8px; font-size: 13px; margin-top: 12px; }
+/* =========================================================================
+   BLOQUE 62-B · AVISO DE CÓMO SE INTERVIENE LA ZONA
+   -------------------------------------------------------------------------
+   Es lo primero de la ficha del QR y tiene que leerse de un vistazo, a
+   pleno sol, con el móvil en una mano. De ahí las tres decisiones:
+
+   · BARRA LATERAL GRUESA (5 px) en vez de fondo saturado. El color de
+     fondo fuerte se lava con el reflejo del sol; una franja de borde
+     aguanta. Y el texto se sigue leyendo en negro sobre claro.
+   · NO HAY VARIANTE VERDE. Ni el caso más suave celebra nada: el nivel
+     bajo es gris azulado, no verde. Un verde de «todo correcto» en una
+     pantalla de seguridad se aprende a ignorar en una semana.
+   · SIN `margin-top`. Va pegado arriba porque es el primer elemento del
+     contenedor; el hueco lo pone `.scan-wrap`.
+   ========================================================================= */
+.iv-aviso { border-radius: 10px; padding: 12px 14px 11px; margin-bottom: 14px;
+  border: 1px solid #dbe1ea; border-left-width: 5px; background: #f6f8fb; }
+.iv-cabecera { display: flex; align-items: center; gap: 8px; }
+.iv-cabecera svg { flex: none; }
+.iv-titulo { font-weight: 800; font-size: 14.5px; line-height: 1.25; letter-spacing: .1px; }
+.iv-hacer { font-size: 13px; line-height: 1.5; color: var(--navy); margin-top: 7px; }
+.iv-firma { display: flex; align-items: flex-start; gap: 6px; margin-top: 9px;
+  padding-top: 8px; border-top: 1px dashed #cfd8e6; font-size: 12px; color: #55637a; }
+.iv-firma svg, .iv-desfase svg { flex: none; margin-top: 2px; }
+.iv-desfase { display: flex; align-items: flex-start; gap: 6px; margin-top: 7px;
+  font-size: 12px; line-height: 1.45; color: var(--warn); font-weight: 600; }
+
+/* Los tres niveles. El salto de color es deliberadamente brusco entre
+   `media` y `dura`: son dos conversaciones distintas —«ponte el equipo» y
+   «hoy no se toca»— y un degradado suave las confunde. */
+.iv-suave { border-left-color: #7d8ca6; background: #f4f6fa; }
+.iv-suave .iv-titulo { color: var(--navy); }
+.iv-media { border-left-color: #d97706; background: #fff8ed; border-color: #f2ddba; }
+.iv-media .iv-titulo { color: #92400e; }
+.iv-dura  { border-left-color: #b91c1c; background: #fdf1f1; border-color: #f0cccc; }
+.iv-dura  .iv-titulo { color: #991b1b; }
+
+/* =========================================================================
+   BLOQUE 62-A · ANOTAR EL AVANCE DESDE EL POSTE
+   -------------------------------------------------------------------------
+   Todo aquí está dimensionado para un dedo con guante: los botones ocupan
+   el ancho disponible y tienen 44 px de alto útil, que es el mínimo que
+   se acierta sin mirar. Dos por fila en móvil, no cuatro.
+   ========================================================================= */
+.qr-trabajo { margin-top: 16px; }
+.qr-om { padding: 12px 14px; margin-bottom: 10px; }
+.qr-om-cab { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.qr-om-est { font-size: 11.5px; font-weight: 700; color: #55637a; text-transform: uppercase;
+  letter-spacing: .3px; }
+.qr-om-act { font-size: 12.5px; color: var(--steel); margin-top: 3px; line-height: 1.4; }
+.qr-om-btn { width: 100%; margin-top: 10px; padding: 12px; display: flex;
+  align-items: center; justify-content: center; gap: 8px; }
+.qr-pasos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.qr-pasos .btn-mini { width: 100%; padding: 12px 8px; font-size: 13.5px; font-weight: 600; }
+.qr-nota-lab { display: block; margin-top: 10px; }
+.qr-nota-lab > span { display: block; font-size: 12px; font-weight: 600; color: #55637a;
+  margin-bottom: 4px; }
+.qr-nota { width: 100%; font-size: 13px; }
+.qr-hecho { border-color: #7fbf8f; background: #eef8f0; }
+.qr-firma-nota { display: flex; align-items: flex-start; gap: 7px; margin-top: 10px;
+  padding: 9px 11px; border-radius: 8px; background: #f4f6fa; border: 1px solid #dbe1ea;
+  font-size: 11.5px; line-height: 1.5; color: #55637a; }
+.qr-firma-nota svg { flex: none; margin-top: 2px; }
+
+/* ---- Reportar avería desde el QR (62-A) --------------------------------
+   Los motivos son botones y no un <select>: un desplegable en móvil abre
+   una rueda nativa que tapa media pantalla y obliga a dos toques. Cinco
+   botones a la vista se eligen de un golpe, con guante. */
+.av-abrir { width: 100%; padding: 12px; display: flex; align-items: center;
+  justify-content: center; gap: 8px; }
+.av-form { padding: 14px 16px 16px; }
+.av-motivos { border: 0; padding: 0; margin: 0 0 12px; display: flex;
+  flex-wrap: wrap; gap: 8px; }
+.av-motivos legend { font-size: 12px; font-weight: 700; color: var(--navy);
+  padding: 0; margin-bottom: 8px; }
+.av-motivo { flex: 1 1 46%; padding: 11px 10px; font-size: 13px; text-align: center; }
+.av-elegido { background: var(--navy); color: #fff; border-color: var(--navy); font-weight: 700; }
+.av-lab { display: block; margin-bottom: 10px; }
+.av-lab > span { display: block; font-size: 12px; font-weight: 600; color: #55637a;
+  margin-bottom: 4px; }
+.av-lab textarea { width: 100%; font-size: 13px; }
+.av-check { display: flex; align-items: center; gap: 8px; font-size: 13px;
+  color: var(--navy); margin-bottom: 12px; cursor: pointer; }
+.av-check input { width: 18px; height: 18px; flex: none; }
+.av-acciones { display: flex; flex-direction: column; gap: 8px; }
+.av-acciones .btn-primary { width: 100%; padding: 12px; }
+
 .scan-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
 .scan-actions .btn-primary, .scan-actions .btn-mini { width: 100%; padding: 12px; font-size: 14px; }
 

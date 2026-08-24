@@ -212,10 +212,30 @@ function primerPaso(e: EntradaDeArranque, v: Veredicto): string {
   if (v === 'COMPARTIDO' && e.soporteCodigo) {
     return `Ve primero a ${e.soporteCodigo}.`;
   }
+  /* SE CAYÓ SÓLO ÉSTE — bloque 62-A.
+     -----------------------------------------------------------------------
+     El usuario lo dijo con las palabras de planta: «si se va UNA cámara lo
+     más probable es que haya perdido energía PoE; si se van TODAS de golpe,
+     que haya caído el switch». La segunda mitad ya la decía el veredicto
+     COMPARTIDO; la primera se quedaba en «revisa este equipo y su tramo»,
+     que es cierto pero no dice POR DÓNDE empezar.
+
+     Y el orden importa: la alimentación se comprueba en un minuto desde el
+     gabinete, el cable exige subir. Mandar a alguien al poste antes de
+     mirar la fuente es un manlift gastado por nada. */
   if (v === 'LOCAL') {
+    /* SIN SIGLAS, A PROPÓSITO. La primera versión decía «ha perdido el PoE» y
+       una prueba de este mismo archivo la tumbó: prohíbe la jerga de redes
+       porque esto lo lee quien esté delante del equipo, no un ingeniero de
+       redes. Se dice lo mismo con las palabras de planta —«la corriente que
+       le llega por el cable de red»— y se entiende igual o mejor. */
+    const base = 'Empieza por la CORRIENTE de este equipo: si sólo se cayó él '
+      + 'y los de al lado siguen viendo, lo más probable es que se haya quedado sin '
+      + 'alimentación por el cable de red (el puerto o la fuente que lo '
+      + 'energiza). Si tiene corriente, sigue por su tramo de cable.';
     return e.enTablero && e.tableroCodigo
-      ? `Ve al tablero ${e.tableroCodigo} y revisa el tramo de este equipo.`
-      : 'Revisa este equipo y su tramo de cable.';
+      ? `Ve al tablero ${e.tableroCodigo}. ${base}`
+      : base;
   }
   return 'Empieza comprobando si el equipo tiene alimentación y enlace.';
 }

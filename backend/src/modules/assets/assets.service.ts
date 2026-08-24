@@ -396,6 +396,11 @@ export class AssetsService {
           // dice nada; "OM-14 en proceso — cambio de fuente PoE" sí, y evita
           // que alguien abra una orden repetida por lo mismo.
           select: {
+            /* `id` hace falta desde el bloque 62-A: el QR ya no sólo enseña
+               la orden, deja ANOTAR EL AVANCE sobre ella
+               (`POST /work-orders/:id/progress`). Sin el identificador la
+               ficha listaba órdenes sobre las que no se podía actuar. */
+            id: true,
             code: true, type: true, status: true, activity: true,
             scheduledDate: true, executedDate: true,
             technician: { select: { fullName: true } },
@@ -440,6 +445,28 @@ export class AssetsService {
       impactoSiSeCae: c?.impactoSiSeCae ?? null,
       queSeVigila: c?.queSeVigila ?? null,
       declaracionVencida: c?.declaracionVencida ?? false,
+      /* CÓMO SE INTERVIENE ESTA ZONA (bloque 62-B).
+         -------------------------------------------------------------------
+         Esto YA se calculaba —`resolverContextoDePlanta` lo resuelve para
+         todos los activos— y se quedaba dentro del backend. La consecuencia
+         real: el técnico escanea el QR de pie delante de la cámara y la
+         pantalla le cuenta la marca, el modelo y la IP, pero NO le dice que
+         esa zona exige que el tren esté parado.
+
+         El dato más caro de todos los que hay en esta ficha estaba calculado
+         y sin enseñar. Es exactamente el mismo error que el mapa de red y el
+         módulo de documentos: modelo + cálculo ≠ función. Sin pantalla, no
+         existe.
+
+         `aplica` es lo que MANDA, no la propuesta. La propuesta no autoriza
+         a nadie (ver `common/intervenibilidad.ts`): sin firma se aplica
+         EXIGE_PARADA, y eso es lo que tiene que leer el que está en campo. */
+      intervencionAplica: c?.intervencionAplica ?? 'EXIGE_PARADA',
+      intervencionPropuesta: c?.intervencionPropuesta ?? 'SIN_CLASIFICAR',
+      intervencionFirmada: c?.intervencionFirmada ?? false,
+      intervencionDesactualizada: c?.intervencionDesactualizada ?? false,
+      intervencionMotivo: c?.intervencionMotivo ?? '',
+      esperaVentanaDeParada: c?.esperaVentanaDeParada ?? true,
     };
     // Qué le falta a la ficha. Alimenta el QR ("faltan canal y foto") y el
     // panel de avance del mapeo.
