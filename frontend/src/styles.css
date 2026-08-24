@@ -3216,3 +3216,88 @@ a.ta-fila:focus-visible { outline: 2px solid #1f4e79; outline-offset: 2px; }
    `.crono-que` y `.crono-cuando` —lo de dentro— sí estaban; el contenedor no,
    así que el texto se pegaba al punto de la línea. */
 .crono-texto { padding-left: 4px; padding-bottom: 12px; }
+
+/* ============================================================================
+   MEJORAS A LOS PROCEDIMIENTOS — bloque 58
+   ----------------------------------------------------------------------------
+   NO ES UNA TABLA, Y ESA ES LA DECISIÓN DE DISEÑO ENTERA.
+
+   Cada propuesta es un párrafo escrito por una persona que estaba en campo, no
+   un registro con campos. En una tabla ese texto se corta a tres palabras y hay
+   que abrir cada fila para leerlo — con quince propuestas, nadie lo hace, y se
+   aprueba sin leer.
+
+   Aquí el texto de la propuesta es LO MÁS GRANDE de la tarjeta. Todo lo demás
+   —de qué procedimiento, quién, cuándo— es contexto y va más pequeño.
+   ============================================================================ */
+.mejoras { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; }
+
+.mejora {
+  background: #fff; border: 1px solid var(--border); border-left: 3px solid var(--steel);
+  border-radius: 10px; padding: 14px 16px;
+}
+.mejora-ACEPTADA { border-left-color: var(--ok); background: #fbfefc; }
+.mejora-RECHAZADA { border-left-color: #cbd5e1; background: #fcfcfd; }
+
+/* De dónde sale. Va arriba: decidir sin saber de qué procedimiento es
+   firmar a ciegas. */
+.mejora-de {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  font-size: 12px; color: var(--muted); margin-bottom: 8px;
+}
+.mejora-proc { font-weight: 700; color: var(--navy); }
+.mejora-om {
+  background: #eef2f9; color: #2e5496; border-radius: 20px;
+  padding: 1px 8px; font-size: 11px; font-weight: 600;
+}
+
+/* Lo que escribió, entero. Interlineado de texto largo, no de dato. */
+.mejora-texto {
+  margin: 0 0 8px; font-size: 14.5px; line-height: 1.5; color: #1f2933;
+  white-space: pre-wrap;   /* respeta los saltos que puso quien lo escribió */
+}
+
+.mejora-firma { font-size: 12px; color: var(--muted); }
+
+/* ---- Decidir -------------------------------------------------------------
+   Aceptar es un botón. Rechazar abre un campo y exige motivo. La asimetría es
+   intencionada: un «no» sin explicación desanima más que el silencio. */
+.mejora-acciones {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 10px; margin-top: 12px;
+  padding-top: 12px; border-top: 1px solid #eef1f6;
+}
+.mejora-paso {
+  display: flex; align-items: center; gap: 7px; margin: 0;
+  font-size: 12.5px; font-weight: 500; color: #475569; cursor: pointer;
+}
+.mejora-paso input { width: auto; margin: 0; }
+.mejora-botones { display: flex; gap: 8px; }
+
+.mejora-rechazo { margin-top: 12px; padding-top: 12px; border-top: 1px solid #eef1f6; }
+.mejora-rechazo label { margin-top: 0; }
+
+/* ---- Ya decidida ---------------------------------------------------------- */
+.mejora-veredicto {
+  display: flex; align-items: flex-start; gap: 8px; margin-top: 10px;
+  padding: 9px 11px; border-radius: 8px; font-size: 12.5px; line-height: 1.45;
+}
+.mejora-veredicto svg { flex: none; margin-top: 2px; }
+.v-ACEPTADA  { background: #e7f7ee; color: #14663a; }
+.v-RECHAZADA { background: #f1f4f7; color: #475569; }
+.mejora-motivo { margin-top: 3px; font-weight: 400; }
+
+.mejora-espera {
+  display: flex; align-items: center; gap: 6px; margin-top: 10px;
+  font-size: 12.5px; color: #8a5a00;
+}
+
+/* La cuenta que va dentro de la pestaña. Sin ella hay que entrar para saber
+   si hay algo — y si no hay nada, se entra en balde y se deja de mirar. */
+.tab-cuenta {
+  display: inline-block; margin-left: 6px; min-width: 18px;
+  padding: 0 5px; border-radius: 20px;
+  background: var(--crit); color: #fff; font-size: 11px; font-weight: 700;
+  line-height: 18px; text-align: center;
+}
+.tab.active .tab-cuenta { background: #fff; color: var(--crit); }

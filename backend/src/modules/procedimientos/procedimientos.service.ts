@@ -4,6 +4,8 @@ import {
 import { WorkOrderStatus } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { BandejaSalidaService } from '../notificaciones/bandeja-salida.service';
+import { tuPropuestaSeDecidio } from '../notificaciones/plantillas';
 import { elegir, aplicables } from './aplicabilidad';
 
 /**
@@ -27,6 +29,7 @@ export class ProcedimientosService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly avisos: BandejaSalidaService,
   ) {}
 
   /* OJO CON EL TIPO, y no es un capricho de TypeScript.
@@ -309,7 +312,13 @@ export class ProcedimientosService {
 
     const mejora = await this.prisma.mejoraProcedimiento.findUnique({
       where: { id },
-      select: { id: true, texto: true, estado: true, procedimientoId: true },
+      select: {
+        id: true, texto: true, estado: true, procedimientoId: true,
+        // Bloque 58: quién la propuso y de qué procedimiento, para poder
+        // contestarle. Sin esto la decisión se toma y él nunca se entera.
+        propuestaPorId: true,
+        procedimiento: { select: { titulo: true } },
+      },
     });
     if (!mejora) throw new NotFoundException('Esa propuesta no existe.');
     if (mejora.estado !== 'PROPUESTA') {
@@ -382,7 +391,64 @@ export class ProcedimientosService {
       userId, ip, action: 'UPDATE', entity: 'mejora-procedimiento', entityId: id,
       before: { estado: mejora.estado }, after: { estado },
     });
+
+    /* ======================================================================
+       SE LE CONTESTA A QUIEN LA PROPUSO — bloque 58
+       ----------------------------------------------------------------------
+       Hasta aquí el sistema decidía y el técnico no se enteraba nunca. El
+       backend estaba completo desde el bloque 29 y el circuito seguía roto
+       por el último tramo: nadie devolvía la respuesta.
+
+       Va con `catch`: que Telegram esté caído no puede impedir que el jefe
+       apruebe una mejora. Y fuera de la transacción, por lo mismo.
+       ====================================================================== */
+    if (mejora.propuestaPorId) {
+      const quienDecidio = userId
+        ? await this.prisma.user
+          .findUnique({ where: { id: userId }, select: { fullName: true } })
+          .catch(() => null)
+        : null;
+
+      await this.avisos.encolar(
+        'MEJORA_DECIDIDA',
+        tuPropuestaSeDecidio({
+          aceptada: estado === 'ACEPTADA',
+          procedimiento: mejora.procedimiento?.titulo ?? 'procedimiento',
+          texto: mejora.texto,
+          motivo: (dto.motivo ?? '').trim() || null,
+          decidioNombre: quienDecidio?.fullName ?? null,
+        }),
+        await this.avisos.aUnaPersona(mejora.propuestaPorId).catch(() => []),
+        id,
+      ).catch(() => 0);
+    }
     return r;
+  }
+
+  /**
+   * MIS PROPUESTAS — bloque 58.
+   *
+   * El aviso por Telegram sólo llega a quien vinculó su teléfono, y en planta
+   * no lo tiene todo el mundo. Esto es la otra mitad: el técnico entra al
+   * sistema y ve qué pasó con lo que propuso, sin depender de nada externo.
+   *
+   * Se devuelven TODAS, no sólo las pendientes: la aceptada es la que da ganas
+   * de volver a proponer, y la rechazada con su motivo es la que enseña.
+   */
+  async misMejoras(userId: string) {
+    return this.prisma.mejoraProcedimiento.findMany({
+      where: { propuestaPorId: userId },
+      select: {
+        id: true, texto: true, estado: true, motivoDecision: true,
+        createdAt: true, decididaEn: true,
+        decididaPor: { select: { fullName: true } },
+        procedimiento: { select: { id: true, titulo: true } },
+        workOrder: { select: { code: true } },
+      },
+      // Lo pendiente primero, y dentro de eso lo más reciente.
+      orderBy: [{ estado: 'asc' }, { createdAt: 'desc' }],
+      take: 50,
+    });
   }
 
   /** Lo que espera decisión del Jefe. */

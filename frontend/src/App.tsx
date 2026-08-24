@@ -49,6 +49,7 @@ const Exportar = lazyConReintento(() => import('./pages/Exportar'));
 const Conexiones = lazyConReintento(() => import('./pages/Conexiones'));
 const Gruas = lazyConReintento(() => import('./pages/Gruas'));
 const Documentos = lazyConReintento(() => import('./pages/Documentos'));
+const Mejoras = lazyConReintento(() => import('./pages/Mejoras'));
 const Limpieza = lazyConReintento(() => import('./pages/Limpieza'));
 const Equipos = lazyConReintento(() => import('./pages/Equipos'));
 const Paradas = lazyConReintento(() => import('./pages/Paradas'));
@@ -122,6 +123,7 @@ export default function App() {
           <Route path="/conexiones" element={<Conexiones />} />
           <Route path="/gruas" element={<Gruas />} />
           <Route path="/documentos" element={<Documentos />} />
+          <Route path="/mejoras-procedimiento" element={<Mejoras />} />
           <Route path="/limpieza" element={<Limpieza />} />
           <Route path="/equipos" element={<Equipos />} />
           <Route path="/paradas" element={<Paradas />} />

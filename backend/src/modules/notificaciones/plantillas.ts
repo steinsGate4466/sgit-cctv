@@ -147,6 +147,45 @@ export function tuReporteSeResolvio(d: {
 }
 
 /**
+ * TU PROPUESTA SE DECIDIÓ — bloque 58.
+ *
+ * Un técnico, en campo, ve que el paso 4 del procedimiento está mal y propone
+ * la corrección. Hasta hoy esa propuesta se guardaba y ahí moría: no había
+ * pantalla para aprobarla ni forma de que él se enterara.
+ *
+ * A la tercera vez que se propone al vacío, se deja de proponer. Y con eso se
+ * pierde lo único que no está en ningún manual: lo que sabe quien tiene el
+ * equipo delante.
+ *
+ * Por eso este aviso NO es cortesía. Es lo que mantiene abierto el canal.
+ *
+ * Cuando se RECHAZA lleva el motivo, obligatoriamente. Un «no» sin explicación
+ * desanima más que el silencio: parece que a nadie le importó.
+ */
+export function tuPropuestaSeDecidio(d: {
+  aceptada: boolean; procedimiento: string; texto: string;
+  motivo?: string | null; decidioNombre?: string | null; enlace?: string | null;
+}): Aviso {
+  return {
+    asunto: d.aceptada
+      ? `✅ Aceptada tu mejora · ${recortar(d.procedimiento, 50)}`
+      : `Revisada tu mejora · ${recortar(d.procedimiento, 50)}`,
+    cuerpo:
+      (d.aceptada
+        ? 'Tu propuesta entra al procedimiento. A partir de ahora la sigue todo el mundo.\n\n'
+        : 'Tu propuesta se revisó y esta vez no entra.\n\n')
+      + linea('Procedimiento', d.procedimiento)
+      + linea('Proponías', recortar(d.texto, 120))
+      + linea('Motivo', d.motivo)
+      + linea('Decidió', d.decidioNombre)
+      + (d.enlace ? `\n${d.enlace}` : ''),
+    /* Sin sonido: es una respuesta, no una urgencia. Lo que despierta se
+       reserva para lo que exige levantarse. */
+    silencioso: true,
+  };
+}
+
+/**
  * Resumen diario. Va SIN SONIDO a propósito.
  *
  * Si todo suena igual, la gente silencia el bot entero — y ahí se acabó el

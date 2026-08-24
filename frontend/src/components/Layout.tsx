@@ -43,6 +43,7 @@ const TITLES: Record<string, string> = {
   '/conexiones': 'Conexiones de red',
   '/gruas': 'Cámaras de grúa',
   '/documentos': 'Manuales y planos',
+  '/mejoras-procedimiento': 'Mejoras a los procedimientos',
   '/limpieza': 'Limpieza de datos',
   '/equipos': 'Equipos conocidos',
   '/paradas': 'Ventanas de parada',
@@ -278,7 +279,8 @@ export default function Layout() {
     },
     {
       titulo: 'Mantenimiento',
-      rutas: ['/preventive', '/corrective', '/predictive', '/improvements', '/gruas'],
+      rutas: ['/preventive', '/corrective', '/predictive', '/improvements', '/gruas',
+        '/mejoras-procedimiento'],
       items: [
         can('wo.read') && <NavLink key="p" to="/preventive"><Icono n="preventivo" /> Preventivo</NavLink>,
         can('wo.read') && <NavLink key="c" to="/corrective"><Icono n="correctivo" /> Correctivo</NavLink>,
@@ -287,6 +289,14 @@ export default function Layout() {
         // Cámaras de grúa: mantenimiento propio porque falla distinto
         // (cable fatigado, antena desalineada, no se llega sin manlift).
         can('wo.read') && <NavLink key="gr2" to="/gruas"><Icono n="grua" /> Cámaras de grúa</NavLink>,
+        /* Bloque 58. Va en MANTENIMIENTO y no en Sistema: lo que se decide
+           aquí cambia lo que hace un técnico en planta, no una configuración.
+
+           Cuelga de `procedimiento.manage`, que es el mismo permiso que hace
+           falta para decidir. Una pantalla en el menú donde no se puede hacer
+           nada enseña a ignorar el menú. */
+        can('procedimiento.manage')
+          && <NavLink key="mej" to="/mejoras-procedimiento"><Icono n="nota" /> Mejoras propuestas</NavLink>,
       ].filter(Boolean) as ReactNode[],
     },
     {

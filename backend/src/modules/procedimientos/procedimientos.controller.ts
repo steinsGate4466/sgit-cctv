@@ -59,10 +59,31 @@ export class ProcedimientosController {
     return this.svc.proponerMejora(id, dto, u?.userId, ip);
   }
 
+  /**
+   * LA BANDEJA DE QUIEN DECIDE — bloque 58.
+   *
+   * Antes pedía `asset.read`, que era la llave maestra: cualquiera que pudiera
+   * ver una cámara veía también las propuestas pendientes de aprobar. Al
+   * partir esa llave en el bloque 55 quedó claro que ésta es una pantalla de
+   * DECISIÓN, y se pide el mismo permiso que hace falta para decidir.
+   *
+   * Así la pantalla no aparece en el menú de quien no puede hacer nada con
+   * ella. Un botón que no se puede pulsar enseña a ignorar los botones.
+   */
   @SinAmbito()
   @Get('procedimientos-mejoras/pendientes')
-  @RequirePermissions('asset.read')
+  @RequirePermissions('procedimiento.manage')
   pendientes() { return this.svc.mejorasPendientes(); }
+
+  /**
+   * LO QUE YO PROPUSE, Y EN QUÉ QUEDÓ — bloque 58.
+   *
+   * Sin permiso: cada uno ve LO SUYO, y el identificador sale de la sesión, no
+   * de la URL. No hay nada que pedir ni nada que se pueda mirar de otro.
+   */
+  @SinAmbito()
+  @Get('procedimientos-mejoras/mias')
+  mias(@CurrentUser() u: any) { return this.svc.misMejoras(u?.userId); }
 
   @SinAmbito()
   @Patch('procedimientos-mejoras/:id')
