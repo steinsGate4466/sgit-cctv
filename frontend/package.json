@@ -14,6 +14,7 @@
     "lint": "eslint --max-warnings 50",
     "verificar:foco": "node scripts/verificar-foco.cjs",
     "verificar:cascada": "node scripts/verificar-cascada.cjs",
+    "verificar:clases": "node scripts/verificar-clases.cjs",
     "verificar:dialogos": "node scripts/verificar-dialogos.cjs",
     "verificar:densidad": "node scripts/verificar-densidad.cjs",
     "verificar:formato": "node scripts/verificar-formato.cjs",

@@ -1646,6 +1646,40 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 .badge.PLANIFICADA { background: #eef2f9; color: #2e5496; }
 .badge.BAJA, .badge.STOCK { background: #f1f3f7; color: #6b7688; }
 
+/* ============================================================================
+   LA FAMILIA `est-*` — QUE NO EXISTÍA (bloque 57)
+   ----------------------------------------------------------------------------
+   Siete pantallas escribían `<span className={'chip est-' + estado}>` para
+   pintar el estado de un equipo. Y en esta hoja NO HABÍA NI UNA REGLA `.est-`.
+
+   `.chip` a secas es `border: 1px solid transparent` y nada más: sin fondo y
+   sin color. Así que en Grabadores, Conexiones, Equipos conocidos, Campañas,
+   Cámaras de grúa, Limpieza y Ventanas de parada, TODOS los estados salían
+   como texto gris plano. En Grabadores es la columna «estado» de cada cámara
+   —la pantalla donde de un vistazo tienes que ver qué está caído—.
+
+   Nadie lo reportó porque no se rompe nada: se ve, se lee, y simplemente no
+   ayuda. Es la clase de fallo que sólo aparece si alguien COMPARA el código
+   con la hoja de estilos. Ahora lo hace `verificar:clases`.
+
+   SE REUTILIZA LA PALETA DE ARRIBA, no se inventa otra. Dos escalas de color
+   para el mismo concepto —el estado de un equipo— es cómo se acaba con un
+   OPERATIVO verde en una pantalla y azulado en otra.
+   ============================================================================ */
+.chip.est-OPERATIVO     { background: #e7f7ee; color: #14663a; }
+.chip.est-FUERA_SERVICIO { background: #fdecec; color: #8c1414; }
+.chip.est-MANTENIMIENTO { background: #fff4e5; color: #9a5b00; }
+.chip.est-BAJA,
+.chip.est-STOCK         { background: #f1f3f7; color: #6b7688; }
+
+/* Un estado que el backend añada mañana y aquí no esté no puede salir
+   invisible: el borde punteado avisa de que falta declararlo, en vez de
+   parecer un chip normal sin color. Es «sin datos, nunca cero» aplicado al
+   color. */
+.chip[class*="est-"]    { background: #f8fafc; color: #475569; border: 1px dashed #cbd5e1; }
+.chip.est-OPERATIVO, .chip.est-FUERA_SERVICIO, .chip.est-MANTENIMIENTO,
+.chip.est-BAJA, .chip.est-STOCK { border: 1px solid transparent; }
+
 /* ---- 3. LO QUE ESPERA UNA DECISIÓN, DELANTE -----------------------------
    Una tarjeta de aviso que no se distingue de una tarjeta informativa
    consigue que ninguna de las dos se lea. */
@@ -3149,3 +3183,36 @@ a.ta-fila:focus-visible { outline: 2px solid #1f4e79; outline-offset: 2px; }
    falta nada por llenar. Si no, se queda mirando la pantalla buscando el resto
    del formulario. */
 .reportar-nota { margin: 10px 0 0; font-size: 12px; color: #627D98; line-height: 1.4; }
+
+/* ============================================================================
+   TRES CLASES MÁS QUE EL CÓDIGO USABA Y ESTA HOJA NO DEFINÍA (bloque 57)
+   ----------------------------------------------------------------------------
+   Salieron del mismo barrido que destapó la familia `est-*`: comparar TODAS
+   las clases escritas en los .tsx contra las declaradas aquí. Ninguna rompía
+   nada — sólo dejaba el elemento sin formato, que es justo por lo que llevaban
+   meses sin que nadie las viera.
+   ============================================================================ */
+
+/* La franja donde vive el filtro de tren, arriba de la pantalla. Sin esta
+   regla, el filtro quedaba pegado al título en Conexiones, Documentos,
+   Grabadores y Mapa de red. */
+.page-head {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 10px; margin-bottom: 14px;
+}
+
+/* Una fila de la tabla adaptable que ADEMÁS es un enlace. `.ta-fila` ya le da
+   la forma; esto es lo único que la distingue de una que no lleva a ninguna
+   parte. Sin ello, unas filas se podían pulsar y otras no, y no había manera
+   de saber cuáles. */
+.ta-pulsable {
+  cursor: pointer; text-decoration: none; color: inherit;
+  transition: background .12s ease, border-color .12s ease;
+}
+.ta-pulsable:hover { background: #f7f9fc; border-color: #cbd5e6; }
+.ta-pulsable:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); }
+
+/* El bloque de texto de cada hito en la línea de tiempo de una cámara caída.
+   `.crono-que` y `.crono-cuando` —lo de dentro— sí estaban; el contenedor no,
+   así que el texto se pegaba al punto de la línea. */
+.crono-texto { padding-left: 4px; padding-bottom: 12px; }

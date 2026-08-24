@@ -238,6 +238,46 @@ jobs:
         working-directory: frontend
         run: npm run verificar:formato
 
+      # =======================================================================
+      #  TRES VERIFICADORES QUE EXISTIAN Y NO CORRIAN AQUI (bloque 57)
+      # =======================================================================
+      #  Al anadir `verificar:clases` se contaron los pasos y salio que de los
+      #  OCHO verificadores del frontend, el CI solo ejecutaba CINCO. `cascada`,
+      #  `avisos` y `etiquetas` estaban escritos, probados y en package.json,
+      #  pero nadie los llamaba: solo corrian si alguien se acordaba a mano.
+      #
+      #  Un verificador que no corre en el CI no es un verificador: es un
+      #  archivo. Es el mismo patron que ya nos mordio con los tipos de las
+      #  pruebas y con Node 22 — la comprobacion existia y nadie la miraba.
+      # =======================================================================
+
+      # Una regla al final que tapa otra de arriba. La hoja tiene 2900 lineas:
+      # el conflicto no se ve leyendo, solo contando.
+      - name: Sin reglas de CSS que se pisen
+        working-directory: frontend
+        run: npm run verificar:cascada
+
+      # Los 44 avisos que no se anunciaban a un lector de pantalla, y la mano
+      # del cursor puesta donde no hay nada que pulsar.
+      - name: Avisos que se anuncian y manos donde toca
+        working-directory: frontend
+        run: npm run verificar:avisos
+
+      # 291 rotulos de formulario que no estaban atados a su campo: tocar el
+      # texto no enfocaba nada. En el movil, con guante, eso es la diferencia
+      # entre acertar y no.
+      - name: Cada campo enfocable desde su rotulo
+        working-directory: frontend
+        run: npm run verificar:etiquetas
+
+      # El codigo escribia `className="chip est-OPERATIVO"` y en styles.css no
+      # habia NI UNA regla `.est-`: siete pantallas con los estados en gris
+      # plano. No rompe nada —el navegador ignora la clase— asi que no hay
+      # error, ni en consola ni en el build. Solo se ve mirando la pantalla.
+      - name: Clases de CSS que el codigo usa y no existen
+        working-directory: frontend
+        run: npm run verificar:clases
+
       - name: Compilar
         working-directory: frontend
         run: npm run build
