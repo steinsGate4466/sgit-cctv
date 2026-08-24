@@ -292,11 +292,20 @@ export default function Layout() {
         /* Bloque 58. Va en MANTENIMIENTO y no en Sistema: lo que se decide
            aquí cambia lo que hace un técnico en planta, no una configuración.
 
-           Cuelga de `procedimiento.manage`, que es el mismo permiso que hace
-           falta para decidir. Una pantalla en el menú donde no se puede hacer
-           nada enseña a ignorar el menú. */
-        can('procedimiento.manage')
-          && <NavLink key="mej" to="/mejoras-procedimiento"><Icono n="nota" /> Mejoras propuestas</NavLink>,
+           LA VE TAMBIÉN QUIEN PROPONE, y el rótulo cambia según para qué
+           entra. La primera versión la enseñaba sólo a quien decide, con el
+           argumento de que una pantalla donde no se puede hacer nada enseña a
+           ignorar el menú. El argumento vale para los botones, no aquí: el
+           técnico SÍ tiene algo que hacer en esta pantalla —ver si le
+           contestaron—, y ése es justo el circuito que este bloque viene a
+           cerrar.
+
+           `wo.update` es el mismo permiso que exige el endpoint de proponer:
+           si puedes proponer, puedes ver en qué quedó lo tuyo. */
+        (can('procedimiento.manage') || can('wo.update'))
+          && <NavLink key="mej" to="/mejoras-procedimiento"><Icono n="nota" />
+            {can('procedimiento.manage') ? ' Mejoras propuestas' : ' Mis propuestas'}
+          </NavLink>,
       ].filter(Boolean) as ReactNode[],
     },
     {

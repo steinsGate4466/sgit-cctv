@@ -133,9 +133,14 @@ export default function Mejoras() {
 
   return (
     <>
-      <h2>Mejoras a los procedimientos</h2>
+      {/* El título dice PARA QUÉ entra cada uno. Al jefe le llega trabajo por
+          decidir; al técnico le llega una respuesta. Es la misma pantalla y
+          son dos cosas distintas. */}
+      <h2>{puedeDecidir ? 'Mejoras a los procedimientos' : 'Mis propuestas de mejora'}</h2>
       <p className="sub">
-        Lo que propone quien está delante del equipo. Si nadie contesta, dejan de proponer.
+        {puedeDecidir
+          ? 'Lo que propone quien está delante del equipo. Si nadie contesta, dejan de proponer.'
+          : 'Lo que propusiste desde campo y en qué quedó cada cosa.'}
       </p>
 
       {error && (
