@@ -195,8 +195,7 @@ function NotaNueva({ assetId, onListo, onCancelar }: {
              onChange={(e) => setDias(Number(e.target.value))} />
       </label>
       <small className="muted">
-        Los avisos mueren solos. Si nunca caducaran, en seis meses aquí habría
-        veinte viejos y nadie leería ninguno — ni el que sí importa.
+        Los avisos caducan solos para que la lista siga siendo útil.
       </small>
 
       <div className="card-acciones" style={{ marginTop: 12 }}>

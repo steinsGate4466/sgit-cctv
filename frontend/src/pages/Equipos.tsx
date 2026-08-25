@@ -4,6 +4,7 @@ import Modal from '../components/Modal';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
 import { useDialogos } from '../components/Dialogos';
+import { fechaCorta } from '../fechas';
 
 /**
  * EQUIPOS CONOCIDOS — el diccionario de "¿desde qué PC se hizo esto?"
@@ -147,8 +148,7 @@ export default function Equipos() {
         <b> «PC del púlpito del Tren 2»</b>.
         <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
           <b>Por qué la MAC se escribe a mano.</b> Porque no se puede detectar: la
-          dirección MAC es de capa 2 y muere en el primer router. Al servidor le
-          llega la del gateway, idéntica para toda la planta. La real se saca de
+          dirección MAC muere en el primer router. Se declara a mano desde
           la <b>reserva DHCP</b>, de <code>show mac address-table</code> en el switch,
           o de <code>ipconfig /all</code> en el propio equipo.
         </div>
@@ -188,7 +188,7 @@ export default function Equipos() {
         )}
       </div>
 
-      {cargando ? <EsqueletoTabla filas={5} /> : lista.length === 0 ? (
+      {cargando && !lista.length ? <EsqueletoTabla filas={5} /> : lista.length === 0 ? (
         <div className="card vacio">
           <h3>Todavía no hay equipos registrados</h3>
           <p>
@@ -251,8 +251,7 @@ export default function Equipos() {
               <input value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })}
                      placeholder="PC Púlpito Tren 2" />
               <small className="muted">
-                Ponle el nombre con el que se le llama en planta, no el del dominio.
-                Quien lea la auditoría tiene que saber a qué sitio ir.
+                Usa el nombre con el que se conoce en planta.
               </small>
             </label>
 
@@ -360,8 +359,7 @@ function DispositivosPanel({ disp, acceso, msg, error, setMsg, setError, decidir
           </div>
           <div style={{ marginTop: 6 }}>
             <b>Por APARATO, sí.</b> Cada navegador se presenta con un identificador
-            estable que sobrevive al cambio de red. Apruebas los aparatos una vez y
-            los demás no entran. Es lo que de verdad contesta tu pregunta.
+            estable aunque cambie la red. Se aprueban una vez y los demás quedan fuera.
           </div>
         </div>
       </div>
@@ -382,9 +380,7 @@ function DispositivosPanel({ disp, acceso, msg, error, setMsg, setError, decidir
 
           <div className="card peligro" style={{ marginTop: 12 }}>
             <b>Empieza SIEMPRE por AVISAR.</b> Déjalo una semana, mira la lista de
-            abajo, aprueba los aparatos que reconozcas, y sólo entonces pon ESTRICTO.
-            Encenderlo sin eso es quedarte fuera tú también, un lunes a las seis, con
-            la planta parada.
+            abajo, aprueba los equipos conocidos y sólo entonces activa ESTRICTO.
             <div style={{ marginTop: 6, fontSize: 12.5 }}>
               Seguros que puse: sin ningún aparato aprobado el modo estricto <b>no
               bloquea</b>; el <b>login nunca</b> se bloquea; y la variable de entorno
@@ -444,7 +440,7 @@ function DispositivosPanel({ disp, acceso, msg, error, setMsg, setError, decidir
                 </td>
                 <td className="num">{d.vistas}</td>
                 <td className="muted" style={{ fontSize: 12 }}>
-                  {new Date(d.ultimoVistoEn).toLocaleString('es-PE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                  {fechaCorta(d.ultimoVistoEn)}
                 </td>
                 <td><span className={'badge ' + d.estado}>{d.estado}</span></td>
                 <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>

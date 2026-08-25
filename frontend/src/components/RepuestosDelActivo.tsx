@@ -40,8 +40,7 @@ export default function RepuestosDelActivo({ assetId }: { assetId: string }) {
       <>
         <div className="section-title">Repuestos para este equipo</div>
         <p className="muted" style={{ fontSize: 13 }}>
-          Ninguno asociado todavía. Se pueden vincular desde Inventario, o el
-          sistema los encuentra solo si el repuesto declara el mismo modelo.
+          Sin repuestos asociados. Se vinculan desde Inventario o por coincidencia de modelo.
         </p>
       </>
     );

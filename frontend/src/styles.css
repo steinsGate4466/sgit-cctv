@@ -425,6 +425,39 @@ select optgroup { font-weight: 700; color: var(--navy); }
   font-size: 11.5px; line-height: 1.5; color: #55637a; }
 .qr-firma-nota svg { flex: none; margin-top: 2px; }
 
+/* =========================================================================
+   RECARGA SIN SALTO DE PANTALLA
+   -------------------------------------------------------------------------
+   Al cambiar de pestaña (Tren 1 → Tren 3) el contenido se borraba y se
+   pintaba un esqueleto de otra altura: la página saltaba arriba y abajo.
+   En el móvil es peor, porque además mueve el dedo de sitio.
+
+   El esqueleto sólo se usa la PRIMERA carga. Al recargar se conserva lo
+   anterior —misma altura, cero salto— y se atenúa para que se note que
+   está trabajando. `pointer-events` evita pulsar sobre datos que están a
+   punto de cambiar.
+   ========================================================================= */
+.recargando { opacity: .45; pointer-events: none; transition: opacity .15s ease; }
+
+/* =========================================================================
+   REPARTO CORRECTIVO / PREVENTIVO / PREDICTIVO — bloque 65
+   -------------------------------------------------------------------------
+   Barra apilada en vez de quesito. El ingeniero lo dibujó como quesito, y
+   se entiende igual, pero una barra se lee mejor de un vistazo en una
+   reunión: los tramos se comparan por longitud, que el ojo hace bien, y no
+   por ángulo, que el ojo hace mal. Además cabe en el ancho de una tarjeta
+   y no necesita leyenda de colores para saber cuál es más grande.
+   ========================================================================= */
+.reparto-barra { display: flex; height: 34px; border-radius: 8px; overflow: hidden;
+  margin-top: 12px; border: 1px solid var(--border); }
+.reparto-tramo { display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 12.5px; font-weight: 700; min-width: 2px;
+  transition: width .25s ease; }
+.reparto-leyenda { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 10px;
+  font-size: 12px; color: #55637a; }
+.reparto-leyenda span { display: flex; align-items: center; gap: 6px; }
+.reparto-leyenda i { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+
 /* ---- Reportar avería desde el QR (62-A) --------------------------------
    Los motivos son botones y no un <select>: un desplegable en móvil abre
    una rueda nativa que tapa media pantalla y obliga a dos toques. Cinco

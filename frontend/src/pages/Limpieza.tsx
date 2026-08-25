@@ -5,6 +5,7 @@ import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
 import { Titular } from '../components/Patron';
 import { plural } from '../formato';
+import { fecha } from '../fechas';
 
 /**
  * LIMPIEZA DE DATOS (bloque 15) — exige el permiso «Borrar definitivamente».
@@ -189,7 +190,7 @@ export default function Limpieza() {
                     <td><strong>{a.code}</strong>{a.yaEstaDeBaja && <span className="chip est-BAJA" style={{ marginLeft: 6 }}>de baja</span>}</td>
                     <td>{a.tipo}</td>
                     <td>{a.lugar || <span className="muted">—</span>}</td>
-                    <td>{new Date(a.creado).toLocaleDateString('es-PE')}</td>
+                    <td>{fecha(a.creado)}</td>
                     <td>
                       {a.razones.length === 0 ? <span className="muted">—</span> :
                         a.razones.map((r: string) => <span key={r} className="chip est-MANTENIMIENTO" style={{ marginRight: 4 }}>{r}</span>)}
@@ -271,7 +272,7 @@ export default function Limpieza() {
                     <td>{o.tipo}</td>
                     <td><span className={'badge ' + o.estado}>{o.estado}</span></td>
                     <td>{o.equipo || <span className="muted">—</span>}</td>
-                    <td className="muted">{new Date(o.creada).toLocaleDateString('es-PE')}</td>
+                    <td className="muted">{fecha(o.creada)}</td>
                     <td>
                       {o.razones.length === 0 ? <span className="muted">—</span> :
                         o.razones.map((r: string) => <span key={r} className="chip est-MANTENIMIENTO" style={{ marginRight: 4 }}>{r}</span>)}
@@ -400,7 +401,7 @@ export default function Limpieza() {
             <div style={{ marginTop: 14 }}>
               <div className="tg-aviso">
                 Se borrarían <b>{previaAudit.total}</b> registros.
-                {previaAudit.masAntiguo && ` El más antiguo es del ${new Date(previaAudit.masAntiguo).toLocaleDateString('es-PE')}.`}
+                {previaAudit.masAntiguo && ` El más antiguo es del ${fecha(previaAudit.masAntiguo)}.`}
               </div>
               <label className="campo" style={{ marginTop: 10 }}>
                 <span>Escribe <code>DEPURAR AUDITORIA</code> para confirmar</span>

@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
 import { useDialogos } from '../components/Dialogos';
+import { fechaCorta } from '../fechas';
 
 /**
  * MI CUENTA — sesiones abiertas y el botón de «me robaron el teléfono».
@@ -57,9 +58,7 @@ export default function MiCuenta() {
     }
   }
 
-  const fecha = (v: any) => v
-    ? new Date(v).toLocaleString('es-PE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-    : '—';
+  const fmt = (v: any) => fechaCorta(v, '—');
 
   return (
     <div className="page">
@@ -82,12 +81,11 @@ export default function MiCuenta() {
         <div style={{ marginTop: 8 }}>
           <b>Si pierdes el celular en planta</b>, entra desde cualquier otro equipo y
           pulsa «Cerrar todas». En este sistema eso <b>revoca de verdad</b>: invalida
-          el acceso en el servidor, no sólo borra el token del teléfono. El que lo
-          tenga en la mano se queda fuera al instante, sin esperar a que caduque nada.
+          el acceso en el servidor, no sólo en el dispositivo. El cierre es inmediato.
         </div>
       </div>
 
-      {cargando ? <EsqueletoTabla filas={3} /> : sesiones.length === 0 ? (
+      {cargando && !sesiones.length ? <EsqueletoTabla filas={3} /> : sesiones.length === 0 ? (
         <div className="card vacio">
           <h3>No hay otras sesiones abiertas</h3>
           <p>Sólo estás dentro desde aquí.</p>
@@ -102,8 +100,8 @@ export default function MiCuenta() {
                   <td><strong>{s.dispositivo || 'Navegador desconocido'}</strong>
                     {s.equipo && <div className="muted" style={{ fontSize: 11.5 }}>{s.equipo}</div>}</td>
                   <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{s.ip || '—'}</td>
-                  <td className="muted">{fecha(s.creadaEn)}</td>
-                  <td className="muted">{fecha(s.ultimoUsoEn)}</td>
+                  <td className="muted">{fmt(s.creadaEn)}</td>
+                  <td className="muted">{fmt(s.ultimoUsoEn)}</td>
                 </tr>
               ))}
             </tbody>
@@ -112,8 +110,7 @@ export default function MiCuenta() {
           <div className="card peligro">
             <b>¿Ves una sesión que no reconoces?</b>
             <div style={{ margin: '6px 0 10px', fontSize: 13.5 }}>
-              Ciérralas todas y cambia tu contraseña. Es mejor volver a entrar en tus
-              equipos que dejar una abierta que no es tuya.
+              Ciérralas todas y cambia la contraseña.
             </div>
             <button className="btn-peligro" onClick={cerrarTodas} disabled={ocupado}>
               {ocupado ? 'Cerrando…' : 'Cerrar todas mis sesiones'}

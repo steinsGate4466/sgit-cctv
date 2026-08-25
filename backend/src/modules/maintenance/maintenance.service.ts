@@ -112,7 +112,28 @@ export class MaintenanceService {
         materials: dto.materials,
         zone: dto.zone,
         incidentId: dto.incidentId || undefined,
-        scheduledDate: dto.scheduledDate ? new Date(dto.scheduledDate) : undefined,
+        /* TODA ORDEN NACE CON FECHA. Si no viene, es HOY.
+           -------------------------------------------------------------------
+           BUG REAL, y de los que no se ven hasta que alguien pide los números.
+
+           `scheduledDate` era opcional en el formulario de Órdenes, opcional al
+           asignar desde una incidencia, y NI SIQUIERA EXISTÍA en el formulario
+           del QR. Resultado: casi todas las órdenes abiertas en campo nacían
+           SIN fecha, y a partir de ahí se caía toda la cadena:
+
+             · la lista mostraba «—»
+             · `estaVencida()` exige scheduledDate, así que NUNCA vencían
+             · el backlog no las veía
+             · el % de cumplimiento del preventivo salía falseado
+             · y el reparto correctivo/preventivo/predictivo, con él
+
+           El valor por defecto es HOY y no una fecha vacía porque abrir una
+           orden significa que se va a intervenir AHORA. «Hoy» es el dato
+           verdadero por defecto; `null` no es ningún dato.
+
+           El generador de preventivos y quien programe a futuro siguen mandando
+           su fecha explícita, así que este valor por defecto no les afecta. */
+        scheduledDate: dto.scheduledDate ? new Date(dto.scheduledDate) : new Date(),
         technicianId: dto.technicianId,
         // Recepción del pedido de Producción
         requestedBy: dto.requestedBy,

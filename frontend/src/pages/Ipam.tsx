@@ -150,8 +150,7 @@ export default function Ipam() {
                 ))}
               </ul>
               <div className="muted" style={{ fontSize: 12.5, marginTop: 4 }}>
-                Funciona hasta que el DHCP se la da a otro equipo. Puede tardar semanas,
-                y cuando pasa nadie relaciona la causa con una instalación de hace un mes.
+                Válido hasta que el DHCP reasigne la dirección a otro equipo.
               </div>
             </div>
           )}
@@ -214,12 +213,11 @@ export default function Ipam() {
         </div>
       )}
 
-      {cargando ? <EsqueletoTabla filas={4} /> : subredes.length === 0 ? (
+      {cargando && !subredes.length ? <EsqueletoTabla filas={4} /> : subredes.length === 0 ? (
         <div className="card vacio">
           <h3>No hay subredes declaradas</h3>
           <p>
-            Empieza por la de CCTV de cada tren. Con el CIDR, el gateway y el rango
-            del DHCP ya se puede contestar «qué IP le pongo» sin abrir un Excel.
+            Empieza por la red CCTV de cada tren: CIDR, gateway y rango DHCP.
           </p>
         </div>
       ) : (

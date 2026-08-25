@@ -153,15 +153,11 @@ export default function SaludDeDatos() {
         <p>
           Se miden seis dimensiones estándar de calidad de datos. La{' '}
           <b>exactitud</b> no se puede medir desde aquí: que la dirección
-          registrada sea la real sólo lo dirá el agente de monitoreo cuando esté
-          instalado. Sale «sin medir» y no cuenta para la nota — ni para subirla
-          ni para bajarla.
+          registrada sea la real lo confirmará el agente de monitoreo. Sale «sin medir».
         </p>
         <p>
           No se penaliza un campo que ese tipo de equipo no lleva: un switch no
-          necesita grabador y una cámara de pared no necesita manlift. Una nota
-          que no se puede subir se deja de mirar igual que una que siempre está
-          en verde.
+          necesita grabador.
         </p>
         <p>
           La <b>vigencia</b> mide cuándo se editó la ficha, no cuándo se

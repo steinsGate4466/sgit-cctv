@@ -23,8 +23,30 @@ const ESCRITORIO = { aviso: 12 * MIN, cierre: 15 * MIN };
 // Campo (teléfono): aviso a los 25, cierre a los 30.
 const CAMPO = { aviso: 25 * MIN, cierre: 30 * MIN };
 
-/** Eventos que cuentan como "el usuario sigue ahí". */
-const SENALES = ['mousedown', 'keydown', 'touchstart', 'scroll', 'wheel'];
+/* =============================================================================
+   EVENTOS QUE CUENTAN COMO «EL USUARIO SIGUE AHÍ»
+   -----------------------------------------------------------------------------
+   BUG REAL, Y DE LOS CAROS: faltaba `mousemove`.
+
+   El usuario estaba EXPONIENDO EL SOFTWARE delante de un ingeniero. Movía el
+   ratón, señalaba, explicaba, hablaba — media hora sin pulsar un botón ni
+   escribir una letra. El sistema lo echó en mitad de la demostración.
+
+   Con la lista de antes, «estar delante del ordenador trabajando» no contaba
+   como actividad salvo que hicieras clic, escribieras o hicieras scroll. Eso
+   no es medir inactividad: es medir tecleo.
+
+   `mousemove` dispara muy seguido, pero el registrador sólo escribe una marca
+   de tiempo en una referencia —no provoca repintado— así que el coste es
+   despreciable y el `passive: true` evita bloquear el desplazamiento.
+
+   `focus` y `visibilitychange` entran por lo mismo: volver a la pestaña es
+   una señal clarísima de que la persona está ahí.
+============================================================================= */
+const SENALES = [
+  'mousemove', 'mousedown', 'keydown', 'touchstart', 'touchmove',
+  'scroll', 'wheel', 'focus', 'visibilitychange',
+];
 
 export type Decision = 'ok' | 'avisar' | 'cerrar';
 
@@ -70,12 +92,27 @@ export function useInactivity(activo: boolean, alCerrar: () => void) {
     avisando.current = false;
     setRestante(null);
 
+    /* CUALQUIER ACTIVIDAD CUENTA, TAMBIÉN CON EL AVISO EN PANTALLA.
+       -------------------------------------------------------------------
+       Aquí había un `if (avisando.current) return;` que hacía que, una vez
+       aparecía el aviso, el sistema IGNORARA que el usuario siguiera
+       trabajando. Podías estar escribiendo y pulsando botones: te echaba
+       igual. Sólo te salvaba pulsar el botón del aviso.
+
+       El razonamiento original era «que el aviso signifique algo y no se
+       descarte al pasar el ratón por encima». Suena bien y es falso: en un
+       púlpito o en una demostración el aviso puede quedar fuera de la vista,
+       y entonces el sistema echa a alguien que está delante trabajando. Eso
+       es peor que un aviso descartado por accidente.
+
+       Sesión = INACTIVIDAD. Si hay actividad, no hay inactividad. Punto. */
     const registrar = () => {
-      // Mientras el aviso está en pantalla NO se reinicia solo con mover el
-      // ratón: el usuario tiene que pulsar el botón. Así el aviso significa
-      // algo y no se descarta por accidente al pasar por encima.
-      if (avisando.current) return;
       ultimo.current = Date.now();
+      if (avisando.current) {
+        // Estaba avisando y la persona ha vuelto: se retira el aviso solo.
+        avisando.current = false;
+        setRestante(null);
+      }
     };
 
     SENALES.forEach((e) => window.addEventListener(e, registrar, { passive: true }));

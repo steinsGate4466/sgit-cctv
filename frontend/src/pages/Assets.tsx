@@ -1064,8 +1064,7 @@ export default function Assets() {
       {qrFor && (
         <Modal title={'Etiqueta QR · ' + qrFor.assetCode} onClose={() => { setQrFor(null); setQrUrl(''); }}>
           <div className="sign-note">
-            Imprime y pega esta etiqueta en el equipo. Al escanearla con el celular, el técnico
-            entra directo a la ficha del activo sin buscarlo entre cientos.
+            Imprime y pega la etiqueta. Al escanearla se abre la ficha del activo.
           </div>
           <div style={{ textAlign: 'center', padding: '10px 0' }}>
             {qrUrl

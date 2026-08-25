@@ -134,8 +134,7 @@ export default function MiTren() {
       <div className="card vacio">
         <h3>Todavía no tienes un tren asignado</h3>
         <p>
-          Pídele al ingeniero que te asigne tu tren en Usuarios. Hasta
-          entonces esta pantalla no tiene nada que enseñarte.
+          Pide al ingeniero que te asigne tu tren en Usuarios.
         </p>
       </div>
     );
@@ -191,9 +190,7 @@ export default function MiTren() {
                 <NadaPendiente size={110} />
                 <h3>Nada pendiente en tu línea</h3>
                 <p>
-                  No hay ninguna orden de trabajo abierta sobre los equipos de
-                  este tren. Si ves una cámara mal, avisa al ingeniero para que
-                  la registre.
+                  Sin órdenes abiertas en los equipos de este tren.
                 </p>
               </div>
             ) : (

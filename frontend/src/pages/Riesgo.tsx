@@ -147,7 +147,7 @@ export default function Riesgo() {
         </div>
       )}
 
-      {cargando ? <EsqueletoTabla filas={5} /> : datos && (
+      {cargando && !datos ? <EsqueletoTabla filas={5} /> : datos && (
         <>
           {/* EL TITULAR. Lo redacta el BACKEND, no esta pantalla, para que
               diga exactamente lo mismo en la web, en el PDF y en el aviso de

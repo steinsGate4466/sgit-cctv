@@ -219,7 +219,7 @@ export default function Inventory() {
               <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
               <XAxis dataKey="category" tick={{ fontSize: 12 }} />
               <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-              <Tooltip />
+              <Tooltip formatter={(v: any, n: any) => [`${v} unidad(es)`, n]} />
               <Legend />
               <Bar dataKey="field" name="Equipos en campo" fill="#2e5496" radius={[3, 3, 0, 0]} />
               <Bar dataKey="stock" name="Repuestos en stock" fill="#16a34a" radius={[3, 3, 0, 0]} />

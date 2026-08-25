@@ -4,6 +4,7 @@ import Modal from '../components/Modal';
 import BotonPurgar from '../components/BotonPurgar';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
+import { fecha } from '../fechas';
 
 /**
  * CAMPAÑAS DE MAPEO — el control de calidad del levantamiento.
@@ -144,7 +145,7 @@ export default function Campanas() {
         )}
       </div>
 
-      {cargando ? <EsqueletoTabla filas={3} /> : lista.length === 0 ? (
+      {cargando && !lista.length ? <EsqueletoTabla filas={3} /> : lista.length === 0 ? (
         <div className="card vacio">
           <h3>No hay campañas de mapeo</h3>
           <p>
@@ -223,8 +224,8 @@ export default function Campanas() {
                     </td>
                     <td><span className={'badge ' + z.estado}>{ESTADO_ZONA[z.estado]}</span></td>
                     <td className="num">{z.esperados ?? <span className="muted">sin fijar</span>}</td>
-                    <td className="muted">{z.cargadaEn ? new Date(z.cargadaEn).toLocaleDateString('es-PE') : '—'}</td>
-                    <td className="muted">{z.revisadaEn ? new Date(z.revisadaEn).toLocaleDateString('es-PE') : '—'}</td>
+                    <td className="muted">{fecha(z.cargadaEn, '—')}</td>
+                    <td className="muted">{fecha(z.revisadaEn, '—')}</td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                       <button className="btn-mini" onClick={() => verRevision(z.id)}>Revisar</button>
                       {can('asset.create') && !['APROBADA', 'CARGADA'].includes(z.estado) && (
@@ -257,8 +258,7 @@ export default function Campanas() {
           {revision.zona.cargadaPorId === user?.id && (
             <div className="card peligro">
               <b>Esta zona la cargaste tú.</b> No la puedes revisar: quien acaba de
-              cargar 40 fichas ya las da por buenas en su cabeza, y ese es justo el
-              motivo por el que existe la revisión. Que la mire otra persona.
+              cargó ya las da por buenas. Que las revise otra persona.
             </div>
           )}
 

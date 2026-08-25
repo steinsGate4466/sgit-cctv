@@ -78,8 +78,7 @@ export default function AsignarOm({ incidente, onHecho, onClose }: {
     <Modal title={incidente ? 'Convertir en orden · ' + incidente.code : 'Asignar trabajo'} onClose={onClose}>
       <form onSubmit={enviar}>
         <div className="sign-note" style={{ marginBottom: 12 }}>
-          Solo lo que tú sabes. El equipo exacto, los materiales y la duración
-          los pone el técnico de red al detallarla, que es quien lo ve.
+          Sólo lo que sabes. El técnico de red completa equipo, materiales y duración.
         </div>
 
         <label>Tipo de trabajo

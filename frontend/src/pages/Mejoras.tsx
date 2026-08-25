@@ -7,6 +7,7 @@ import Icono from '../components/Iconos';
 import { Titular } from '../components/Patron';
 import { useVolverALaPantalla } from '../useVolverALaPantalla';
 import { plural } from '../formato';
+import { fecha } from '../fechas';
 
 /**
  * MEJORAS A LOS PROCEDIMIENTOS — bloque 58.
@@ -211,8 +212,7 @@ export default function Mejoras() {
 
               <div className="mejora-firma">
                 {m.propuestaPor?.fullName && <>{m.propuestaPor.fullName} · </>}
-                {new Date(m.createdAt).toLocaleDateString('es-PE',
-                  { day: 'numeric', month: 'long', year: 'numeric' })}
+                {fecha(m.createdAt)}
                 {/* El tiempo real que llevó frente al estimado: es el dato que
                     convierte una opinión en una medición. */}
                 {m.minutosReales != null && (

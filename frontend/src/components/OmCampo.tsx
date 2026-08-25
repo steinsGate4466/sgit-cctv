@@ -250,8 +250,7 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
         {accion === 'abrir' && (
           <>
             <div className="sign-note">
-              Al firmar quedas como responsable de esta orden. Si es de mapeo,
-              todo activo que registres queda ligado a ella.
+              Al firmar quedas como responsable de la orden.
             </div>
 
             {wo.plannedStopAt && (
@@ -338,8 +337,7 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
         {accion === 'cerrar' && (
           <>
             <div className="sign-note">
-              El cierre lo firma el Jefe de Mantenimiento. La causa que elijas
-              es lo que permitirá saber después por qué algo vuelve a fallar.
+              El cierre lo firma el Jefe de Mantenimiento. La causa alimenta el análisis.
             </div>
 
             {wo.startedAt && (
@@ -418,8 +416,7 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
 
             {causa === 'SIN_FALLA_ENCONTRADA' && (
               <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
-                Está bien registrarlo. Varias órdenes seguidas así sobre el mismo
-                equipo apuntan a una falla intermitente que conviene investigar.
+                Varias órdenes seguidas sobre el mismo equipo apuntan a falla intermitente.
               </div>
             )}
 

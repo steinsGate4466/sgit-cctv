@@ -215,8 +215,7 @@ export default function Conexiones() {
 
               {sw.capacidad == null && (
                 <div className="tg-aviso" style={{ marginTop: 8 }}>
-                  Falta registrar cuántos puertos tiene este switch. Sin ese dato no
-                  se puede decir cuántos quedan libres.
+                  Falta el número de puertos del switch. Sin ese dato no se calculan los libres.
                 </div>
               )}
 
@@ -411,8 +410,7 @@ export default function Conexiones() {
             Es un tramo del anillo de fibra
           </label>
           <small className="muted" style={{ display: 'block', marginBottom: 10 }}>
-            Marcarlo es lo que permite al análisis saber que hay camino alternativo.
-            Un anillo bien declarado da impacto CERO, que es la respuesta correcta.
+            Marcarlo permite detectar camino alternativo. Un anillo declarado da impacto cero.
           </small>
 
           <label className="campo">

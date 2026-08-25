@@ -59,8 +59,7 @@ export default function Exportar() {
   return (
     <div className="page">
       <p className="page-sub">
-        Cada tema baja como una hoja de cálculo con los mismos datos que su
-        pantalla. Para reuniones, para SAP y como copia legible.
+        Una hoja de cálculo por tema, con los mismos datos que su pantalla.
       </p>
 
       {fallo && <div className="card aviso-error">{fallo}</div>}
@@ -96,9 +95,7 @@ export default function Exportar() {
             <p className="muted" style={{ fontSize: 12.5 }}>
               Aviso honesto: volver a subir estas hojas <b>no reconstruye el
               sistema</b> — los datos están enlazados entre sí por
-              identificadores. La restauración de verdad se hace desde los
-              respaldos de la base. Este libro es la copia que una persona
-              puede abrir y leer.
+              identificadores. La restauración se hace desde los respaldos de la base.
             </p>
             <button className="btn-primary" disabled={!!bajando} onClick={() => bajar('todo')}>
               {bajando === 'todo' ? 'Generando el libro…' : 'Descargar el libro completo'}

@@ -127,8 +127,7 @@ export default function DeclararAcceso({ activo, alCerrar, alGuardar }: {
         </div>
 
         <small className="muted" style={{ display: 'block', marginTop: 10 }}>
-          Queda con tu nombre y la fecha. De este dato depende que alguien suba
-          preparado, así que tiene dueño.
+          Queda con tu nombre y la fecha.
         </small>
       </div>
     </div>

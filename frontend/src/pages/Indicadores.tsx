@@ -129,6 +129,58 @@ export default function Indicadores() {
         />
       </div>
 
+      {/* ==========================================================
+           EL REPARTO DEL TRABAJO — bloque 65
+           ----------------------------------------------------------
+           El indicador que el ingeniero dibujó en el centro de su
+           hoja, y el único que no existía. El MTTR dice cómo de
+           rápido se repara; éste dice si hace falta reparar tanto.
+
+           Va ANTES del backlog a propósito: es la foto de la
+           estrategia, y el backlog es una consecuencia suya.
+           ========================================================== */}
+      <div className="card">
+        <div className="section-title" style={{ marginTop: 0 }}>Reparto del trabajo</div>
+
+        {t.reparto?.pct ? (
+          <>
+            <div className="reparto-barra">
+              {[
+                { k: 'correctivo' as const, et: 'Correctivo', c: '#c0392b' },
+                { k: 'preventivo' as const, et: 'Preventivo', c: '#15803d' },
+                { k: 'predictivo' as const, et: 'Predictivo', c: '#2e5496' },
+              ].filter((x) => t.reparto.pct[x.k] > 0).map((x) => (
+                <div key={x.k} className="reparto-tramo"
+                  style={{ width: `${t.reparto.pct[x.k]}%`, background: x.c }}
+                  title={`${x.et}: ${t.reparto[x.k]} órdenes`}>
+                  {t.reparto.pct[x.k] >= 12 ? `${t.reparto.pct[x.k]} %` : ''}
+                </div>
+              ))}
+            </div>
+
+            <div className="reparto-leyenda">
+              <span><i style={{ background: '#c0392b' }} /> Correctivo · {t.reparto.correctivo}</span>
+              <span><i style={{ background: '#15803d' }} /> Preventivo · {t.reparto.preventivo}</span>
+              <span><i style={{ background: '#2e5496' }} /> Predictivo · {t.reparto.predictivo}</span>
+            </div>
+
+            <p className="muted" style={{ fontSize: 12.5, marginTop: 10 }}>
+              {t.reparto.lectura}
+            </p>
+
+            {(t.reparto.otros.mejora > 0 || t.reparto.otros.mapeo > 0) && (
+              <p className="muted" style={{ fontSize: 11.5 }}>
+                Fuera del reparto: {t.reparto.otros.mejora} de mejora y {t.reparto.otros.mapeo} de mapeo.
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="muted" style={{ fontSize: 12.5 }}>
+            {t.reparto?.lectura || 'Sin órdenes en el periodo.'}
+          </p>
+        )}
+      </div>
+
       {/* ---------- BACKLOG ---------- */}
       <div className="card">
         <div className="section-title" style={{ marginTop: 0 }}>Trabajo pendiente acumulado</div>
@@ -206,9 +258,7 @@ export default function Indicadores() {
               </tbody>
             </table>
             <div className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>
-              Ésta es la conversación de presupuesto: cuando un equipo aparece arriba
-              tres periodos seguidos, cambiarlo sale más barato que seguir
-              arreglándolo — y aquí está el número para demostrarlo.
+              Un equipo arriba tres periodos seguidos justifica su reemplazo.
             </div>
           </>
         )}
@@ -235,8 +285,7 @@ export default function Indicadores() {
             </tbody>
           </table>
           <div className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>
-            Un número suelto no dice nada. Lo que dice si el mantenimiento está
-            mejorando es la columna leída de arriba abajo.
+            La columna completa dice si el mantenimiento mejora; un número suelto no.
           </div>
         </div>
       )}

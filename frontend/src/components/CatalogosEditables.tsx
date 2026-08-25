@@ -201,8 +201,7 @@ export default function CatalogosEditables() {
             ))}
           </datalist>
           <div className="muted" style={{ fontSize: 11, marginTop: -6, marginBottom: 8 }}>
-            Con muchas opciones en una lista plana, y con la parada corriendo, se
-            elige la primera que se ve. Agrupadas se encuentran.
+            Agrupadas se encuentran antes que en una lista plana.
           </div>
 
           <label>Orden dentro de su familia

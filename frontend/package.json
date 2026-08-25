@@ -19,7 +19,11 @@
     "verificar:densidad": "node scripts/verificar-densidad.cjs",
     "verificar:formato": "node scripts/verificar-formato.cjs",
     "verificar:avisos": "node scripts/verificar-avisos.cjs",
-    "verificar:etiquetas": "node scripts/verificar-etiquetas.cjs"
+    "verificar:etiquetas": "node scripts/verificar-etiquetas.cjs",
+    "verificar:fechas": "node scripts/verificar-fechas.cjs",
+    "verificar:graficos": "node scripts/verificar-graficos.cjs",
+    "verificar:sesion": "node scripts/verificar-sesion.cjs",
+    "verificar:textos": "node scripts/verificar-textos.cjs"
   },
   "dependencies": {
     "axios": "^1.7.7",

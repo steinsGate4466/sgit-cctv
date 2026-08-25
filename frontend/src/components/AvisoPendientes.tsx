@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { alCambiarPendientes, listarPendientes, borrarPendiente, subirPendientes, hayRed, Pendiente } from '../cola-offline';
 import { useDialogos } from './Dialogos';
+import { fechaHora } from '../fechas';
 
 /**
  * LA BARRA DE PENDIENTES (bloque 12.6).
@@ -81,7 +82,7 @@ export default function AvisoPendientes() {
               <div>
                 <b>{p.titulo}</b>
                 <div className="muted" style={{ fontSize: 11.5 }}>
-                  Guardado {new Date(p.creadoEn).toLocaleString('es-PE')}
+                  Guardado {fechaHora(p.creadoEn)}
                   {p.intentos > 0 && ` · ${p.intentos} intento(s)`}
                   {p.ultimoError && ` · ${p.ultimoError}`}
                 </div>

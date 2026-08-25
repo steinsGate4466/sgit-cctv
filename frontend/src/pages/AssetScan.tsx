@@ -11,6 +11,7 @@ import ReportarCaida from '../components/ReportarCaida';
 import AvisoDeIntervencion from '../components/AvisoDeIntervencion';
 import TrabajoDesdeElQR from '../components/TrabajoDesdeElQR';
 import ReportarAveria from '../components/ReportarAveria';
+import { fecha, hoyParaInput } from '../fechas';
 
 /**
  * Ficha rápida del activo — destino del código QR pegado en el equipo.
@@ -40,6 +41,8 @@ export default function AssetScan() {
   // 11.3 — abrir una OM parado frente al equipo, sin teclear su código.
   const [abriendoOm, setAbriendoOm] = useState(false);
   const [actividad, setActividad] = useState('');
+  // Nace con HOY: abrir una orden desde el poste significa intervenir ahora.
+  const [fechaOm, setFechaOm] = useState(hoyParaInput());
   const [creando, setCreando] = useState(false);
   const [omError, setOmError] = useState('');
   const [omCreada, setOmCreada] = useState<any>(null);
@@ -52,9 +55,21 @@ export default function AssetScan() {
         type: 'CORRECTIVO',
         assetId: id,
         activity: actividad.trim() || undefined,
+        // 08:00 hora local: el turno de mañana. Sin hora, el navegador la
+        // pondría a medianoche UTC y en Perú (UTC-5) se iría al día anterior.
+        scheduledDate: new Date(fechaOm + 'T08:00:00').toISOString(),
       });
-      // No se navega solo: se confirma con el codigo. En el celular, saltar
-      // de pantalla sin decir que salio bien deja la duda de si salio.
+      /* No se navega solo: se confirma con el código. En el celular, saltar
+         de pantalla sin decir que salió bien deja la duda de si salió.
+
+         Y NO se cierra el formulario si no hay confirmación: el aviso de
+         error vive DENTRO de este bloque, así que cerrarlo lo haría
+         invisible y el usuario vería «no pasa nada». */
+      if (!r?.data) {
+        setOmError('El servidor respondió, pero no confirmó la orden. '
+          + 'Revisa en Órdenes (OM) si quedó creada antes de repetirla.');
+        return;
+      }
       setOmCreada(r.data);
       setAbriendoOm(false);
     } catch (e: any) {
@@ -67,13 +82,21 @@ export default function AssetScan() {
         await guardarPendiente({
           url: '/work-orders',
           metodo: 'post',
-          cuerpo: { type: 'CORRECTIVO', assetId: id, activity: actividad.trim() || undefined },
+          cuerpo: {
+            type: 'CORRECTIVO', assetId: id,
+            activity: actividad.trim() || undefined,
+            scheduledDate: new Date(fechaOm + 'T08:00:00').toISOString(),
+          },
           titulo: `Orden correctiva en ${a?.assetCode || 'equipo'}`,
         });
         setAbriendoOm(false);
         setOmCreada({ code: null, pendiente: true });
       } else {
-        setOmError(e?.response?.data?.message || 'No se pudo abrir la orden. Revisa los datos.');
+        const delServidor = e?.response?.data?.message;
+        setOmError(
+          (Array.isArray(delServidor) ? delServidor.join('. ') : delServidor)
+          || `No se pudo abrir la orden (error ${estado}). Revisa los datos.`,
+        );
       }
     } finally {
       setCreando(false);
@@ -196,7 +219,7 @@ export default function AssetScan() {
           <Icono n="preventivo" size={16} />
           <span>
             Próximo preventivo:{' '}
-            <b>{new Date(a.preventivePlan.nextDueAt).toLocaleDateString('es-PE')}</b>
+            <b>{fecha(a.preventivePlan.nextDueAt)}</b>
             {' '}(cada {a.preventivePlan.intervalDays} días)
           </span>
         </div>
@@ -240,6 +263,21 @@ export default function AssetScan() {
             rows={3}
             style={{ width: '100%', marginTop: 10 }}
           />
+          {/* FECHA — faltaba, y era el agujero por el que se colaban todas.
+              Desde el QR se abrían órdenes SIN fecha programada, y una orden
+              sin fecha no vence nunca, no entra en el backlog y no cuenta
+              para el cumplimiento del preventivo. Viene con HOY puesto porque
+              abrir una orden en campo significa intervenir ahora; si el
+              técnico la deja para otro día, la cambia de un toque. */}
+          <label className="qr-nota-lab">
+            <span>¿Para cuándo?</span>
+            <input
+              type="date"
+              value={fechaOm}
+              onChange={(e) => setFechaOm(e.target.value)}
+              style={{ width: '100%' }}
+            />
+          </label>
           <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
             <button className="btn-primary" disabled={creando} onClick={crearOm}>
               {creando ? 'Abriendo…' : 'Abrir la orden'}

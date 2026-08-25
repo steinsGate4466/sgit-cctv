@@ -182,8 +182,7 @@ export default function Cobertura() {
         <div className="card vacio">
           <h3>No hay cámaras en tu ámbito</h3>
           <p>
-            En cuanto se carguen los equipos y cuelguen de una zona del árbol de
-            planta, aquí aparece qué cubre cada una y qué se está dejando de ver.
+            Aparecerá en cuanto los equipos cuelguen de una zona del árbol de planta.
           </p>
         </div>
       )}
@@ -201,8 +200,7 @@ export default function Cobertura() {
           <b> dónde</b> está el hueco, no cuántos son.
         </p>
         <p>
-          La antigüedad sale de la incidencia abierta más antigua de esa cámara.
-          Si no hay ninguna, se dice «sin fecha» en vez de inventar una.
+          Sale de la incidencia abierta más antigua. Sin ninguna, «sin fecha».
         </p>
         <p>
           Ves tu ámbito. El jefe del Tren 2 ve el Tren 2, y no es un filtro de

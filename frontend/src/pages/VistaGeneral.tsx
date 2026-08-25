@@ -126,8 +126,7 @@ export default function VistaGeneral() {
         </p>
         <p>
           Esta pantalla es un <b>índice</b>: el detalle vive en «Mis cámaras» y
-          «Mis activos», que son los enlaces de cada sector. Si tu rol está
-          sectorizado, aquí sólo aparece tu sector.
+          «Mis activos» son los enlaces de cada sector. Con rol sectorizado, sólo el tuyo.
         </p>
       </ComoSeCalcula>
     </div>

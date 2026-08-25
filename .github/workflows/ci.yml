@@ -270,6 +270,35 @@ jobs:
         working-directory: frontend
         run: npm run verificar:etiquetas
 
+      # `new Date(null).toLocaleDateString()` no falla: imprime literalmente
+      # "Invalid Date" en medio de una tabla de planta. Habia 21 sitios
+      # pintando fechas a mano; ahora todas pasan por src/fechas.ts, que
+      # acepta nulos y devuelve "sin fecha".
+      - name: Ninguna fecha se pinta a mano
+        working-directory: frontend
+        run: npm run verificar:fechas
+
+      # El usuario paso el raton por una barra del tablero y le salio
+      # "value : 3" -- el nombre interno de la columna, delante del ingeniero
+      # al que le estaba enseñando el software. Todo <Tooltip> lleva formatter.
+      - name: Los graficos hablan en castellano
+        working-directory: frontend
+        run: npm run verificar:graficos
+
+      # EL PEOR DE TODOS: el sistema echo al usuario en mitad de una
+      # exposicion porque mover el raton no contaba como actividad, y porque
+      # una vez salia el aviso ignoraba que siguiera trabajando.
+      - name: La sesion no echa a quien esta trabajando
+        working-directory: frontend
+        run: npm run verificar:sesion
+
+      # Peticion del usuario tras la exposicion: "textos cortos y
+      # profesionales en todos los dashboards e incluso formularios".
+      # Habia 81 parrafos de hasta 260 caracteres debajo de las tablas.
+      - name: Los textos de pantalla son cortos
+        working-directory: frontend
+        run: npm run verificar:textos
+
       # El codigo escribia `className="chip est-OPERATIVO"` y en styles.css no
       # habia NI UNA regla `.est-`: siete pantallas con los estados en gris
       # plano. No rompe nada —el navegador ignora la clase— asi que no hay

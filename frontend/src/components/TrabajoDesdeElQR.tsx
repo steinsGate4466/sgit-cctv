@@ -65,7 +65,7 @@ const PASOS: Paso[] = [
   { pct: 25, etiqueta: 'Empecé' },
   { pct: 60, etiqueta: 'Voy a medias' },
   { pct: 100, etiqueta: 'Ya está terminado' },
-  { pct: 0, etiqueta: 'No pude — me falta algo', exigeNota: true },
+  { pct: 0, etiqueta: 'No pude — falta material', exigeNota: true },
 ];
 
 export default function TrabajoDesdeElQR({
@@ -91,7 +91,7 @@ export default function TrabajoDesdeElQR({
 
   async function anotar(orden: any, paso: Paso) {
     if (paso.exigeNota && !nota.trim()) {
-      setError('Escribe qué te falta. Sin eso, el que venga mañana empieza de cero.');
+      setError('Indica qué falta para continuar.');
       return;
     }
     setError('');
@@ -106,7 +106,17 @@ export default function TrabajoDesdeElQR({
       setAbierto(null);
       alGuardar();
     } catch (e: any) {
-      setError(e?.message || 'No se pudo guardar. Vuelve a intentarlo.');
+      /* El mensaje del servidor por delante: dice qué pasa de verdad —«la
+         orden ya está cerrada», «no es de tu tren»—. `e.message` a secas
+         devuelve «Request failed with status code 400», que en un poste con
+         guantes y de noche no le sirve a nadie. */
+      const delServidor = e?.response?.data?.message;
+      setError(
+        (Array.isArray(delServidor) ? delServidor.join('. ') : delServidor)
+        || (e?.response?.status
+          ? `No se pudo guardar (error ${e.response.status}). Vuelve a intentarlo.`
+          : 'No hay conexión con el servidor. Comprueba la señal y vuelve a intentarlo.'),
+      );
     } finally {
       setGuardando(false);
     }
@@ -114,7 +124,7 @@ export default function TrabajoDesdeElQR({
 
   return (
     <div className="qr-trabajo">
-      <div className="section-title">Anotar lo que has hecho</div>
+      <div className="section-title">Registrar avance</div>
 
       {ordenes.map((o) => (
         <div key={o.code} className="card scan-card qr-om">
@@ -143,10 +153,10 @@ export default function TrabajoDesdeElQR({
                   cuadro. Con guantes, en un móvil, ese margen de acierto de
                   más es la diferencia entre escribir la nota y no escribirla. */}
               <label className="qr-nota-lab">
-                <span>Qué hiciste, o qué te falta</span>
+                <span>Nota</span>
                 <textarea
                   className="qr-nota"
-                  placeholder="Opcional — salvo si no pudiste terminar"
+                  placeholder="Opcional. Obligatoria si no pudiste terminar"
                   value={nota}
                   onChange={(e) => setNota(e.target.value)}
                   rows={2}
@@ -176,16 +186,11 @@ export default function TrabajoDesdeElQR({
           <span>
             {hecho.termino ? (
               <>
-                <b>Anotado: {hecho.code} terminada.</b> Falta que el Jefe de
-                Mantenimiento la <b>cierre con su firma</b> — hasta entonces
-                seguirá apareciendo abierta, y es normal.{' '}
-                <b>Tú ya has hecho tu parte.</b>
+                <b>{hecho.code} marcada como terminada.</b> Pendiente de cierre
+                por el Jefe de Mantenimiento.
               </>
             ) : (
-              <>
-                <b>Anotado en {hecho.code}.</b> Queda registrado con la hora, así
-                que el que siga sabe por dónde vas.
-              </>
+              <><b>Avance anotado en {hecho.code}.</b></>
             )}
           </span>
         </div>
@@ -199,9 +204,8 @@ export default function TrabajoDesdeElQR({
       <div className="qr-firma-nota">
         <Icono n="firma" size={13} />
         <span>
-          Lo que anotes queda con <b>tu nombre y la hora</b> en el historial de la
-          orden y en la auditoría. <b>La orden la cierra el Jefe de Mantenimiento</b>,
-          no tú: su visto bueno es lo que la da por buena.
+          Queda registrado con tu nombre y la hora. El cierre lo firma el
+          Jefe de Mantenimiento.
         </span>
       </div>
     </div>

@@ -826,3 +826,94 @@ comportamiento — el fallo típico no es escribir mal el permiso, es quitarlo
 
 **A un verificador propio se le hace caso o se borra.** Discutirle y dejarlo
 puesto es la peor de las tres opciones.
+
+---
+
+## 12. Bloque 64 — la exposición que salió mal, y lo que me faltaba a mí
+
+### El fallo de método, antes que los bugs
+
+937 pruebas en verde y el usuario expuso el software delante de un ingeniero
+con **cuatro bugs de bulto**. Los dos hechos son ciertos a la vez, y ésa es la
+lección:
+
+> **Mis 937 pruebas NO ABREN EL SOFTWARE.** Comprueban que el código está bien
+> escrito. Ninguna comprueba que funcione. Compilar, pasar el typecheck y tener
+> los verificadores en verde no es haber probado nada.
+
+Es el tercer escalón de una regla que ya estaba escrita en este archivo:
+*verificar que la copia es fiel no es verificar que el original es correcto* ·
+*compilar un archivo suelto no es hacer el typecheck* · **y pasar el typecheck
+no es que funcione.**
+
+Y lo peor: se entregaron comandos de git con «todo verificado» delante.
+
+### Los cuatro bugs, y qué tenían en común
+
+| Bug | Causa |
+|---|---|
+| **Te echa mientras trabajas** | `mousemove` no estaba en las señales de actividad. Y una vez salía el aviso, el registrador **ignoraba a propósito** que siguieras trabajando |
+| **Las OM nacen sin fecha** | `scheduledDate` era opcional en los dos formularios y **no existía** en el del QR |
+| **Reportar avería «no hace nada»** | Se cerraba el formulario aunque la respuesta viniera vacía, y el aviso de error vive DENTRO de ese formulario: al cerrarlo se volvía invisible |
+| **«value : 3» en los gráficos** | Cinco `<Tooltip>` sin `formatter`: enseñaban el nombre interno de la columna |
+
+**Lo que comparten:** ninguno se ve leyendo el código con atención normal. Los
+cuatro se ven **abriendo la pantalla**. Y ninguno rompe nada — por eso pasan
+todos los filtros.
+
+### La cadena que rompía la fecha vacía
+
+```
+OM sin fecha → sale «—» → nunca vence → no entra en el backlog
+             → el % de cumplimiento del preventivo miente
+             → y con él el reparto correctivo/preventivo/predictivo
+```
+
+**Toda orden abierta desde el QR nacía muerta para los indicadores.** El valor
+por defecto ahora es HOY, no vacío: abrir una orden significa intervenir ahora.
+`null` no es ningún dato; «hoy» sí lo es.
+
+### Regla nueva: el aviso de error NO puede vivir dentro de lo que se cierra
+
+Tres formularios lo hacían. Al enviar, se cerraba el bloque **y con él el sitio
+donde se pinta el error**. Si fallaba, el usuario veía la pantalla volver atrás
+en silencio y concluía —con razón— que el software no funciona.
+
+> **Sólo se cierra un formulario cuando hay algo que enseñar.** Y si la
+> respuesta llega vacía, se dice: «el servidor respondió pero no confirmó;
+> comprueba antes de repetir». Nunca se asume que salió bien.
+
+Y el mensaje del servidor va **por delante** de `e.message`: «Request failed
+with status code 400» no le sirve a nadie subido a un poste con guantes.
+
+### Tres verificadores nuevos (12, 13 y 14 del frontend)
+
+| Verificador | Qué caza |
+|---|---|
+| `verificar:fechas` | Cualquier `new Date(x).toLocale…` fuera de `src/fechas.ts` |
+| `verificar:graficos` | `<Tooltip>` de recharts sin `formatter` |
+| `verificar:sesion` | Que nadie quite `mousemove`, ni devuelva el `if (avisando) return` |
+
+Los tres **probados reintroduciendo el bug exacto**. El de fechas encontró
+**6 sitios más** que el barrido inicial no vio —tenían guarda, pero cada uno
+con su formato—: 21 fechas unificadas en total.
+
+### Y una cosa que hice bien, por una vez
+
+Un cuarto barrido —«llamadas del frontend sin ruta en el backend»— dio **31
+resultados y los 31 eran falsos positivos míos**. Se descartó en vez de
+entregarlo.
+
+*Un verificador que se equivoca es peor que no tenerlo.* Vale también para un
+informe.
+
+### Lo que queda pendiente y no se olvida
+
+- **Playwright**: recorridos que ABREN el software. Sin esto, todo lo anterior
+  se repite. Es lo siguiente.
+- **128 `catch` que convierten un fallo en «no hay datos»** en 42 archivos.
+  Cuando el usuario ve «data muerta», puede que el dato exista y la petición
+  esté fallando en silencio.
+- **21 acciones que guardan sin confirmar** nada en pantalla.
+- Y el ciclo del ingeniero: **ABC con método → frecuencia**, hojas de ruta,
+  el reparto correctivo/preventivo/predictivo, y el menú ordenado por el ciclo.

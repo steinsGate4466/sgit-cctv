@@ -170,7 +170,7 @@ export default function Dashboard() {
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="name" fontSize={10} interval={0} angle={-15} textAnchor="end" height={50} />
               <YAxis allowDecimals={false} fontSize={11} />
-              <Tooltip />
+              <Tooltip formatter={(v: any) => [`${v} activo(s)`, '']} labelFormatter={(l: any) => String(l)} />
               <Bar dataKey="value" fill="#2e5496" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -183,7 +183,7 @@ export default function Dashboard() {
                 <Pie data={tr(TYPE_ES, ov.byType)} dataKey="value" nameKey="name" outerRadius={80} label>
                   {ov.byType.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                 </Pie>
-                <Tooltip />
+                <Tooltip formatter={(v: any) => [`${v} activo(s)`, '']} labelFormatter={(l: any) => String(l)} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
               </PieChart>
             </ResponsiveContainer>
@@ -196,7 +196,7 @@ export default function Dashboard() {
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="name" fontSize={11} />
               <YAxis allowDecimals={false} fontSize={11} />
-              <Tooltip />
+              <Tooltip formatter={(v: any) => [`${v} activo(s)`, '']} labelFormatter={(l: any) => String(l)} />
               <Bar dataKey="value" fill="#c0121f" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -209,7 +209,9 @@ export default function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                 <XAxis type="number" allowDecimals={false} fontSize={11} />
                 <YAxis type="category" dataKey="name" width={170} fontSize={9} />
-                <Tooltip />
+                {/* Aquí lo que se cuenta son VECES QUE APARECIÓ ESA CAUSA, no
+                    equipos. Poner «activo(s)» sería mentir con una unidad. */}
+                <Tooltip formatter={(v: any) => [`${v} vez(ces)`, '']} labelFormatter={(l: any) => String(l)} />
                 <Bar dataKey="value" fill="#d97706" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>

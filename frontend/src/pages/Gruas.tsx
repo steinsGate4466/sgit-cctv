@@ -6,6 +6,7 @@ import FiltroAmbito, { Ambito, AMBITO_VACIO, conAmbito } from '../components/Fil
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
 import { guardarPendiente } from '../cola-offline';
+import { fecha } from '../fechas';
 
 /**
  * INSPECCIÓN DE CÁMARAS DE GRÚA (bloque 14).
@@ -190,7 +191,7 @@ export default function Gruas() {
                   </div>
                 </div>
                 <div className="tg-sitio">
-                  Última: {new Date(g.ultima).toLocaleDateString('es-PE')} · {ETIQUETA_RESULTADO[g.resultado] || g.resultado}
+                  Última: {fecha(g.ultima)} · {ETIQUETA_RESULTADO[g.resultado] || g.resultado}
                 </div>
               </div>
             ))}
@@ -222,7 +223,7 @@ export default function Gruas() {
                 <td><strong>{i.code}</strong></td>
                 <td>{i.grua}{i.posicion ? ` · ${i.posicion}` : ''}</td>
                 <td>{i.equipo || '—'}</td>
-                <td>{new Date(i.fecha).toLocaleDateString('es-PE')}</td>
+                <td>{fecha(i.fecha)}</td>
                 <td>{ETIQUETA_RESULTADO[i.resultado] || i.resultado}</td>
                 <td>{i.senalDbm != null ? `${i.senalDbm} dBm` : '—'}</td>
                 <td>
@@ -304,8 +305,7 @@ export default function Gruas() {
             <span>Señal (dBm)</span>
             <input type="number" min={-100} max={0} value={f.senalDbm} onChange={set('senalDbm')} placeholder="Ej: -65" />
             <small className="muted">
-              Siempre negativo. −45 buena · −70 justa · −80 se cae. El sistema
-              guarda la de hoy y la compara sola con la anterior.
+              Siempre negativo. −45 buena · −70 justa · −80 se cae. Se compara con la anterior.
             </small>
           </label>
           <div className="casillas"><Casilla k="antenaAlineada" t="Antena alineada" /></div>

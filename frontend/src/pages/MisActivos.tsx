@@ -157,7 +157,7 @@ export default function MisActivos() {
       {error && <div className="card peligro">{error}</div>}
       {d?.mensaje && <div className="card vacio"><h3>{d.mensaje}</h3></div>}
 
-      {cargando ? <EsqueletoTablero /> : r && (
+      {cargando && !r ? <EsqueletoTablero /> : r && (
         <>
           <Titular tono={tono} texto={r.titular} />
 
@@ -277,8 +277,7 @@ export default function MisActivos() {
         </p>
         <p>
           <b>Lo que nadie ha declarado no cuenta como «se llega a pie».</b> Sale
-          en gris. Si la zona está marcada de altura el sistema lo dice, pero esa
-          propuesta no suma al total hasta que alguien la confirme.
+          en gris. La propuesta de altura no suma al total hasta confirmarla.
         </p>
         <p>
           <b>Las subidas se agrupan por punto.</b> Tres equipos con trabajo

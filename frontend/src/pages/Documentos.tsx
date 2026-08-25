@@ -6,6 +6,7 @@ import Icono from '../components/Iconos';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
 import { useDialogos } from '../components/Dialogos';
+import { fecha } from '../fechas';
 
 /**
  * DOCUMENTOS: MANUALES, PLANOS Y FICHAS (bloque 12.7).
@@ -140,8 +141,7 @@ export default function Documentos() {
 
       <div className="card explica">
         <b>Manuales, planos, fichas y configuraciones.</b> Cada uno cuelga de un
-        equipo o de una ubicación, para que aparezca cuando alguien lo busca —
-        no en una carpeta que nadie encuentra a las once de la noche.
+        equipo o de una ubicación, para que aparezca al buscarlo.
         <div style={{ marginTop: 6, fontSize: 12.5 }}>
           Subir un archivo con el mismo título <b>no borra el anterior</b>: crea
           una versión nueva. Un plano viejo sigue diciendo cómo estaba la planta.
@@ -155,9 +155,7 @@ export default function Documentos() {
         <div className="card vacio">
           <h3>Todavía no hay documentos</h3>
           <p>
-            Sube los manuales de los NVR y las cámaras, los planos de canalización
-            y las configuraciones de los switches. Es lo que el técnico va a
-            necesitar cuando esté solo frente a un equipo.
+            Manuales, planos de canalización y configuraciones de switches.
           </p>
         </div>
       ) : !cargando && (
@@ -175,7 +173,7 @@ export default function Documentos() {
                 <td>{ETIQUETA[d.category] || d.category}</td>
                 <td>{d.asset?.assetCode || d.location?.name || '—'}</td>
                 <td>v{d.version}</td>
-                <td>{new Date(d.createdAt).toLocaleDateString('es-PE')}</td>
+                <td>{fecha(d.createdAt)}</td>
                 <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                   <button className="btn-mini" onClick={() => descargar(d.id, d.title)}>Descargar</button>
                   {puedeSubir && (

@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
-  mttr, mtbf, disponibilidad, cumplimientoPreventivo, backlog, peoresEquipos,
-  HORA, OrdenParaCalculo,
+  HORA, OrdenParaCalculo, backlog, cumplimientoPreventivo, disponibilidad, mtbf, mttr, peoresEquipos, repartoDeTrabajo,
 } from './calculo';
 
 /**
@@ -133,6 +132,11 @@ export class IndicadoresService {
         significa: 'Porcentaje del tiempo que los equipos están sirviendo.',
       },
       preventivo: cumplimientoPreventivo(ordenes),
+      /* EL REPARTO DEL TRABAJO — bloque 65.
+         El indicador que el ingeniero dibujó en el centro de su hoja: cuánto
+         del trabajo es apagar incendios y cuánto es adelantarse. El MTTR dice
+         cómo de rápido se repara; éste dice si hace falta reparar tanto. */
+      reparto: repartoDeTrabajo(ordenes),
       backlog: backlog(ordenes),
       peores: peores.map((p) => ({
         ...p,

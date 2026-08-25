@@ -154,8 +154,7 @@ export default function AssetSpecFields({ tipo, spec, onChange, opciones }: Prop
           </select>
           </label>
           <Nota>
-            Si falla la antena, caen todas las cámaras que cuelgan de ella.
-            Registrarlo es lo que permite ver el impacto de un solo golpe.
+            Si falla la antena, caen las cámaras que cuelgan de ella.
           </Nota>
 
           <label>Usuario del equipo
@@ -227,9 +226,7 @@ export default function AssetSpecFields({ tipo, spec, onChange, opciones }: Prop
             <input type="number" min={0} value={v.poeBudgetW ?? ''} onChange={num('poeBudgetW')} placeholder="Ej: 130" />
           </label>
           <Nota>
-            Con esto se sabe si el switch aún puede alimentar otra cámara.
-            Agregar equipos sin revisar el presupuesto es causa habitual de
-            caídas intermitentes que nadie asocia al switch.
+            Permite saber si el switch puede alimentar otra cámara.
           </Nota>
 
           <label>IP de gestión
@@ -280,9 +277,7 @@ export default function AssetSpecFields({ tipo, spec, onChange, opciones }: Prop
             <span>Tenemos las credenciales de esta antena</span>
           </label>
           <Nota>
-            Si no la marcas, la antena entra en la lista de la campaña de
-            barrido. Es el dato que permite planificar el reemplazo con números
-            en vez de de memoria.
+            Sin marcar, la antena entra en la campaña de barrido.
           </Nota>
 
           <label>Señal (dBm)
@@ -307,8 +302,7 @@ export default function AssetSpecFields({ tipo, spec, onChange, opciones }: Prop
             <input type="number" min={1} value={v.outputCount ?? ''} onChange={num('outputCount')} placeholder="Ej: 4" />
           </label>
           <Nota>
-            Cada salida alimenta una pantalla del videowall. Las salidas y a qué
-            pantalla van se configuran después, desde la ficha del equipo.
+            Cada salida alimenta una pantalla del videowall.
           </Nota>
 
           <label>Grabador del que consume el video
@@ -391,8 +385,7 @@ export default function AssetSpecFields({ tipo, spec, onChange, opciones }: Prop
             placeholder="Uno por línea, con su IP" />
           </label>
           <Nota>
-            Es lo que se pierde cuando hay que reinstalar el equipo y nadie
-            recuerda qué grabadores tenía cargados.
+            Se pierde al reinstalar el equipo si no queda registrado.
           </Nota>
         </>
       )}

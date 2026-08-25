@@ -4,6 +4,7 @@ import Icono from '../components/Iconos';
 import { useAuth } from '../auth/AuthContext';
 import { EsqueletoTablero } from '../components/Esqueleto';
 import { useDialogos } from '../components/Dialogos';
+import { fechaHora } from '../fechas';
 
 /**
  * AVISOS POR TELEGRAM (4F) — montado y apagado.
@@ -155,8 +156,7 @@ export default function Avisos() {
           />
           </label>
           <span className="campo-msg">
-            Se comprueba contra Telegram antes de guardarlo, y queda cifrado
-            en la base igual que las credenciales de las cámaras.
+            Se comprueba contra Telegram y queda cifrado en la base.
           </span>
 
           <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
@@ -271,7 +271,7 @@ export default function Avisos() {
                   <tbody>
                     {lista.map((n) => (
                       <tr key={n.id}>
-                        <td>{new Date(n.creadaEn).toLocaleString('es-PE')}</td>
+                        <td>{fechaHora(n.creadaEn)}</td>
                         <td>{n.asunto}</td>
                         {/* El motivo se enseña tal cual lo devolvió Telegram.
                             Traducirlo perdería la única pista útil: casi

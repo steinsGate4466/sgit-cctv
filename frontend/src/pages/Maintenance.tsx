@@ -518,8 +518,7 @@ export default function Maintenance() {
             <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #e5e7eb' }}>
               <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Recepción del pedido</div>
               <div className="muted" style={{ fontSize: 11, marginBottom: 8 }}>
-                Producción crea la orden en SAP y la manda por WhatsApp. Registrarlo
-                aquí es lo que evita que se pierda de boca en boca.
+                Registrar el origen evita que la solicitud se pierda.
               </div>
               <label>¿Quién la pidió?
                 <input value={form.requestedBy} onChange={(e) => setForm({ ...form, requestedBy: e.target.value })}

@@ -185,3 +185,84 @@ export function peoresEquipos(ordenes: OrdenParaCalculo[], top = 10) {
     .sort((x, y) => y.fallos - x.fallos)
     .slice(0, top);
 }
+
+/* =============================================================================
+   EL REPARTO CORRECTIVO / PREVENTIVO / PREDICTIVO
+   -----------------------------------------------------------------------------
+   EL INDICADOR QUE PIDIÓ EL INGENIERO, Y EL ÚNICO QUE DIBUJÓ EN EL CENTRO
+   DE SU HOJA.
+
+   En su esquema de cinco pasos, el punto 5 —«Reunión»— es un quesito con el
+   reparto de hoy y una flecha a otro quesito con el reparto al que se quiere
+   llegar. Menos correctivo, más preventivo y predictivo.
+
+   POR QUÉ ES EL INDICADOR QUE DE VERDAD IMPORTA
+
+   El MTTR y el MTBF dicen cómo de bien se apagan los incendios. Éste dice si
+   hay menos incendios. Un MTTR magnífico con un 80 % de correctivo significa
+   que se repara rápido y se rompe todo el rato: eso no es mantenimiento, es
+   una brigada.
+
+   EL MAPEO A LAS TRES FAMILIAS
+
+   El sistema tiene cinco tipos de orden. MEJORA y MAPEO no son estrategias de
+   mantenimiento —una cambia el activo, la otra lo descubre— así que se
+   cuentan aparte y NO entran en el porcentaje. Meterlas dentro inflaría el
+   lado bueno del quesito con trabajo que no previene nada.
+
+   Y SIN DATOS, NO HAY PORCENTAJE
+
+   Con cero órdenes en el periodo no se devuelve «0 % correctivo», que se leería
+   como un logro. Se devuelve `null` y la pantalla lo dice.
+============================================================================= */
+export interface RepartoDeTrabajo {
+  correctivo: number;
+  preventivo: number;
+  predictivo: number;
+  /** Total que entra en el porcentaje (sin mejora ni mapeo). */
+  base: number;
+  /** Porcentajes, o null si no hay ni una orden que repartir. */
+  pct: { correctivo: number; preventivo: number; predictivo: number } | null;
+  /** Fuera del reparto, pero se enseñan para que el total cuadre. */
+  otros: { mejora: number; mapeo: number };
+  /** Qué habría que mover para acercarse a un mantenimiento planificado. */
+  lectura: string;
+}
+
+export function repartoDeTrabajo(ordenes: OrdenParaCalculo[]): RepartoDeTrabajo {
+  const cuenta = (t: string) => ordenes.filter((o) => o.tipo === t).length;
+
+  const correctivo = cuenta('CORRECTIVO');
+  const preventivo = cuenta('PREVENTIVO');
+  const predictivo = cuenta('PREDICTIVO');
+  const otros = { mejora: cuenta('MEJORA'), mapeo: cuenta('MAPEO') };
+  const base = correctivo + preventivo + predictivo;
+
+  if (base === 0) {
+    return {
+      correctivo, preventivo, predictivo, base, otros, pct: null,
+      lectura: 'Sin órdenes de mantenimiento en el periodo. No hay reparto que medir.',
+    };
+  }
+
+  const p = (n: number) => Math.round((n / base) * 100);
+  const pct = { correctivo: p(correctivo), preventivo: p(preventivo), predictivo: p(predictivo) };
+  const planificado = pct.preventivo + pct.predictivo;
+
+  /* La lectura no felicita ni regaña: dice dónde está el reparto y hacia dónde
+     tiene que moverse. Un indicador que sólo pinta un número obliga a que
+     alguien lo interprete en voz alta en cada reunión. */
+  let lectura: string;
+  if (pct.correctivo >= 60) {
+    lectura = `${pct.correctivo} % del trabajo es correctivo: se apagan incendios. `
+      + 'El objetivo es bajarlo subiendo el preventivo planificado.';
+  } else if (planificado >= 70) {
+    lectura = `${planificado} % del trabajo es planificado. El mantenimiento se `
+      + 'adelanta a la avería.';
+  } else {
+    lectura = `${planificado} % planificado frente a ${pct.correctivo} % correctivo. `
+      + 'La meta es seguir moviendo trabajo al lado planificado.';
+  }
+
+  return { correctivo, preventivo, predictivo, base, otros, pct, lectura };
+}

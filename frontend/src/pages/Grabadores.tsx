@@ -296,8 +296,7 @@ export default function Grabadores() {
                 <div className="vacio" style={{ padding: 18 }}>
                   <h4>Este grabador no tiene ni canales registrados ni cámaras</h4>
                   <p>
-                    Anota en la ficha del activo cuántos canales tiene y aquí
-                    aparecerá la rejilla para ir colocando las cámaras.
+                    Declara los canales del grabador en su ficha y aparecerá la rejilla.
                   </p>
                 </div>
               ) : (
@@ -393,8 +392,7 @@ export default function Grabadores() {
 
           {candidatas.length === 0 ? (
             <div className="vacio" style={{ padding: 14 }}>
-              No hay cámaras libres para este grabador. Sólo se ofrecen las que
-              todavía no entran a ningún grabador y son del mismo tren.
+              Sin cámaras libres. Sólo se ofrecen las del mismo tren sin grabador asignado.
             </div>
           ) : (
             <div className="lista-elegir">
@@ -421,8 +419,7 @@ export default function Grabadores() {
               maxLength={120}
             />
             <small className="muted">
-              Es el nombre con el que el operador la llama por radio. Sin él, cada
-              aviso hay que traducirlo preguntando.
+              Nombre con el que se la llama por radio.
             </small>
           </label>
         </Modal>

@@ -1,6 +1,7 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { api } from '../api/client';
 import Modal from './Modal';
+import { fecha } from '../fechas';
 
 /**
  * PIN de campo del propio usuario.
@@ -47,15 +48,14 @@ export default function MiPin({ onClose }: { onClose: () => void }) {
     <Modal title="Mi PIN de campo" onClose={onClose}>
       <form onSubmit={guardar}>
         <div className="sign-note">
-          Sirve para reanudar una orden en campo sin escribir la contraseña
-          completa. Abrir y cerrar una orden seguirán pidiendo tu contraseña.
+          Permite reanudar una orden en campo. Abrir y cerrar seguirán pidiendo la contraseña.
         </div>
 
         {estado && (
           <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
             {estado.tienePin
               ? `Ya tienes un PIN configurado${estado.actualizadoEn
-                  ? ` (${new Date(estado.actualizadoEn).toLocaleDateString('es-PE')})` : ''}.`
+                  ? ` (${fecha(estado.actualizadoEn)})` : ''}.`
               : 'Todavía no tienes PIN.'}
           </div>
         )}

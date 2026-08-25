@@ -6,6 +6,7 @@ import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
 import { useDialogos } from '../components/Dialogos';
 import { plural } from '../formato';
+import { fecha } from '../fechas';
 
 /**
  * ELECTRICIDAD — tableros, circuitos y qué cuelga de cada llave.
@@ -162,13 +163,11 @@ export default function Electricidad() {
         <div style={{ marginTop: 8 }}>
           Aquí se declara qué tableros hay, qué circuitos tiene cada uno y —lo que
           de verdad importa— <b>qué equipo cuelga de qué llave</b>. Con eso el sistema
-          contesta «si salta este térmico, se apagan estas 14 cámaras» y, al revés,
-          «para tocar esta cámara hay que bajar esta llave».
+          Relaciona cada protección con las cámaras que alimenta, en los dos sentidos.
         </div>
         <div style={{ marginTop: 8 }}>
           <b>Ojo con las cámaras PoE:</b> no cuelgan del breaker, cuelgan del switch,
-          que sí. Por eso se marca aparte — si no, alguien va a bajar la llave
-          equivocada creyendo que corta la cámara.
+          que sí. Se marca aparte para no cortar la llave equivocada.
         </div>
       </div>
 
@@ -190,8 +189,7 @@ export default function Electricidad() {
           </div>
           {resumen.sinAlimentacionDeclarada > 0 && (
             <div className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>
-              Cada uno de esos es un equipo que, cuando falle por electricidad, va a
-              costar horas encontrar. Es la lista de trabajo.
+              Equipos sin circuito declarado. Es la lista de trabajo pendiente.
             </div>
           )}
           {resumen.puntosCalientes?.length > 0 && (
@@ -202,7 +200,7 @@ export default function Electricidad() {
                   <li key={p.id}>
                     <b>{p.temperaturaC} °C</b> — {p.donde}
                     {p.observacion ? ` · ${p.observacion}` : ''}
-                    <span className="muted"> ({new Date(p.fecha).toLocaleDateString('es-PE')})</span>
+                    <span className="muted"> ({fecha(p.fecha)})</span>
                   </li>
                 ))}
               </ul>
@@ -232,13 +230,12 @@ export default function Electricidad() {
         )}
       </div>
 
-      {cargando ? <EsqueletoTabla filas={4} /> : tableros.length === 0 ? (
+      {cargando && !tableros.length ? <EsqueletoTabla filas={4} /> : tableros.length === 0 ? (
         <div className="card vacio">
           <h3>No hay tableros registrados</h3>
           <p>
-            Empieza por los que alimentan CCTV: el MCC de cada tren y los tableros de
-            distribución de las salas eléctricas. Con cinco tableros bien declarados
-            ya se contesta la mitad de las caídas.
+            Empieza por los que alimentan CCTV: el MCC de cada tren y los tableros
+            de distribución de las salas eléctricas.
           </p>
         </div>
       ) : (
@@ -310,7 +307,7 @@ export default function Electricidad() {
                 <tbody>
                   {detalle.mediciones.map((m: any) => (
                     <tr key={m.id}>
-                      <td className="muted">{new Date(m.fecha).toLocaleDateString('es-PE')}</td>
+                      <td className="muted">{fecha(m.fecha)}</td>
                       <td>{m.circuitoId
                         ? (detalle.circuitos.find((c: any) => c.id === m.circuitoId)?.numero
                             ? `circuito ${detalle.circuitos.find((c: any) => c.id === m.circuitoId).numero}`
@@ -332,9 +329,7 @@ export default function Electricidad() {
           <div className="section-title">Equipos montados dentro del tablero</div>
           {(!detalle.equiposMontados || detalle.equiposMontados.length === 0) ? (
             <p className="muted" style={{ fontSize: 13 }}>
-              Ninguno declarado. Si hay un switch pequeño atornillado aquí dentro,
-              regístralo en Activos y elige este tablero en «…o dentro de un tablero
-              eléctrico». No hace falta inventar un gabinete.
+              Ninguno declarado. Registra el equipo en Activos y asígnalo a este tablero.
             </p>
           ) : (
             <table className="tabla">
@@ -355,8 +350,7 @@ export default function Electricidad() {
           <div className="section-title">Circuitos</div>
           {detalle.circuitos.length === 0 ? (
             <p className="muted" style={{ fontSize: 13 }}>
-              Todavía no hay circuitos. Declara los que estén rotulados en la puerta,
-              con el mismo número que tienen ahí.
+              Sin circuitos declarados. Regístralos con el número rotulado en la puerta.
             </p>
           ) : (
             <table className="tabla">

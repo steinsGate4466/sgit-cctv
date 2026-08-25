@@ -107,8 +107,7 @@ export default function Zonas() {
         queda a ciegas</b>. Eso sólo lo sabe quien conoce el proceso.
         <div style={{ marginTop: 8 }}>
           Lo que se declara aquí <b>sube sola la prioridad</b> de todas las
-          cámaras de la zona y de las que cuelgan por debajo. No hay que marcar
-          cámara por cámara y no hay forma de olvidarse.
+          cámaras de la zona y de las que cuelgan por debajo.
         </div>
         <div style={{ marginTop: 8 }}>
           Declarar <b>Alta</b> o <b>Crítica</b> obliga a escribir el porqué. Sin
@@ -450,8 +449,7 @@ function FirmaIntervencion({ zona, onCerrar, onGuardado }: {
 
       <div className="card peligro" style={{ marginBottom: 14 }}>
         <b>Esto autoriza a trabajar con el tren produciendo.</b> Queda con tu
-        nombre y la fecha en la auditoría. Mientras una zona no esté firmada,
-        el sistema pide parada — que es lo seguro.
+        nombre y la fecha en la auditoría. Sin firma, el sistema pide parada.
       </div>
 
       {/* LO QUE PROPONE EL SISTEMA, y de dónde sale. */}

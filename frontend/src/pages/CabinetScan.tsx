@@ -105,8 +105,7 @@ export default function CabinetScan() {
         <div className="card vacio">
           <h3>Sin equipos registrados</h3>
           <p>
-            Este gabinete todavía no tiene equipos en el sistema. Si dentro hay
-            algo, es un punto de mapeo pendiente.
+            Sin equipos registrados. Si hay material dentro, queda pendiente de mapeo.
           </p>
         </div>
       ) : (

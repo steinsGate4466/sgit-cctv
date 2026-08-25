@@ -162,15 +162,10 @@ export default function MapaDeRed() {
           directo a los 220 V.
         </p>
         <p>
-          La red de cada equipo no se escribe a mano: se deduce comparando su
-          dirección contra las subredes registradas en Direccionamiento IP. Si un
-          equipo aparece «fuera del plan», o su dirección está mal o falta
-          registrar esa subred.
+          «Fuera del plan»: dirección errónea o subred sin registrar.
         </p>
         <p>
-          El grabador es la frontera entre la red de cámaras y la red CCTV. Si le
-          falta una de sus dos direcciones, el sistema lo dice en vez de suponer
-          que el púlpito llega a verlo.
+          El grabador une la red de cámaras con la red CCTV. Sin sus dos direcciones, se avisa.
         </p>
       </ComoSeCalcula>
     </div>

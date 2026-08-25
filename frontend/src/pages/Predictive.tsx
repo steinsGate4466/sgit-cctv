@@ -65,7 +65,7 @@ export default function Predictive() {
     <div>
       <h1 className="page-title">Mantenimiento Predictivo</h1>
       <p className="page-sub">
-        Activos que dan señales de falla antes de fallar · basado en la condición registrada, la recurrencia y el estado de los enlaces
+        Activos con señales de falla anticipada · condición, recurrencia y estado de enlaces
       </p>
 
       <div className="kpi-grid">
@@ -106,8 +106,7 @@ export default function Predictive() {
             ))}
             {!rows.length && (
               <tr><td colSpan={6} className="muted" style={{ textAlign: 'center', padding: 30 }}>
-                Ningún activo en alerta. Las señales aparecen cuando el técnico registra condición
-                “Observado/Cambiar”, hay fallas recurrentes o enlaces inestables.
+                Sin activos en alerta. Las señales salen de la condición registrada, la recurrencia y los enlaces.
               </td></tr>
             )}
           </tbody>

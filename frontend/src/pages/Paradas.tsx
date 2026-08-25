@@ -5,6 +5,7 @@ import BotonPurgar from '../components/BotonPurgar';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
 import { useDialogos } from '../components/Dialogos';
+import { fechaCorta } from '../fechas';
 
 /**
  * VENTANAS DE PARADA
@@ -30,7 +31,7 @@ const ORIGEN_ES: Record<string, string> = {
 };
 const CANALES = ['Radio', 'WhatsApp', 'Teléfono', 'De boca', 'Correo', 'Reunión'];
 
-const fh = (v: any) => v ? new Date(v).toLocaleString('es-PE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+const fh = (v: any) => fechaCorta(v, '—');
 const paraInput = (v: any) => v ? new Date(new Date(v).getTime() - new Date(v).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '';
 
 /** Minutos a "2 h 30 min", que es como lo dice la gente. */
@@ -195,8 +196,7 @@ export default function Paradas() {
             })}
           </div>
           <div className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>
-            Las que están anunciadas, confirmadas o en curso. Si una no tiene trabajo
-            colgado, es una ventana que se va a desaprovechar.
+            Anunciadas, confirmadas o en curso. Sin trabajo asignado se desaprovechan.
           </div>
         </div>
       )}
@@ -228,8 +228,7 @@ export default function Paradas() {
             </tbody>
           </table>
           <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
-            El desvío medio sale de comparar lo que Producción anunció con lo que pasó de verdad.
-            Sólo cuenta las paradas que se cerraron con hora real.
+            Compara lo anunciado por Producción con lo real. Sólo paradas cerradas con hora.
           </div>
         </div>
       )}
@@ -259,7 +258,7 @@ export default function Paradas() {
         )}
       </div>
 
-      {cargando ? <EsqueletoTabla filas={5} /> : lista.length === 0 ? (
+      {cargando && !lista.length ? <EsqueletoTabla filas={5} /> : lista.length === 0 ? (
         <div className="card vacio">
           <h3>No hay paradas apuntadas</h3>
           <p>
@@ -319,8 +318,7 @@ export default function Paradas() {
           {error && <div role="alert" className="aviso-error">{error}</div>}
           <div className="card explica" style={{ marginTop: 0 }}>
             Apúntala con lo que sepas ahora. <b>La hora se puede mover después</b>,
-            y cada movimiento queda registrado. Es mejor una parada apuntada con hora
-            aproximada que una parada que sólo está en la cabeza de alguien.
+            y cada cambio queda registrado.
           </div>
           <div className="form-grid">
             <label className="campo">

@@ -83,8 +83,7 @@ export default function DetallarOm({ wo, onHecho, onClose }: {
           }}>
             <div style={{ fontWeight: 700, fontSize: 13 }}>Estás cambiando el equipo asignado</div>
             <div className="muted" style={{ fontSize: 11, margin: '4px 0 8px' }}>
-              Está bien hacerlo si el problema es otro. Pero el ingeniero tiene
-              que poder ver qué pidió y qué se hizo, así que explica por qué.
+              Explica por qué, para que el ingeniero pueda comparar lo pedido con lo hecho.
             </div>
             <label>Motivo
               <input value={form.scopeNote} required
@@ -114,8 +113,7 @@ export default function DetallarOm({ wo, onHecho, onClose }: {
           </div>
         ) : (
           <div className="muted" style={{ fontSize: 11, marginTop: -6, marginBottom: 10 }}>
-            Todavía no hay trabajos cerrados de este tipo en este equipo para
-            comparar. A partir del segundo, el sistema te lo sugiere.
+            Sin trabajos cerrados de este tipo para comparar. A partir del segundo se sugiere.
           </div>
         )}
 

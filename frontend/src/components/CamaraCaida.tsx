@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Icono from './Iconos';
 import { Tono } from './Patron';
+import { hora } from '../fechas';
 
 /**
  * LA TARJETA DE UNA CÁMARA CAÍDA — bloque 39.
@@ -99,7 +100,7 @@ export default function CamaraCaida({ c }: { c: any }) {
               <div className="crono-texto">
                 <div className="crono-que">{h.etiqueta}</div>
                 <div className="crono-cuando">
-                  {new Date(h.cuando).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
+                  {hora(h.cuando)}
                   {h.hace && <> · {h.hace} después</>}
                   {h.quien && <> · {h.quien}</>}
                 </div>

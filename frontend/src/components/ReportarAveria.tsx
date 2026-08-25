@@ -59,7 +59,7 @@ interface Motivo {
 const MOTIVOS: Motivo[] = [
   { categoria: 'CAMARA_SIN_IMAGEN', etiqueta: 'No da imagen', titulo: 'Equipo sin imagen' },
   { categoria: 'AMBIENTAL_SIDERURGICO', etiqueta: 'Sucia o empañada', titulo: 'Óptica sucia o empañada' },
-  { categoria: 'SEGURIDAD_FISICA', etiqueta: 'Golpeada, movida o cable cortado', titulo: 'Daño físico en el equipo' },
+  { categoria: 'SEGURIDAD_FISICA', etiqueta: 'Daño físico o cable cortado', titulo: 'Daño físico en el equipo' },
   { categoria: 'PERDIDA_CONECTIVIDAD', etiqueta: 'No responde en red', titulo: 'Pérdida de conectividad' },
   { categoria: 'FALLA_FUENTE_POE', etiqueta: 'Sin alimentación', titulo: 'El equipo no energiza' },
 ];
@@ -112,7 +112,7 @@ export default function ReportarAveria({
 
   async function enviar() {
     if (!motivo) {
-      setError('Elige qué le pasa al equipo.');
+      setError('Selecciona el motivo.');
       return;
     }
     setError('');
@@ -127,6 +127,23 @@ export default function ReportarAveria({
         // Un hecho, no una opinión: se envía sólo si el técnico lo marcó.
         affectedCameras: sinVista ? 1 : undefined,
       });
+      /* NO SE CIERRA EL FORMULARIO HASTA TENER CONFIRMACIÓN.
+         -------------------------------------------------------------------
+         BUG REAL, y el que hizo que el usuario dijera «no pasa nada».
+
+         Antes esto era `setCreada(r.data); setAbierto(false);` sin más. Si la
+         respuesta no traía lo esperado, `creada` quedaba vacío, el formulario
+         se cerraba igual y NO SE PINTABA NADA. Ni confirmación ni error: el
+         botón se pulsaba y la pantalla volvía atrás en silencio.
+
+         Peor todavía: el aviso de error se dibuja DENTRO del formulario, así
+         que al cerrarlo el error se volvía invisible aunque existiera.
+
+         Ahora sólo se cierra si de verdad hay algo que enseñar. */
+      if (!r?.data) {
+        setError('El servidor no confirmó el registro. Comprueba en Incidencias antes de repetir.');
+        return;
+      }
       setCreada(r.data);
       setAbierto(false);
       setMotivo(null);
@@ -134,7 +151,16 @@ export default function ReportarAveria({
       setSinVista(false);
       alCrear();
     } catch (e: any) {
-      setError(e?.message || 'No se pudo registrar la avería. Vuelve a intentarlo.');
+      /* El mensaje del servidor primero: dice QUÉ campo está mal. `e.message`
+         a secas suele ser «Request failed with status code 400», que no ayuda
+         a nadie que esté en un poste con guantes. */
+      const delServidor = e?.response?.data?.message;
+      setError(
+        (Array.isArray(delServidor) ? delServidor.join('. ') : delServidor)
+        || (e?.response?.status
+          ? `No se pudo registrar (error ${e.response.status}). Vuelve a intentarlo.`
+          : 'No hay conexión con el servidor. Comprueba la señal y vuelve a intentarlo.'),
+      );
     } finally {
       setEnviando(false);
     }
@@ -145,9 +171,8 @@ export default function ReportarAveria({
       <div className="scan-note qr-hecho">
         <Icono n="ok" size={16} />
         <span>
-          <b>Avería registrada{creada.code ? ` — ${creada.code}` : ''}.</b>{' '}
-          Queda con tu nombre y la hora. El Jefe de Mantenimiento la revisa y
-          decide si abre orden; <b>cerrarla es cosa suya</b>, no tuya.{' '}
+          <b>Avería registrada{creada.code ? ` · ${creada.code}` : ''}.</b>{' '}
+          Pendiente de revisión por el Jefe de Mantenimiento.{' '}
           <a
             onClick={() => setCreada(null)}
             style={{ cursor: 'pointer', textDecoration: 'underline' }}
@@ -172,7 +197,7 @@ export default function ReportarAveria({
       <div className="section-title" style={{ marginTop: 0 }}>Reportar avería · {codigo}</div>
 
       <fieldset className="av-motivos">
-        <legend>¿Qué le pasa?</legend>
+        <legend>Motivo</legend>
         {MOTIVOS.map((m) => (
           <button
             key={m.categoria}
@@ -191,7 +216,7 @@ export default function ReportarAveria({
           rows={2}
           value={detalle}
           onChange={(e) => setDetalle(e.target.value)}
-          placeholder="Lo que viste. Ej: cable colgando por detrás del poste"
+          placeholder="Ej: cable suelto en la parte trasera"
         />
       </label>
 
@@ -199,7 +224,7 @@ export default function ReportarAveria({
           deduce el servidor de la criticidad de la zona. */}
       <label className="av-check">
         <input type="checkbox" checked={sinVista} onChange={(e) => setSinVista(e.target.checked)} />
-        <span>La zona se ha quedado sin vista</span>
+        <span>La zona quedó sin vista</span>
       </label>
 
       {error && <div className="error" style={{ display: 'block' }}>{error}</div>}

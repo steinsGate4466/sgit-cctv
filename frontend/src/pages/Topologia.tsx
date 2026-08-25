@@ -153,10 +153,7 @@ export default function Topologia() {
         <div className="card vacio">
           <h3>Todavía no hay red que analizar</h3>
           <p>
-            El impacto se calcula con lo que ya está registrado: los puertos de
-            switch ocupados, los enlaces de fibra o radio, y el NVR de cada
-            cámara. Ve rellenando esos datos en Activos y Cableado y esta
-            pantalla se irá llenando sola.
+            Se calcula con puertos, enlaces y grabador de cada cámara.
           </p>
         </div>
       ) : (

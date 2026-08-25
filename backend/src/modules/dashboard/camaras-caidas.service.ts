@@ -89,7 +89,23 @@ export class CamarasCaidasService {
     if (!caidas.length) {
       const delTren = camaras.filter((c) =>
         (ctx[c.id]?.trenCode || '').toUpperCase().includes(trenCode.toUpperCase()));
-      return this.vacio(trenCode, null, delTren.length);
+      /* SE DEVUELVE LA LISTA AUNQUE ESTÉN TODAS BIEN.
+         -------------------------------------------------------------------
+         Antes esto devolvía `camaras: []` y un titular. La pantalla se
+         llamaba «Mis cámaras» y no enseñaba ni una: sólo un recuadro verde.
+         En una demostración eso parece una pantalla que no funciona, y en el
+         día a día no responde la pregunta obvia — «¿cuáles son mis cámaras?».
+
+         Ahora se devuelven con su ubicación y su estado. Sin novedad sigue
+         siendo sin novedad, pero se ve QUÉ es lo que está sin novedad. */
+      return this.vacio(trenCode, null, delTren.length, delTren.map((c) => ({
+        id: c.id,
+        assetCode: c.assetCode,
+        estado: estados[c.id] || c.status,
+        lugar: c.location?.name || c.referencePlace || null,
+        etapa: ctx[c.id]?.etapaNombre || null,
+        zonaVital: ctx[c.id]?.zonaVital ?? false,
+      })));
     }
 
     const ids = caidas.map((c) => c.id);
@@ -329,10 +345,13 @@ export class CamarasCaidasService {
     return t + '.';
   }
 
-  private vacio(tren: string, motivo: string | null, total = 0) {
+  private vacio(tren: string, motivo: string | null, total = 0, operativas: any[] = []) {
     return {
       tren,
       camaras: [],
+      /** Las que SÍ están dando imagen. Se enseñan para que la pantalla
+       *  responda «cuáles son mis cámaras», no sólo «cuáles fallan». */
+      operativas,
       titular: motivo
         ?? (total === 0
           ? 'Este tren todavía no tiene cámaras cargadas'

@@ -1,4 +1,4 @@
-/**
+import { fechaCorta } from '../fechas';/**
  * Catálogos del módulo de Órdenes de Mantenimiento.
  * Viven aparte para que Mantenimiento, Preventivo y Correctivo usen los mismos
  * textos y no acaben con etiquetas distintas para el mismo valor.
@@ -85,8 +85,7 @@ export const CAUSA_ES: Record<string, string> = Object.fromEntries(
 );
 
 /** Fecha y hora en formato local, corto. */
-export const fh = (v?: string | null) =>
-  v ? new Date(v).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+export const fh = (v?: string | null) => fechaCorta(v, '—');
 
 /** Minutos a "2 h 15 min". */
 export function duracion(min?: number | null): string {

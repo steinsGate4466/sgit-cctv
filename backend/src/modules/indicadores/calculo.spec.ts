@@ -1,4 +1,4 @@
-import { mttr, mtbf, disponibilidad, cumplimientoPreventivo, backlog, peoresEquipos, HORA, OrdenParaCalculo } from './calculo';
+import { HORA, OrdenParaCalculo, backlog, cumplimientoPreventivo, disponibilidad, mtbf, mttr, peoresEquipos, repartoDeTrabajo } from './calculo';
 
 /**
  * INDICADORES DE MANTENIMIENTO
@@ -188,5 +188,56 @@ describe('Peores equipos · la conversación de presupuesto', () => {
 
   it('ignora las órdenes sin equipo (mapeo, zona)', () => {
     expect(peoresEquipos([om({ assetId: null })])).toEqual([]);
+  });
+});
+
+/* =============================================================================
+   EL REPARTO CORRECTIVO / PREVENTIVO / PREDICTIVO — bloque 65
+   -----------------------------------------------------------------------------
+   Es el indicador que el ingeniero dibujó en el centro de su hoja, así que se
+   prueba con el mismo cuidado que el MTTR: es el número que va a mirar una
+   jefatura para decidir si el mantenimiento está mejorando.
+============================================================================= */
+describe('reparto correctivo / preventivo / predictivo', () => {
+  const om = (tipo: string, n: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      id: `${tipo}-${i}`, tipo, estado: 'CERRADA', assetId: 'a1',
+      creada: new Date('2026-08-01'), cerrada: new Date('2026-08-02'),
+      programada: new Date('2026-08-01'),
+    }));
+
+  it('reparte en porcentaje sobre las TRES estrategias', () => {
+    const r = repartoDeTrabajo([...om('CORRECTIVO', 4), ...om('PREVENTIVO', 3), ...om('PREDICTIVO', 3)]);
+    expect(r.base).toBe(10);
+    expect(r.pct).toEqual({ correctivo: 40, preventivo: 30, predictivo: 30 });
+  });
+
+  it('MEJORA y MAPEO se cuentan aparte y NO entran en el porcentaje', () => {
+    /* Si entraran, el lado «bueno» del quesito se inflaría con trabajo que no
+       previene ninguna avería. Un indicador que se puede mejorar registrando
+       mapeo deja de medir mantenimiento. */
+    const r = repartoDeTrabajo([...om('CORRECTIVO', 5), ...om('MEJORA', 20), ...om('MAPEO', 30)]);
+    expect(r.base).toBe(5);
+    expect(r.pct).toEqual({ correctivo: 100, preventivo: 0, predictivo: 0 });
+    expect(r.otros).toEqual({ mejora: 20, mapeo: 30 });
+  });
+
+  it('SIN ÓRDENES devuelve null, nunca «0 % correctivo»', () => {
+    /* Un cero se lee como un logro. La regla de la casa: sin datos, nunca cero. */
+    const r = repartoDeTrabajo([]);
+    expect(r.pct).toBeNull();
+    expect(r.lectura).toContain('Sin órdenes');
+  });
+
+  it('avisa cuando se están apagando incendios', () => {
+    const r = repartoDeTrabajo([...om('CORRECTIVO', 8), ...om('PREVENTIVO', 2)]);
+    expect(r.lectura).toContain('correctivo');
+    expect(r.lectura).toContain('incendios');
+  });
+
+  it('reconoce el mantenimiento planificado', () => {
+    const r = repartoDeTrabajo([...om('CORRECTIVO', 1), ...om('PREVENTIVO', 7), ...om('PREDICTIVO', 2)]);
+    expect(r.pct!.preventivo + r.pct!.predictivo).toBeGreaterThanOrEqual(70);
+    expect(r.lectura).toContain('planificado');
   });
 });

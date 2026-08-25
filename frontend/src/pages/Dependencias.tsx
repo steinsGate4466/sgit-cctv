@@ -125,19 +125,13 @@ export default function Dependencias() {
 
       <ComoSeCalcula>
         <p>
-          Una cámara «depende» de un equipo cuando, si ese equipo se cae, su
-          imagen ya no llega al grabador. No es lo mismo que estar conectada:
-          en el anillo de fibra hay equipos que se pueden caer sin que se pierda
-          nada, porque la red da la vuelta por el otro lado.
+          Depende si, al caer ese equipo, la imagen deja de llegar al grabador.
         </p>
         <p>
-          No se cuentan las cámaras que ya estaban sin llegar antes. Si una lleva
-          un mes sin cable, no es culpa del equipo que acaba de fallar.
+          No se cuentan las cámaras que ya estaban sin señal antes del fallo.
         </p>
         <p>
-          Si tu rol está sectorizado, aquí ves los equipos que afectan a tu
-          sector — incluidos los que no son tuyos, porque son justo los que
-          explican por qué te quedaste sin ver.
+          Con rol sectorizado se ven los equipos que afectan a tu sector, sean tuyos o no.
         </p>
       </ComoSeCalcula>
     </div>

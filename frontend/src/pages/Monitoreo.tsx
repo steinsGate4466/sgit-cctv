@@ -76,8 +76,7 @@ export default function Monitoreo() {
           </p>
           <p style={{ marginTop: 12 }}>
             El agente <b>no abre ningún puerto</b>: se conecta él hacia fuera,
-            por HTTPS, igual que cualquier actualización. La red industrial no
-            queda expuesta en ningún momento.
+            por HTTPS. La red industrial no queda expuesta.
           </p>
         </div>
       ) : (
@@ -140,9 +139,7 @@ export default function Monitoreo() {
       {nuevo && (
         <Modal title="Nuevo agente de planta" onClose={() => setNuevo(false)}>
           <p className="muted" style={{ fontSize: 13, margin: '0 0 12px', lineHeight: 1.55 }}>
-            Un nombre que diga dónde va a estar instalado, por ejemplo
-            «PC del púlpito Tren 2». Si mañana hay tres agentes, el nombre es
-            lo único que los distingue.
+            Nombre del punto de instalación, por ejemplo «PC del púlpito Tren 2».
           </p>
           <label>Nombre
             <input value={nombre} onChange={(e) => setNombre(e.target.value)}

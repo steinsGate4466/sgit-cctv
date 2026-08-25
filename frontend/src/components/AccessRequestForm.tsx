@@ -169,8 +169,7 @@ export default function AccessRequestForm({ assetId, assetCode, assets, onDone }
     <form onSubmit={submitStep1}>
       <div className="sign-note">
         <b>Paso 1 de 2 · Sustento</b><br />
-        El manlift y el izaje son recursos costosos y el trabajo en altura es de alto riesgo.
-        Explica con precisión por qué este equipo no se puede intervenir de forma normal.
+        Indica por qué el equipo no se puede intervenir de forma normal.
       </div>
 
       {assetId ? (

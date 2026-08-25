@@ -5,6 +5,7 @@ import BotonPurgar from '../components/BotonPurgar';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
 import { useDialogos } from '../components/Dialogos';
+import { fecha } from '../fechas';
 
 /**
  * INSTALACIONES — poner equipo NUEVO.
@@ -247,8 +248,7 @@ export default function Instalaciones() {
         </div>
         <div style={{ marginTop: 8 }}>
           <b>Termina creando el activo.</b> Cuando se marca como instalada, el equipo
-          entra al inventario con su ubicación y su ficha. Sin ese paso, queda puesto
-          en la pared y fuera del sistema.
+          entra al inventario con su ubicación y su ficha.
         </div>
       </div>
 
@@ -285,13 +285,11 @@ export default function Instalaciones() {
         }}>+ Pedir instalación</button>
       </div>
 
-      {cargando ? <EsqueletoTabla filas={5} /> : lista.length === 0 ? (
+      {cargando && !lista.length ? <EsqueletoTabla filas={5} /> : lista.length === 0 ? (
         <div className="card vacio">
           <h3>No hay instalaciones registradas</h3>
           <p>
-            Cuando alguien pida una cámara para el púlpito, una antena para una grúa
-            o una pantalla para la sala de control, se apunta aquí. Después alguien va
-            al sitio, mide, y con eso el Jefe decide con números delante.
+            Solicitudes de cámaras, antenas o pantallas. Se mide en sitio y el Jefe decide con datos.
           </p>
         </div>
       ) : (
@@ -303,7 +301,7 @@ export default function Instalaciones() {
             {lista.map((i) => (
               <tr key={i.id}>
                 <td><strong>{i.codigo}</strong>
-                  <div className="muted" style={{ fontSize: 11.5 }}>{new Date(i.creadoEn).toLocaleDateString('es-PE')}</div></td>
+                  <div className="muted" style={{ fontSize: 11.5 }}>{fecha(i.creadoEn)}</div></td>
                 <td>{i.cantidad > 1 ? `${i.cantidad} × ` : ''}{EQUIPO_ES[i.tipoEquipo] || i.tipoEquipo}</td>
                 <td>
                   <div>{SITIO_ES[i.tipoSitio] || i.tipoSitio}{i.tren ? ` · ${i.tren}` : ''}</div>
@@ -559,8 +557,7 @@ export default function Instalaciones() {
           {error && <div role="alert" className="aviso-error">{error}</div>}
           <div className="card explica" style={{ marginTop: 0 }}>
             Este es el paso que mete el equipo <b>en el inventario</b>. Sin él, la cámara
-            queda puesta en la pared y fuera del sistema — que es justo el problema que
-            este software existe para resolver.
+            queda instalado fuera del sistema.
             <div style={{ marginTop: 6 }}>
               La ficha nace <b>incompleta</b> a propósito, con lo que se sabe hoy. Se
               termina de llenar desde Activos.

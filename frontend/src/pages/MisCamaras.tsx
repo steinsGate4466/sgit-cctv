@@ -128,9 +128,42 @@ export default function MisCamaras() {
 
       {error && <div className="card peligro">{error}</div>}
 
-      {cargando ? <EsqueletoTablero /> : d && (
-        <>
+      {/* EL SALTO DE PANTALLA AL CAMBIAR DE PESTAÑA.
+          -----------------------------------------------------------------
+          Antes esto era `cargando ? <Esqueleto/> : d && (...)`. Al pulsar
+          otra pestaña el contenido DESAPARECÍA y se pintaba un esqueleto de
+          altura distinta: la página daba un salto arriba y abajo. Se ve en
+          escritorio y es peor en el móvil, donde además mueve el dedo de
+          sitio.
+
+          El esqueleto sólo tiene sentido la PRIMERA vez, cuando no hay nada
+          que enseñar. Al recargar se mantiene lo anterior y se atenúa: la
+          altura no cambia, no hay salto, y el usuario ve que está trabajando. */}
+      {cargando && !d ? <EsqueletoTablero /> : d && (
+        <div className={cargando ? 'recargando' : undefined}>
           <Titular tono={tono} texto={d.titular} />
+
+          {/* LAS QUE ESTÁN BIEN TAMBIÉN SE ENSEÑAN.
+              La pantalla se llama «Mis cámaras» y antes, sin averías, no
+              mostraba ninguna: sólo un recuadro verde. Ni respondía «cuáles
+              son mis cámaras» ni se podía enseñar en una demostración. */}
+          {!hay && (d.operativas?.length ?? 0) > 0 && (
+            <table className="tabla">
+              <thead>
+                <tr><th>Código</th><th>Ubicación</th><th>Etapa</th><th>Estado</th></tr>
+              </thead>
+              <tbody>
+                {d.operativas.map((c: any) => (
+                  <tr key={c.id}>
+                    <td><b>{c.assetCode}</b>{c.zonaVital && <span className="chip"> vital</span>}</td>
+                    <td>{c.lugar || '—'}</td>
+                    <td className="muted">{c.etapa || 'sin etapa'}</td>
+                    <td><span className="chip est-OPERATIVO">Dando imagen</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
 
           {hay && (
             <Cifras
@@ -151,7 +184,7 @@ export default function MisCamaras() {
           )}
 
           {d.camaras.map((c: any) => <CamaraCaida key={c.id} c={c} />)}
-        </>
+        </div>
       )}
 
       <ComoSeCalcula>
@@ -160,16 +193,12 @@ export default function MisCamaras() {
           fuera de servicio, en mantenimiento o con una incidencia abierta.
         </p>
         <p>
-          <b>«Se fue» y «lo reportaron» son datos distintos.</b> La hora de
-          caída sólo se sabe con el agente de monitoreo instalado, y hace falta
-          que la cámara falle tres veces seguidas antes de darla por caída — una
-          pérdida suelta en una wifi industrial es lo normal, no una avería.
-          Sin agente, lo único que hay es cuándo alguien avisó.
+          <b>«Se fue» y «lo reportaron» son datos distintos.</b> La caída se
+          confirma tras tres fallos seguidos, con el agente instalado.
         </p>
         <p>
           <b>El material que falta</b> se calcula contra el stock del almacén.
-          Si el técnico escribió el material a mano, sin código, no se dice que
-          falte: se dice que no se puede saber.
+          Escrito a mano y sin código, se dice «no se puede saber».
         </p>
         <p>
           <b>Aquí no se toca nada.</b> Es una pantalla de sólo lectura: el

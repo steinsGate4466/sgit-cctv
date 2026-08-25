@@ -89,8 +89,7 @@ export default function Bandeja() {
           <NadaPendiente />
           <h3>No hay nada esperándote</h3>
           <p>
-            Ni órdenes sin detallar, ni firmas pendientes, ni permisos sin
-            resolver. Eso es una buena noticia y merece decirse.
+            Sin órdenes por detallar, firmas ni permisos pendientes.
           </p>
         </div>
       ) : (

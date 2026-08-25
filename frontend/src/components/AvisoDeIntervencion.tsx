@@ -52,44 +52,39 @@ export interface PlantaConIntervencion {
   intervencionMotivo?: string | null;
 }
 
-/* Texto de planta, no de norma. El técnico no lee «CON_PERMISO_ELECTRICO»:
-   lee «bloquea el tablero antes de abrir». La palabra que dice QUÉ HACER es
-   la que evita el accidente; la etiqueta del enum sólo nombra el problema. */
+/* TEXTO CORTO Y DE PLANTA. Dos líneas: QUÉ exige la zona y QUÉ hacer.
+   -----------------------------------------------------------------------------
+   La primera versión eran párrafos de 140 caracteres con explicaciones y
+   matices. En un móvil, de noche y con prisa, un párrafo no se lee: se salta.
+   Un aviso de seguridad que se salta no protege, y encima resta credibilidad
+   al resto de la pantalla.
+
+   Regla: título de 3 a 5 palabras, instrucción de una frase. Lo que sobre va
+   al procedimiento, no aquí. */
 const NIVEL: Record<Nivel, { titulo: string; hacer: string; clase: string }> = {
   EN_MARCHA: {
-    titulo: 'Se puede intervenir con el tren en marcha',
-    hacer:
-      'Zona de cabina o púlpito. Aun así: avisa al jefe de línea antes de tocar, ' +
-      'porque tu equipo puede estar dando imagen a alguien ahora mismo.',
+    titulo: 'Intervención con tren en marcha',
+    hacer: 'Cabina o púlpito. Avisa al jefe de línea antes de tocar.',
     clase: 'iv-suave',
   },
   CON_PERMISO_ELECTRICO: {
-    titulo: 'Hace falta permiso y BLOQUEO ELÉCTRICO',
-    hacer:
-      'No se abre el tablero sin bloqueo y tarjeta puestos por ti. ' +
-      'Candado propio: el de otro no te protege.',
+    titulo: 'Requiere bloqueo eléctrico',
+    hacer: 'Bloqueo y tarjeta propios antes de abrir el tablero.',
     clase: 'iv-media',
   },
   CON_PERMISO_ALTURA: {
-    titulo: 'Hace falta PERMISO DE ALTURA',
-    hacer:
-      'Por encima de 1,80 m hace falta PETAR, arnés con doble línea anclada y ' +
-      'personal acreditado. Subir «un momento» a mirar también es subir.',
+    titulo: 'Requiere permiso de altura',
+    hacer: 'PETAR, arnés con doble línea y personal acreditado.',
     clase: 'iv-media',
   },
   EXIGE_PARADA: {
-    titulo: 'EL TREN TIENE QUE ESTAR PARADO',
-    hacer:
-      'Barra caliente, vapor o rodillos. No se entra con la línea produciendo, ' +
-      'ni para mirar. Si no hay ventana de parada abierta, esto no se hace hoy.',
+    titulo: 'Exige tren parado',
+    hacer: 'Barra caliente, vapor o rodillos. No se entra en marcha.',
     clase: 'iv-dura',
   },
   SIN_CLASIFICAR: {
-    titulo: 'NADIE HA DECLARADO CÓMO SE INTERVIENE ESTA ZONA',
-    hacer:
-      'Mientras no esté firmada se trata como si exigiera parada, que es lo ' +
-      'seguro. Que falte el dato NO significa que no haya riesgo: pregunta ' +
-      'antes de acercarte.',
+    titulo: 'Zona sin declarar',
+    hacer: 'Se aplica parada de tren. Consulta antes de intervenir.',
     clase: 'iv-dura',
   },
 };
@@ -129,11 +124,7 @@ export default function AvisoDeIntervencion({
         ) : (
           <>
             <Icono n="alerta" size={13} />
-            <span>
-              <b>Sin firmar.</b>{' '}
-              {planta?.intervencionMotivo ||
-                'Nadie ha declarado cómo se interviene aquí, así que se pide parada.'}
-            </span>
+            <span><b>Sin firmar.</b> Se aplica parada de tren.</span>
           </>
         )}
       </div>
@@ -145,9 +136,8 @@ export default function AvisoDeIntervencion({
         <div className="iv-desfase">
           <Icono n="reloj" size={13} />
           <span>
-            La firma permite más de lo que hoy correspondería por el ambiente de
-            la zona{zona ? ` (${zona})` : ''}. Algo cambió en planta desde que se
-            firmó: revísalo antes de mandar a nadie.
+            Firma desactualizada{zona ? ` · ${zona}` : ''}. El ambiente de la zona
+            cambió: revisar antes de intervenir.
           </span>
         </div>
       )}

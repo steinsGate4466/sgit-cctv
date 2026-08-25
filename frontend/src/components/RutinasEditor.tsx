@@ -120,8 +120,7 @@ export default function RutinasEditor() {
             Todavía no hay ninguna rutina definida
           </div>
           <div className="muted" style={{ fontSize: 13, marginTop: 8, lineHeight: 1.6 }}>
-            Mientras no la haya, un preventivo se cierra sin comprobar nada, que
-            es como funcionaba hasta ahora.
+            Sin lista de comprobación, el preventivo se cierra sin verificar nada.
             <br />Empieza por la <b>cámara</b>: es el equipo del que más hay.
           </div>
         </div>
@@ -209,9 +208,7 @@ export default function RutinasEditor() {
             Si sale <b>No conforme</b>, proponer una orden correctiva
           </label>
           <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
-            Márcalo solo en lo que de verdad deja el equipo comprometido. Si todo
-            hallazgo generara una orden, una tarde de preventivos llenaría el
-            tablero de trabajo que nadie pidió y dejaría de creérselo nadie.
+            Márcalo solo cuando el hallazgo deja el equipo comprometido.
           </div>
 
           <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
