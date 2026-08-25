@@ -8,6 +8,7 @@ import { useAuth } from '../auth/AuthContext';
 import Icono from '../components/Iconos';
 import { useDialogos } from '../components/Dialogos';
 import { fechaHora } from '../formato';
+import { fechaCorta } from '../fechas';
 
 // Categorías agrupadas para el selector (CCTV/NVR, Red/energía, Entorno de planta).
 const CATEGORY_GROUPS: { label: string; items: string[] }[] = [
@@ -239,7 +240,7 @@ export default function Incidents() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 className="page-title">Incidencias</h1>
-          <p className="page-sub">{rows.length} incidencias · bitácora de campo para análisis de problemas de planta</p>
+          <p className="page-sub">{rows.length} incidencias · bitácora de fallas de planta</p>
         </div>
         {can('incident.create') && <button className="btn-primary" onClick={() => setShowForm(true)}>+ Nueva incidencia</button>}
       </div>
@@ -260,15 +261,45 @@ export default function Incidents() {
       <div className="card">
         <table>
           <thead>
-            <tr><th>Código</th><th>Título</th><th>Categoría</th><th>Zona</th><th>Prioridad</th><th>Estado</th><th>Activo</th><th></th></tr>
+            {/* LA FECHA FALTABA, Y ES LA QUE ALIMENTA EL MTTR. Bloque 66.
+                  ------------------------------------------------------------
+                  La incidencia es el ARRANQUE del ciclo: desde el QR se
+                  reporta, y de ahí sale la orden. Sin la hora en que se
+                  reportó no hay «cuánto tardamos», y sin eso el MTTR no se
+                  puede calcular ni defender en una reunión.
+
+                  El dato ya venía del servidor —`reportedAt` y `resolvedAt`—
+                  y no se pintaba. Otra vez lo mismo: el dato existía y no
+                  tenía pantalla. */}
+              <tr>
+                <th>Código</th><th>Título</th><th>Zona</th><th>Reportada</th>
+                <th>Prioridad</th><th>Estado</th><th>Activo</th><th></th>
+              </tr>
           </thead>
           <tbody>
             {rows.map((i) => (
               <tr key={i.id}>
                 <td style={{ fontWeight: 600 }}>{i.code}</td>
-                <td>{i.title}</td>
-                <td className="muted" style={{ fontSize: 11 }}>{catEs(i.category)}</td>
+                {/* La categoría baja bajo el título en vez de ocupar columna:
+                    describe el título, y con ella eran DIEZ columnas — el tope
+                    son ocho, y `verificar:densidad` lo cazó al añadir la fecha. */}
+                <td>
+                  {i.title}
+                  <div className="muted" style={{ fontSize: 11 }}>{catEs(i.category)}</div>
+                </td>
                 <td className="muted" style={{ fontSize: 12 }}>{i.zone || '—'}</td>
+                {/* REPORTADA Y RESUELTA EN UNA SOLA COLUMNA.
+                    Es el par que alimenta el MTTR: restar una de otra ES el
+                    indicador. Juntas se leen de un vistazo; en dos columnas
+                    separadas hay que ir y volver con la vista. */}
+                <td className="muted" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+                  {fechaCorta(i.reportedAt, '—')}
+                  <div style={{ fontSize: 11 }}>
+                    {i.resolvedAt
+                      ? <>→ {fechaCorta(i.resolvedAt)}</>
+                      : <span className="muted">abierta</span>}
+                  </div>
+                </td>
                 <td><span className={'badge ' + i.priority}>{i.priority}</span></td>
                 <td><span className={'badge ' + statusBadge(i.status)}>{stEs(i.status)}</span></td>
                 <td className="muted">
@@ -315,7 +346,7 @@ export default function Incidents() {
       {showForm && (
         <Modal title="Nueva incidencia" onClose={() => setShowForm(false)}>
           <form onSubmit={create}>
-            <div className="sign-note">Registra qué está pasando en campo (haya o no una OM). Sirve como bitácora para analizar problemas de planta.</div>
+            <div className="sign-note">Registra la falla, haya o no orden. Alimenta el análisis.</div>
             <label>Título
               <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required minLength={3} />
             </label>

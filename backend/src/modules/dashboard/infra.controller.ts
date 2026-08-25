@@ -22,9 +22,37 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 export class InfraController {
   constructor(private readonly infra: InfraService) {}
 
-  /** Los trenes REALES del árbol, cada uno con su estado de infraestructura. */
+  /* LOS TRENES DEL ÁRBOL — SIN PERMISO DE MÓDULO. Bloque 66.
+     -------------------------------------------------------------------------
+     EL FALLO QUE ESTO CIERRA, y salió mirando la pantalla.
+
+     Esto exigía `dashboard.read`. Y lo llaman CUATRO pantallas de Producción
+     —Por tren, Vista general, Mis cámaras, Mis activos— que se abren con
+     `om.mirar` o `activos.mirar`.
+
+     Ni el Jefe de Tren ni el Operador de Púlpito tienen `dashboard.read`. Así
+     que la lista de trenes les llegaba con 403, las pestañas salían vacías,
+     no había tren seleccionado y «Mis cámaras» decía «este tren todavía no
+     tiene cámaras cargadas». El usuario concluyó, con razón, que la pantalla
+     estaba rota.
+
+     POR QUÉ SE QUITA EL PERMISO Y NO SE REPARTE `dashboard.read`
+
+     Porque `dashboard.read` abre el tablero de indicadores entero. Concederlo
+     para que alguien vea tres nombres de tren es abrir de más por un problema
+     de fontanería.
+
+     Y PORQUE ESTO NO ES INFORMACIÓN: devuelve el código, el nombre y la sigla
+     de los trenes. Están escritos en carteles por toda la planta. Lo que sí
+     es información —qué hay dentro de cada tren— va en otros endpoints, cada
+     uno con su permiso y su ámbito.
+
+     LA REGLA QUE QUEDA: una lista de apoyo para rellenar una pestaña o un
+     desplegable NO lleva el permiso del módulo al que pertenece. Si lo lleva,
+     acaba cerrándole la pantalla a quien tiene derecho a usarla.
+
+     Sigue exigiendo sesión válida: el `JwtAuthGuard` de la clase no se toca. */
   @Get('trenes')
-  @RequirePermissions('dashboard.read')
   trenes(@CurrentUser() user: any) {
     return this.infra.resumenTrenes(user?.userId);
   }

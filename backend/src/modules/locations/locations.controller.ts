@@ -8,7 +8,7 @@ import { LocationsService } from './locations.service';
 import { CreateLocationDto, UpdateLocationDto } from './dto/location.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
-import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { RequireAlguno, RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { AmbitoDe } from '../../common/ambito.decorator';
 
 @ApiTags('locations')
@@ -18,14 +18,27 @@ import { AmbitoDe } from '../../common/ambito.decorator';
 export class LocationsController {
   constructor(private readonly locations: LocationsService) {}
 
+  /* ÁRBOL DE UBICACIONES — «cualquiera de». Bloque 66. Mismo caso que
+     `/assets/options`: es la lista para rellenar el campo «dónde está», y la
+     usan siete pantallas abiertas con permisos distintos. Con `location.read`
+     a secas el desplegable salía vacío en Activos, Instalaciones, Gabinetes,
+     Electricidad, Campañas, Documentos y Mantenimiento. */
   @Get()
-  @RequirePermissions('location.read')
+  @RequireAlguno(
+    'location.read', 'location.manage', 'asset.read', 'asset.create',
+    'asset.update', 'activos.mirar', 'infra.read', 'wo.read',
+    'document.read',
+  )
   findAll() {
     return this.locations.findAll();
   }
 
+  /* Mismo caso que la lista: es el árbol para elegir «dónde está». Bloque 66. */
   @Get('tree')
-  @RequirePermissions('location.read')
+  @RequireAlguno(
+    'location.read', 'location.manage', 'asset.read', 'asset.create',
+    'asset.update', 'activos.mirar', 'infra.read', 'wo.read', 'document.read',
+  )
   tree() {
     return this.locations.tree();
   }

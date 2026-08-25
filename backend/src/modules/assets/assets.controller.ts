@@ -13,7 +13,7 @@ import { UpdateNetworkDto } from './dto/update-network.dto';
 import { QueryAssetDto } from './dto/query-asset.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
-import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { RequireAlguno, RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { AmbitoDe } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
@@ -67,8 +67,26 @@ export class AssetsController {
     return this.assets.avanceMapeo({ tren, etapa });
   }
 
+  /* DESPLEGABLE DE EQUIPOS — «cualquiera de», no `asset.read`. Bloque 66.
+     -------------------------------------------------------------------------
+     Lo llaman SEIS pantallas con seis permisos distintos: Cableado
+     (`infra.read`), Accesibilidad (`access.read`), Incidencias
+     (`incident.read`), Mantenimiento y Preventivo (`wo.read`) e Inventario
+     (`inventory.read`).
+
+     Con `asset.read` a secas, quien podía crear una incidencia abría el
+     formulario y el desplegable salía VACÍO: no podía elegir el equipo.
+     Repartir `asset.read` para arreglarlo habría abierto el módulo de Activos
+     entero — el mismo error que dejó a Producción con el plano eléctrico.
+
+     Devuelve código, tipo, estado y ubicación. Ni IP ni credenciales: eso va
+     en `findOne` y exige `credential.read`. */
   @Get('options')
-  @RequirePermissions('asset.read')
+  @RequireAlguno(
+    'asset.read', 'activos.mirar', 'wo.read', 'wo.update',
+    'incident.read', 'incident.create', 'inventory.read',
+    'infra.read', 'access.read',
+  )
   options() {
     return this.assets.options();
   }

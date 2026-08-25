@@ -83,33 +83,32 @@ const EXENTAS = {
    ============================================================================= */
 const LINEA_BASE = {
   // pantalla:            [palabras, columnas, indicadores]
-  'Electricidad.tsx':      [462, 6, 0],
-  'Equipos.tsx':           [478, 7, 0],
+  'Electricidad.tsx':      [395, 6, 0],
+  'Equipos.tsx':           [419, 7, 0],
   'Limpieza.tsx':          [413, 7, 0],
-  'Instalaciones.tsx':     [352, 7, 0],
-  'Assets.tsx':            [264, 11, 0],
-  'Paradas.tsx':           [289, 10, 0],
-  'Ipam.tsx':              [311, 7, 0],
-  'Maintenance.tsx':       [237, 9, 0],
-  'Campanas.tsx':          [272, 7, 0],
+  'Instalaciones.tsx':     [304, 7, 0],
+  'Assets.tsx':            [252, 11, 0],
+  'Paradas.tsx':           [246, 10, 0],
+  'Ipam.tsx':              [278, 7, 0],
+  'Maintenance.tsx':       [223, 9, 0],
+  'Campanas.tsx':          [257, 7, 0],
   'Incidents.tsx':         [180, 8, 0],
-  'Topologia.tsx':         [247, 6, 0],
+  'Topologia.tsx':         [218, 6, 0],
   // Convertida a medias en el bloque 38: el titular y las acciones ya están
   // arriba, pero dentro lleva OCHO vistas con su propio texto. Bajar de aquí
   // exige repasar las ocho, y eso es un bloque propio.
   'TrainBoard.tsx':        [177, 4, 9],
-  'Gruas.tsx':             [223, 8, 0],
+  'Gruas.tsx':             [216, 8, 0],
   'Locations.tsx':         [196, 8, 0],
-  'Zonas.tsx':             [215, 8, 2],
-  'Monitoreo.tsx':         [219, 4, 5],
-  'Conexiones.tsx':        [200, 6, 0],
-  'Indicadores.tsx':       [210, 6, 0],
-  'Grabadores.tsx':        [163, 6, 0],
-  'Avisos.tsx':            [162, 4, 5],
+  'Zonas.tsx':             [195, 8, 2],
+  'Monitoreo.tsx':         [196, 4, 5],
+  'Conexiones.tsx':        [185, 6, 0],
+  'Indicadores.tsx':       [174, 6, 0],
+  'Grabadores.tsx':        [137, 6, 0],
+  'Avisos.tsx':            [152, 4, 5],
   // Recién hecha en el bloque 36 y ya pasa de columnas. Es la prueba de que
   // esto se degrada solo aunque quien escriba tenga la regla en la cabeza.
   'Riesgo.tsx':            [160, 12, 1],
-  'Documentos.tsx':        [143, 6, 0],
   // Quince indicadores. Es EL tablero, y aun así quince no se leen.
   'Dashboard.tsx':         [112, 0, 15],
 };

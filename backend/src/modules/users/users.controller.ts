@@ -7,7 +7,7 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { SetPinDto, VerifyPinDto } from './dto/pin.dto';
-import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { RequireAlguno, RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { SinAmbito } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
@@ -17,8 +17,23 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 export class UsersController {
   constructor(private readonly users: UsersService) {}
 
+  /* SELECTOR DE PERSONAS — «cualquiera de». Bloque 66.
+     -------------------------------------------------------------------------
+     Esto no es «el módulo de Usuarios»: es la lista para elegir a QUIÉN se le
+     asigna algo. La usan Campañas de mapeo (repartir zonas), Limpieza
+     (quién purga) y Mantenimiento (asignar técnico), abiertas todas con
+     permisos distintos.
+
+     Con `user.read` a secas, el desplegable de responsables salía vacío y no
+     se podía asignar a nadie. Repartir `user.read` para eso abriría la
+     gestión de personas entera.
+
+     Devuelve nombre, correo, rol y estado. Ni contraseñas ni PIN. */
   @Get()
-  @RequirePermissions('user.read')
+  @RequireAlguno(
+    'user.read', 'user.manage', 'asset.read', 'asset.delete',
+    'wo.read', 'wo.update', 'wo.approve', 'audit.read',
+  )
   findAll() {
     return this.users.findAll();
   }
@@ -56,8 +71,11 @@ export class UsersController {
   }
 
   // OJO: 'roles' debe ir ANTES de ':id' para que no lo capture la ruta con parámetro.
+  /* La pantalla de Usuarios se abre con `user.manage` y necesita la lista de
+     roles para el desplegable. Con `user.read` a secas quedaba vacía: quien
+     administra usuarios no podía elegirles el rol. Bloque 66. */
   @Get('roles')
-  @RequirePermissions('user.read')
+  @RequireAlguno('user.read', 'user.manage', 'role.manage')
   roles() {
     return this.users.listRoles();
   }
