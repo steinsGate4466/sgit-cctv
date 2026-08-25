@@ -135,9 +135,31 @@ api.interceptors.response.use(
         );
       } else if (status >= 500) {
         anunciar('El servidor dio un error. Lo que ves puede estar incompleto.');
+      } else if (status === 403) {
+        /* EL 403 SÍ SE ANUNCIA — bloque 66.
+           -------------------------------------------------------------------
+           EL PROBLEMA QUE RESUELVE, y salió mirando la pantalla:
+
+           Hay 128 `catch(() => [])` repartidos por 42 archivos. Convierten
+           CUALQUIER fallo en una lista vacía. Con un error de red o un 500 el
+           usuario sí se entera —lo anuncian las dos ramas de arriba—, pero con
+           un 403 la pantalla se quedaba en blanco sin decir nada.
+
+           Y un 403 no es «no hay datos»: es «no tienes permiso para verlos».
+           El usuario ve una tabla vacía, concluye que faltan datos, y se pone
+           a cargarlos. O peor: dice que el software no funciona. Le pasó al
+           usuario y lo llamó «data muerta».
+
+           Se anuncia en el aviso central y no dentro de cada pantalla porque
+           así queda arreglado en los 42 archivos de golpe, sin tocar ninguno.
+
+           400 y 404 siguen sin anunciarse: un 400 es un formulario mal
+           rellenado —lo explica el propio formulario— y un 404 en una ficha
+           concreta lo dice mejor la pantalla que lo pidió. */
+        anunciar('No tienes permiso para ver esto. La pantalla puede salir vacía.', false);
       }
-      // 400, 403 y 404 NO se anuncian aquí: son respuestas con sentido y
-      // cada pantalla las explica mejor en su contexto.
+      // 400 y 404 NO se anuncian aquí: son respuestas con sentido y cada
+      // pantalla las explica mejor en su contexto.
     }
 
     // Los fallos de /auth/ (login/refresh) no disparan renovación ni logout aquí.

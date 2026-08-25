@@ -299,6 +299,13 @@ jobs:
         working-directory: frontend
         run: npm run verificar:textos
 
+      # Usuarios tenia CUATRO encabezados y CINCO columnas: "Estado" quedaba
+      # escrito encima de la columna de trenes. No rompe nada, no lo ve el
+      # compilador y no lo ve el lint -- por eso llega a una exposicion.
+      - name: Las tablas no salen descuadradas
+        working-directory: frontend
+        run: npm run verificar:tablas
+
       # El codigo escribia `className="chip est-OPERATIVO"` y en styles.css no
       # habia NI UNA regla `.est-`: siete pantallas con los estados en gris
       # plano. No rompe nada —el navegador ignora la clase— asi que no hay

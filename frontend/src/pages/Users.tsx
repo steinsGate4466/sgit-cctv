@@ -100,7 +100,17 @@ export default function Users() {
       </div>
       <div className="card">
         <table>
-          <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th></tr></thead>
+          {/* TABLA DESCUADRADA — arreglado en el bloque 66.
+              Había CUATRO encabezados y CINCO columnas de datos: faltaba
+              «Trenes». El resultado es que «Estado» quedaba escrito encima de
+              la columna del ámbito, y la columna de estado sin título. Se ve
+              raro pero no rompe nada, así que había sobrevivido a todas las
+              revisiones — hasta que se contaron `<th>` contra `<td>`. */}
+          <thead>
+            <tr>
+              <th>Nombre</th><th>Correo</th><th>Rol</th><th>Trenes</th><th>Estado</th>
+            </tr>
+          </thead>
           <tbody>
             {rows.map((u) => (
               <tr key={u.id}>
