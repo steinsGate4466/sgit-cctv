@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import Modal from './Modal';
 import Icono from './Iconos';
 import { useAuth } from '../auth/AuthContext';
+import { mensajeDeError } from '../avisos';
 
 /**
  * BORRAR ESTE REGISTRO — el mismo botón en los quince módulos.
@@ -66,7 +67,7 @@ export default function BotonPurgar({
       const r = await api.get(`/purga/r/${recurso}/${id}`);
       setPrevia(r.data);
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'No se pudo consultar.');
+      setError(mensajeDeError(e, 'consultar'));
     } finally { setCargando(false); }
   }
 
@@ -77,7 +78,7 @@ export default function BotonPurgar({
       setAbierto(false);
       onBorrado?.(r.data);
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'No se pudo borrar.');
+      setError(mensajeDeError(e, 'borrar'));
     } finally { setBorrando(false); }
   }
 

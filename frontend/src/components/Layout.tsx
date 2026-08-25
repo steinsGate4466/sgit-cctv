@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import MiPin from './MiPin';
 import Icono from './Iconos';
@@ -73,6 +73,7 @@ export default function Layout() {
   const { user, logout, can } = useAuth();
   const [verPin, setVerPin] = useState(false);
   const loc = useLocation();
+  const nav = useNavigate();
 
   /* MENÚ PLEGABLE (bloque 12.8).
      La barra llegó a ~30 entradas en una sola columna: en un portátil no
@@ -358,13 +359,17 @@ export default function Layout() {
           aria-label={estrecha ? 'Ensanchar el menú' : 'Estrechar el menú'}>
           {estrecha ? '»' : '«'}
         </button>
-        <div className="brand">
+        {/* EL LOGO LLEVA A INICIO — bloque 67.
+            Es la convención de cualquier aplicación web: se pulsa el logo
+            para volver al principio. Aquí eran dos `<div>` muertos. */}
+        <button type="button" className="brand" onClick={() => nav('/')}
+          title="Ir al inicio">
           <MarcaSGIT size={30} />
-          <div>
-            <div className="logo">SGIT<span>-CCTV</span></div>
-            <div className="sub">Aceros Arequipa · Pisco</div>
-          </div>
-        </div>
+          <span>
+            <span className="logo">SGIT<span>-CCTV</span></span>
+            <span className="sub">Aceros Arequipa · Pisco</span>
+          </span>
+        </button>
         <nav className="nav">
           {/* LO ÚLTIMO QUE USASTE. De 38 pantallas cada persona usa cinco:
               esto las sube arriba sin que nadie configure nada. */}
@@ -433,12 +438,30 @@ export default function Layout() {
               repetía su propio título debajo: el mismo texto dos veces,
               ochenta píxeles de alto tirados. */}
           <h1 className="title">{title}</h1>
+          {/* EL NOMBRE Y EL AVATAR LLEVAN A «MI CUENTA» — bloque 67.
+              -----------------------------------------------------------------
+              Lo detectó una prueba de uso: la gente pulsa su propio nombre
+              esperando llegar a su cuenta. Es lo que hacen todas las
+              aplicaciones que usa a diario, así que aquí también.
+
+              Antes eran dos `<div>` muertos: se pulsaba y no pasaba nada, que
+              es peor que no poder pulsar — parece que la aplicación se colgó.
+
+              Va como `<button>` y no como `<div onClick>` para que también
+              funcione con el teclado y lo anuncien los lectores de pantalla. */}
           <div className="user">
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ color: 'var(--text)', fontWeight: 600 }}>{user?.fullName}</div>
-              <div>{user?.role}</div>
-            </div>
-            <div className="avatar">{initials}</div>
+            <button
+              type="button"
+              className="user-boton"
+              onClick={() => nav('/mi-cuenta')}
+              title="Ir a Mi cuenta"
+            >
+              <span style={{ textAlign: 'right' }}>
+                <span className="user-nombre">{user?.fullName}</span>
+                <span className="user-rol">{user?.role}</span>
+              </span>
+              <span className="avatar">{initials}</span>
+            </button>
             <button className="logout" onClick={() => setVerPin(true)}
               title="PIN para reanudar órdenes en campo"><Icono n="pin" size={15} /> Mi PIN</button>
             <button className="logout" onClick={() => logout()}><Icono n="salir" size={15} /> Salir</button>

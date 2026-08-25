@@ -1,6 +1,8 @@
 import { useState, FormEvent } from 'react';
 import { api } from '../api/client';
 import Icono from './Iconos';
+import BotonConMotivo from './BotonConMotivo';
+import { queFalta } from '../avisos';
 
 /**
  * Formulario de solicitud de acceso especial (activo inaccesible / trabajo en altura).
@@ -157,9 +159,11 @@ export default function AccessRequestForm({ assetId, assetCode, assets, onDone }
           )}
         </div>
 
-        <button className="btn" onClick={() => onDone(created)} disabled={!photos.length}>
+        <BotonConMotivo className="btn" onClick={() => onDone(created)}
+          falta={queFalta([!photos.length,
+            'Adjunta al menos una foto. Sin evidencia el Jefe no puede revisar el acceso.'])}>
           {photos.length ? 'Finalizar y enviar a revisión del Jefe' : 'Adjunta al menos una foto'}
-        </button>
+        </BotonConMotivo>
       </div>
     );
   }

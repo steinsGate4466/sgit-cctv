@@ -15,6 +15,7 @@ import Icono from '../components/Iconos';
 import { useDialogos } from '../components/Dialogos';
 import { useVolverALaPantalla } from '../useVolverALaPantalla';
 import { fecha, fechaHora, plural } from '../formato';
+import { useBusquedaEnVivo } from '../useBusquedaEnVivo';
 
 const TYPES = WO_TYPES; // incluye MAPEO: el levantamiento también es una OM
 // Estados que el técnico puede fijar al registrar la intervención (el cierre lo hace el Jefe).
@@ -132,6 +133,11 @@ export default function Maintenance() {
   // Buscar; si estuvieran aquí, se consultaría en cada tecla escrita.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [ambito]);
+
+  /* Se busca MIENTRAS SE ESCRIBE, con 350 ms de espera. El botón «Buscar»
+     se queda: quien teclea un código completo lo pulsa por costumbre y
+     quitarlo obligaría a esperar sin saber si el sistema entendió. */
+  useBusquedaEnVivo(fq, load);
 
   /* Bloque 37. Con dos o tres órdenes vivas, la lista se queda vieja: el Jefe
      cierra una desde el púlpito y el técnico la sigue viendo abierta. Al

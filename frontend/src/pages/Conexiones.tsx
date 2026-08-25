@@ -6,6 +6,8 @@ import FiltroAmbito, { Ambito, AMBITO_VACIO, conAmbito } from '../components/Fil
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
 import { useDialogos } from '../components/Dialogos';
+import BotonConMotivo from '../components/BotonConMotivo';
+import { mensajeDeError, queFalta } from '../avisos';
 
 /**
  * CONEXIONES DE RED (bloque 12.1).
@@ -112,7 +114,7 @@ export default function Conexiones() {
       setEditando(null);
       await cargar();
     } catch (e: any) {
-      setErrorModal(e?.response?.data?.message || 'No se pudo guardar. Revisa los datos.');
+      setErrorModal(mensajeDeError(e, 'guardar'));
     } finally { setGuardando(false); }
   }
 
@@ -143,7 +145,7 @@ export default function Conexiones() {
       setNuevoEnlace(false);
       await cargar();
     } catch (e: any) {
-      setErrorModal(e?.response?.data?.message || 'No se pudo crear el enlace.');
+      setErrorModal(mensajeDeError(e, 'crear el enlace'));
     } finally { setGuardando(false); }
   }
 
@@ -370,9 +372,13 @@ export default function Conexiones() {
           acciones={
             <>
               <button className="btn-mini" onClick={() => setNuevoEnlace(false)}>Cancelar</button>
-              <button className="btn-primary" onClick={guardarEnlace} disabled={!ladoA || !ladoB || guardando}>
+              <BotonConMotivo onClick={guardarEnlace} ocupado={guardando}
+                falta={queFalta(
+                  [!ladoA, 'Elige el equipo del lado A: el enlace necesita sus dos extremos.'],
+                  [!ladoB, 'Elige el equipo del lado B: el enlace necesita sus dos extremos.'],
+                )}>
                 {guardando ? 'Guardando…' : 'Crear enlace'}
-              </button>
+              </BotonConMotivo>
             </>
           }
         >

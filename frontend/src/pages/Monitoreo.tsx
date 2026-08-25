@@ -4,6 +4,8 @@ import Modal from '../components/Modal';
 import Icono from '../components/Iconos';
 import { useAuth } from '../auth/AuthContext';
 import { EsqueletoTablero } from '../components/Esqueleto';
+import BotonConMotivo from '../components/BotonConMotivo';
+import { queFalta } from '../avisos';
 
 /**
  * MONITOREO — estado observado de la red (bloque 8).
@@ -146,9 +148,10 @@ export default function Monitoreo() {
                  placeholder="PC del púlpito Tren 2" />
           </label>
           {error && <div className="error">{error}</div>}
-          <button className="btn" onClick={crear} disabled={nombre.trim().length < 3}>
+          <BotonConMotivo className="btn" onClick={crear}
+            falta={queFalta([nombre.trim().length < 3, 'Ponle nombre al punto, de 3 letras o más. Por ejemplo «PC del púlpito Tren 2».'])}>
             Crear y generar token
-          </button>
+          </BotonConMotivo>
         </Modal>
       )}
 

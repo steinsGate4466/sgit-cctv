@@ -306,6 +306,15 @@ jobs:
         working-directory: frontend
         run: npm run verificar:tablas
 
+      # Un boton apagado NO DISPARA NINGUN EVENTO: no hay forma de preguntarle
+      # por que. El usuario mira el formulario, no encuentra la diferencia y
+      # concluye que el software esta roto. Paso en la exposicion. Si la
+      # condicion de `disabled` mira el CONTENIDO de un campo, tiene que
+      # decir cual falta.
+      - name: Los botones apagados dicen que falta
+        working-directory: frontend
+        run: npm run verificar:botones
+
       # El codigo escribia `className="chip est-OPERATIVO"` y en styles.css no
       # habia NI UNA regla `.est-`: siete pantallas con los estados en gris
       # plano. No rompe nada —el navegador ignora la clase— asi que no hay

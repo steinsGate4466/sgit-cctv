@@ -4,6 +4,7 @@ import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
 import { useDialogos } from '../components/Dialogos';
 import { fechaCorta } from '../fechas';
+import { mensajeDeError } from '../avisos';
 
 /**
  * MI CUENTA — sesiones abiertas y el botón de «me robaron el teléfono».
@@ -53,7 +54,7 @@ export default function MiCuenta() {
       // Se espera un momento para que se lea el mensaje antes de salir.
       setTimeout(() => logout(), 1800);
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'No se pudo cerrar.');
+      setError(mensajeDeError(e, 'cerrar'));
       setOcupado(false);
     }
   }

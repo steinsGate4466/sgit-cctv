@@ -7,6 +7,7 @@ import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
 import { useDialogos } from '../components/Dialogos';
 import { fecha } from '../fechas';
+import { mensajeDeError } from '../avisos';
 
 /**
  * DOCUMENTOS: MANUALES, PLANOS Y FICHAS (bloque 12.7).
@@ -100,7 +101,7 @@ export default function Documentos() {
     } catch (e: any) {
       // El servidor manda mensajes escritos para entenderse ("ese archivo no
       // coincide con su extensión"). Se enseñan tal cual.
-      setErrorModal(e?.response?.data?.message || 'No se pudo subir el documento.');
+      setErrorModal(mensajeDeError(e, 'subir el documento'));
     } finally { setSubiendo(false); }
   }
 

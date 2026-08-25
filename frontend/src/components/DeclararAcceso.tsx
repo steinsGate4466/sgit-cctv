@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { api } from '../api/client';
 import Icono from './Iconos';
+import BotonConMotivo from './BotonConMotivo';
+import { mensajeDeError, queFalta } from '../avisos';
 
 /**
  * DECLARAR CÓMO SE LLEGA A UN EQUIPO — bloque 41.
@@ -72,8 +74,7 @@ export default function DeclararAcceso({ activo, alCerrar, alGuardar }: {
       alGuardar();
     } catch (e: any) {
       setError(e?.response?.data?.message?.[0]
-        || e?.response?.data?.message
-        || 'No se pudo guardar. Vuelve a intentarlo.');
+        || mensajeDeError(e, 'guardar'));
     } finally { setGuardando(false); }
   }
 
@@ -121,9 +122,10 @@ export default function DeclararAcceso({ activo, alCerrar, alGuardar }: {
 
         <div className="card-acciones" style={{ marginTop: 14 }}>
           <button className="btn-mini" onClick={alCerrar} disabled={guardando}>Cancelar</button>
-          <button className="btn-primary" onClick={guardar} disabled={guardando || !medio}>
+          <BotonConMotivo onClick={guardar} ocupado={guardando}
+            falta={queFalta([!medio, 'Elige con qué se llega al equipo: escalera, andamio, manlift o a pie.'])}>
             {guardando ? 'Guardando…' : 'Declarar'}
-          </button>
+          </BotonConMotivo>
         </div>
 
         <small className="muted" style={{ display: 'block', marginTop: 10 }}>

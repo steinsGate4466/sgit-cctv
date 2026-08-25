@@ -218,6 +218,41 @@ input, select, textarea {
 .topbar { padding: 0 26px;
   height: 60px; display: flex; align-items: center; justify-content: space-between; }
 .topbar .user { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 13px; }
+
+/* =========================================================================
+   EL NOMBRE Y EL LOGO SON BOTONES — bloque 67
+   -------------------------------------------------------------------------
+   Antes eran `<div>` muertos: se pulsaban y no pasaba nada. Peor que no
+   poder pulsar, porque parece que la aplicación se ha colgado. Lo detectó
+   una prueba de uso: la gente pulsa su nombre esperando ir a su cuenta, y
+   el logo esperando volver al inicio.
+
+   Se convierten en `<button>` de verdad —teclado y lectores de pantalla—
+   pero SIN aspecto de botón: el marco visual no cambia, sólo el cursor y
+   un realce suave al pasar por encima.
+   ========================================================================= */
+.topbar .user-boton {
+  display: flex; align-items: center; gap: 12px;
+  background: none; border: 0; padding: 4px 6px; border-radius: 10px;
+  cursor: pointer; color: inherit; font: inherit; text-align: right;
+  transition: background .12s ease;
+}
+.topbar .user-boton:hover { background: #f1f4f9; }
+.topbar .user-boton:focus-visible { outline: 2px solid var(--steel); outline-offset: 2px; }
+.topbar .user-nombre { display: block; color: var(--text); font-weight: 600; }
+.topbar .user-rol { display: block; color: var(--muted); font-size: 12px; }
+
+/* El logotipo es un BOTÓN que lleva al inicio (bloque 67). Aquí sólo va lo
+   que hace que un <button> no parezca un botón: el color, el hueco y la
+   disposición los pone la regla de la barra lateral más abajo. Repetirlos
+   aquí creaba dos verdades y la de abajo ganaba igual — lo cazó
+   `verificar:cascada`, que para eso está. */
+.sidebar .brand {
+  background: none; border: 0; cursor: pointer; width: 100%;
+  text-align: left; font: inherit;
+}
+.sidebar .brand:hover .logo { text-decoration: underline; }
+.sidebar .brand:focus-visible { outline: 2px solid #6f8fc7; outline-offset: -2px; }
 .topbar .user .avatar { width: 34px; height: 34px; border-radius: 50%;
   color: #fff; display: grid; place-items: center; font-weight: 700; }
 .logout { border: 1px solid var(--border); padding: 7px 12px; border-radius: 8px;
@@ -3435,3 +3470,47 @@ a.ta-fila:focus-visible { outline: 2px solid #1f4e79; outline-offset: 2px; }
   line-height: 18px; text-align: center;
 }
 .tab.active .tab-cuenta { background: #fff; color: var(--crit); }
+
+/* =============================================================================
+   EL BOTÓN QUE DICE QUÉ FALTA — bloque 67
+   -----------------------------------------------------------------------------
+   El botón NO se apaga cuando falta un dato: se puede pulsar y contesta. El
+   detalle de por qué está en `components/BotonConMotivo.tsx`.
+
+   Se ve apagado —opacidad y cursor de «no»— porque esa señal ya la entiende
+   todo el mundo y quitarla haría creer que el formulario está completo. Lo
+   que cambia respecto a un `disabled` de verdad es que aquí se puede pulsar
+   y te dice qué falta.
+============================================================================= */
+.btn-falta {
+  opacity: .55;
+  cursor: help;
+}
+.btn-falta:hover { opacity: .72; }
+
+/* El motivo. Ámbar y no rojo: no es un error, es un campo sin rellenar.
+   El rojo se reserva para lo que ya ha fallado de verdad. */
+.motivo-falta {
+  display: flex; align-items: flex-start; gap: 6px;
+  margin-top: 6px; padding: 7px 10px;
+  border-radius: 7px; border-left: 3px solid var(--warn);
+  background: #fff8ec; color: #8a5a00;
+  font-size: 12.5px; line-height: 1.45;
+  animation: motivo-entra .16s ease-out;
+}
+.motivo-falta span { font-size: 10px; line-height: 1.7; flex: none; }
+
+@keyframes motivo-entra {
+  from { opacity: 0; transform: translateY(-3px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* En un púlpito el monitor está a dos metros. Nada de 12,5 px allí. */
+@media (max-width: 720px) {
+  .motivo-falta { font-size: 13.5px; }
+}
+
+/* En el pie de una ventana modal el motivo se pone en su propia línea, a
+   ancho completo: metido entre «Cancelar» y «Guardar» no se leería. */
+.modal-pie .motivo-falta,
+.card-acciones .motivo-falta { flex-basis: 100%; margin-top: 0; }

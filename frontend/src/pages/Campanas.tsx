@@ -5,6 +5,8 @@ import BotonPurgar from '../components/BotonPurgar';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
 import { fecha } from '../fechas';
+import BotonConMotivo from '../components/BotonConMotivo';
+import { mensajeDeError, queFalta } from '../avisos';
 
 /**
  * CAMPAÑAS DE MAPEO — el control de calidad del levantamiento.
@@ -71,7 +73,7 @@ export default function Campanas() {
       const r = await api.post('/campanas', nueva);
       setMsg(`Campaña ${r.data.codigo} creada. Ahora reparte las zonas.`);
       setNueva(null); await cargar();
-    } catch (e: any) { setError(e?.response?.data?.message || 'No se pudo crear.'); }
+    } catch (e: any) { setError(mensajeDeError(e, 'crear')); }
     finally { setOcupado(false); }
   }
 
@@ -89,14 +91,14 @@ export default function Campanas() {
       setMsg('Zonas repartidas.');
       setRepartir(null);
       await abrir(repartir.campanaId); await cargar();
-    } catch (e: any) { setError(e?.response?.data?.message || 'No se pudo repartir.'); }
+    } catch (e: any) { setError(mensajeDeError(e, 'repartir')); }
     finally { setOcupado(false); }
   }
 
   async function verRevision(zonaId: string) {
     setObs(''); setError('');
     try { setRevision(await api.get(`/campanas/zona/${zonaId}`).then((r) => r.data)); }
-    catch (e: any) { setError(e?.response?.data?.message || 'No se pudo revisar.'); }
+    catch (e: any) { setError(mensajeDeError(e, 'revisar')); }
   }
 
   async function decidir(aprobar: boolean) {
@@ -106,7 +108,7 @@ export default function Campanas() {
       setMsg(aprobar ? 'Zona aprobada.' : 'Zona devuelta con las observaciones.');
       setRevision(null);
       if (abierta) await abrir(abierta.campana.id);
-    } catch (e: any) { setError(e?.response?.data?.message || 'No se pudo decidir.'); }
+    } catch (e: any) { setError(mensajeDeError(e, 'decidir')); }
     finally { setOcupado(false); }
   }
 
@@ -115,7 +117,7 @@ export default function Campanas() {
       await api.patch(`/campanas/zona/${zonaId}/cargada`, {});
       setMsg('Zona marcada como cargada. Ahora tiene que revisarla otra persona.');
       if (abierta) await abrir(abierta.campana.id);
-    } catch (e: any) { setError(e?.response?.data?.message || 'No se pudo marcar.'); }
+    } catch (e: any) { setError(mensajeDeError(e, 'marcar')); }
   }
 
   return (
@@ -247,10 +249,16 @@ export default function Campanas() {
           acciones={
             <>
               <button className="btn-mini" onClick={() => setRevision(null)}>Cerrar</button>
-              <button className="btn-mini btn-danger" onClick={() => decidir(false)}
-                disabled={ocupado || obs.trim().length < 5}>Devolver para corregir</button>
-              <button className="btn-primary" onClick={() => decidir(true)}
-                disabled={ocupado || !revision.sePuedeAprobar}>Aprobar la zona</button>
+              <BotonConMotivo className="btn-mini btn-danger" onClick={() => decidir(false)} ocupado={ocupado}
+                falta={queFalta([obs.trim().length < 5,
+                  'Escribe qué hay que corregir. Devolver sin decir qué hace que vuelva igual.'])}>
+                Devolver para corregir
+              </BotonConMotivo>
+              <BotonConMotivo onClick={() => decidir(true)} ocupado={ocupado}
+                falta={queFalta([!revision.sePuedeAprobar,
+                  'Esta zona todavía no cumple lo que pide la campaña. Mira el detalle de arriba.'])}>
+                Aprobar la zona
+              </BotonConMotivo>
             </>
           }>
           {error && <div role="alert" className="aviso-error">{error}</div>}
@@ -320,9 +328,10 @@ export default function Campanas() {
         <Modal title="Nueva campaña de mapeo" onClose={() => setNueva(null)} ancho
           acciones={<>
             <button className="btn-mini" onClick={() => setNueva(null)}>Cancelar</button>
-            <button className="btn-primary" onClick={crear} disabled={ocupado || nueva.nombre.trim().length < 3}>
+            <BotonConMotivo onClick={crear} ocupado={ocupado}
+              falta={queFalta([nueva.nombre.trim().length < 3, 'Ponle un nombre a la campaña, de 3 letras o más.'])}>
               {ocupado ? 'Creando…' : 'Crear'}
-            </button>
+            </BotonConMotivo>
           </>}>
           {error && <div role="alert" className="aviso-error">{error}</div>}
           <div className="form-grid">

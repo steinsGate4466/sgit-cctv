@@ -4,6 +4,8 @@ import Icono from './Iconos';
 import { useAuth } from '../auth/AuthContext';
 import { enviarConRespaldo } from '../envio-seguro';
 import { fecha } from '../formato';
+import BotonConMotivo from './BotonConMotivo';
+import { mensajeDeError, queFalta } from '../avisos';
 
 /**
  * LO QUE DEJÓ EL TURNO ANTERIOR, Y CÓMO SE ARREGLA ESTO — bloque 29.
@@ -88,7 +90,7 @@ export default function CampoDelTurno({ assetId }: { assetId: string }) {
                         setMsg('Aviso marcado como atendido.');
                         await cargar();
                       } catch (e: any) {
-                        setMsg(e?.response?.data?.message || 'No se pudo marcar como atendido.');
+                        setMsg(mensajeDeError(e, 'marcar como atendido'));
                       } finally { setResolviendo(''); }
                     }}>
                     <Icono n="ok" size={13} /> Ya está resuelto
@@ -200,7 +202,8 @@ function NotaNueva({ assetId, onListo, onCancelar }: {
 
       <div className="card-acciones" style={{ marginTop: 12 }}>
         <button className="btn-mini" onClick={onCancelar}>Cancelar</button>
-        <button className="btn-primary" disabled={guardando || texto.trim().length < 5}
+        <BotonConMotivo ocupado={guardando}
+          falta={queFalta([texto.trim().length < 5, 'Escribe el aviso, de 5 caracteres o más.'])}
           onClick={async () => {
             setGuardando(true); setError('');
             try {
@@ -208,11 +211,11 @@ function NotaNueva({ assetId, onListo, onCancelar }: {
                 { tipo, texto, diasVigencia: dias }, 'Aviso de turno');
               onListo('Aviso guardado. Lo verá el que escanee este equipo.');
             } catch (e: any) {
-              setError(e?.response?.data?.message || 'No se pudo guardar.');
+              setError(mensajeDeError(e, 'guardar'));
             } finally { setGuardando(false); }
           }}>
           {guardando ? 'Guardando…' : 'Dejar el aviso'}
-        </button>
+        </BotonConMotivo>
       </div>
     </div>
   );
@@ -261,7 +264,8 @@ function MejoraNueva({ procedimientoId, onListo }: {
 
       <div className="card-acciones" style={{ marginTop: 10 }}>
         <button className="btn-mini" onClick={() => setAbierto(false)}>Cancelar</button>
-        <button className="btn-primary" disabled={texto.trim().length < 10}
+        <BotonConMotivo
+          falta={queFalta([texto.trim().length < 10, 'Cuenta la mejora en una frase, de 10 caracteres o más.'])}
           onClick={async () => {
             setError('');
             try {
@@ -270,11 +274,11 @@ function MejoraNueva({ procedimientoId, onListo }: {
               setAbierto(false);
               onListo('Propuesta enviada. La revisa el Jefe de Mantenimiento antes de entrar al procedimiento.');
             } catch (e: any) {
-              setError(e?.response?.data?.message || 'No se pudo enviar.');
+              setError(mensajeDeError(e, 'enviar'));
             }
           }}>
           Proponer
-        </button>
+        </BotonConMotivo>
       </div>
     </div>
   );

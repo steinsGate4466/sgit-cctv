@@ -4,6 +4,8 @@ import Modal from '../components/Modal';
 import Icono from '../components/Iconos';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useDialogos } from '../components/Dialogos';
+import BotonConMotivo from '../components/BotonConMotivo';
+import { queFalta } from '../avisos';
 
 /**
  * ROLES QUE CREA EL INGENIERO.
@@ -227,9 +229,10 @@ export default function Roles() {
             {marcados.size} permiso(s) marcado(s).
           </div>
           {error && <div className="error">{error}</div>}
-          <button className="btn" onClick={guardar} disabled={guardando || !nombre.trim()}>
+          <BotonConMotivo className="btn" onClick={guardar} ocupado={guardando}
+            falta={queFalta([!nombre.trim(), 'Ponle nombre al rol. Es lo que verá quien asigne usuarios.'])}>
             {guardando ? 'Guardando…' : edita.nuevo ? 'Crear rol' : 'Guardar cambios'}
-          </button>
+          </BotonConMotivo>
         </Modal>
       )}
     </div>

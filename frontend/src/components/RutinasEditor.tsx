@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback, FormEvent } from 'react';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useDialogos } from './Dialogos';
+import BotonConMotivo from './BotonConMotivo';
+import { queFalta } from '../avisos';
 
 /**
  * DEFINICIÓN DE LAS RUTINAS PREVENTIVAS, POR TIPO DE ACTIVO.
@@ -109,7 +111,10 @@ export default function RutinasEditor() {
           </div>
           <div>
             <label>&nbsp;</label>
-            <button className="btn-primary" disabled={!nuevoTipo} onClick={crearRutina}>Crear</button>
+            <BotonConMotivo onClick={crearRutina}
+              falta={queFalta([!nuevoTipo, 'Elige primero el tipo de equipo al que se le aplica la rutina.'])}>
+              Crear
+            </BotonConMotivo>
           </div>
         </div>
       )}

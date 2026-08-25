@@ -6,6 +6,7 @@ import { useVolverALaPantalla } from '../useVolverALaPantalla';
 import {
   Accion, Cifras, ComoSeCalcula, Detalle, LoQueHayQueHacer, Titular, Tono,
 } from '../components/Patron';
+import { mensajeDeError } from '../avisos';
 
 /**
  * MI COBERTURA — la pantalla de Producción. Rehecha en el bloque 38.
@@ -64,7 +65,7 @@ export default function Cobertura() {
       const r = await api.get('/zonas/cobertura');
       setD(r.data);
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'No se pudo cargar la cobertura.');
+      setError(mensajeDeError(e, 'cargar la cobertura'));
     } finally { setCargando(false); }
   }, []);
 

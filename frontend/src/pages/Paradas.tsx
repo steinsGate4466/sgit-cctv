@@ -6,6 +6,8 @@ import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
 import { useDialogos } from '../components/Dialogos';
 import { fechaCorta } from '../fechas';
+import BotonConMotivo from '../components/BotonConMotivo';
+import { mensajeDeError, queFalta } from '../avisos';
 
 /**
  * VENTANAS DE PARADA
@@ -106,7 +108,7 @@ export default function Paradas() {
       setNueva(null);
       await cargar(fTren, fEstado);
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'No se pudo apuntar.');
+      setError(mensajeDeError(e, 'apuntar'));
     } finally { setGuardando(false); }
   }
 
@@ -123,7 +125,7 @@ export default function Paradas() {
       if (detalle) await abrirDetalle(detalle.id);
       await cargar(fTren, fEstado);
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'No se pudo mover.');
+      setError(mensajeDeError(e, 'mover'));
     } finally { setGuardando(false); }
   }
 
@@ -139,7 +141,7 @@ export default function Paradas() {
       if (detalle) await abrirDetalle(p.id);
       await cargar(fTren, fEstado);
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'No se pudo cambiar el estado.');
+      setError(mensajeDeError(e, 'cambiar el estado'));
     }
   }
 
@@ -311,9 +313,10 @@ export default function Paradas() {
         <Modal title="Apuntar una parada" onClose={() => setNueva(null)} ancho
           acciones={<>
             <button className="btn-mini" onClick={() => setNueva(null)}>Cancelar</button>
-            <button className="btn-primary" onClick={crear} disabled={guardando || !nueva.inicioPrevisto}>
+            <BotonConMotivo onClick={crear} ocupado={guardando}
+              falta={queFalta([!nueva.inicioPrevisto, 'Pon la hora prevista de inicio. Sin ella no hay desviación que medir.'])}>
               {guardando ? 'Guardando…' : 'Apuntar'}
-            </button>
+            </BotonConMotivo>
           </>}>
           {error && <div role="alert" className="aviso-error">{error}</div>}
           <div className="card explica" style={{ marginTop: 0 }}>
@@ -374,10 +377,11 @@ export default function Paradas() {
         <Modal title="Mover la parada" onClose={() => setMover(null)}
           acciones={<>
             <button className="btn-mini" onClick={() => setMover(null)}>Cancelar</button>
-            <button className="btn-primary" onClick={confirmarMover}
-              disabled={guardando || (mover.motivo || '').trim().length < 3}>
+            <BotonConMotivo onClick={confirmarMover} ocupado={guardando}
+              falta={queFalta([(mover.motivo || '').trim().length < 3,
+                'Escribe por qué se mueve. Sin motivo, mover tres veces parece culpa de Mantenimiento.'])}>
               {guardando ? 'Guardando…' : 'Mover'}
-            </button>
+            </BotonConMotivo>
           </>}>
           {error && <div role="alert" className="aviso-error">{error}</div>}
           <label className="campo">

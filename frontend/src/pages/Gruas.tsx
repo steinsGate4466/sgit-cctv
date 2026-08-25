@@ -7,6 +7,7 @@ import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
 import { guardarPendiente } from '../cola-offline';
 import { fecha } from '../fechas';
+import { mensajeDeError } from '../avisos';
 
 /**
  * INSPECCIÓN DE CÁMARAS DE GRÚA (bloque 14).
@@ -134,7 +135,7 @@ export default function Gruas() {
         setHecho('Guardado en este teléfono. Se sube solo cuando haya señal.');
         setNueva(false);
       } else {
-        setErrorModal(e?.response?.data?.message || 'No se pudo registrar. Revisa los datos.');
+        setErrorModal(mensajeDeError(e, 'registrar'));
       }
     } finally { setGuardando(false); }
   }

@@ -5,6 +5,8 @@ import { useAuth } from '../auth/AuthContext';
 import { EsqueletoTablero } from '../components/Esqueleto';
 import { useDialogos } from '../components/Dialogos';
 import { fechaHora } from '../fechas';
+import BotonConMotivo from '../components/BotonConMotivo';
+import { mensajeDeError, queFalta } from '../avisos';
 
 /**
  * AVISOS POR TELEGRAM (4F) — montado y apagado.
@@ -84,7 +86,7 @@ export default function Avisos() {
     try {
       await fn();
     } catch (e: any) {
-      setMsg(e?.response?.data?.message || 'No se pudo completar. Vuelve a intentarlo.');
+      setMsg(mensajeDeError(e, 'completar'));
     } finally { setOcupado(''); }
   }
 
@@ -160,10 +162,10 @@ export default function Avisos() {
           </span>
 
           <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-            <button className="btn-primary" onClick={guardarToken}
-                    disabled={guardando || !token.trim()}>
+            <BotonConMotivo onClick={guardarToken} ocupado={guardando}
+              falta={queFalta([!token.trim(), 'Pega aquí el token que te dio BotFather.'])}>
               {guardando ? 'Comprobando…' : 'Comprobar y guardar'}
-            </button>
+            </BotonConMotivo>
             {config?.token?.puesto && !config.token.desdeEntorno && (
               <button
                 className="btn-mini btn-danger"

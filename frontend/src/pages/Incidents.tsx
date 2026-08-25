@@ -9,6 +9,7 @@ import Icono from '../components/Iconos';
 import { useDialogos } from '../components/Dialogos';
 import { fechaHora } from '../formato';
 import { fechaCorta } from '../fechas';
+import { useBusquedaEnVivo } from '../useBusquedaEnVivo';
 
 // Categorías agrupadas para el selector (CCTV/NVR, Red/energía, Entorno de planta).
 const CATEGORY_GROUPS: { label: string; items: string[] }[] = [
@@ -119,6 +120,11 @@ export default function Incidents() {
   // Buscar; si estuvieran aquí, se consultaría en cada tecla escrita.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [ambito]);
+
+  /* Se busca MIENTRAS SE ESCRIBE, con 350 ms de espera. El botón «Buscar»
+     se queda: quien teclea un código completo lo pulsa por costumbre y
+     quitarlo obligaría a esperar sin saber si el sistema entendió. */
+  useBusquedaEnVivo(fq, load);
 
   async function create(e: FormEvent) {
     e.preventDefault();
@@ -306,13 +312,22 @@ export default function Incidents() {
                   {i.asset?.assetCode || '—'}
                   {i.asset?.effectiveStatus && <div style={{ marginTop: 3 }}><span className={'badge ' + i.asset.effectiveStatus} style={{ fontSize: 10 }}>{aEs(i.asset.effectiveStatus)}</span></div>}
                 </td>
-                <td style={{ whiteSpace: 'nowrap' }}>
+                {/* La celda de acciones lleva hasta SIETE controles. Con
+                    `nowrap` se salían de la tabla y se pisaban entre ellos en
+                    pantallas de 1366 px, que es la de los púlpitos. Ahora
+                    envuelven en dos filas y se alinean. */}
+                <td>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
                   {can('incident.update') && openIssue(i) && (
                     <select aria-label="Filtrar por tren"
                       value={NON_TERMINAL.includes(i.status) ? i.status : 'ABIERTA'}
                       onChange={(e) => changeStatus(i.id, e.target.value)}
                       title="Actualizar estado (avisa al Jefe de Mantenimiento)"
-                      style={{ width: 'auto', padding: '4px 6px', marginRight: 4, fontSize: 12 }}
+                      /* `minWidth` porque «En diagnóstico» es más ancho que el
+                         hueco que le dejaba `width: auto`: el texto se salía y
+                         se solapaba con el botón de al lado. Se veía
+                         «En diagnósticNo» en la captura de la prueba. */
+                      style={{ width: 'auto', minWidth: 132, padding: '4px 6px', marginRight: 4, fontSize: 12 }}
                     >
                       {NON_TERMINAL.map((s) => <option key={s} value={s}>{stEs(s)}</option>)}
                     </select>
@@ -335,6 +350,7 @@ export default function Incidents() {
                 
                   {/* Borrado definitivo. Solo lo pinta si eres Jefe de Mantenimiento. */}
                   <BotonPurgar recurso="incidencia" id={i.id} onBorrado={() => load()} />
+                  </div>
                 </td>
               </tr>
             ))}

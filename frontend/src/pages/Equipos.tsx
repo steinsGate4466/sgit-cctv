@@ -5,6 +5,8 @@ import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
 import { useDialogos } from '../components/Dialogos';
 import { fechaCorta } from '../fechas';
+import BotonConMotivo from '../components/BotonConMotivo';
+import { mensajeDeError, queFalta } from '../avisos';
 
 /**
  * EQUIPOS CONOCIDOS — el diccionario de "¿desde qué PC se hizo esto?"
@@ -61,7 +63,7 @@ export default function Equipos() {
       await api.patch(`/acceso-dispositivos/${id}`, { estado, nombre });
       setMsg(estado === 'APROBADO' ? 'Aparato autorizado.' : estado === 'BLOQUEADO' ? 'Aparato bloqueado.' : 'Vuelto a pendiente.');
       await cargarDispositivos();
-    } catch (e: any) { setError(e?.response?.data?.message || 'No se pudo cambiar.'); }
+    } catch (e: any) { setError(mensajeDeError(e, 'cambiar')); }
   }
 
   async function cambiarModo(modo: string) {
@@ -69,7 +71,7 @@ export default function Equipos() {
       await api.post('/acceso-dispositivos/modo', { modo });
       setMsg(`Modo de acceso: ${modo}.`);
       await cargarDispositivos();
-    } catch (e: any) { setError(e?.response?.data?.message || 'No se pudo cambiar el modo.'); }
+    } catch (e: any) { setError(mensajeDeError(e, 'cambiar el modo')); }
   }
 
   const cargar = useCallback(async (texto: string) => {
@@ -107,7 +109,7 @@ export default function Equipos() {
       setForm(null);
       await cargar(q);
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'No se pudo guardar.');
+      setError(mensajeDeError(e, 'guardar'));
     } finally { setGuardando(false); }
   }
 
@@ -118,7 +120,7 @@ export default function Equipos() {
       setMsg(`Quitado "${e.nombre}" del registro.`);
       await cargar(q);
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'No se pudo quitar.');
+      setError(mensajeDeError(err, 'quitar'));
     }
   }
 
@@ -237,9 +239,10 @@ export default function Equipos() {
           acciones={
             <>
               <button className="btn-mini" onClick={() => setForm(null)}>Cancelar</button>
-              <button className="btn-primary" onClick={guardar} disabled={guardando || form.nombre.trim().length < 2}>
+              <BotonConMotivo onClick={guardar} ocupado={guardando}
+                falta={queFalta([form.nombre.trim().length < 2, 'Ponle nombre al equipo, de 2 letras o más.'])}>
                 {guardando ? 'Guardando…' : 'Guardar'}
-              </button>
+              </BotonConMotivo>
             </>
           }
         >

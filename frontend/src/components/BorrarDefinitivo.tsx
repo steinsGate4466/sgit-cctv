@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import Modal from './Modal';
+import { mensajeDeError } from '../avisos';
 
 /**
  * BORRADO DEFINITIVO — el mismo diálogo en Activos y en Limpieza.
@@ -32,7 +33,7 @@ export default function BorrarDefinitivo({
     let vivo = true;
     api.get(`/purga/${tipo}/${id}`)
       .then((r) => { if (vivo) setPrevia(r.data); })
-      .catch((e) => { if (vivo) setError(e?.response?.data?.message || 'No se pudo consultar.'); })
+      .catch((e) => { if (vivo) setError(mensajeDeError(e, 'consultar')); })
       .finally(() => { if (vivo) setCargando(false); });
     return () => { vivo = false; };
   }, [tipo, id]);
@@ -52,7 +53,7 @@ export default function BorrarDefinitivo({
       const r = await api.post(`/purga/${tipo}/${id}`, { confirmacion, forzar });
       onBorrado(r.data);
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'No se pudo borrar.');
+      setError(mensajeDeError(e, 'borrar'));
     } finally { setBorrando(false); }
   }
 

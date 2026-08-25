@@ -7,6 +7,8 @@ import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
 import { enviarConRespaldo } from '../envio-seguro';
 import { fecha } from '../formato';
+import BotonConMotivo from '../components/BotonConMotivo';
+import { mensajeDeError, queFalta } from '../avisos';
 
 /**
  * ZONAS VITALES PARA LA PRODUCCIÓN — bloque 26.
@@ -81,7 +83,7 @@ export default function Zonas() {
       ]);
       setZonas(a.data); setResumen(b.data);
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'No se pudo cargar el árbol de zonas.');
+      setError(mensajeDeError(e, 'cargar el árbol de zonas'));
     } finally { setCargando(false); }
   }, []);
 
@@ -313,7 +315,7 @@ function EditorZona({ zona, onCerrar, onGuardado }: {
       }, `Zona ${zona.nombre}`);
       onGuardado(`Zona «${zona.nombre}» actualizada. La prioridad de sus ${zona.activosEnLaRama || 0} equipos se recalcula sola.`);
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'No se pudo guardar.');
+      setError(mensajeDeError(e, 'guardar'));
     } finally { setGuardando(false); }
   }
 
@@ -325,9 +327,10 @@ function EditorZona({ zona, onCerrar, onGuardado }: {
       acciones={
         <>
           <button className="btn-mini" onClick={onCerrar}>Cancelar</button>
-          <button className="btn-primary" onClick={guardar} disabled={guardando || faltaMotivo}>
+          <BotonConMotivo onClick={guardar} ocupado={guardando}
+            falta={queFalta([faltaMotivo, 'Explica por qué esta zona es vital: es obligatorio en ALTA y CRÍTICA.'])}>
             {guardando ? 'Guardando…' : 'Guardar declaración'}
-          </button>
+          </BotonConMotivo>
         </>
       }
     >
@@ -427,7 +430,7 @@ function FirmaIntervencion({ zona, onCerrar, onGuardado }: {
       }, `Intervención de ${zona.nombre}`);
       onGuardado(`Firmado cómo se interviene «${zona.nombre}».`);
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'No se pudo firmar.');
+      setError(mensajeDeError(e, 'firmar'));
     } finally { setGuardando(false); }
   }
 
@@ -439,9 +442,10 @@ function FirmaIntervencion({ zona, onCerrar, onGuardado }: {
       acciones={
         <>
           <button className="btn-mini" onClick={onCerrar}>Cancelar</button>
-          <button className="btn-primary" onClick={guardar} disabled={guardando || faltaMotivo}>
+          <BotonConMotivo onClick={guardar} ocupado={guardando}
+            falta={queFalta([faltaMotivo, 'Escribe por qué se puede intervenir así. Queda firmado con tu nombre.'])}>
             {guardando ? 'Firmando…' : 'Firmar'}
-          </button>
+          </BotonConMotivo>
         </>
       }
     >

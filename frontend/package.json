@@ -24,7 +24,8 @@
     "verificar:graficos": "node scripts/verificar-graficos.cjs",
     "verificar:sesion": "node scripts/verificar-sesion.cjs",
     "verificar:textos": "node scripts/verificar-textos.cjs",
-    "verificar:tablas": "node scripts/verificar-tablas.cjs"
+    "verificar:tablas": "node scripts/verificar-tablas.cjs",
+    "verificar:botones": "node scripts/verificar-botones.cjs"
   },
   "dependencies": {
     "axios": "^1.7.7",

@@ -917,3 +917,111 @@ informe.
 - **21 acciones que guardan sin confirmar** nada en pantalla.
 - Y el ciclo del ingeniero: **ABC con método → frecuencia**, hojas de ruta,
   el reparto correctivo/preventivo/predictivo, y el menú ordenado por el ciclo.
+
+---
+
+## 13. Bloque 67 — lo que encontró una desarrolladora en veinte minutos
+
+El usuario pasó el software a una amiga desarrolladora. Ella lo abrió, lo usó
+y sacó en un rato lo que 942 pruebas en verde no habían visto. Otra vez la
+misma lección, ya escrita dos veces aquí: **pasar el typecheck no es que
+funcione, y mis pruebas no abren el software.**
+
+### El buscador no buscaba hasta que pulsabas
+
+`useBusquedaEnVivo.ts`. Se busca mientras se escribe, con **350 ms** de
+espera. Tres detalles que no son adorno:
+
+1. **No se busca al montar la pantalla** — la primera carga ya la hace la
+   propia pantalla, y disparar aquí también son dos consultas iguales al
+   entrar, con la segunda pisando a la primera.
+2. **Un solo carácter no se busca** (mínimo 2). Devuelve media base. Borrar
+   del todo SÍ busca: es «quítame el filtro».
+3. **El botón «Buscar» se queda.** Quien teclea un código completo lo pulsa
+   por costumbre; quitarlo obliga a esperar sin saber si el sistema entendió.
+
+Y `buscar` va en una `ref`: en estas pantallas `load` se recrea en cada
+repintado, y sin eso el temporizador se reiniciaba y no llegaba a cumplirse
+NUNCA. Ése era el fallo real, no el retardo.
+
+### El botón apagado, que es el hallazgo de fondo
+
+**80 botones se apagan solos.** En 32 el apagado no es «estoy guardando» sino
+que **falta un dato**, y ninguno decía cuál.
+
+> Un `disabled` de verdad no se puede pulsar, no se puede enfocar con el
+> teclado y **no dispara ningún evento**. No hay forma de preguntarle por
+> qué. El usuario ve el botón muerto, mira el formulario, no encuentra la
+> diferencia y concluye —con toda la razón— que el software está roto.
+
+En un formulario de cuatro campos se adivina. En el de instalaciones, que
+cambia según el sitio, el campo que falta puede estar tres pantallazos más
+arriba.
+
+**La decisión: si falta un dato, el botón SE QUEDA VIVO** (`BotonConMotivo`).
+Se puede pulsar, no envía nada, y dice qué falta justo debajo. Si está
+guardando, ENTONCES SÍ se apaga: ahí el apagado es correcto, la razón es
+evidente y dura un segundo.
+
+- **`aria-disabled` sí, `disabled` no.** Le dice al lector de pantalla que la
+  acción no está disponible sin sacar el botón del recorrido del teclado ni
+  matar el `onClick`. Es exactamente el caso para el que existe.
+- **El motivo no se enseña hasta que se pulsa.** Pintar «falta el nombre» al
+  abrir un formulario vacío es regañar a alguien por no haber empezado.
+- **El motivo se borra solo cuando ya no falta.** Si se quedara, seguiría
+  diciendo «falta el nombre» con el nombre escrito — y un aviso que miente
+  enseña a ignorar todos los avisos.
+- **Ámbar, no rojo.** Un campo sin rellenar no es un error. El rojo se
+  reserva para lo que ya falló.
+
+**Excepción deliberada:** los tres botones de lo irreversible en Limpieza
+siguen APAGADOS. La frase escrita a mano es la fricción que obliga a mirar
+QUÉ se borra (bloque 15). Lo que les faltaba no era poder pulsarlos: era un
+`title` diciendo qué frase se espera.
+
+### «Request failed with status code 400»
+
+Ése era el texto que veía el usuario. El mensaje útil —el que escribió el
+servidor— viajaba en `response.data.message` y se tiraba a la basura en unos
+sitios, y en otros el respaldo era un «No se pudo guardar.» que no dice si el
+problema es tuyo, del permiso o de la red.
+
+`avisos.ts`, una sola función, **50 sitios**. El orden es siempre: lo que dijo
+el SERVIDOR primero, `e.message` de axios sólo como último recurso. Y los
+cuatro casos que llegan con el cuerpo vacío se traducen:
+
+| | Qué se dice |
+|---|---|
+| 401 | tu sesión caducó, vuelve a entrar |
+| 403 | no tienes permiso PARA ESTA ACCIÓN (distinto de «no hay datos») |
+| 404 | esto ya no existe, alguien lo borró; recarga |
+| sin respuesta | **no llegó al servidor, NO se guardó, puedes repetirlo** |
+
+El último importa más de lo que parece. Cuando la red se cae a mitad de un
+guardado la duda es «¿se guardó o no?», y sin respuesta la gente repite. Decir
+«no llegó» evita el peor desenlace, que es guardar dos veces.
+
+### Verificador 14 (frontend) — `verificar:botones`
+
+Distinguir «apagado porque falta un dato» de «apagado porque está guardando»
+con una expresión regular es imposible: el indicador se llama `ocupado`,
+`guardando`, `saving` o `enviando` según el archivo.
+
+**Así que no se intenta.** Se busca una señal que no admite discusión: que la
+condición de `disabled` **compruebe el CONTENIDO de un campo** —`.trim()`,
+`.length`, `.includes(`—. Un «estoy guardando» nunca llama a `.trim()`.
+
+Eso deja fuera casos legítimos (`!elegida`, `!medio`). **A propósito:
+prefiero que se me escapen tres antes que inventarme uno.** Un verificador
+que grita cuando no pasa nada se ignora a la semana, y entonces no sirve el
+día que grita de verdad.
+
+Probado reintroduciendo el fallo: sale código 1 con archivo y línea. Encontró
+4 reales a la primera y **cero falsos positivos**.
+
+### Y `verificar:cascada` me volvió a cazar
+
+Puse `color` y `gap` en `.sidebar .brand` al convertir el logotipo en botón, y
+más abajo ya había otra regla con valores distintos que ganaba igual. Mis dos
+líneas eran código muerto. **A un verificador propio se le hace caso o se
+borra.**

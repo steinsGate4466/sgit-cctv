@@ -6,6 +6,8 @@ import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
 import { useDialogos } from '../components/Dialogos';
 import { fecha } from '../fechas';
+import BotonConMotivo from '../components/BotonConMotivo';
+import { mensajeDeError, queFalta } from '../avisos';
 
 /**
  * INSTALACIONES — poner equipo NUEVO.
@@ -126,7 +128,7 @@ export default function Instalaciones() {
       setNueva(null);
       await cargar(fEstado, fSitio, texto);
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'No se pudo crear.');
+      setError(mensajeDeError(e, 'crear'));
     } finally { setGuardando(false); }
   }
 
@@ -147,7 +149,7 @@ export default function Instalaciones() {
       const fresco = await api.get(`/instalaciones/${evaluando.id}`).then((r) => r.data);
       setEvaluando({ ...evaluando, falta: fresco.faltaParaEvaluar });
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'No se pudo guardar.');
+      setError(mensajeDeError(e, 'guardar'));
     } finally { setGuardando(false); }
   }
 
@@ -162,7 +164,7 @@ export default function Instalaciones() {
       setMsg(aprobar ? `${i.codigo} aprobada.` : `${i.codigo} rechazada.`);
       setDetalle(null);
       await cargar(fEstado, fSitio, texto);
-    } catch (e: any) { setError(e?.response?.data?.message || 'No se pudo decidir.'); }
+    } catch (e: any) { setError(mensajeDeError(e, 'decidir')); }
   }
 
   async function generarOrden(i: any) {
@@ -171,7 +173,7 @@ export default function Instalaciones() {
       setMsg(`Orden ${r.data.orden.code} generada.`);
       setDetalle(null);
       await cargar(fEstado, fSitio, texto);
-    } catch (e: any) { setError(e?.response?.data?.message || 'No se pudo generar la orden.'); }
+    } catch (e: any) { setError(mensajeDeError(e, 'generar la orden')); }
   }
 
   async function cerrarInstalacion() {
@@ -186,7 +188,7 @@ export default function Instalaciones() {
       setCerrando(null); setDetalle(null);
       await cargar(fEstado, fSitio, texto);
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'No se pudo cerrar.');
+      setError(mensajeDeError(e, 'cerrar'));
     } finally { setGuardando(false); }
   }
 
@@ -334,10 +336,11 @@ export default function Instalaciones() {
         <Modal title="Pedir una instalación" onClose={() => setNueva(null)} ancho
           acciones={<>
             <button className="btn-mini" onClick={() => setNueva(null)}>Cancelar</button>
-            <button className="btn-primary" onClick={crear}
-              disabled={guardando || (nueva.justificacion || '').trim().length < 10}>
+            <BotonConMotivo onClick={crear} ocupado={guardando}
+              falta={queFalta([(nueva.justificacion || '').trim().length < 10,
+                'Explica para qué hace falta, en una frase. Sin eso nadie puede priorizarla.'])}>
               {guardando ? 'Guardando…' : 'Pedir'}
-            </button>
+            </BotonConMotivo>
           </>}>
           {error && <div role="alert" className="aviso-error">{error}</div>}
           <div className="card explica" style={{ marginTop: 0 }}>
@@ -549,10 +552,11 @@ export default function Instalaciones() {
         <Modal title="Marcar instalada — se crea el activo" onClose={() => setCerrando(null)} ancho
           acciones={<>
             <button className="btn-mini" onClick={() => setCerrando(null)}>Cancelar</button>
-            <button className="btn-primary" onClick={cerrarInstalacion}
-              disabled={guardando || (cerrando.assetCode || '').trim().length < 3}>
+            <BotonConMotivo onClick={cerrarInstalacion} ocupado={guardando}
+              falta={queFalta([(cerrando.assetCode || '').trim().length < 3,
+                'Pon el código del activo que nace aquí. Es el que se rotula y se escanea.'])}>
               {guardando ? 'Creando…' : 'Cerrar y crear el activo'}
-            </button>
+            </BotonConMotivo>
           </>}>
           {error && <div role="alert" className="aviso-error">{error}</div>}
           <div className="card explica" style={{ marginTop: 0 }}>

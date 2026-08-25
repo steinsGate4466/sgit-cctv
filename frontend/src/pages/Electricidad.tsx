@@ -7,6 +7,8 @@ import { useAuth } from '../auth/AuthContext';
 import { useDialogos } from '../components/Dialogos';
 import { plural } from '../formato';
 import { fecha } from '../fechas';
+import BotonConMotivo from '../components/BotonConMotivo';
+import { mensajeDeError, queFalta } from '../avisos';
 
 /**
  * ELECTRICIDAD — tableros, circuitos y qué cuelga de cada llave.
@@ -86,7 +88,7 @@ export default function Electricidad() {
       await api.post('/electricidad/tableros', nuevoTablero);
       setMsg('Tablero registrado. Ahora declara sus circuitos.');
       setNuevoTablero(null); await cargar(texto, fTren);
-    } catch (e: any) { setError(e?.response?.data?.message || 'No se pudo guardar.'); }
+    } catch (e: any) { setError(mensajeDeError(e, 'guardar')); }
     finally { setOcupado(false); }
   }
 
@@ -96,7 +98,7 @@ export default function Electricidad() {
       await api.post(`/electricidad/tableros/${nuevoCircuito.tableroId}/circuitos`, nuevoCircuito);
       setMsg('Circuito declarado.');
       setNuevoCircuito(null); await abrir(detalle.id);
-    } catch (e: any) { setError(e?.response?.data?.message || 'No se pudo guardar.'); }
+    } catch (e: any) { setError(mensajeDeError(e, 'guardar')); }
     finally { setOcupado(false); }
   }
 
@@ -112,7 +114,7 @@ export default function Electricidad() {
       await api.post(`/electricidad/circuitos/${colgando.circuitoId}/activos`, { assetId, viaPoe });
       setMsg('Equipo colgado del circuito.');
       setColgando(null); setCandidatos([]); await abrir(detalle.id);
-    } catch (e: any) { setError(e?.response?.data?.message || 'No se pudo colgar.'); }
+    } catch (e: any) { setError(mensajeDeError(e, 'colgar')); }
     finally { setOcupado(false); }
   }
 
@@ -139,13 +141,13 @@ export default function Electricidad() {
       setMidiendo(null);
       await cargar(texto, fTren);
       if (detalle) await abrir(detalle.id);
-    } catch (e: any) { setError(e?.response?.data?.message || 'No se pudo guardar.'); }
+    } catch (e: any) { setError(mensajeDeError(e, 'guardar')); }
     finally { setOcupado(false); }
   }
 
   async function verImpacto(circuitoId: string) {
     try { setImpacto(await api.get(`/electricidad/circuitos/${circuitoId}/impacto`).then((r) => r.data)); }
-    catch (e: any) { setError(e?.response?.data?.message || 'No se pudo calcular.'); }
+    catch (e: any) { setError(mensajeDeError(e, 'calcular')); }
   }
 
   async function descolgar(enlaceId: string) {
@@ -153,7 +155,7 @@ export default function Electricidad() {
     try {
       await api.delete(`/electricidad/activos/${enlaceId}`);
       setMsg('Quitado.'); await abrir(detalle.id);
-    } catch (e: any) { setError(e?.response?.data?.message || 'No se pudo quitar.'); }
+    } catch (e: any) { setError(mensajeDeError(e, 'quitar')); }
   }
 
   return (
@@ -475,10 +477,11 @@ export default function Electricidad() {
           onClose={() => setMidiendo(null)}
           acciones={<>
             <button className="btn-mini" onClick={() => setMidiendo(null)}>Cancelar</button>
-            <button className="btn-primary" onClick={guardarMedicion}
-              disabled={ocupado || (!midiendo.tensionV && !midiendo.corrienteA && !midiendo.temperaturaC)}>
+            <BotonConMotivo onClick={guardarMedicion} ocupado={ocupado}
+              falta={queFalta([!midiendo.tensionV && !midiendo.corrienteA && !midiendo.temperaturaC,
+                'Apunta al menos una lectura: tensión, corriente o temperatura.'])}>
               {ocupado ? 'Guardando…' : 'Guardar medición'}
-            </button>
+            </BotonConMotivo>
           </>}>
           {error && <div role="alert" className="aviso-error">{error}</div>}
           <div className="card explica" style={{ marginTop: 0 }}>
@@ -514,10 +517,11 @@ export default function Electricidad() {
         <Modal title="Registrar tablero eléctrico" onClose={() => setNuevoTablero(null)} ancho
           acciones={<>
             <button className="btn-mini" onClick={() => setNuevoTablero(null)}>Cancelar</button>
-            <button className="btn-primary" onClick={guardarTablero}
-              disabled={ocupado || nuevoTablero.codigo.trim().length < 3}>
+            <BotonConMotivo onClick={guardarTablero} ocupado={ocupado}
+              falta={queFalta([nuevoTablero.codigo.trim().length < 3,
+                'Pon el código del tablero, de 3 caracteres o más. Es el que lleva rotulado.'])}>
               {ocupado ? 'Guardando…' : 'Guardar'}
-            </button>
+            </BotonConMotivo>
           </>}>
           {error && <div role="alert" className="aviso-error">{error}</div>}
           <div className="form-grid">
@@ -579,10 +583,10 @@ export default function Electricidad() {
         <Modal title="Declarar circuito" onClose={() => setNuevoCircuito(null)} ancho
           acciones={<>
             <button className="btn-mini" onClick={() => setNuevoCircuito(null)}>Cancelar</button>
-            <button className="btn-primary" onClick={guardarCircuito}
-              disabled={ocupado || !nuevoCircuito.numero.trim()}>
+            <BotonConMotivo onClick={guardarCircuito} ocupado={ocupado}
+              falta={queFalta([!nuevoCircuito.numero.trim(), 'Pon el número del circuito dentro del tablero.'])}>
               {ocupado ? 'Guardando…' : 'Guardar'}
-            </button>
+            </BotonConMotivo>
           </>}>
           {error && <div role="alert" className="aviso-error">{error}</div>}
           <div className="form-grid">

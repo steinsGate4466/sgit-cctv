@@ -8,6 +8,8 @@ import { Titular } from '../components/Patron';
 import { useVolverALaPantalla } from '../useVolverALaPantalla';
 import { plural } from '../formato';
 import { fecha } from '../fechas';
+import BotonConMotivo from '../components/BotonConMotivo';
+import { queFalta } from '../avisos';
 
 /**
  * MEJORAS A LOS PROCEDIMIENTOS — bloque 58.
@@ -246,11 +248,13 @@ export default function Mejoras() {
                       onChange={(e) => setMotivo(e.target.value)}
                       placeholder="Ya se cambió el conector en enero; con el nuevo el orden sí importa." />
                     <div className="mejora-acciones">
-                      <button type="button" className="btn-mini btn-danger"
-                        disabled={enviando === m.id || !motivo.trim()}
-                        onClick={() => decidir(m.id, false)}>
+                      <BotonConMotivo className="btn-mini btn-danger"
+                        ocupado={enviando === m.id}
+                        onClick={() => decidir(m.id, false)}
+                        falta={queFalta([!motivo.trim(),
+                          'Escribe por qué se rechaza. Rechazar sin motivo hace que no vuelvan a proponer.'])}>
                         {enviando === m.id ? 'Enviando…' : 'Rechazar y avisarle'}
-                      </button>
+                      </BotonConMotivo>
                       <button type="button" className="btn-mini"
                         disabled={enviando === m.id}
                         onClick={() => { setRechazando(null); setMotivo(''); }}>

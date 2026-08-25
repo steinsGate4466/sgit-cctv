@@ -3,6 +3,8 @@ import { api } from '../api/client';
 import Modal from '../components/Modal';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
+import BotonConMotivo from '../components/BotonConMotivo';
+import { mensajeDeError, queFalta } from '../avisos';
 
 /**
  * DIRECCIONAMIENTO IP
@@ -69,13 +71,13 @@ export default function Ipam() {
   async function verMapa(id: string) {
     setError('');
     try { setMapa(await api.get(`/ipam/subredes/${id}/mapa`).then((r) => r.data)); }
-    catch (e: any) { setError(e?.response?.data?.message || 'No se pudo dibujar el mapa.'); }
+    catch (e: any) { setError(mensajeDeError(e, 'dibujar el mapa')); }
   }
 
   async function verLibres(id: string) {
     setError('');
     try { setLibres(await api.get(`/ipam/subredes/${id}/libres`, { params: { n: 10 } }).then((r) => r.data)); }
-    catch (e: any) { setError(e?.response?.data?.message || 'No se pudo calcular.'); }
+    catch (e: any) { setError(mensajeDeError(e, 'calcular')); }
   }
 
   async function guardarSubred() {
@@ -83,7 +85,7 @@ export default function Ipam() {
     try {
       await api.post('/ipam/subredes', nueva);
       setMsg('Subred declarada.'); setNueva(null); await cargar();
-    } catch (e: any) { setError(e?.response?.data?.message || 'No se pudo guardar.'); }
+    } catch (e: any) { setError(mensajeDeError(e, 'guardar')); }
     finally { setOcupado(false); }
   }
 
@@ -94,7 +96,7 @@ export default function Ipam() {
       setMsg(r.data.avisos?.length ? `Reservada ${r.data.ip}. ${r.data.avisos.join(' ')}` : `Reservada ${r.data.ip}.`);
       setReserva(null); await cargar();
       if (mapa) await verMapa(mapa.subred.id);
-    } catch (e: any) { setError(e?.response?.data?.message || 'No se pudo reservar.'); }
+    } catch (e: any) { setError(mensajeDeError(e, 'reservar')); }
     finally { setOcupado(false); }
   }
 
@@ -328,9 +330,10 @@ export default function Ipam() {
         <Modal title="Declarar subred" onClose={() => setNueva(null)} ancho
           acciones={<>
             <button className="btn-mini" onClick={() => setNueva(null)}>Cancelar</button>
-            <button className="btn-primary" onClick={guardarSubred} disabled={ocupado || !nueva.cidr.includes('/')}>
+            <BotonConMotivo onClick={guardarSubred} ocupado={ocupado}
+              falta={queFalta([!nueva.cidr.includes('/'), 'La red va con su máscara, por ejemplo 10.20.1.0/24.'])}>
               {ocupado ? 'Guardando…' : 'Guardar'}
-            </button>
+            </BotonConMotivo>
           </>}>
           {error && <div role="alert" className="aviso-error">{error}</div>}
           <div className="form-grid">

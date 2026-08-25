@@ -6,6 +6,8 @@ import FiltroAmbito, { Ambito, AMBITO_VACIO, conAmbito } from '../components/Fil
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
 import { useDialogos } from '../components/Dialogos';
+import BotonConMotivo from '../components/BotonConMotivo';
+import { mensajeDeError, queFalta } from '../avisos';
 
 /**
  * GRABADORES Y CANALES (bloques 6a y 6b).
@@ -133,7 +135,7 @@ export default function Grabadores() {
       // El servidor manda mensajes escritos para que se entiendan
       // ("el canal 7 ya lo ocupa X"). Se enseñan tal cual: reemplazarlos por
       // "error al guardar" sería tirar la única pista útil.
-      setErrorModal(e?.response?.data?.message || 'No se pudo enlazar. Revisa los datos.');
+      setErrorModal(mensajeDeError(e, 'enlazar'));
     } finally {
       setGuardando(false);
     }
@@ -373,9 +375,10 @@ export default function Grabadores() {
           acciones={
             <>
               <button className="btn-mini" onClick={() => setEnlazando(null)}>Cancelar</button>
-              <button className="btn-primary" onClick={guardarEnlace} disabled={!elegida || guardando}>
+              <BotonConMotivo onClick={guardarEnlace} ocupado={guardando}
+                falta={queFalta([!elegida, 'Elige la cámara de la lista. Sólo salen las del mismo tren que el grabador.'])}>
                 {guardando ? 'Guardando…' : 'Enlazar'}
-              </button>
+              </BotonConMotivo>
             </>
           }
         >

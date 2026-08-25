@@ -6,6 +6,7 @@ import { useAuth } from '../auth/AuthContext';
 import { Titular } from '../components/Patron';
 import { plural } from '../formato';
 import { fecha } from '../fechas';
+import { mensajeDeError } from '../avisos';
 
 /**
  * LIMPIEZA DE DATOS (bloque 15) — exige el permiso «Borrar definitivamente».
@@ -82,7 +83,7 @@ export default function Limpieza() {
       setOperativos(null);
       await cargar();
     } catch (e: any) {
-      setErrorModal(e?.response?.data?.message || 'No se pudo vaciar.');
+      setErrorModal(mensajeDeError(e, 'vaciar'));
     } finally { setVaciando(false); }
   }
 
@@ -94,7 +95,7 @@ export default function Limpieza() {
       setFraseVaciar('');
       await cargar();
     } catch (e: any) {
-      setErrorModal(e?.response?.data?.message || 'No se pudo vaciar.');
+      setErrorModal(mensajeDeError(e, 'vaciar'));
     } finally { setVaciando(false); }
   }
 
@@ -106,7 +107,7 @@ export default function Limpieza() {
       setPreviaAudit(r.data);
     } catch (e: any) {
       setPreviaAudit(null);
-      setErrorModal(e?.response?.data?.message || 'No se pudo consultar.');
+      setErrorModal(mensajeDeError(e, 'consultar'));
     }
   }
 
@@ -121,7 +122,7 @@ export default function Limpieza() {
       setHecho(`Depurados ${r.data.borrados} registros de auditoría.`);
       setPreviaAudit(null); setConfirmacion('');
     } catch (e: any) {
-      setErrorModal(e?.response?.data?.message || 'No se pudo depurar.');
+      setErrorModal(mensajeDeError(e, 'depurar'));
     } finally { setBorrando(false); }
   }
 
@@ -253,6 +254,7 @@ export default function Limpieza() {
                          autoComplete="off" placeholder="La frase completa" />
                 </label>
                 <button className="btn-peligro" onClick={vaciarOrdenes}
+                        title="Escribe arriba la frase VACIAR TODAS LAS ORDENES, tal cual, para que se active."
                         disabled={vaciando || fraseVaciar.trim().toUpperCase().replace(/\s+/g, ' ') !== 'VACIAR TODAS LAS ORDENES'}>
                   {vaciando ? 'Vaciando…' : `Vaciar las ${resumenOm.total} órdenes`}
                 </button>
@@ -362,6 +364,7 @@ export default function Limpieza() {
                     placeholder="DEJAR LA BASE VACIA" autoComplete="off" />
                   <button className="btn-peligro" style={{ marginTop: 10 }}
                     onClick={vaciarTodo}
+                    title="Escribe arriba la frase DEJAR LA BASE VACIA, tal cual, para que se active."
                     disabled={vaciando
                       || fraseVaciarTodo.trim().toUpperCase().replace(/\s+/g, ' ') !== 'DEJAR LA BASE VACIA'}>
                     {vaciando ? 'Vaciando…' : 'Dejar la base vacía'}
@@ -408,6 +411,7 @@ export default function Limpieza() {
                 <input value={confirmacion} onChange={(e) => setConfirmacion(e.target.value)} />
               </label>
               <button className="btn-peligro" onClick={purgarAudit}
+                      title="Escribe arriba la frase DEPURAR AUDITORIA, tal cual, para que se active."
                       disabled={borrando || confirmacion.trim().toUpperCase() !== 'DEPURAR AUDITORIA'}>
                 {borrando ? 'Depurando…' : `Depurar ${previaAudit.total} registros`}
               </button>
