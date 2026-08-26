@@ -81,6 +81,37 @@ export function fechaCorta(v: unknown, vacio = SIN_FECHA): string {
 }
 
 /**
+ * FECHA PARA UNA TABLA: «26 ago · 00:16».
+ *
+ * -----------------------------------------------------------------------------
+ * POR QUÉ NO VALÍA `fechaCorta`, que daba «26/8, 12:16 a. m.»
+ *
+ * 1. **`12:16 a. m.` es ambiguo de leer rápido.** Medianoche y mediodía se
+ *    escriben casi igual y hay que pararse a pensar cuál es. En una planta con
+ *    tres turnos, esa duda es cara: la mitad de las incidencias entran de
+ *    madrugada. En 24 horas, `00:16` no admite discusión.
+ *
+ * 2. **El separador `a. m.` lleva espacios finos** que el navegador puede
+ *    partir a mitad, y entonces la celda se rompe en dos líneas feas.
+ *
+ * 3. **`26/8` obliga a traducir el número a mes.** `26 ago` se lee sin pensar,
+ *    y ocupa lo mismo.
+ *
+ * El punto medio `·` separa día y hora sin parecer parte del número, que es lo
+ * que pasaba con la coma.
+ */
+export function fechaTabla(v: unknown, vacio = SIN_FECHA): string {
+  const d = aFecha(v);
+  if (!d) return vacio;
+  const dia = d.toLocaleDateString(LOCAL, { day: 'numeric', month: 'short' })
+    .replace('.', '');                       // «26 ago.» -> «26 ago»
+  const hora = d.toLocaleTimeString(LOCAL, {
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  });
+  return `${dia} · ${hora}`;
+}
+
+/**
  * «hace 3 días», «hace 2 h», «ahora mismo».
  *
  * Sirve para lo que se lee de un vistazo —«último visto», «se cayó hace…»—

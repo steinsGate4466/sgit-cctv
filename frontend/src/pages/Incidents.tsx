@@ -8,7 +8,7 @@ import { useAuth } from '../auth/AuthContext';
 import Icono from '../components/Iconos';
 import { useDialogos } from '../components/Dialogos';
 import { fechaHora } from '../formato';
-import { fechaCorta } from '../fechas';
+import { fechaCorta, fechaTabla, haceCuanto } from '../fechas';
 import { useBusquedaEnVivo } from '../useBusquedaEnVivo';
 
 // Categorías agrupadas para el selector (CCTV/NVR, Red/energía, Entorno de planta).
@@ -298,20 +298,42 @@ export default function Incidents() {
                     Es el par que alimenta el MTTR: restar una de otra ES el
                     indicador. Juntas se leen de un vistazo; en dos columnas
                     separadas hay que ir y volver con la vista. */}
+                {/* CÓMO SE LEE UNA FECHA EN UNA LISTA DE TRABAJO — bloque 71.
+                    ---------------------------------------------------------
+                    Antes ponía «26/8, 12:16 a. m.» y debajo «abierta». Tres
+                    problemas, y ninguno es de gusto:
+
+                    · `12:16 a. m.` obliga a pensar si es medianoche o
+                      mediodía. En una planta de tres turnos la mitad de las
+                      incidencias entran de madrugada, así que esa duda sale
+                      todos los días. En 24 horas no hay duda.
+                    · La fecha exacta NO es lo que se mira primero. Para
+                      priorizar, lo que importa es CUÁNTO LLEVA esperando:
+                      «hace 8 h» se entiende sin restar nada.
+                    · La fecha exacta sigue haciendo falta —para el informe y
+                      para discutir con Producción—, así que se queda debajo,
+                      pequeña. No se quita: se ordena. */}
                 <td className="muted" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-                  {fechaCorta(i.reportedAt, '—')}
-                  <div style={{ fontSize: 11 }}>
-                    {i.resolvedAt
-                      ? <>→ {fechaCorta(i.resolvedAt)}</>
-                      : <span className="muted">abierta</span>}
+                  <div style={{ color: 'var(--text)', fontWeight: 600 }}>
+                    {haceCuanto(i.reportedAt, '—')}
                   </div>
+                  <div style={{ fontSize: 11 }}>{fechaTabla(i.reportedAt, '—')}</div>
+
+                  {i.resolvedAt
+                    ? (
+                      <div style={{ fontSize: 11, color: 'var(--ok)' }}>
+                        resuelta {fechaTabla(i.resolvedAt)}
+                      </div>
+                    )
+                    : <div style={{ fontSize: 11 }}>sigue abierta</div>}
+
                   {/* Sólo se pinta cuando se sabe. La mayoría de las veces no
                       se sabe, y una línea «ocurrió: —» en todas las filas es
-                      ruido que hace más difícil ver las pocas que sí lo
-                      traen — que son justo las que interesan. */}
+                      ruido que esconde las pocas que sí lo traen — que son
+                      justo las que interesan. */}
                   {i.occurredAt && (
-                    <div style={{ fontSize: 11 }} title="Cuándo se cayó de verdad">
-                      cayó {fechaCorta(i.occurredAt)}
+                    <div style={{ fontSize: 11 }} title="Cuándo se cayó de verdad, no cuándo se avisó">
+                      se cayó {fechaTabla(i.occurredAt)}
                     </div>
                   )}
                 </td>
