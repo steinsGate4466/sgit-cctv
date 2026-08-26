@@ -1133,3 +1133,79 @@ separan dos problemas que tienen dos dueños:
   que esa prueba se cae, y las tres a propósito: fija el reparto de poder del
   tren. Se actualizó **escribiendo la decisión nueva**, no ensanchando el
   array en silencio.
+
+---
+
+## 15. Bloque 69 — el menú por oficio, y el QR que era un callejón
+
+### «Saber más del equipo» llevaba a una lista
+
+El botón del QR hacía `nav('/assets?search=CODIGO')`: una tabla filtrada. El
+técnico escanea **precisamente para no tener que buscar el equipo** entre
+cientos, y acababa delante de una lista teniendo que pulsar la fila otra vez.
+
+Ahora `?activo=<id>` abre la ficha de ESE equipo. Tres detalles:
+
+- El efecto que la abre depende **sólo del identificador**. Si se relanzara en
+  cada repintado, cerrar la ficha la volvería a abrir y no habría salida.
+- **Va con las dos llaves.** Quien tiene `activos.mirar` y no `asset.read` no
+  puede entrar a Activos: a ése se le manda a «Mis activos», su pantalla
+  equivalente. Enseñar un botón que va a dar 403 es peor que no enseñarlo.
+- Se añadió la **salida a la lista general**, que es otra pregunta distinta —
+  «¿qué más hay por aquí?». Sin ella el QR era un callejón sin salida y había
+  que volver con el botón del navegador.
+
+### El menú: 44 entradas agrupadas por módulo
+
+Palabras del usuario: *«los módulos están hechos mierda»*. Tenía razón. El
+menú se había agrupado por el módulo del que salía cada pantalla, que es una
+división que sólo tiene sentido para quien escribió el código:
+
+- **«Infraestructura» tenía VEINTE entradas.** Ahí convivía el
+  direccionamiento IP —que se mira una vez al mes— con las Instalaciones, que
+  se rellenan en planta con guantes.
+- **«Almacén» tenía UNA.** Una sección de un elemento no es una sección: es
+  una línea con un título encima.
+- **El Dashboard estaba pegado a «Mi bandeja».** Son dos cosas distintas: la
+  bandeja es trabajo que hay que vaciar hoy; el tablero es si vamos mejorando.
+
+**El criterio nuevo es uno solo: ¿quién abre esto y en qué momento?**
+
+| Sección | Qué contesta |
+|---|---|
+| *(sin título)* | Lo mío: lo primero al llegar, sea cual sea tu puesto |
+| **Producción** | Mirar la línea: qué se ve y qué no |
+| **Gestión del mantenimiento** | El trabajo: qué hay que hacer, con qué y cuándo |
+| **Trabajo en campo** | Lo que se rellena delante del equipo |
+| **Qué hay en planta** | El inventario: dónde está cada cosa |
+| **Red y energía** | Cómo está unido y de qué se alimenta |
+| **Indicadores** | Si vamos mejorando o empeorando |
+| **Sistema** | Quién entra y qué hizo |
+
+**Órdenes e Inventario van JUNTOS**, y no es una concesión: una orden sin
+repuesto no se cierra, y un repuesto sin orden no se retira. Tenerlos en dos
+secciones obligaba a saltar de una a otra para responder una sola pregunta.
+
+**Ocho secciones no marean porque casi nadie ve ocho.** Una sección sin
+elementos visibles no se pinta, y los permisos hacen el recorte solos: cada
+persona ve dos o tres. Lo que sí mareaba eran siete secciones de dos entradas.
+
+### Verificador 15 — `verificar:menu`
+
+Mover 44 entradas a mano es exactamente la tarea donde se cae una, y **una
+entrada que se cae no rompe nada**: la ruta existe, la pantalla funciona, y
+sencillamente no hay forma de llegar. Es la misma regla de siempre con otras
+palabras: *ruta + pantalla ≠ función. Sin entrada en el menú, no existe.*
+
+Comprueba tres cosas: que toda ruta de `App.tsx` tenga entrada (salvo las
+exentas, **cada una con su motivo escrito**); que toda entrada esté en la
+lista `rutas` de su sección —que es lo que abre la sección al navegar a ella—;
+y que no sobre ninguna ruta declarada, porque abriría la sección equivocada.
+
+**Falso positivo propio, cazado y corregido:** troceaba por `titulo:` desde
+`const secciones`, así que la declaración de tipo —`{ titulo: string; … }`—
+contaba como una sección más, vacía. Informaba de 9 secciones donde hay 8.
+Una sección fantasma en el informe es un verificador que miente.
+
+Probado reintroduciendo los dos fallos: borrar una entrada y quitar una ruta
+de su lista. Los dos salen con código 1 diciendo cuál y dónde.

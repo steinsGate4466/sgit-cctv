@@ -315,6 +315,13 @@ jobs:
         working-directory: frontend
         run: npm run verificar:botones
 
+      # Una pantalla sin entrada en el menu NO EXISTE para el usuario: la ruta
+      # funciona y no hay forma de llegar. Al reagrupar 44 entradas por oficio
+      # (bloque 69) es justo el fallo que se comete y que no rompe nada.
+      - name: Ninguna pantalla se queda fuera del menu
+        working-directory: frontend
+        run: npm run verificar:menu
+
       # El codigo escribia `className="chip est-OPERATIVO"` y en styles.css no
       # habia NI UNA regla `.est-`: siete pantallas con los estados en gris
       # plano. No rompe nada —el navegador ignora la clase— asi que no hay

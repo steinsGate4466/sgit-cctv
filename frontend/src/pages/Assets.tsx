@@ -63,6 +63,12 @@ export default function Assets() {
   const [params] = useSearchParams();
   const omMapeo = params.get('om');
   const omCodigo = params.get('codigo');
+  /* `?activo=<id>` — se llega desde el QR con «Ver la ficha completa».
+     Antes ese botón mandaba a `/assets?search=CODIGO`, o sea a una LISTA
+     FILTRADA: el técnico escaneaba justo para no tener que buscar el equipo,
+     y acababa delante de una tabla teniendo que pulsar otra vez la fila. Con
+     esto la ficha se abre sola, que es lo que la palabra «ficha» promete. */
+  const activoPedido = params.get('activo');
   const [rows, setRows] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
   const [cabinets, setCabinets] = useState<any[]>([]);
@@ -171,6 +177,15 @@ export default function Assets() {
   // Cualquier cambio de filtro vuelve a la primera página: si estabas en la
   // página 4 y filtras, la 4 puede no existir en el resultado nuevo.
   useEffect(() => { setPage(1); }, [fq, fType, fStatus, ambito]);
+
+  /* Abrir la ficha que venía en la dirección. Se dispara UNA sola vez —de ahí
+     la lista de dependencias con sólo el identificador—: si se relanzara en
+     cada repintado, cerrar la ficha la volvería a abrir y no habría forma de
+     salir de ella. */
+  useEffect(() => {
+    if (activoPedido) openDetail(activoPedido);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activoPedido]);
 
   // Las contraseñas reveladas se borran solas al minuto: aunque el usuario siga
   // trabajando, una clave no debe quedarse escrita en pantalla —basta que

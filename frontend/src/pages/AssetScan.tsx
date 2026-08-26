@@ -318,9 +318,41 @@ export default function AssetScan() {
             <Icono n="orden" size={14} /> Órdenes de este equipo
           </button>
         )}
+        {/* SABER MÁS DEL EQUIPO — bloque 69.
+            -----------------------------------------------------------------
+            Este botón llevaba a `/assets?search=CODIGO`, o sea a la LISTA
+            filtrada. Escanear un QR sirve precisamente para no tener que
+            buscar el equipo entre cientos; acabar en una tabla y tener que
+            pulsar la fila deshace el trabajo del escaneo.
+
+            Ahora `?activo=<id>` abre la ficha de ESE equipo directamente.
+
+            Y va con las DOS llaves: quien tiene `activos.mirar` —los dos
+            cargos del tren y el púlpito— no puede entrar a Activos, así que a
+            ése se le manda a «Mis activos», que es su pantalla equivalente.
+            Enseñarle un botón que le va a dar 403 es peor que no enseñárselo. */}
         {can('asset.read') && (
-          <button className="btn-mini" onClick={() => nav(`/assets?search=${a.assetCode}`)}>
-            Ver ficha completa
+          <button className="btn-primary" onClick={() => nav(`/assets?activo=${a.id}`)}>
+            <Icono n="activos" size={16} /> Saber más de este equipo
+          </button>
+        )}
+        {!can('asset.read') && can('activos.mirar') && (
+          <button className="btn-primary" onClick={() => nav('/mis-activos')}>
+            <Icono n="activos" size={16} /> Saber más de este equipo
+          </button>
+        )}
+
+        {/* Y la salida a la lista general, que es una pregunta distinta:
+            «¿qué más hay por aquí?». Sin esto el QR es un callejón sin
+            salida y hay que volver con el botón del navegador. */}
+        {can('asset.read') && (
+          <button className="btn-mini" onClick={() => nav('/assets')}>
+            Ver todos los activos
+          </button>
+        )}
+        {!can('asset.read') && can('activos.mirar') && (
+          <button className="btn-mini" onClick={() => nav('/mis-activos')}>
+            Ver los activos de mi tren
           </button>
         )}
         {a.cabinet?.id && (

@@ -164,125 +164,100 @@ export default function Layout() {
     .toUpperCase();
 
   // Cada sección: [título, items visibles según permisos]
+  /* ===========================================================================
+     EL MENÚ VA POR OFICIO, NO POR MÓDULO — bloque 69
+     ---------------------------------------------------------------------------
+     LO QUE ESTABA MAL, dicho por el usuario: «los módulos están hechos
+     mierda». Y tenía razón. El menú se había ido agrupando por el módulo del
+     que salía cada pantalla, que es una división que sólo tiene sentido para
+     quien escribió el código:
+
+       · «Infraestructura» había crecido hasta VEINTE entradas. Ahí dentro
+         convivían el direccionamiento IP —que mira un técnico de red una vez
+         al mes— con las Instalaciones, que se rellenan en planta con guantes.
+       · «Operación» tenía tres, y «Almacén» una sola. Una sección de un
+         elemento no es una sección: es una línea con un título encima.
+       · El Dashboard y los Indicadores estaban sueltos arriba, mezclados con
+         «Mi bandeja», que es trabajo pendiente y no un número.
+
+     EL CRITERIO NUEVO, y es uno solo: **¿QUIÉN ABRE ESTO Y EN QUÉ MOMENTO?**
+
+       LO MÍO           lo primero al llegar, sea cual sea tu puesto
+       PRODUCCIÓN       mirar la línea: qué se ve y qué no
+       GESTIÓN          el trabajo: qué hay que hacer, con qué y cuándo
+       TRABAJO EN CAMPO lo que se rellena delante del equipo
+       QUÉ HAY          el inventario: dónde está cada cosa
+       RED Y ENERGÍA    cómo está unido y de qué se alimenta
+       INDICADORES      si vamos mejorando o empeorando
+       SISTEMA          quién entra y qué hizo
+
+     DOS COSAS QUE NO SE TOCAN, porque ya funcionaban:
+
+     1. Una sección SIN ELEMENTOS VISIBLES no se pinta (`filter` de abajo).
+        Cada persona ve dos o tres secciones, no ocho: los permisos hacen el
+        recorte solos. Por eso ocho grupos no marean, y siete de dos elementos
+        sí lo hacían.
+
+     2. `rutas` abre la sección donde estás aunque la tuvieras plegada. Hay
+        que mantenerla al día: si una pantalla no está en su lista, al entrar
+        en ella el menú no se abre y parece que la entrada no existe.
+     =========================================================================== */
   const secciones: { titulo: string; items: ReactNode[]; rutas?: string[] }[] = [
+    /* ---------------------------------------------------------------- LO MÍO
+       Sin título y sin plegar: es lo que se mira al llegar. La bandeja va
+       PRIMERA a propósito —es lo que hay que vaciar—; los números se miran
+       después, cuando ya no queda nada esperando. */
     {
       titulo: '',
       items: [
-        // La bandeja va PRIMERA a propósito: es lo que hay que vaciar al
-        // llegar. El tablero se mira cuando ya no queda nada esperando.
-        // 'Mi tren' sólo aparece si el usuario TIENE ámbito. A quien lo ve
-        // todo no le aporta nada: ya tiene Estado por Tren con los tres.
+        can('dashboard.read') && <NavLink key="bd" to="/bandeja"><Icono n="bandeja" /> Mi bandeja</NavLink>,
+        /* «Mi tren» sólo aparece si el usuario TIENE ámbito. A quien lo ve
+           todo no le aporta nada: ya tiene Estado por Tren con los tres. */
         (user?.ambitoTrenes?.length ?? 0) > 0 && can('dashboard.read') &&
           <NavLink key="mt" to="/mi-tren"><Icono n="mitren" /> Mi tren</NavLink>,
-        /* «Mi cobertura» va de las primeras a propósito: es la pantalla de
-           PRODUCCIÓN, y un jefe de línea que entre al sistema tiene que
-           encontrarla sin recorrer un menú pensado para Mantenimiento. */
-        /* Bloque 42: `cobertura.mirar`, no `dashboard.read`. Con el permiso
-           del tablero, a un jefe de tren se le abrían además Dashboard,
-           Indicadores y Mi bandeja — herramientas de decisión de Mantenimiento
-           que él no usa y que le tapaban lo suyo. */
+        can('om.mirar') && <NavLink key="mcam" to="/mis-camaras"><Icono n="alerta" /> Mis cámaras</NavLink>,
+        can('activos.mirar') && <NavLink key="apt" to="/mis-activos"><Icono n="acceso" /> Mis activos</NavLink>,
         can('cobertura.mirar') && <NavLink key="cob" to="/cobertura"><Icono n="camara" /> Mi cobertura</NavLink>,
-        /* Bloque 39. La pantalla que pidió Producción: qué cámara falla, quién
-           la ataca y qué falta. Va de las primeras porque es la que abre un
-           jefe de tren cuando le avisan por radio. */
-        /* Bloque 46. El indice por sector: Tren 1, 2, 3, Oficinas y Gruas.
-           Va PRIMERO porque es donde se entra a mirar si algo esta mal. */
-        /* Bloque 49. VA PRIMERA de todo el grupo de Producción: es la que
-           contesta «cómo está mi tren», que es la pregunta con la que se entra
-           al sistema. Vista general enseña los cinco sectores a la vez; ésta
-           entra en uno y lo abre por zona. */
+      ].filter(Boolean) as ReactNode[],
+    },
+
+    /* ------------------------------------------------------------ PRODUCCIÓN
+       La línea vista desde el púlpito: qué se ve, qué no, y de qué depende lo
+       que no se ve. NO hay aquí ni una acción de mantenimiento: quien entra a
+       esta sección mira y avisa. Reportar se hace desde el QR o desde «Mis
+       cámaras», con el equipo delante, que es donde se sabe qué pasa. */
+    {
+      titulo: 'Producción',
+      rutas: ['/por-tren', '/vista-general', '/trains', '/dependencias'],
+      items: [
         can('om.mirar') && <NavLink key="pt" to="/por-tren"><Icono n="tren" /> Por tren</NavLink>,
         can('om.mirar') && <NavLink key="vg" to="/vista-general"><Icono n="tablero" /> Vista general</NavLink>,
-        can('om.mirar') && <NavLink key="mcam" to="/mis-camaras"><Icono n="alerta" /> Mis cámaras</NavLink>,
-        /* Bloque 41. Va justo detrás porque son las dos mitades de la misma
-           pregunta: una dice qué falla AHORA, la otra qué hay en el tren y
-           cuánto de eso exige manlift — que es lo que Producción costea.
-           Bloque 42: se llamaba «Activos por tren» y pasa a «Mis activos». El
-           prefijo *Mi/Mis* ya significa «lo mío, sectorizado» en toda la
-           aplicación; «por tren» rompía el patrón e insinuaba que se puede
-           elegir tren, que es justo lo que un jefe de tren NO hace. */
-        can('activos.mirar') && <NavLink key="apt" to="/mis-activos"><Icono n="acceso" /> Mis activos</NavLink>,
-        /* Bloque 47. Cierra el grupo de Producción: las tres anteriores dicen
-           QUÉ pasa, y ésta dice POR QUÉ — de qué cuelga cada cámara. No va con
-           «Puntos críticos», que es la misma información para el técnico de
-           red y con diagrama; aquí no hay diagrama a propósito. */
-        can('om.mirar') && <NavLink key="dep" to="/dependencias"><Icono n="mapeo" /> De qué depende</NavLink>,
-        can('dashboard.read') && <NavLink key="bd" to="/bandeja"><Icono n="bandeja" /> Mi bandeja</NavLink>,
-        can('dashboard.read') && <NavLink key="d" to="/dashboard"><Icono n="tablero" /> Dashboard</NavLink>,
-        // Indicadores va junto al tablero: uno dice qué pasa hoy, el otro si
-        // vamos mejorando o empeorando.
-        can('dashboard.read') && <NavLink key="ind" to="/indicadores"><Icono n="indicadores" /> Indicadores</NavLink>,
-        // Exportar vive junto al Dashboard: los dos son "mirar y llevarse".
-        can('dashboard.read') && <NavLink key="xl" to="/exportar"><Icono n="exportar" /> Exportar</NavLink>,
         can('dashboard.read') && <NavLink key="t" to="/trains"><Icono n="tren" /> Estado por Tren</NavLink>,
+        /* Cierra la sección: las anteriores dicen QUÉ pasa, ésta dice POR QUÉ
+           —de qué cuelga cada cámara—. No va con «Puntos críticos», que es la
+           misma información para el técnico de red y con diagrama. */
+        can('om.mirar') && <NavLink key="dep" to="/dependencias"><Icono n="mapeo" /> De qué depende</NavLink>,
       ].filter(Boolean) as ReactNode[],
     },
+
+    /* --------------------------------------------- GESTIÓN DEL MANTENIMIENTO
+       Es la sección que pidió el usuario tal cual: «un grupo netamente de
+       gestión, o sea OM y esa mierda, inventario y todo eso».
+
+       Y agruparlos JUNTOS es correcto, no una concesión: una orden que no
+       tiene repuesto no se puede cerrar, y un repuesto sin orden no se
+       retira. Tenerlos en dos secciones distintas obligaba a saltar de una a
+       otra para responder una sola pregunta. */
     {
-      titulo: 'Infraestructura',
-      rutas: ['/assets', '/cabinets', '/locations', '/access', '/cableado', '/mapeo', '/grabadores', '/conexiones', '/topologia', '/monitoreo', '/documentos', '/instalaciones', '/campanas', '/electricidad', '/ipam', '/zonas', '/riesgo', '/rotulado'],
-      items: [
-        can('asset.read') && <NavLink key="a" to="/assets"><Icono n="activos" /> Activos</NavLink>,
-        /* Va PRIMERA de la sección, antes que Activos en importancia aunque
-           no en orden: es la pantalla donde Producción dice qué pesa, y de
-           ella sale la prioridad de todo lo demás. */
-        can('location.read') && <NavLink key="zn" to="/zonas"><Icono n="zonaVital" /> Zonas vitales</NavLink>,
-        // Instalaciones va junto a Activos porque es de donde salen: una
-        // instalación terminada crea el activo.
-        can('asset.read') && <NavLink key="ins" to="/instalaciones"><Icono n="instalar" /> Instalaciones</NavLink>,
-        can('asset.read') && <NavLink key="g" to="/cabinets"><Icono n="gabinete" /> Gabinetes</NavLink>,
-        can('asset.read') && <NavLink key="u" to="/locations"><Icono n="ubicacion" /> Ubicaciones</NavLink>,
-        can('infra.read') && <NavLink key="cb" to="/cableado"><Icono n="cableado" /> Cableado</NavLink>,
-        // Electricidad va con la infraestructura: de los tableros cuelga la
-        // alimentación de las cámaras, y ahí empieza media caída.
-        can('infra.read') && <NavLink key="el" to="/electricidad"><Icono n="electricidad" /> Electricidad</NavLink>,
-        can('asset.read') && <NavLink key="mp" to="/mapeo"><Icono n="mapeo" /> Avance del mapeo</NavLink>,
-        // Campañas va junto al avance: uno cuenta, el otro CONTROLA la calidad.
-        can('asset.read') && <NavLink key="cmp" to="/campanas"><Icono n="ok" /> Campañas de mapeo</NavLink>,
-        // Va junto a Puntos críticos porque son la misma conversación: uno
-        // dice qué se cae, el otro traduce lo que grita el púlpito.
-        can('red.read') && <NavLink key="gr" to="/grabadores"><Icono n="grabador" /> Grabadores</NavLink>,
-        // Conexiones va ANTES de Puntos críticos: primero se declara la red,
-        // y sólo entonces el análisis de impacto tiene algo que analizar.
-        can('red.read') && <NavLink key="cx" to="/conexiones"><Icono n="puertos" /> Conexiones</NavLink>,
-        /* Bloque 48. Junto a Conexiones porque son las dos caras de lo mismo:
-           allí se DECLARA qué está enchufado dónde, y aquí se LEE la foto ya
-           agrupada por la caja física que el técnico abre. */
-        can('red.read') && <NavLink key="mred" to="/mapa-de-red"><Icono n="gabinete" /> Mapa de red</NavLink>,
-        /* Bloque 50. Junto a Limpieza en espíritu, pero aquí arriba porque es
-           lo primero que hay que mirar al empezar a cargar la planta: dice qué
-           falta y quién lo carga. */
-        can('asset.update') && <NavLink key="sdd" to="/salud-de-datos"><Icono n="ok" /> Salud de los datos</NavLink>,
-        // Va con Conexiones: primero se declara la red física, después el
-        // direccionamiento que corre por encima.
-        can('red.read') && <NavLink key="ip" to="/ipam"><Icono n="ipam" /> Direccionamiento IP</NavLink>,
-        // 12.7 — cierra el permiso huerfano: `document.read` existia desde F0
-        // y no habia pantalla que lo usara.
-        can('document.read') && <NavLink key="dc" to="/documentos"><Icono n="etiqueta" /> Manuales y planos</NavLink>,
-        can('red.read') && <NavLink key="tp" to="/topologia"><Icono n="critico" /> Puntos críticos</NavLink>,
-        /* Bloque 36: el backend de riesgo llevaba semanas calculando y no
-           había forma de verlo. Un cálculo sin enlace, para la planta, no
-           existe. */
-        can('infra.read') && <NavLink key="rg" to="/riesgo"><Icono n="alerta" /> Riesgo</NavLink>,
-        can('infra.read') && <NavLink key="rt" to="/rotulado"><Icono n="etiqueta" /> Rotulado</NavLink>,
-        can('monitor.read') && <NavLink key="mo" to="/monitoreo"><Icono n="reloj" /> Monitoreo</NavLink>,
-        can('access.read') && <NavLink key="ac" to="/access"><Icono n="acceso" /> Accesibilidad</NavLink>,
-      ].filter(Boolean) as ReactNode[],
-    },
-    {
-      titulo: 'Operación',
-      rutas: ['/incidents', '/maintenance', '/paradas'],
+      titulo: 'Gestión del mantenimiento',
+      rutas: ['/incidents', '/maintenance', '/paradas', '/preventive', '/corrective',
+        '/predictive', '/improvements', '/gruas', '/mejoras-procedimiento',
+        '/inventory', '/riesgo'],
       items: [
         can('incident.read') && <NavLink key="i" to="/incidents"><Icono n="incidencia" /> Incidencias</NavLink>,
         can('wo.read') && <NavLink key="m" to="/maintenance"><Icono n="orden" /> Órdenes (OM)</NavLink>,
-        // Las paradas van con las órdenes: es cuándo se puede trabajar.
+        // Las paradas van con las órdenes: es CUÁNDO se puede trabajar.
         can('wo.read') && <NavLink key="pa" to="/paradas"><Icono n="parada" /> Ventanas de parada</NavLink>,
-      ].filter(Boolean) as ReactNode[],
-    },
-    {
-      titulo: 'Mantenimiento',
-      rutas: ['/preventive', '/corrective', '/predictive', '/improvements', '/gruas',
-        '/mejoras-procedimiento'],
-      items: [
         can('wo.read') && <NavLink key="p" to="/preventive"><Icono n="preventivo" /> Preventivo</NavLink>,
         can('wo.read') && <NavLink key="c" to="/corrective"><Icono n="correctivo" /> Correctivo</NavLink>,
         can('wo.read') && <NavLink key="pr" to="/predictive"><Icono n="predictivo" /> Predictivo</NavLink>,
@@ -290,50 +265,126 @@ export default function Layout() {
         // Cámaras de grúa: mantenimiento propio porque falla distinto
         // (cable fatigado, antena desalineada, no se llega sin manlift).
         can('wo.read') && <NavLink key="gr2" to="/gruas"><Icono n="grua" /> Cámaras de grúa</NavLink>,
-        /* Bloque 58. Va en MANTENIMIENTO y no en Sistema: lo que se decide
-           aquí cambia lo que hace un técnico en planta, no una configuración.
-
-           LA VE TAMBIÉN QUIEN PROPONE, y el rótulo cambia según para qué
-           entra. La primera versión la enseñaba sólo a quien decide, con el
-           argumento de que una pantalla donde no se puede hacer nada enseña a
-           ignorar el menú. El argumento vale para los botones, no aquí: el
-           técnico SÍ tiene algo que hacer en esta pantalla —ver si le
-           contestaron—, y ése es justo el circuito que este bloque viene a
-           cerrar.
-
-           `wo.update` es el mismo permiso que exige el endpoint de proponer:
-           si puedes proponer, puedes ver en qué quedó lo tuyo. */
+        /* Bloque 58. LA VE TAMBIÉN QUIEN PROPONE, y el rótulo cambia según
+           para qué entra: el técnico tiene algo que hacer aquí —ver si le
+           contestaron—, y ése es el circuito que aquel bloque vino a cerrar. */
         (can('procedimiento.manage') || can('wo.update'))
           && <NavLink key="mej" to="/mejoras-procedimiento"><Icono n="nota" />
             {can('procedimiento.manage') ? ' Mejoras propuestas' : ' Mis propuestas'}
           </NavLink>,
-      ].filter(Boolean) as ReactNode[],
-    },
-    {
-      titulo: 'Almacén',
-      rutas: ['/inventory'],
-      items: [
         can('inventory.read') && <NavLink key="inv" to="/inventory"><Icono n="inventario" /> Inventario</NavLink>,
+        // Riesgo es la otra cara del inventario: qué repuesto va a faltar y
+        // qué equipo se está quedando obsoleto. Por eso vive al lado.
+        can('infra.read') && <NavLink key="rg" to="/riesgo"><Icono n="alerta" /> Riesgo</NavLink>,
       ].filter(Boolean) as ReactNode[],
     },
+
+    /* ------------------------------------------------------ TRABAJO EN CAMPO
+       Lo que se RELLENA estando en planta, no en la oficina. La otra sección
+       que pidió el usuario: «netamente técnicos que van a llenar en campo».
+
+       El hilo que las une: todas se abren con el equipo delante y casi
+       siempre desde el teléfono. Estaban repartidas dentro de
+       «Infraestructura», entre pantallas de consulta que nadie abre subido a
+       una escalera. */
+    {
+      titulo: 'Trabajo en campo',
+      rutas: ['/instalaciones', '/campanas', '/mapeo', '/access', '/documentos'],
+      items: [
+        // Una instalación terminada CREA el activo: es la puerta de entrada.
+        can('asset.read') && <NavLink key="ins" to="/instalaciones"><Icono n="instalar" /> Instalaciones</NavLink>,
+        can('asset.read') && <NavLink key="cmp" to="/campanas"><Icono n="ok" /> Campañas de mapeo</NavLink>,
+        can('asset.read') && <NavLink key="mp" to="/mapeo"><Icono n="mapeo" /> Avance del mapeo</NavLink>,
+        // Cómo se llega al equipo: escalera, andamio, manlift. Se contesta en
+        // planta, midiendo, no desde un escritorio.
+        can('access.read') && <NavLink key="ac" to="/access"><Icono n="acceso" /> Accesibilidad</NavLink>,
+        can('document.read') && <NavLink key="dc" to="/documentos"><Icono n="etiqueta" /> Manuales y planos</NavLink>,
+      ].filter(Boolean) as ReactNode[],
+    },
+
+    /* ------------------------------------------------------- QUÉ HAY EN PLANTA
+       El inventario y dónde está cada cosa. Antes esto y la red iban juntos en
+       una sección de veinte entradas; son dos preguntas distintas y ahora son
+       dos secciones:
+
+           ¿QUÉ HAY y dónde está?      → ésta
+           ¿CÓMO ESTÁ UNIDO y de qué   → la siguiente
+            se alimenta?                                                    */
+    {
+      titulo: 'Qué hay en planta',
+      rutas: ['/assets', '/locations', '/zonas', '/cabinets', '/equipos',
+        '/rotulado', '/salud-de-datos'],
+      items: [
+        can('asset.read') && <NavLink key="a" to="/assets"><Icono n="activos" /> Activos</NavLink>,
+        can('asset.read') && <NavLink key="u" to="/locations"><Icono n="ubicacion" /> Ubicaciones</NavLink>,
+        /* Va con las ubicaciones porque es una PROPIEDAD de la zona: aquí
+           Producción dice qué no puede quedarse a ciegas, y de eso sale la
+           prioridad de todo lo demás. */
+        can('location.read') && <NavLink key="zn" to="/zonas"><Icono n="zonaVital" /> Zonas vitales</NavLink>,
+        can('asset.read') && <NavLink key="g" to="/cabinets"><Icono n="gabinete" /> Gabinetes</NavLink>,
+        // Traduce la IP de la auditoría en un sitio de la planta. Es
+        // inventario, no configuración: por eso ya no vive en Sistema.
+        can('asset.read') && <NavLink key="eq" to="/equipos"><Icono n="pc" /> Equipos conocidos</NavLink>,
+        can('infra.read') && <NavLink key="rt" to="/rotulado"><Icono n="etiqueta" /> Rotulado</NavLink>,
+        // Fichas incompletas: sin IP, sin ubicación, sin foto. Cierra la
+        // sección porque habla de la CALIDAD de todo lo de arriba.
+        can('asset.update') && <NavLink key="sdd" to="/salud-de-datos"><Icono n="ok" /> Salud de los datos</NavLink>,
+      ].filter(Boolean) as ReactNode[],
+    },
+
+    /* ---------------------------------------------------------- RED Y ENERGÍA
+       De qué depende que una cámara llegue al grabador. Es el mundo del
+       técnico de red, y casi nadie más entra aquí — de ahí que estuviera
+       estorbando dentro de una sección que abría todo el mundo. */
+    {
+      titulo: 'Red y energía',
+      rutas: ['/cableado', '/electricidad', '/grabadores', '/conexiones',
+        '/mapa-de-red', '/ipam', '/topologia', '/monitoreo'],
+      items: [
+        can('infra.read') && <NavLink key="cb" to="/cableado"><Icono n="cableado" /> Cableado</NavLink>,
+        can('infra.read') && <NavLink key="el" to="/electricidad"><Icono n="electricidad" /> Electricidad</NavLink>,
+        can('red.read') && <NavLink key="gr" to="/grabadores"><Icono n="grabador" /> Grabadores</NavLink>,
+        can('red.read') && <NavLink key="cx" to="/conexiones"><Icono n="puertos" /> Conexiones</NavLink>,
+        can('red.read') && <NavLink key="mred" to="/mapa-de-red"><Icono n="gabinete" /> Mapa de red</NavLink>,
+        can('red.read') && <NavLink key="ip" to="/ipam"><Icono n="ipam" /> Direccionamiento IP</NavLink>,
+        can('red.read') && <NavLink key="tp" to="/topologia"><Icono n="critico" /> Puntos críticos</NavLink>,
+        can('monitor.read') && <NavLink key="mo" to="/monitoreo"><Icono n="reloj" /> Monitoreo</NavLink>,
+      ].filter(Boolean) as ReactNode[],
+    },
+
+    /* ------------------------------------------------------------ INDICADORES
+       Los números. Estaban sueltos arriba, pegados a «Mi bandeja», y eso
+       mezclaba dos cosas distintas: la bandeja es TRABAJO que hay que vaciar
+       hoy, y esto es si vamos mejorando o empeorando. Se miran en momentos
+       distintos del día y por motivos distintos. */
+    {
+      titulo: 'Indicadores',
+      rutas: ['/dashboard', '/indicadores', '/exportar'],
+      items: [
+        can('dashboard.read') && <NavLink key="d" to="/dashboard"><Icono n="tablero" /> Dashboard</NavLink>,
+        can('dashboard.read') && <NavLink key="ind" to="/indicadores"><Icono n="indicadores" /> Indicadores</NavLink>,
+        // Exportar vive aquí: es «mirar y llevarse a la reunión».
+        can('dashboard.read') && <NavLink key="xl" to="/exportar"><Icono n="exportar" /> Exportar</NavLink>,
+      ].filter(Boolean) as ReactNode[],
+    },
+
+    /* ----------------------------------------------------------------- SISTEMA
+       Quién entra, qué puede y qué hizo. Última a propósito: no es un sitio
+       al que se entre por costumbre. */
     {
       titulo: 'Sistema',
-      rutas: ['/users', '/roles', '/audit', '/avisos', '/equipos', '/limpieza', '/mi-cuenta'],
+      rutas: ['/users', '/roles', '/audit', '/avisos', '/limpieza', '/mi-cuenta'],
       items: [
+        can('user.manage') && <NavLink key="us" to="/users"><Icono n="usuarios" /> Usuarios</NavLink>,
+        can('role.manage') && <NavLink key="ro" to="/roles"><Icono n="candado" /> Roles y permisos</NavLink>,
         can('audit.read') && <NavLink key="au" to="/audit"><Icono n="auditoria" /> Auditoría</NavLink>,
         // Avisos lo ve CUALQUIERA: todo el mundo puede vincular su Telegram.
         // La bandeja de salida de dentro sí exige permiso.
         <NavLink key="av" to="/avisos"><Icono n="alerta" /> Avisos</NavLink>,
         // Mi cuenta lo ve CUALQUIERA: son sus propias sesiones. Ahí está el
-        // botón de "me robaron el teléfono", que revoca de verdad.
+        // botón de «me robaron el teléfono», que revoca de verdad.
         <NavLink key="mc" to="/mi-cuenta"><Icono n="usuarios" /> Mi cuenta</NavLink>,
-        can('user.manage') && <NavLink key="us" to="/users"><Icono n="usuarios" /> Usuarios</NavLink>,
-        can('role.manage') && <NavLink key="ro" to="/roles"><Icono n="candado" /> Roles y permisos</NavLink>,
-        // Traduce la IP de la auditoría en un sitio de la planta. Va aquí, al
-        // lado de Auditoría, porque es la pantalla que la hace legible.
-        can('asset.read') && <NavLink key="eq" to="/equipos"><Icono n="pc" /> Equipos conocidos</NavLink>,
-        // Borrado definitivo. Último de la lista a propósito: no es un sitio
-        // al que se entre por costumbre.
+        // Borrado definitivo. Último de todo: no se entra aquí por costumbre.
         can('asset.delete') && <NavLink key="li" to="/limpieza"><Icono n="escoba" /> Limpieza de datos</NavLink>,
       ].filter(Boolean) as ReactNode[],
     },
