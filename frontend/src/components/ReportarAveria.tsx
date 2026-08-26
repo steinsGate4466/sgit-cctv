@@ -44,6 +44,8 @@ import { useState } from 'react';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import Icono from './Iconos';
+import { mensajeDeError } from '../avisos';
+import { hoyParaInput } from '../fechas';
 
 interface Motivo {
   /** Valor del enum `IncidentCategory` del backend. */
@@ -80,6 +82,9 @@ export default function ReportarAveria({
   const [motivo, setMotivo] = useState<Motivo | null>(null);
   const [detalle, setDetalle] = useState('');
   const [sinVista, setSinVista] = useState(false);
+  /* Vacío por defecto: «no lo sé» es la respuesta honesta la mayoría de las
+     veces, y un valor puesto de oficio se envía sin mirar. */
+  const [ocurrio, setOcurrio] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [creada, setCreada] = useState<any>(null);
   const [error, setError] = useState('');
@@ -126,6 +131,8 @@ export default function ReportarAveria({
         zone: zona || undefined,
         // Un hecho, no una opinión: se envía sólo si el técnico lo marcó.
         affectedCameras: sinVista ? 1 : undefined,
+        // Si no se sabe, no va: el servidor usará la hora de reporte.
+        occurredAt: ocurrio ? new Date(ocurrio).toISOString() : undefined,
       });
       /* NO SE CIERRA EL FORMULARIO HASTA TENER CONFIRMACIÓN.
          -------------------------------------------------------------------
@@ -149,18 +156,13 @@ export default function ReportarAveria({
       setMotivo(null);
       setDetalle('');
       setSinVista(false);
+      setOcurrio('');
       alCrear();
     } catch (e: any) {
       /* El mensaje del servidor primero: dice QUÉ campo está mal. `e.message`
          a secas suele ser «Request failed with status code 400», que no ayuda
          a nadie que esté en un poste con guantes. */
-      const delServidor = e?.response?.data?.message;
-      setError(
-        (Array.isArray(delServidor) ? delServidor.join('. ') : delServidor)
-        || (e?.response?.status
-          ? `No se pudo registrar (error ${e.response.status}). Vuelve a intentarlo.`
-          : 'No hay conexión con el servidor. Comprueba la señal y vuelve a intentarlo.'),
-      );
+      setError(mensajeDeError(e, 'registrar la avería'));
     } finally {
       setEnviando(false);
     }
@@ -218,6 +220,28 @@ export default function ReportarAveria({
           onChange={(e) => setDetalle(e.target.value)}
           placeholder="Ej: cable suelto en la parte trasera"
         />
+      </label>
+
+      {/* CUÁNDO SE CAYÓ, que no es cuándo se reporta — bloque 68.
+          -------------------------------------------------------------------
+          Si el técnico llega a las 8 y la cámara lleva apagada desde la
+          madrugada, sin este campo esas horas se cargan al tiempo de
+          reparación y el MTTR del mes miente.
+
+          Va DESPUÉS del motivo y del detalle a propósito: es lo que menos se
+          sabe, y ponerlo arriba haría que la gente se parase a pensarlo antes
+          de contar lo importante. */}
+      <label className="av-lab">
+        <span>¿Desde cuándo está así? (si lo sabes)</span>
+        <input
+          type="datetime-local"
+          value={ocurrio}
+          max={hoyParaInput() + 'T23:59'}
+          onChange={(e) => setOcurrio(e.target.value)}
+        />
+        <small className="muted">
+          Déjalo vacío si no lo sabes: se usará la hora de ahora.
+        </small>
       </label>
 
       {/* Un HECHO comprobable, no una valoración de urgencia. La prioridad la

@@ -91,9 +91,37 @@ export class AssetsController {
     return this.assets.options();
   }
 
+  /* EL QR TIENE QUE ABRIRSE PARA QUIEN ESTÁ EN LA LÍNEA — bloque 68.
+     -------------------------------------------------------------------------
+     ESTO ESTABA ROTO Y NO LO VIO NADIE, porque no rompe nada: devuelve 403 y
+     la pantalla sale vacía.
+
+     `asset.read` es la llave del MÓDULO de activos entero: el inventario de
+     los tres trenes, la ficha completa, la exportación. Exigirla aquí dejaba
+     fuera a las tres personas que más escanean:
+
+        · Operador de Púlpito  → su ÚNICA función es avisar de una cámara, y
+                                 el botón de avisar vive dentro de esta
+                                 pantalla. Sin esto, el bloque 51-B entero
+                                 estaba muerto para él.
+        · Jefe de Tren
+        · Jefe de línea        → los dos cargos que están en la línea cuando
+                                 algo se cae.
+
+     Los tres tienen `activos.mirar`, que YA les devuelve los equipos de su
+     tren en una lista. Poder abrir la ficha de UNO de esos equipos no les da
+     nada nuevo: es el mismo dato, de uno en uno.
+
+     Y las dos puertas que de verdad protegen siguen puestas:
+       · `@AmbitoDe('asset')` → sólo los equipos de SU tren, 404 si no.
+       · `credential.read`    → las contraseñas del equipo se filtran aparte,
+                                dentro del servicio. Sin ese permiso no viajan.
+
+     Es el mismo arreglo del bloque 66: una lectura de apoyo llevaba el
+     permiso del módulo al que pertenece, y no el que necesita quien la usa. */
   @AmbitoDe('asset')
   @Get(':id')
-  @RequirePermissions('asset.read')
+  @RequireAlguno('asset.read', 'activos.mirar')
   findOne(@Param('id') id: string, @CurrentUser() user: any) {
     const sensitive = (user?.permissions || []).includes('credential.read');
     return this.assets.findOne(id, sensitive);

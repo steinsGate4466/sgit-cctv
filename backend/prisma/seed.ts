@@ -237,6 +237,9 @@ const ROLES: Record<string, string[]> = {
     'dashboard.read', 'location.read',
     'activos.mirar', 'cobertura.mirar', 'om.mirar',
     'incident.read', 'incident.create', 'wo.report',
+    /* Bloque 68: abre la OM desde el QR, con el equipo delante. La CIERRA el
+       Jefe de Mantenimiento (`wo.approve`); esto sólo la abre. */
+    'wo.create',
     'monitor.read',
   ],
 
@@ -289,6 +292,9 @@ const ROLES: Record<string, string[]> = {
     'dashboard.read', 'location.read',
     'activos.mirar', 'cobertura.mirar', 'om.mirar',
     'incident.read', 'incident.create', 'wo.report',
+    /* Bloque 68: abre la OM desde el QR, con el equipo delante. La CIERRA el
+       Jefe de Mantenimiento (`wo.approve`); esto sólo la abre. */
+    'wo.create',
     'monitor.read',
     'zona.criticidad',
   ],
@@ -302,9 +308,13 @@ const ROLES: Record<string, string[]> = {
      el tren en marcha. Lo demás es lo que necesita para firmar con criterio
      —ver el equipo, cómo se llega y qué órdenes hay— y para mover el trabajo
      de su gente. NO cierra órdenes: eso sigue siendo del Jefe. */
+  /* Bloque 68: YA NO abre incidencias. Reporta una avería quien mira las
+     cámaras de su tren o quien interviene el equipo; la tercería ejecuta lo
+     que se le asigna y lo cuenta en la orden (`wo.report`), que es donde
+     queda atado al trabajo. */
   'Supervisor Operativo de Tercería': [
     'dashboard.read', 'asset.read', 'location.read',
-    'incident.read', 'incident.create',
+    'incident.read',
     'wo.read', 'wo.update', 'wo.report',
     'access.read', 'access.request', 'document.read',
     'zona.intervencion',

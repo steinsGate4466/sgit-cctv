@@ -417,6 +417,7 @@ export const PLANTILLAS_DE_ROL: {
       'dashboard.read', 'location.read',
       'activos.mirar', 'cobertura.mirar', 'om.mirar',
       'incident.read', 'incident.create', 'wo.report',
+      'wo.create',
       'monitor.read',
       'zona.criticidad',
     ],
@@ -433,6 +434,7 @@ export const PLANTILLAS_DE_ROL: {
       'dashboard.read', 'location.read',
       'activos.mirar', 'cobertura.mirar', 'om.mirar',
       'incident.read', 'incident.create', 'wo.report',
+      'wo.create',
       'monitor.read',
     ],
   },
@@ -549,7 +551,7 @@ export const PLANTILLAS_DE_ROL: {
       'Es la única persona fuera de Aceros que debería tenerlo, y responde por esa firma.',
     permisos: [
       'dashboard.read', 'asset.read', 'location.read',
-      'incident.read', 'incident.create',
+      'incident.read',
       'wo.read', 'wo.update', 'wo.report',
       'access.read', 'access.request', 'document.read',
       'zona.intervencion',
@@ -567,7 +569,7 @@ export const PLANTILLAS_DE_ROL: {
     necesitaAmbito: true,
     permisos: [
       'wo.read', 'wo.update', 'wo.report', 'asset.read', 'location.read',
-      'incident.create', 'access.request',
+      'access.request',
     ],
   },
   {

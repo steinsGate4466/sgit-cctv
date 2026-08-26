@@ -64,6 +64,37 @@ export class IncidentsService {
     return siguienteCorrelativo(ultimo?.code ?? null, prefijo);
   }
 
+  /**
+   * CUÁNDO SE CAYÓ DE VERDAD — bloque 68.
+   *
+   * Tres reglas, y las tres salieron de pensar qué se escribe con guantes:
+   *
+   *  1. VACÍO ES UNA RESPUESTA. Si no se sabe, se deja `null` y se usa la
+   *     fecha de reporte. Rellenarlo por rellenar inventa un dato que luego
+   *     nadie sabe distinguir de uno medido.
+   *
+   *  2. EL FUTURO SE RECHAZA, y con un mensaje que dice qué pasa. Una avería
+   *     no puede haber ocurrido mañana; si llega así es un dedazo en el
+   *     calendario, y guardarlo daría un MTTR NEGATIVO que rompe el informe
+   *     del mes sin que nadie sepa por qué.
+   *
+   *  3. HAY UN MARGEN DE UN MINUTO. El reloj del móvil del técnico y el del
+   *     servidor no van sincronizados al segundo. Sin margen, «ahora mismo»
+   *     se rechazaría a veces sí y a veces no, que es la peor clase de fallo:
+   *     el que no se puede reproducir.
+   */
+  private cuandoOcurrio(valor?: string | null): Date | null {
+    if (!valor) return null;
+    const d = new Date(valor);
+    if (Number.isNaN(d.getTime())) return null;
+    if (d.getTime() > Date.now() + 60_000) {
+      throw new BadRequestException(
+        'La avería no puede haber ocurrido en el futuro. Revisa la fecha.',
+      );
+    }
+    return d;
+  }
+
   async create(dto: CreateIncidentDto) {
     const inc = await this.prisma.incident.create({
       data: {
@@ -77,6 +108,7 @@ export class IncidentsService {
         concurrentSessions: dto.concurrentSessions,
         affectedCameras: dto.affectedCameras,
         visionDownMin: dto.visionDownMin,
+        occurredAt: this.cuandoOcurrio(dto.occurredAt),
       },
       include: assetSel,
     });

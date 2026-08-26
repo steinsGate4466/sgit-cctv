@@ -98,7 +98,7 @@ describe('plantillas de rol', () => {
     expect(conFirma.sort()).toEqual(['Supervisor Operativo de Tercería']);
   });
 
-  it('EL JEFE DE LÍNEA SÓLO ESCRIBE UNA COSA', () => {
+  it('EL JEFE DE LÍNEA ESCRIBE DOS COSAS, Y NINGUNA CIERRA NADA', () => {
     /* HISTORIA DE ESTA PRUEBA — se ha caído dos veces, las dos a propósito.
 
        1ª) Exigía `soloMira(jefe) === true` ("solo mirar, no intervenir"). Se
@@ -111,11 +111,22 @@ describe('plantillas de rol', () => {
            no es cubrir— pero sólo el titular DECIDE. Así que `zona.criticidad`
            se fue al Jefe de Tren y aquí queda UNA sola escritura.
 
+       3ª) Se cayó en el bloque 68, y ME CAZÓ A MÍ mientras repartía permisos.
+           Decisión del usuario: los dos cargos del tren ABREN una OM desde el
+           QR. Hoy tenían que bajar a la oficina a pedir que alguien la abriera,
+           y en el camino el aviso se pierde.
+
+           ABRIR NO ES CERRAR, y esa es toda la diferencia. Una orden de más se
+           ve en la lista y se anula. Una orden CERRADA de más lleva firma y
+           materiales retirados: dice que un trabajo se hizo. `wo.approve` no
+           se movió ni se moverá desde aquí, y las cuatro líneas de abajo lo
+           fijan.
+
        Que esta prueba se caiga es la señal de que alguien tocó el reparto de
        poder del tren. Se actualiza mirando la decisión, nunca aflojando la
-       comprobación. Si mañana aparece una segunda escritura, vuelve a caerse. */
+       comprobación. Si mañana aparece una tercera escritura, vuelve a caerse. */
     const jefe = permisosDe('Jefe de línea');
-    const ESCRITURAS_PERMITIDAS = ['incident.create'];
+    const ESCRITURAS_PERMITIDAS = ['incident.create', 'wo.create'];
     const escribe = jefe.filter((c) => !soloMira([c]));
     expect(escribe.sort()).toEqual([...ESCRITURAS_PERMITIDAS].sort());
     // Declarar zonas vitales reordena las prioridades del tren entero: es del
@@ -125,7 +136,8 @@ describe('plantillas de rol', () => {
     expect(jefe).not.toContain('zona.intervencion');
     expect(jefe).toContain('wo.report');   // sí puede descargar el informe
     expect(jefe).toContain('dashboard.read');
-    expect(jefe).not.toContain('wo.create');
+    // ABRE la orden (bloque 68) pero no la trabaja ni la cierra.
+    expect(jefe).toContain('wo.create');
     expect(jefe).not.toContain('wo.update');
     expect(jefe).not.toContain('wo.approve');
     expect(jefe).not.toContain('incident.close');

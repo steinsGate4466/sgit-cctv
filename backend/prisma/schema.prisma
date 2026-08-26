@@ -1511,7 +1511,21 @@ model Incident {
   rootCause       String?
   concurrentSessions Int?          // sesiones en NVR al momento de la falla
   affectedCameras Int?             // cámaras aguas abajo afectadas
+  /// CUÁNDO SE ENTERÓ EL SISTEMA. Nunca es nulo y nunca se edita.
   reportedAt      DateTime         @default(now())
+  /// CUÁNDO SE CAYÓ DE VERDAD — bloque 68.
+  ///
+  /// Son dos cosas distintas y confundirlas hace mentir al MTTR. Una cámara
+  /// que se apaga a las 3 de la madrugada y se reporta a las 8 carga cinco
+  /// horas que nadie podía atender: el turno de noche no estaba mirando ese
+  /// monitor. Con las dos fechas, esas cinco horas se llaman DEMORA EN
+  /// AVISAR, que es un problema de detección, y no tiempo de reparación,
+  /// que es un problema de mantenimiento. Son dos problemas con dos dueños.
+  ///
+  /// Es OPCIONAL a propósito. La mayoría de las veces no se sabe, y un campo
+  /// obligatorio que no se sabe se rellena con cualquier cosa. Cuando está
+  /// vacío se usa `reportedAt`, que es la mejor estimación disponible.
+  occurredAt      DateTime?
   resolvedAt      DateTime?
   visionDownMin   Int?             // minutos sin visión (impacto en producción)
   mttrMinutes     Int?             // tiempo de resolución calculado
@@ -1551,6 +1565,7 @@ model Incident {
   @@index([category])
   @@index([reportedById])
   @@index([canalOrigen])
+  @@index([occurredAt])
   @@map("incidents")
 }
 

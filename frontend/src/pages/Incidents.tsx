@@ -305,6 +305,15 @@ export default function Incidents() {
                       ? <>→ {fechaCorta(i.resolvedAt)}</>
                       : <span className="muted">abierta</span>}
                   </div>
+                  {/* Sólo se pinta cuando se sabe. La mayoría de las veces no
+                      se sabe, y una línea «ocurrió: —» en todas las filas es
+                      ruido que hace más difícil ver las pocas que sí lo
+                      traen — que son justo las que interesan. */}
+                  {i.occurredAt && (
+                    <div style={{ fontSize: 11 }} title="Cuándo se cayó de verdad">
+                      cayó {fechaCorta(i.occurredAt)}
+                    </div>
+                  )}
                 </td>
                 <td><span className={'badge ' + i.priority}>{i.priority}</span></td>
                 <td><span className={'badge ' + statusBadge(i.status)}>{stEs(i.status)}</span></td>

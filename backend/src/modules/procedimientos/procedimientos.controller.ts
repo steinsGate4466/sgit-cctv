@@ -3,7 +3,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ProcedimientosService } from './procedimientos.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
-import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { RequireAlguno, RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { AmbitoDe, SinAmbito } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
@@ -16,9 +16,12 @@ export class ProcedimientosController {
 
   /** TODO lo que hace falta estando delante del equipo, en una sola llamada.
    *  En planta la señal es mala: tres peticiones son tres formas de fallar. */
+  /* Misma puerta que `GET /assets/:id` (bloque 68): esta llamada es la otra
+     mitad de la MISMA pantalla. Si una se abre y la otra no, el QR sale a
+     medias — que es peor que no salir, porque parece que funciona. */
   @AmbitoDe('asset')
   @Get('activos/:id/campo')
-  @RequirePermissions('asset.read')
+  @RequireAlguno('asset.read', 'activos.mirar')
   contexto(@Param('id') id: string) { return this.svc.contextoDeCampo(id); }
 
   /** Dejar un aviso para el que llegue después. Va con `wo.update`: quien

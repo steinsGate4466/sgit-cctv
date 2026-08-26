@@ -1025,3 +1025,111 @@ Puse `color` y `gap` en `.sidebar .brand` al convertir el logotipo en botón, y
 más abajo ya había otra regla con valores distintos que ganaba igual. Mis dos
 líneas eran código muerto. **A un verificador propio se le hace caso o se
 borra.**
+
+---
+
+## 14. Bloque 68 — quién reporta, quién abre orden, y el QR que estaba cerrado
+
+### El bug que encontré buscando otra cosa
+
+El usuario pidió acotar quién genera incidencias y OM desde el QR. Al medirlo
+salió algo que nadie había visto **porque no rompe nada**: devuelve 403 y la
+pantalla sale vacía.
+
+> **Ni el Jefe de Tren, ni el Jefe de línea, ni el Operador de Púlpito podían
+> abrir el QR.** `GET /assets/:id` exigía `asset.read` y ninguno lo tiene.
+
+Y el botón de «reportar cámara caída» del púlpito **vive dentro de esa
+pantalla**: el bloque 51-B entero estaba muerto para la única persona para la
+que se escribió.
+
+Lo peor es que el comentario del catálogo decía, literal, que los dos jefes
+llevaban `asset.read` «y no es negociable, sin él no se puede escanear el QR».
+El comentario decía una cosa y la lista de permisos decía otra. Se quitó en el
+bloque 62-A porque `verificar:coherencia` lo marcó —con razón, `asset.read`
+abre el módulo entero— y **nadie corrigió el comentario ni buscó la
+alternativa**.
+
+**Regla que queda:** cuando un verificador obliga a quitar un permiso, hay que
+preguntarse **qué deja de funcionar**. Quitarlo y seguir es cambiar un agujero
+de seguridad por una función muerta, y la función muerta tarda meses en verse.
+
+**Arreglo:** `@RequireAlguno('asset.read', 'activos.mirar')` en las DOS
+llamadas de la pantalla (`/assets/:id` y `/activos/:id/campo`). Quien tiene
+`activos.mirar` ya recibe los equipos de su tren en lista; abrir la ficha de
+uno no le da nada nuevo. Y las dos puertas que protegen de verdad siguen
+puestas: `@AmbitoDe('asset')` limita a su tren, y las credenciales se filtran
+aparte con `credential.read`.
+
+*Si una de las dos llamadas se abre y la otra no, el QR sale a medias — que es
+peor que no salir, porque parece que funciona.*
+
+### El reparto, por capacidad y sin un solo nombre de rol
+
+**REGLA 1 · Abre una OM quien supervisa el mantenimiento de su tren** →
+capacidad `om.mirar`, que sólo tienen los dos cargos del tren.
+
+**REGLA 2 · Reporta una avería quien mira las cámaras o quien toca el
+equipo** → conserva `incident.create` quien tenga `activos.mirar`, `om.mirar`
+o `asset.update`. La tercería lo pierde: ejecuta órdenes asignadas y lo que
+encuentre lo cuenta con `wo.report`, dentro de la orden, que es donde queda
+atado al trabajo y a quien lo contrató.
+
+Se escribe como **«quién lo conserva»** y no como «a quién se le quita», y eso
+importa: un rol que se cree mañana y no tenga ninguna de las tres capacidades
+tampoco debería reportar. Enumerar a quién se le quita arregla el presente;
+describir quién lo conserva describe la regla.
+
+**ABRIR NO ES CERRAR.** Una orden de más se ve en la lista y se anula. Una
+orden CERRADA de más lleva firma y materiales retirados: afirma que un trabajo
+se hizo. `wo.approve` no se movió, y hay cuatro comprobaciones que lo fijan.
+
+### El púlpito casi se queda sin su única función
+
+El usuario eligió primero «sólo los tres cargos», lo que dejaba al Operador de
+Púlpito con dos permisos de mirar y ninguna escritura. Se le señaló antes de
+escribir la migración —que es **inmutable**— y rectificó.
+
+**Regla de proceso:** cuando una decisión del usuario deja un rol o una función
+sin sentido, se dice ANTES de escribir la migración, no después. Deshacer una
+migración aplicada cuesta otra migración.
+
+Queda fijado por una prueba, no por la memoria: `el Operador de Púlpito
+conserva su única escritura`.
+
+### `occurredAt` — cuándo se cayó no es cuándo se reportó
+
+Una cámara que se apaga a las 3 de la madrugada y se reporta a las 8 cargaba
+cinco horas al MTTR en las que nadie podía hacer nada. Con las dos fechas se
+separan dos problemas que tienen dos dueños:
+
+    occurredAt → reportedAt  =  DEMORA EN AVISAR  (detección)
+    reportedAt → resolvedAt  =  MTTR              (mantenimiento)
+
+- **Opcional a propósito.** La mayoría de las veces no se sabe, y un campo
+  obligatorio que no se sabe se rellena con cualquier cosa — peor que vacío,
+  porque un dato inventado no se distingue de uno medido.
+- **El futuro se rechaza**, con mensaje. Guardarlo daría un MTTR negativo que
+  rompe el informe del mes sin que nadie sepa por qué.
+- **Margen de un minuto**: el reloj del móvil del técnico y el del servidor no
+  van sincronizados al segundo, y sin margen «ahora mismo» se rechazaría a
+  veces sí y a veces no — la peor clase de fallo, el que no se reproduce.
+- **No se rellena el histórico.** Poner `occurredAt = reportedAt` en lo viejo
+  diría que todo se reportó en el instante en que ocurrió. `NULL` dice la
+  verdad: no se sabe.
+- **En la lista sólo se pinta cuando existe.** Una línea «ocurrió: —» en todas
+  las filas es ruido que esconde las pocas que sí lo traen.
+- **El botón del púlpito NO lo pide.** Su formulario es un botón; añadirle un
+  calendario es deshacer el bloque 62-A.
+
+### Dos cosas del método
+
+- **`npx prisma generate` no puede correr aquí** (el dominio de binarios está
+  bloqueado). Como `src/generated/` está en el `.gitignore`, se parchea el
+  cliente en la copia del agente para poder hacer el typecheck de verdad. En
+  la máquina del usuario se regenera y se pisa. Lo que no vale es entregar sin
+  typecheck diciendo «se arreglará al generar».
+- **`plantillas-rol.spec.ts` me cazó** al añadir `wo.create`. Es la tercera vez
+  que esa prueba se cae, y las tres a propósito: fija el reparto de poder del
+  tren. Se actualizó **escribiendo la decisión nueva**, no ensanchando el
+  array en silencio.
