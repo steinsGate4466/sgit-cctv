@@ -1501,7 +1501,22 @@ model Incident {
   code            String           @unique // ej: INC-2026-0001 / IT-CCTV-GRU-...
   title           String
   description     String?
+  /// EL MOTIVO PRINCIPAL. Uno solo, y a propósito: el reparto de «qué falla
+  /// más en la planta» se cuenta sobre este campo, y si una incidencia
+  /// contara en tres categorías los porcentajes pasarían del 100 % y el
+  /// gráfico dejaría de significar nada.
   category        IncidentCategory @default(GENERAL)
+  /// LO QUE ADEMÁS SE ENCONTRÓ — bloque 70.
+  ///
+  /// Una cámara con el cable cortado suele estar además sin alimentación: son
+  /// dos hechos ciertos de la MISMA avería, no dos averías. Antes había que
+  /// abrir dos incidencias para decirlo, y eso ensucia el recuento de fallas
+  /// —salen dos donde hubo una— y duplica el trabajo de quien las cierra.
+  ///
+  /// Se guarda aparte del principal para que el gráfico siga sumando 100 %,
+  /// pero queda consultable: «¿cuántas veces que se corta un cable hay además
+  /// pérdida de alimentación?» es una pregunta que antes no se podía hacer.
+  categoriasExtra IncidentCategory[] @default([])
   priority        Priority         @default(MEDIA)
   status          IncidentStatus   @default(ABIERTA)
   assetId         String?

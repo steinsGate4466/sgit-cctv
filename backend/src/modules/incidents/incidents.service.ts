@@ -109,6 +109,11 @@ export class IncidentsService {
         affectedCameras: dto.affectedCameras,
         visionDownMin: dto.visionDownMin,
         occurredAt: this.cuandoOcurrio(dto.occurredAt),
+        /* Nunca se repite el principal dentro de la lista: contarlo dos veces
+           haría que «con cuántas cosas suele venir esta falla» saliera
+           inflado en uno para todas. */
+        categoriasExtra: (dto.categoriasExtra || [])
+          .filter((c) => c && c !== (dto.category ?? 'GENERAL')),
       },
       include: assetSel,
     });

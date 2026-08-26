@@ -1,0 +1,35 @@
+-- ============================================================================
+-- BLOQUE 70 · UNA AVERÍA PUEDE TENER VARIOS MOTIVOS
+-- ----------------------------------------------------------------------------
+-- EL PROBLEMA, dicho por el usuario: «que se pueda seleccionar más de una
+-- opción, así ya no se acumula tanto».
+--
+-- Tenía razón y el motivo es de planta, no de pantalla. Una cámara con el
+-- cable cortado está además sin alimentación: son dos HECHOS de la MISMA
+-- avería, no dos averías. Obligar a elegir uno hacía dos cosas malas:
+--
+--   · o el técnico abría DOS incidencias —y entonces el recuento de fallas
+--     del mes dice dos donde hubo una, y alguien cierra dos veces lo mismo—,
+--   · o elegía la que más se parecía y perdía la mitad de lo que vio.
+--
+-- ----------------------------------------------------------------------------
+-- POR QUÉ SE GUARDA APARTE Y NO SE CONVIERTE `category` EN UNA LISTA
+--
+-- Porque el reparto de «qué falla más en la planta» se cuenta sobre
+-- `category`. Si una incidencia contara en tres categorías, los porcentajes
+-- sumarían más de 100 y el gráfico dejaría de querer decir nada — y ése es
+-- justo el gráfico con el que se justifica el presupuesto.
+--
+-- Así que hay UN principal (el primero que marca el técnico, que es el que
+-- más pesa) y una lista de lo demás que encontró. El gráfico sigue cuadrando,
+-- y además se puede preguntar algo que antes no se podía: «¿cuántas veces que
+-- se corta un cable hay también pérdida de alimentación?».
+--
+-- ----------------------------------------------------------------------------
+-- EL HISTÓRICO SE QUEDA VACÍO, no se rellena con `category`.
+-- Copiar el principal a la lista diría que en cada avería vieja se
+-- encontraron dos cosas. Una lista vacía dice la verdad: sólo se apuntó una.
+-- ============================================================================
+
+ALTER TABLE "incidents"
+  ADD COLUMN "categoriasExtra" "IncidentCategory"[] DEFAULT ARRAY[]::"IncidentCategory"[];

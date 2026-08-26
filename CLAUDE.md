@@ -1209,3 +1209,94 @@ Una sección fantasma en el informe es un verificador que miente.
 
 Probado reintroduciendo los dos fallos: borrar una entrada y quitar una ruta
 de su lista. Los dos salen con código 1 diciendo cuál y dónde.
+
+---
+
+## 16. Bloque 70 — el desmarcado, y una lección sobre escuchar
+
+### Entendí mal la pregunta, y eso costó una entrega entera
+
+El usuario preguntó por qué al marcar una opción se desmarcaba la anterior. Yo
+respondí que eso era el comportamiento correcto de un campo de una sola
+elección —y lo es— y me puse a mejorar la accesibilidad de los radios.
+
+**No era eso.** Lo que él veía era: *marco un motivo, me voy a escribir el
+detalle, y la marca se cae sola.* Otro problema, y ése sí un fallo.
+
+**Regla que queda: cuando el usuario describe un fallo, reproducir la
+SECUENCIA que él describe antes de decir si es correcto o no.** Yo contesté
+sobre «marcar dos seguidas» cuando él hablaba de «marcar y luego escribir».
+Las dos frases se parecen y describen cosas distintas.
+
+### El descarte que sí sirvió
+
+`grep setMotivo` → dos sitios: el `onClick` y el reinicio tras enviar. Ninguno
+se dispara al escribir. Y el usuario confirmó que **el texto NO se pierde**.
+
+> Si dos estados viven en el mismo componente y uno sobrevive y el otro no,
+> **no puede ser un remontaje**. Es un problema de PINTADO, no de estado.
+
+Eso descarta media docena de hipótesis de un golpe, y es la clase de deducción
+que hay que hacer ANTES de tocar código.
+
+### El sospechoso: `display: flex` sobre un `<fieldset>`
+
+`.av-motivos` era un `<fieldset>` con `display: flex`. El `<fieldset>` arrastra
+un modo de dibujado propio heredado de los formularios de los 90, y Safari en
+iOS es donde peor lo lleva. El fieldset se queda —agrupa y da nombre al grupo
+para el lector de pantalla— pero **el reparto en filas lo hace un `<div>` de
+dentro**, que es el arreglo estándar.
+
+**No está confirmado que sea la causa**, y así está escrito en el código. Lo
+que sí hace es quitar el único elemento raro de ese dibujado.
+
+### Lo que de verdad cierra el problema: el resumen
+
+Con cinco pastillas y el teclado abierto, las de arriba se van detrás de la
+barra del navegador. **El resumen de lo marcado va justo encima del botón** y
+se lee sin subir.
+
+Y convierte un fallo irreproducible en uno diagnosticable:
+
+- pastillas apagadas + resumen lleno → es de pintado
+- resumen también vacío → es de estado
+
+Un fallo que no se puede reproducir no se arregla; lo primero es hacer que
+hable.
+
+### Varios motivos en una incidencia
+
+Petición del usuario: *«que se pueda seleccionar más de una opción, así ya no
+se acumula tanto»*. Correcto, y el motivo es de planta: una cámara con el
+cable cortado está **además** sin alimentación. Son dos hechos de la MISMA
+avería, y obligar a elegir uno hacía que se abrieran dos incidencias — el
+recuento del mes decía dos donde hubo una.
+
+**Pero `category` sigue siendo UNO.** Los demás van en `categoriasExtra`.
+Motivo: el reparto de «qué falla más» se cuenta sobre `category`; si una
+incidencia contara en tres, los porcentajes pasarían del 100 % y el gráfico
+—el que justifica el presupuesto— dejaría de significar nada.
+
+El **primero que se marca es el principal**, y se enseña su número en la
+pastilla. Sin enseñarlo, nadie sabe que el orden importa.
+
+### «Incidencia», no «avería»
+
+El módulo se llama Incidencias, la lista se llama Incidencias y el permiso es
+`incident.create`. Que la pantalla de campo lo llamara «avería» obligaba a
+traducir entre lo que se rellena y dónde aparece después.
+
+### Las fechas se salían de su caja
+
+En iOS un `date` o `datetime-local` **no es una caja de texto**: Safari le pone
+su dibujado nativo, con su tipografía, centrado y un ancho mínimo propio que
+**ignora el `width: 100%`**. Por eso en el escritorio se veía bien y en el
+teléfono desbordaba.
+
+`appearance: none` + **`min-width: 0`**, que es la línea que de verdad lo mete
+en la caja. Y `font-size: 16px` no es estética: por debajo de 16, Safari hace
+zoom al enfocar y descoloca la pantalla entera.
+
+**Aplicado a TODOS los campos de fecha de la aplicación.** Arreglar el que se
+vio y dejar los otros treinta es garantizar que el siguiente salga en la
+siguiente exposición.

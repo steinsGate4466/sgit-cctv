@@ -500,12 +500,82 @@ select optgroup { font-weight: 700; color: var(--navy); }
 .av-abrir { width: 100%; padding: 12px; display: flex; align-items: center;
   justify-content: center; gap: 8px; }
 .av-form { padding: 14px 16px 16px; }
-.av-motivos { border: 0; padding: 0; margin: 0 0 12px; display: flex;
-  flex-wrap: wrap; gap: 8px; }
+/* EL `<fieldset>` YA NO ES EL QUE REPARTE — bloque 70.
+   Tenía `display: flex` encima, y `display: flex` sobre un `<fieldset>` es de
+   los casos que los navegadores han tratado mal durante años: el fieldset
+   tiene un modo de dibujado propio, heredado de los formularios de los 90, y
+   Safari en iOS es donde peor se porta. El fieldset se queda —agrupa y le
+   pone nombre al grupo para el lector de pantalla— pero las filas las reparte
+   un `<div>` normal de dentro, que es el arreglo de toda la vida. */
+.av-motivos { border: 0; padding: 0; margin: 0 0 12px; display: block;
+  min-width: 0; }
+.av-rejilla { display: flex; flex-wrap: wrap; gap: 8px; }
 .av-motivos legend { font-size: 12px; font-weight: 700; color: var(--navy);
   padding: 0; margin-bottom: 8px; }
-.av-motivo { flex: 1 1 46%; padding: 11px 10px; font-size: 13px; text-align: center; }
+/* Cada motivo es un RADIO de verdad con aspecto de pastilla (bloque 70). El
+   input existe y es enfocable —de ahí que no se use `display: none`, que lo
+   sacaría del recorrido del teclado—, sólo que no se ve: quien mira ve la
+   pastilla, y el navegador y el lector de pantalla ven un grupo de radios. */
+.av-motivo {
+  flex: 1 1 46%; padding: 11px 10px; font-size: 13px; text-align: center;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--card);
+  color: var(--steel); font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  min-height: 44px;                    /* el dedo con guante necesita 44 px */
+  transition: background .12s, border-color .12s;
+}
+/* La casilla existe y es enfocable —de ahí que no se use `display: none`,
+   que la sacaría del recorrido del teclado—, sólo que no se ve: quien mira ve
+   la pastilla, y el navegador y el lector de pantalla ven una casilla.
+   `position: absolute` necesita que la pastilla esté posicionada, o se iría a
+   buscar el primer ancestro con posición y acabaría en cualquier sitio. */
+.av-motivo { position: relative; }
+.av-motivo input {
+  position: absolute; opacity: 0; width: 1px; height: 1px;
+  margin: 0; pointer-events: none;
+}
+/* El número de orden. El 1 es el motivo principal, el que cuenta en el
+   reparto de fallas — por eso se enseña y no se deja implícito. */
+.av-orden {
+  position: absolute; top: 4px; right: 6px;
+  min-width: 16px; height: 16px; line-height: 16px;
+  border-radius: 8px; background: rgba(255,255,255,.22);
+  font-size: 10px; text-align: center; font-weight: 700;
+}
+.av-motivo:hover { border-color: var(--steel); }
+/* El foco se pinta en la PASTILLA, no en el input invisible: si no, quien
+   navega con el teclado no ve dónde está. */
+.av-motivo:has(input:focus-visible) {
+  outline: 2px solid var(--steel); outline-offset: 2px;
+}
+/* Respaldo para un navegador sin `:has()`. Los PC de púlpito no siempre están
+   al día, y sin esto quien navegue con el teclado no vería dónde está. No
+   pisa nada: en un navegador moderno gana la regla de arriba, que rodea la
+   pastilla entera. */
+.av-motivo input:focus-visible + span {
+  outline: 2px solid var(--steel); outline-offset: 3px; border-radius: 4px;
+}
 .av-elegido { background: var(--navy); color: #fff; border-color: var(--navy); font-weight: 700; }
+
+/* «elige uno» dentro del rótulo. Es la frase que faltaba: el usuario llegó a
+   preguntar si era un fallo que al marcar otro se desmarcara el anterior. */
+.av-uno {
+  font-weight: 500; font-size: 11px; color: var(--muted);
+  text-transform: none; letter-spacing: 0;
+}
+.av-uno::before { content: '· '; }
+
+/* EL RESUMEN DE LO MARCADO — bloque 70.
+   Con el teclado abierto en el teléfono, las pastillas de arriba se van
+   detrás de la barra del navegador y no se ve qué hay marcado. Esto se lee
+   sin subir. */
+.av-resumen {
+  margin: 0 0 12px; padding: 8px 11px;
+  border-radius: 8px; border-left: 3px solid var(--steel);
+  background: #eef3fb; color: var(--navy);
+  font-size: 12.5px; line-height: 1.45;
+}
+.av-resumen-nota { margin-top: 3px; font-size: 11.5px; color: #55637a; }
 .av-lab { display: block; margin-bottom: 10px; }
 .av-lab > span { display: block; font-size: 12px; font-weight: 600; color: #55637a;
   margin-bottom: 4px; }
@@ -3514,3 +3584,65 @@ a.ta-fila:focus-visible { outline: 2px solid #1f4e79; outline-offset: 2px; }
    ancho completo: metido entre «Cancelar» y «Guardar» no se leería. */
 .modal-pie .motivo-falta,
 .card-acciones .motivo-falta { flex-basis: 100%; margin-top: 0; }
+
+/* =============================================================================
+   LAS FECHAS SE SALEN DE SU CAJA — bloque 70
+   -----------------------------------------------------------------------------
+   EL FALLO, visto por el usuario en su iPhone: el campo «¿Desde cuándo está
+   así?» pintaba «9 ago. 2026, 11:52 p. m.» centrado y desbordando el borde
+   redondeado por la derecha.
+
+   NO ES CULPA DEL ANCHO. `input` ya tiene `width: 100%`. Es que en iOS un
+   `date`, `datetime-local` o `time` NO es una caja de texto normal: Safari le
+   pone su propio dibujado nativo, con su tipografía, su alineación al centro
+   y un ancho mínimo propio que **ignora el ancho que le des**. Por eso en el
+   escritorio se ve bien y en el teléfono se sale.
+
+   Se arregla apagando ese dibujado nativo (`appearance: none`) y devolviéndole
+   el comportamiento de una caja de texto. El selector de fecha del sistema
+   sigue funcionando igual: lo que se apaga es el ASPECTO, no la función.
+
+   VA PARA TODOS LOS CAMPOS DE FECHA DE LA APLICACIÓN, no sólo para éste.
+   Arreglar el que se vio y dejar los otros treinta es garantizar que el
+   siguiente aparezca en la siguiente exposición.
+============================================================================= */
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"],
+input[type="month"],
+input[type="week"] {
+  -webkit-appearance: none;
+  appearance: none;
+  /* `min-width: 0` es la línea que de verdad lo mete en la caja: sin ella el
+     ancho intrínseco del control nativo gana y desborda al contenedor. */
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  text-align: left;
+  /* Sin esto, iOS usa su tipografía del sistema y el campo no se parece a los
+     de al lado. Los 16 px no son estética: por debajo de 16, Safari HACE ZOOM
+     al enfocar el campo y la pantalla se descoloca entera. */
+  font-family: inherit;
+  font-size: 16px;
+  color: var(--text);
+}
+
+/* El iconito del calendario, alineado a la derecha y con sitio para el dedo. */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  margin-left: auto;
+  padding: 4px;
+  cursor: pointer;
+  opacity: .55;
+}
+
+/* Safari mete el valor en trozos (`-webkit-datetime-edit`) que por defecto se
+   estiran. Se dejan compactos y pegados a la izquierda, como el resto. */
+input[type="date"]::-webkit-date-and-time-value,
+input[type="datetime-local"]::-webkit-date-and-time-value,
+input[type="time"]::-webkit-date-and-time-value {
+  text-align: left;
+  margin: 0;
+}
+input::-webkit-datetime-edit { padding: 0; }

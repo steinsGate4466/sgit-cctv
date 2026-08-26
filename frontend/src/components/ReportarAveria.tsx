@@ -44,7 +44,8 @@ import { useState } from 'react';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import Icono from './Iconos';
-import { mensajeDeError } from '../avisos';
+import { mensajeDeError, queFalta } from '../avisos';
+import BotonConMotivo from './BotonConMotivo';
 import { hoyParaInput } from '../fechas';
 
 interface Motivo {
@@ -79,7 +80,29 @@ export default function ReportarAveria({
 }) {
   const { can } = useAuth();
   const [abierto, setAbierto] = useState(false);
-  const [motivo, setMotivo] = useState<Motivo | null>(null);
+  /* VARIOS MOTIVOS, no uno — bloque 70.
+     -------------------------------------------------------------------------
+     Petición del usuario: «que se pueda seleccionar más de una opción, así ya
+     no se acumula tanto». Y el motivo es de planta: una cámara con el cable
+     cortado está ADEMÁS sin alimentación. Son dos hechos de la MISMA avería.
+
+     Antes había que abrir dos incidencias para decirlo, y eso hace que el
+     recuento del mes diga dos donde hubo una, y que alguien cierre dos veces
+     el mismo trabajo.
+
+     Se guarda el ORDEN en que se marcan: el PRIMERO es el motivo principal,
+     porque es lo primero que vio el técnico y es lo que más pesa. Un `Set` no
+     valdría: no conserva el orden de forma fiable ni se puede leer «cuál fue
+     el primero». */
+  const [motivos, setMotivos] = useState<Motivo[]>([]);
+  const principal = motivos[0] ?? null;
+
+  const alternarMotivo = (m: Motivo) => {
+    setError('');
+    setMotivos((antes) => (antes.some((x) => x.categoria === m.categoria)
+      ? antes.filter((x) => x.categoria !== m.categoria)
+      : [...antes, m]));
+  };
   const [detalle, setDetalle] = useState('');
   const [sinVista, setSinVista] = useState(false);
   /* Vacío por defecto: «no lo sé» es la respuesta honesta la mayoría de las
@@ -116,17 +139,23 @@ export default function ReportarAveria({
   if (!can('incident.create') || !can('wo.update')) return null;
 
   async function enviar() {
-    if (!motivo) {
-      setError('Selecciona el motivo.');
+    if (!principal) {
+      setError('Marca al menos un motivo.');
       return;
     }
     setError('');
     setEnviando(true);
     try {
       const r = await api.post('/incidents', {
-        title: `${motivo.titulo} — ${codigo}`,
+        /* El título lleva el motivo PRINCIPAL, y si hay más lo dice en corto.
+           Es lo que se lee en la lista de incidencias sin abrir nada, así que
+           tiene que caber: «Equipo sin imagen (+2) — AA-CAM-T1-001». */
+        title: motivos.length > 1
+          ? `${principal.titulo} (+${motivos.length - 1}) — ${codigo}`
+          : `${principal.titulo} — ${codigo}`,
         description: detalle.trim() || undefined,
-        category: motivo.categoria,
+        category: principal.categoria,
+        categoriasExtra: motivos.slice(1).map((m) => m.categoria),
         assetId,
         zone: zona || undefined,
         // Un hecho, no una opinión: se envía sólo si el técnico lo marcó.
@@ -153,7 +182,7 @@ export default function ReportarAveria({
       }
       setCreada(r.data);
       setAbierto(false);
-      setMotivo(null);
+      setMotivos([]);
       setDetalle('');
       setSinVista(false);
       setOcurrio('');
@@ -162,7 +191,7 @@ export default function ReportarAveria({
       /* El mensaje del servidor primero: dice QUÉ campo está mal. `e.message`
          a secas suele ser «Request failed with status code 400», que no ayuda
          a nadie que esté en un poste con guantes. */
-      setError(mensajeDeError(e, 'registrar la avería'));
+      setError(mensajeDeError(e, 'registrar la incidencia'));
     } finally {
       setEnviando(false);
     }
@@ -173,7 +202,7 @@ export default function ReportarAveria({
       <div className="scan-note qr-hecho">
         <Icono n="ok" size={16} />
         <span>
-          <b>Avería registrada{creada.code ? ` · ${creada.code}` : ''}.</b>{' '}
+          <b>Incidencia registrada{creada.code ? ` · ${creada.code}` : ''}.</b>{' '}
           Pendiente de revisión por el Jefe de Mantenimiento.{' '}
           <a
             onClick={() => setCreada(null)}
@@ -189,28 +218,95 @@ export default function ReportarAveria({
   if (!abierto) {
     return (
       <button type="button" className="btn-primary av-abrir" onClick={() => setAbierto(true)}>
-        <Icono n="incidencia" size={16} /> Reportar avería de este equipo
+        <Icono n="incidencia" size={16} /> Reportar incidencia de este equipo
       </button>
     );
   }
 
   return (
     <div className="card scan-card av-form">
-      <div className="section-title" style={{ marginTop: 0 }}>Reportar avería · {codigo}</div>
+      {/* «Incidencia», no «avería» — bloque 70. El usuario lo pidió así y
+          tiene razón: el módulo se llama Incidencias, la lista se llama
+          Incidencias y el permiso es `incident.create`. Que la pantalla de
+          campo lo llamara «avería» obligaba a traducir mentalmente entre lo
+          que se rellena y dónde aparece después. */}
+      <div className="section-title" style={{ marginTop: 0 }}>Reportar incidencia · {codigo}</div>
 
+      {/* LOS MOTIVOS — bloque 70
+          ===================================================================
+          TRES COSAS CAMBIAN AQUÍ, Y CADA UNA ARREGLA ALGO DISTINTO.
+
+          1) SE PUEDEN MARCAR VARIOS. Lo pidió el usuario y es correcto: una
+             cámara con el cable cortado está además sin alimentación. Antes
+             eso obligaba a abrir dos incidencias por una sola avería.
+
+          2) LAS PASTILLAS SALEN DEL `<fieldset>`. Es el sospechoso del
+             desmarcado que el usuario ve en el iPhone: `display: flex` sobre
+             un `<fieldset>` es un caso que los navegadores han tratado mal
+             durante años —el fieldset tiene un modo de dibujado propio— y
+             Safari en iOS es donde peor se porta. El `<fieldset>` se queda
+             porque agrupa semánticamente, pero el reparto en filas lo hace un
+             `<div>` normal de dentro, que es el arreglo estándar.
+
+             NO ESTÁ CONFIRMADO que sea la causa: el estado no se pierde —el
+             texto sobrevive y sólo dos sitios del código tocan la selección—,
+             así que lo que falla es cómo se pinta. Esto quita el único
+             elemento raro que hay en ese dibujado.
+
+          3) HAY UN RESUMEN DE LO MARCADO, justo encima del botón. Y esto es
+             lo que de verdad cierra el problema: con cinco pastillas y el
+             teclado abierto, las de arriba se van detrás de la barra del
+             navegador y no se ve qué hay marcado. El resumen se lee siempre,
+             sin subir.
+
+             Además convierte un fallo imposible de reproducir en uno que se
+             puede diagnosticar: si las pastillas se apagan pero el resumen
+             sigue diciendo «Daño físico», es un problema de pintado; si el
+             resumen también se vacía, es de estado. */}
       <fieldset className="av-motivos">
-        <legend>Motivo</legend>
-        {MOTIVOS.map((m) => (
-          <button
-            key={m.categoria}
-            type="button"
-            className={'btn-mini av-motivo' + (motivo?.categoria === m.categoria ? ' av-elegido' : '')}
-            onClick={() => { setMotivo(m); setError(''); }}
-          >
-            {m.etiqueta}
-          </button>
-        ))}
+        <legend>
+          Motivos <span className="av-uno">marca todos los que veas</span>
+        </legend>
+        <div className="av-rejilla">
+          {MOTIVOS.map((m) => {
+            const puesto = motivos.findIndex((x) => x.categoria === m.categoria);
+            return (
+              <label
+                key={m.categoria}
+                className={'av-motivo' + (puesto >= 0 ? ' av-elegido' : '')}
+              >
+                <input
+                  type="checkbox"
+                  checked={puesto >= 0}
+                  onChange={() => alternarMotivo(m)}
+                />
+                <span>{m.etiqueta}</span>
+                {/* El número dice el ORDEN, y el orden importa: el 1 es el
+                    motivo principal, el que cuenta en «qué falla más». Sin
+                    enseñarlo, el técnico no sabe que el primero que marcó es
+                    el que manda. Sólo aparece cuando hay más de uno: con uno
+                    solo, un «1» es ruido. */}
+                {motivos.length > 1 && puesto >= 0 && (
+                  <b className="av-orden">{puesto + 1}</b>
+                )}
+              </label>
+            );
+          })}
+        </div>
       </fieldset>
+
+      {/* El resumen. Ver el punto 3 de arriba. */}
+      {principal && (
+        <div className="av-resumen" role="status">
+          <b>{motivos.length === 1 ? 'Motivo:' : `${motivos.length} motivos:`}</b>{' '}
+          {motivos.map((m) => m.etiqueta).join(' · ')}
+          {motivos.length > 1 && (
+            <div className="av-resumen-nota">
+              Principal: {principal.etiqueta}. Es el que cuenta en el reparto de fallas.
+            </div>
+          )}
+        </div>
+      )}
 
       <label className="av-lab">
         <span>Detalle (opcional)</span>
@@ -254,9 +350,14 @@ export default function ReportarAveria({
       {error && <div className="error" style={{ display: 'block' }}>{error}</div>}
 
       <div className="av-acciones">
-        <button type="button" className="btn-primary" disabled={enviando} onClick={enviar}>
-          {enviando ? 'Registrando…' : 'Registrar avería'}
-        </button>
+        <BotonConMotivo
+          ocupado={enviando}
+          onClick={enviar}
+          falta={queFalta([!principal,
+            'Marca al menos un motivo: es lo que después dice qué falla más en la planta.'])}
+        >
+          {enviando ? 'Registrando…' : 'Registrar incidencia'}
+        </BotonConMotivo>
         <button type="button" className="btn-mini" onClick={() => { setAbierto(false); setError(''); }}>
           Cancelar
         </button>
