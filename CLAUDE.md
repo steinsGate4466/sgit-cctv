@@ -1300,3 +1300,93 @@ zoom al enfocar y descoloca la pantalla entera.
 **Aplicado a TODOS los campos de fecha de la aplicación.** Arreglar el que se
 vio y dejar los otros treinta es garantizar que el siguiente salga en la
 siguiente exposición.
+
+---
+
+## 17. Bloque 72 — la bandeja deja de ser del Jefe
+
+### Lo que estaba mal, y por qué no se veía
+
+El usuario habló de «la bandeja del técnico» como si existiera. No existía:
+
+- **`bandeja(userId)` recibía el identificador y NO LO USABA** en ninguna de sus
+  ocho consultas. Era una bandeja global: el técnico veía exactamente lo mismo
+  que el Jefe.
+- **Las incidencias sólo entraban si eran ALTA o CRÍTICA.** Las suyas eran
+  MEDIA, así que **no salían en ningún sitio**. Quien las reportó creía que
+  estaban en la cola de alguien, y no lo estaban.
+
+Ninguna de las dos rompe nada. No las ve el compilador, no las ve el lint y no
+las ven 953 pruebas. Se ven preguntándose «¿y esto dónde sale?».
+
+### Las decisiones, y por qué cada una
+
+**DOS CUBOS DE INCIDENCIAS, no uno.** Si las cuatro críticas del mes se pintan
+entre cuarenta de prioridad media, dejan de verse. Separarlas es lo que impide
+que la lista larga tape a la corta.
+
+**Y «lo demás» se escribe con `notIn`, no enumerando.** Si mañana se añade una
+prioridad al enum, cae sola en el cubo correcto. Con una lista escrita a mano,
+la prioridad nueva no saldría en ningún sitio — que es exactamente el fallo
+que este bloque viene a cerrar.
+
+**SÓLO LO QUE NO TIENE ORDEN** (`workOrders: { none: {} }`). Una incidencia con
+orden abierta ya está en marcha y sale más arriba, en «sin detallar».
+Repetirla haría que la bandeja pareciese el doble de llena de lo que está, que
+es la forma más rápida de que se deje de mirar.
+
+**SE ORDENA POR PERSONA, NO SE FILTRA.** Esconderle a un técnico lo que no es
+suyo le quitaría de la vista la orden que le van a asignar en diez minutos y
+la que abandonó el compañero que se fue de turno. En una cuadrilla de cuatro,
+eso es peor que el problema que resuelve. Lo suyo sube arriba y va marcado.
+
+**CON NOMBRE Y CON HORA.** Sin el nombre, la bandeja dice que hay un problema
+pero no a quién preguntar, y el ingeniero acaba llamando por radio para
+averiguar quién puso el parte.
+
+### Las mejoras de los técnicos, en la bandeja
+
+Siguen la MISMA secuencia que una incidencia: alguien de campo ve algo, lo
+dice, y alguien decide. La diferencia es que una incidencia es algo roto y una
+mejora es algo mejorable — **pero las dos se mueren igual si nadie las mira**.
+
+Van con nombre, y eso no es un adorno: una propuesta sin nombre no se puede
+agradecer ni preguntar, y **a la tercera que se queda sin respuesta el técnico
+deja de proponer**. Ése es el circuito que hay que mantener vivo.
+
+### «Sin orden no se interviene»
+
+Palabras del usuario, y describen para qué existe el módulo: *«una incidencia
+que sólo se queda en incidencia no se podrá intervenir»*, y la otra mitad, que
+es la que le da sentido: *«un técnico que no puede asignar OM no significa que
+se quede de brazos cruzados; debe reportar para que se haga una OM lo más
+pronto posible»*.
+
+Sin decirlo en pantalla pasan las dos cosas malas: quien reporta cree que ya
+pidió el trabajo, y quien mira la lista no sabe que le toca convertirla. El
+texto **cambia según lo que cada uno pueda hacer**.
+
+### La OM del QR nacía suelta
+
+No mandaba `incidentId`. El campo existía en el servidor y no se usaba desde
+ahí, así que la incidencia y la orden vivían separadas y **no había MTTR** — el
+MTTR es restar la hora del reporte de la del cierre, y sin enlace no se sabe
+qué cierre corresponde a qué reporte.
+
+Ahora se ata a la incidencia viva más reciente del equipo, **y se dice en
+pantalla a cuál antes de pulsar**. El enlace automático y callado sería un
+cambio invisible: si se ata a la equivocada, nadie tendría cómo notarlo.
+
+### Dos verificadores míos me cazaron, otra vez
+
+- **`verificar:densidad`**: mi aviso de «sin orden no se interviene» subió
+  Incidencias de 180 a 217 palabras. Tenía razón — es una lista de trabajo, no
+  un manual. Reescrito en una línea.
+- **`verificar:constructores`**: dejé un `as any` en el array de estados. Un
+  `as any` apaga la comprobación que avisa cuando un valor no existe en el
+  enum. Tipado como `IncidentStatus[]` y `Priority[]`.
+
+**Y la prueba nueva se cayó al refactorizar**, porque comprobaba el literal
+`['ALTA','CRITICA']` en vez de la regla. Se corrigió la PRUEBA para que mire
+la constante y sus dos usos: una prueba que se rompe al reordenar el código
+sin cambiar el comportamiento acaba borrada.

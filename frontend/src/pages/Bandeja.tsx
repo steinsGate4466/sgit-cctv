@@ -6,6 +6,7 @@ import { api } from '../api/client';
 import { useVolverALaPantalla } from '../useVolverALaPantalla';
 import { Accion, Cifras, LoQueHayQueHacer, Titular, Tono } from '../components/Patron';
 import { fecha } from '../formato';
+import { fechaTabla, haceCuanto } from '../fechas';
 
 /**
  * MI BANDEJA — lo que espera una decisión, hoy.
@@ -203,21 +204,74 @@ export default function Bandeja() {
             textoAccion="Ir a órdenes"
           />
 
+          {/* DOS CUADROS DE INCIDENCIAS, NO UNO — bloque 72.
+              ==============================================================
+              Petición del usuario, y la razón es de lectura: si las cuatro
+              críticas del mes se pintan entre cuarenta de prioridad media,
+              dejan de verse. Separarlas es lo que impide que la lista larga
+              tape a la corta.
+
+              Y LAS DOS ENSEÑAN SÓLO LO QUE NO TIENE ORDEN. Una incidencia con
+              orden abierta ya está en marcha y sale más arriba, en «sin
+              detallar»: repetirla aquí haría que la bandeja pareciese el
+              doble de llena de lo que está.
+
+              Va el NOMBRE de quien la reportó, no un código. La bandeja tiene
+              que decir a quién preguntar, o el ingeniero acaba llamando por
+              radio para averiguar quién puso el parte. */}
           <Bloque
-            titulo="Incidencias de prioridad alta sin cerrar"
-            porque="Son las que Producción está esperando."
+            titulo="Graves y sin orden todavía"
+            porque="Alta o crítica, nadie ha abierto la orden. Es lo primero del día."
             n={r.incidenciasCriticas}
             filas={d.incidenciasCriticas}
-            columnas={['Código', 'Problema', 'Equipo', 'Prioridad', 'Abierta hace']}
-            fila={(i: any) => [
-              <b>{i.code}</b>,
-              <span style={{ fontSize: 12 }}>{i.title}</span>,
-              i.asset?.assetCode || '—',
-              <span className={'badge ' + i.priority}>{i.priority}</span>,
-              diasDesde(i.reportedAt) + ' días',
-            ]}
+            columnas={['Código', 'Problema', 'Equipo', 'Quién avisó', 'Cuándo', 'Prioridad', '']}
+            fila={(i: any) => filaIncidencia(i, navegar)}
             accion={() => navegar('/incidents')}
-            textoAccion="Ir a incidencias"
+            textoAccion="Ver todas las incidencias"
+          />
+
+          <Bloque
+            titulo="Reportadas y sin orden todavía"
+            porque="Prioridad media o baja. Una media que nadie mira acaba siendo crítica."
+            n={r.incidenciasNormales}
+            filas={d.incidenciasNormales}
+            columnas={['Código', 'Problema', 'Equipo', 'Quién avisó', 'Cuándo', 'Prioridad', '']}
+            fila={(i: any) => filaIncidencia(i, navegar)}
+            accion={() => navegar('/incidents')}
+            textoAccion="Ver todas las incidencias"
+          />
+
+          {/* MEJORAS PROPUESTAS POR LOS TÉCNICOS — bloque 72.
+              --------------------------------------------------------------
+              Sigue la MISMA secuencia que una incidencia: alguien de campo ve
+              algo, lo dice, y alguien decide. La diferencia es que una
+              incidencia es algo roto y esto es algo mejorable — pero las dos
+              se mueren igual si nadie las mira.
+
+              Con NOMBRE, y eso no es un adorno: una propuesta sin nombre no
+              se puede agradecer ni preguntar, y a la tercera que se queda sin
+              respuesta el técnico deja de proponer. */}
+          <Bloque
+            titulo="Mejoras propuestas por los técnicos"
+            porque="Las escribió quien hizo el trabajo. Sin respuesta, dejan de proponer."
+            n={r.mejorasPropuestas}
+            filas={d.mejorasPropuestas}
+            columnas={['Quién', 'Qué propone', 'Procedimiento', 'Orden', 'Cuándo', '']}
+            fila={(m: any) => [
+              <b>{m.propuestaPor?.fullName || 'sin nombre'}</b>,
+              <span style={{ fontSize: 12 }}>{m.texto}</span>,
+              <span style={{ fontSize: 12 }}>{m.procedimiento?.titulo || '—'}</span>,
+              m.workOrder?.code || <span className="muted">—</span>,
+              <span className="muted" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+                {haceCuanto(m.createdAt, '—')}
+                <div style={{ fontSize: 11 }}>{fechaTabla(m.createdAt, '')}</div>
+              </span>,
+              <button className="btn-mini" onClick={() => navegar('/mejoras-procedimiento')}>
+                Decidir
+              </button>,
+            ]}
+            accion={() => navegar('/mejoras-procedimiento')}
+            textoAccion="Ver todas las propuestas"
           />
 
           {/* ---------------------------------------------------- CONVIENE MIRAR */}
@@ -276,6 +330,59 @@ function Contador({ t, v, cls, hint }: { t: string; v: number; cls?: string; hin
  *
  * Y cada bloque dice POR QUÉ importa. Un contador sin motivo no mueve a nadie.
  */
+/* =============================================================================
+   UNA FILA DE INCIDENCIA EN LA BANDEJA — bloque 72
+   -----------------------------------------------------------------------------
+   La misma para los dos cuadros —graves y no graves— a propósito: si se
+   escribieran dos veces, un día una enseñaría el nombre de quien avisó y la
+   otra no, y nadie sabría cuál de las dos está bien.
+
+   QUÉ LLEVA Y POR QUÉ CADA COSA:
+
+   · QUIÉN AVISÓ, con nombre. La bandeja tiene que decir a quién preguntar. Sin
+     esto, el ingeniero llama por radio para averiguar quién puso el parte.
+
+   · CUÁNDO, en dos líneas: «hace 8 h» para priorizar de un vistazo, y la fecha
+     exacta debajo para el informe. Y si se sabe cuándo se cayó de verdad,
+     también — porque la diferencia entre las dos ES la demora en avisar.
+
+   · ABRIR LA ORDEN, que es la única acción que mueve esto de sitio. Palabras
+     del usuario: «una incidencia que sólo se queda en incidencia no se podrá
+     intervenir». El botón lo ve quien puede (`wo.create`); a quien no puede,
+     se le dice que ya está avisado y quién lo va a decidir — que es
+     exactamente para lo que sirve reportar.
+============================================================================= */
+function filaIncidencia(i: any, navegar: (r: string) => void) {
+  return [
+    <b>{i.code}</b>,
+    <span style={{ fontSize: 12 }}>
+      {i.title}
+      {i.asset?.referencePlace && (
+        <div className="muted" style={{ fontSize: 11 }}>{i.asset.referencePlace}</div>
+      )}
+    </span>,
+    i.asset?.assetCode || <span className="muted">—</span>,
+    <span style={{ fontSize: 12 }}>
+      {i.reportedBy?.fullName || <span className="muted">no consta</span>}
+    </span>,
+    <span className="muted" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+      <span style={{ color: 'var(--text)', fontWeight: 600 }}>
+        {haceCuanto(i.reportedAt, '—')}
+      </span>
+      <div style={{ fontSize: 11 }}>{fechaTabla(i.reportedAt, '')}</div>
+      {i.occurredAt && (
+        <div style={{ fontSize: 11 }} title="Cuándo se cayó de verdad, no cuándo se avisó">
+          se cayó {fechaTabla(i.occurredAt)}
+        </div>
+      )}
+    </span>,
+    <span className={'badge ' + i.priority}>{i.priority}</span>,
+    <button className="btn-mini" onClick={() => navegar(`/incidents?q=${encodeURIComponent(i.code)}`)}>
+      Abrir
+    </button>,
+  ];
+}
+
 function Bloque({ titulo, porque, n, filas, columnas, fila, accion, textoAccion }: {
   titulo: string; porque: string; n: number; filas?: any[];
   columnas: string[]; fila: (x: any) => any[];

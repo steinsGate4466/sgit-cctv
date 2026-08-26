@@ -54,6 +54,8 @@ export default function AssetScan() {
       const r = await api.post('/work-orders', {
         type: 'CORRECTIVO',
         assetId: id,
+        // El enlace con la falla. Ver el comentario de `incidenciaAbierta`.
+        incidentId: incidenciaAbierta?.id,
         activity: actividad.trim() || undefined,
         // 08:00 hora local: el turno de mañana. Sin hora, el navegador la
         // pondría a medianoche UTC y en Perú (UTC-5) se iría al día anterior.
@@ -118,6 +120,19 @@ export default function AssetScan() {
   if (err) return <div className="scan-wrap"><div className="error">{err}</div></div>;
 
   const estado = a.effectiveStatus || a.status;
+
+  /* LA INCIDENCIA A LA QUE SE VA A ATAR LA ORDEN — bloque 72.
+     ---------------------------------------------------------------------------
+     Hasta ahora la orden abierta desde el QR nacía SUELTA: no guardaba de qué
+     falla salía. Con eso, la incidencia y la orden viven separadas y **no hay
+     MTTR**, porque el MTTR es restar la hora en que se reportó de la hora en
+     que se cerró — y sin enlace no se sabe qué cierre corresponde a qué
+     reporte.
+
+     Se coge la MÁS RECIENTE de las vivas. Si hubiera varias, la última es la
+     que el técnico acaba de poner o de leer; atarla a una de hace tres
+     semanas sería atarla a la equivocada sin que nadie se entere. */
+  const incidenciaAbierta = (a.incidents || [])[0] || null;
   // Órdenes vivas de ESTE equipo. Vienen con la ficha; sólo había que
   // mirarlas.
   const abiertas = (a.workOrders || []).filter((o: any) =>
@@ -278,6 +293,20 @@ export default function AssetScan() {
               style={{ width: '100%' }}
             />
           </label>
+          {/* SE DICE A QUÉ FALLA SE ATA, ANTES DE PULSAR — bloque 72.
+              -----------------------------------------------------------------
+              El enlace se hace solo, pero callarlo sería un cambio invisible:
+              el técnico no sabría que esta orden queda pegada a un parte
+              concreto, y si es el equivocado no tendría cómo notarlo. Se dice
+              por delante, igual que el aviso de auditoría del avance. */}
+          {incidenciaAbierta && (
+            <div className="scan-note" style={{ marginTop: 10 }}>
+              Esta orden queda ligada a <b>{incidenciaAbierta.code}</b>
+              {incidenciaAbierta.reportedBy?.fullName
+                ? `, que reportó ${incidenciaAbierta.reportedBy.fullName}` : ''}.
+              {' '}Así se puede medir cuánto se tardó desde el aviso.
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
             <button className="btn-primary" disabled={creando} onClick={crearOm}>
               {creando ? 'Abriendo…' : 'Abrir la orden'}

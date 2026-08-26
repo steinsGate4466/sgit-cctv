@@ -59,7 +59,14 @@ export default function Incidents() {
   const [loading, setLoading] = useState(true);
 
   // Buscador
-  const [fq, setFq] = useState('');
+  /* `?q=INC-2026-0005` — se llega desde el botón «Abrir» de la bandeja.
+     ---------------------------------------------------------------------------
+     No se hizo una pantalla de detalle nueva: filtrando por el código queda
+     UNA sola fila, y con la tabla vacía de lo demás caben todos sus datos —
+     quién avisó, cuándo se reportó, cuándo se cayó, el estado— más los botones
+     de actuar. Una pantalla de detalle habría sido un sitio más que mantener
+     para enseñar lo mismo. */
+  const [fq, setFq] = useState(() => new URLSearchParams(window.location.search).get('q') || '');
   const [fCat, setFCat] = useState('');
   const [fStatus, setFStatus] = useState('');
   const [ambito, setAmbito] = useState<Ambito>(AMBITO_VACIO);
@@ -246,9 +253,35 @@ export default function Incidents() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 className="page-title">Incidencias</h1>
-          <p className="page-sub">{rows.length} incidencias · bitácora de fallas de planta</p>
+          <p className="page-sub">{rows.length} incidencias · bitácora de planta</p>
         </div>
         {can('incident.create') && <button className="btn-primary" onClick={() => setShowForm(true)}>+ Nueva incidencia</button>}
+      </div>
+
+      {/* REPORTAR ES EL PRIMER PASO, NO EL ÚLTIMO — bloque 72.
+          =====================================================================
+          Palabras del usuario, y describen exactamente para qué existe este
+          módulo: «una incidencia que sólo se queda en incidencia no se podrá
+          intervenir». Y la otra mitad, que es la que da sentido a todo:
+          «un técnico que no puede asignar OM no significa que se quede de
+          brazos cruzados; debe reportar para que se haga una OM lo más
+          pronto posible».
+
+          Sin decirlo en pantalla pasan las dos cosas malas:
+            · quien reporta cree que con eso ya está pedido el trabajo,
+            · y quien mira la lista no sabe que le toca convertirla.
+
+          El texto CAMBIA según lo que cada uno pueda hacer. A quien puede
+          abrir órdenes se le dice que le toca; a quien no, se le confirma que
+          su parte sirvió — que es lo que hace que vuelva a reportar. */}
+      {/* CORTO A PROPÓSITO. La primera versión explicaba lo mismo en cincuenta
+          palabras y `verificar:densidad` la tiró: Incidencias pasó de 180 a
+          217 palabras. Tenía razón — esto es una lista de trabajo, no un
+          manual, y un párrafo encima de la tabla se salta a la segunda vez.
+          Dicho en una línea, se lee. */}
+      <div className="scan-note" style={{ marginBottom: 12 }}>
+        <b>Sin orden no se interviene.</b>{' '}
+        {can('wo.create') ? 'Conviértela con el botón → OM.' : 'La abre Mantenimiento.'}
       </div>
 
       <AvisoAmbito valor={ambito} total={rows.length} />
@@ -325,7 +358,7 @@ export default function Incidents() {
                         resuelta {fechaTabla(i.resolvedAt)}
                       </div>
                     )
-                    : <div style={{ fontSize: 11 }}>sigue abierta</div>}
+                    : <div style={{ fontSize: 11 }}>abierta</div>}
 
                   {/* Sólo se pinta cuando se sabe. La mayoría de las veces no
                       se sabe, y una línea «ocurrió: —» en todas las filas es
@@ -333,7 +366,7 @@ export default function Incidents() {
                       justo las que interesan. */}
                   {i.occurredAt && (
                     <div style={{ fontSize: 11 }} title="Cuándo se cayó de verdad, no cuándo se avisó">
-                      se cayó {fechaTabla(i.occurredAt)}
+                      cayó {fechaTabla(i.occurredAt)}
                     </div>
                   )}
                 </td>

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { evaluarEspera, ordenarPorUrgencia } from '../maintenance/espera';
-import { WorkOrderStatus } from '../../generated/prisma/client';
+import { IncidentStatus, Priority, WorkOrderStatus } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 /**
@@ -31,9 +31,40 @@ export class BandejaService {
     const ABIERTAS: WorkOrderStatus[] = ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'];
     const abiertas = { in: ABIERTAS };
 
+    /* SIN ORDEN TODAVÍA — bloque 72.
+       -------------------------------------------------------------------------
+       Una incidencia con orden abierta YA ESTÁ EN MARCHA: alguien la cogió y
+       aparece en «sin detallar» o en «vencidas». Volver a listarla aquí sería
+       contarla dos veces y hacer que la bandeja parezca el doble de llena de
+       lo que está — que es la forma más rápida de que se deje de mirar.
+
+       Lo que esta bandeja tiene que enseñar es lo que NO ha arrancado. */
+    const sinOrden = { workOrders: { none: {} } };
+    /* Tipado de verdad, no `as any`. Lo cazó `verificar:constructores`, y con
+       razón: un `as any` apaga la comprobación que avisa cuando un valor no
+       existe en el enum. Con el tipo puesto, escribir mal un estado o quitarle
+       uno al enum se ve al compilar y no en producción. */
+    /* «Grave» se escribe UNA vez y se usa en los dos cubos: uno pide las que
+       están dentro y el otro las que no. Si estuviera escrito dos veces, el
+       día que se añada una prioridad quedaría en ninguno de los dos. */
+    const GRAVES: Priority[] = ['ALTA', 'CRITICA'];
+    const VIVAS: IncidentStatus[] = ['ABIERTA', 'EN_DIAGNOSTICO', 'EN_PROCESO', 'EN_ESPERA'];
+
+    /* Quién lo reportó y cuándo. Sin el nombre, la bandeja dice que hay un
+       problema pero no a quién preguntar, y entonces el ingeniero llama por
+       radio preguntando «¿quién puso esto?». Con nombre y hora, se llama
+       directamente a esa persona. */
+    const deQuienYCuando = {
+      id: true, code: true, title: true, priority: true, category: true,
+      status: true, reportedAt: true, occurredAt: true, canalOrigen: true,
+      asset: { select: { id: true, assetCode: true, referencePlace: true } },
+      reportedBy: { select: { id: true, fullName: true } },
+    };
+
     const [
       sinDetallar, vencidas, materialesPendientes, accesos,
-      incidenciasCriticas, bajoMinimo, sinDevolver, paradas,
+      incidenciasCriticas, incidenciasNormales, mejorasPropuestas,
+      bajoMinimo, sinDevolver, paradas,
     ] = await Promise.all([
       // 1. Asignadas y sin detallar. Es trabajo que todavía no se puede hacer.
       this.prisma.workOrder.findMany({
@@ -41,7 +72,8 @@ export class BandejaService {
         select: {
           id: true, code: true, type: true, activity: true, scheduledDate: true,
           asset: { select: { assetCode: true } },
-          technician: { select: { fullName: true } },
+          // El `id` hace falta para saber si la orden es de quien mira.
+          technician: { select: { id: true, fullName: true } },
           assignedBy: { select: { fullName: true } },
         },
         orderBy: { scheduledDate: 'asc' },
@@ -54,6 +86,7 @@ export class BandejaService {
         select: {
           id: true, code: true, type: true, activity: true, scheduledDate: true,
           progressPct: true, asset: { select: { assetCode: true } },
+          technician: { select: { id: true, fullName: true } },
         },
         orderBy: { scheduledDate: 'asc' },
         take: 50,
@@ -81,18 +114,56 @@ export class BandejaService {
         take: 50,
       }),
 
-      // 5. Incidencias de prioridad alta sin cerrar.
+      /* 5. LO GRAVE: alta y crítica, viva y SIN ORDEN todavía.
+            -------------------------------------------------------------------
+            Va en su propio cubo y no mezclada con el resto, por petición del
+            usuario y con razón: si las cinco críticas del mes se pintan entre
+            cuarenta de prioridad media, dejan de verse. Separarlas es lo que
+            hace que la lista larga no tape a la corta. */
       this.prisma.incident.findMany({
-        where: {
-          status: { in: ['ABIERTA', 'EN_DIAGNOSTICO', 'EN_PROCESO', 'EN_ESPERA'] as any },
-          priority: { in: ['ALTA', 'CRITICA'] as any },
-        },
-        select: {
-          id: true, code: true, title: true, priority: true, reportedAt: true,
-          asset: { select: { assetCode: true } },
-        },
+        where: { status: { in: VIVAS }, priority: { in: GRAVES }, ...sinOrden },
+        select: deQuienYCuando,
         orderBy: { reportedAt: 'asc' },
         take: 50,
+      }),
+
+      /* 6. LO DEMÁS: media y baja, viva y sin orden.
+            -------------------------------------------------------------------
+            ESTO ANTES NO SALÍA EN NINGÚN SITIO, y es el hallazgo del bloque
+            71: la bandeja sólo miraba ALTA y CRÍTICA, así que una MEDIA se
+            quedaba en la lista de Incidencias sin que nadie la mirara. El
+            técnico que la reportó creía que estaba en cola de alguien, y no
+            lo estaba.
+
+            «Una media que nadie mira acaba siendo crítica», y para entonces
+            ya paró la línea. */
+      this.prisma.incident.findMany({
+        where: { status: { in: VIVAS }, priority: { notIn: GRAVES }, ...sinOrden },
+        select: deQuienYCuando,
+        orderBy: { reportedAt: 'asc' },
+        take: 60,
+      }),
+
+      /* 7. MEJORAS PROPUESTAS POR LOS TÉCNICOS, esperando decisión.
+            -------------------------------------------------------------------
+            Sigue la MISMA secuencia que una incidencia: alguien de campo ve
+            algo, lo dice, y alguien decide. La diferencia es que una
+            incidencia es algo roto y una mejora es algo mejorable — pero las
+            dos se mueren igual si nadie las mira.
+
+            Va con nombre. Una propuesta sin nombre no se puede agradecer ni
+            preguntar, y a la tercera que se queda sin respuesta el técnico
+            deja de proponer. Ése es el circuito que hay que mantener vivo. */
+      this.prisma.mejoraProcedimiento.findMany({
+        where: { estado: 'PROPUESTA' },
+        select: {
+          id: true, texto: true, minutosReales: true, createdAt: true,
+          propuestaPor: { select: { id: true, fullName: true } },
+          procedimiento: { select: { id: true, titulo: true } },
+          workOrder: { select: { id: true, code: true } },
+        },
+        orderBy: { createdAt: 'asc' },
+        take: 40,
       }),
 
       // 6. Repuestos por debajo del mínimo. Se pregunta con SQL porque
@@ -196,17 +267,48 @@ export class BandejaService {
       }),
     );
 
+    /* LO MÍO PRIMERO — bloque 72.
+       -------------------------------------------------------------------------
+       Petición del usuario: «la bandeja filtra por persona; el Jefe sigue
+       viéndolo todo».
+
+       SE ORDENA, NO SE FILTRA, y la diferencia importa. Si a un técnico se le
+       escondiera lo que no es suyo, dejaría de ver la orden que le van a
+       asignar en diez minutos, y la que abandonó el compañero que se fue de
+       turno. En una cuadrilla de cuatro personas eso es peor que el problema
+       que resuelve.
+
+       Lo suyo sube arriba y va marcado. Lo demás sigue estando, debajo. */
+    const mio = (o: any) => (userId && o?.technician?.id === userId ? 0 : 1);
+    const loMioArriba = <T,>(lista: T[]): T[] =>
+      [...lista].sort((a, b) => mio(a) - mio(b));
+
+    const sinDetallarOrdenadas = loMioArriba(sinDetallar).map((o: any) => ({
+      ...o, esMia: userId ? o?.technician?.id === userId : false,
+    }));
+    const vencidasOrdenadas = loMioArriba(vencidas).map((o: any) => ({
+      ...o, esMia: userId ? o?.technician?.id === userId : false,
+    }));
+
     return {
-      sinDetallar,
+      sinDetallar: sinDetallarOrdenadas,
       enEspera,
-      vencidas,
+      vencidas: vencidasOrdenadas,
       firmasPendientes,
       accesos,
       incidenciasCriticas,
+      incidenciasNormales,
+      mejorasPropuestas,
       bajoMinimo,
       sobrantes,
       resumen: {
         sinDetallar: sinDetallar.length,
+        /* Cuántas de las de arriba son SUYAS. Es el número con el que un
+           técnico decide si abre la bandeja o sigue con lo que tenía. */
+        mias: userId
+          ? sinDetallar.filter((o: any) => o?.technician?.id === userId).length
+            + vencidas.filter((o: any) => o?.technician?.id === userId).length
+          : 0,
         enEspera: enEspera.length,
         // Las que además se pasaron del plazo razonable. Es el número que
         // de verdad hay que mirar: que haya órdenes en espera es normal.
@@ -215,12 +317,15 @@ export class BandejaService {
         firmasPendientes: firmasPendientes.length,
         accesos: accesos.length,
         incidenciasCriticas: incidenciasCriticas.length,
+        incidenciasNormales: incidenciasNormales.length,
+        mejorasPropuestas: mejorasPropuestas.length,
         bajoMinimo: bajoMinimo.length,
         sobrantes: sobrantes.length,
         // Total de cosas que esperan a alguien. Si es cero, la bandeja está
         // vacía y eso es una buena noticia que merece decirse.
         total: sinDetallar.length + vencidas.length + firmasPendientes.length
-          + accesos.length + incidenciasCriticas.length + bajoMinimo.length + sobrantes.length,
+          + accesos.length + incidenciasCriticas.length + incidenciasNormales.length
+          + mejorasPropuestas.length + bajoMinimo.length + sobrantes.length,
       },
       generado: ahora.toISOString(),
     };

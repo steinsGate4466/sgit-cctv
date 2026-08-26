@@ -406,6 +406,29 @@ export class AssetsService {
             technician: { select: { fullName: true } },
           },
         },
+        /* LAS INCIDENCIAS VIVAS DE ESTE EQUIPO — bloque 72.
+           ---------------------------------------------------------------------
+           Se traen para dos cosas, y la segunda es la importante:
+
+           1. Que el QR diga que ya hay un parte puesto, y no se abran cinco
+              por la misma cámara.
+           2. Que la orden que se abra desde aquí SE ATE a esa incidencia. Sin
+              el enlace, la incidencia y la orden viven separadas: no se sabe
+              qué trabajo resolvió qué falla, y el MTTR —que es restar la hora
+              de reporte de la de cierre— no se puede calcular.
+
+           Sólo las VIVAS y sólo tres: en el teléfono, una lista larga de
+           partes viejos empuja hacia abajo lo que hay que hacer ahora. */
+        incidents: {
+          where: { status: { in: ['ABIERTA', 'EN_DIAGNOSTICO', 'EN_PROCESO', 'EN_ESPERA'] as any } },
+          orderBy: { reportedAt: 'desc' },
+          take: 3,
+          select: {
+            id: true, code: true, title: true, priority: true, status: true,
+            reportedAt: true, occurredAt: true,
+            reportedBy: { select: { fullName: true } },
+          },
+        },
       },
     });
     if (!asset || asset.deletedAt) throw new NotFoundException('Activo no encontrado');
