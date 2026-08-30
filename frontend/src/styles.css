@@ -3646,3 +3646,55 @@ input[type="time"]::-webkit-date-and-time-value {
   margin: 0;
 }
 input::-webkit-datetime-edit { padding: 0; }
+
+/* =============================================================================
+   HOJAS DE RUTA — bloque 75
+   -----------------------------------------------------------------------------
+   El contador de caracteres es lo importante de esta pantalla. SAP corta la
+   descripción en 40 y si UNA se pasa, la carga se rechaza ENTERA. Por eso el
+   número va pegado al campo y cambia de color mientras se escribe: corregir
+   una frase recién escrita cuesta un segundo; corregir setenta al final,
+   media mañana.
+============================================================================= */
+.hr-pasos { display: flex; flex-direction: column; gap: 6px; }
+
+.hr-paso {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; border-radius: 8px;
+  background: #f7f9fc; border: 1px solid var(--border);
+}
+/* La operación principal se distingue del resto: es EL trabajo, y las demás
+   son sus pasos. Sin marcarla, la lista parece catorce cosas al mismo nivel. */
+.hr-paso.hr-principal {
+  background: #eef3fb; border-color: var(--steel); border-left: 3px solid var(--navy);
+}
+
+.hr-num {
+  flex: none; width: 52px; text-align: center;
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.hr-principal .hr-num { color: var(--navy); }
+
+.hr-texto { flex: 1; min-width: 0; margin: 0; }
+.hr-texto input { width: 100%; font-size: 13px; min-height: 38px; }
+
+/* Ancho fijo y cifras de igual anchura: si el contador se moviera al cambiar
+   de 9 a 10, el ojo lo perdería justo cuando hay que mirarlo. */
+.hr-cont {
+  flex: none; width: 54px; text-align: right;
+  font-size: 12px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.hr-cabe { color: var(--muted); }
+.hr-pasa { color: var(--crit); }
+
+.hr-acc { flex: none; display: flex; gap: 3px; }
+.hr-acc .btn-mini { padding: 4px 7px; min-width: 0; }
+
+/* En el móvil se apila: con el teclado abierto no caben cinco cosas en fila. */
+@media (max-width: 720px) {
+  .hr-paso { flex-wrap: wrap; }
+  .hr-texto { flex-basis: 100%; order: 3; }
+  .hr-acc { margin-left: auto; }
+}

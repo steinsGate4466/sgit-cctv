@@ -1561,3 +1561,103 @@ Siete reglas: qué es un activo, la cadena de dependencia, cómo sube la
 criticidad, el método CTR, cómo la letra decide el mantenimiento, las tres
 ramas del software y el rotulado. **Es la norma del proyecto**: lo que no la
 cumpla está mal.
+
+---
+
+## 20. Bloque 75 — Hojas de Ruta, y el menú en tres puertas
+
+### Lo que cierra
+
+El preventivo sabía **cuándo** tocar cada equipo. No sabía **qué hacer**. El
+técnico recibía «toca revisar AA-CAM-T1-001» y el detalle vivía en un Excel en
+el PC de alguien.
+
+El usuario entregó su Excel real de SAP con **cinco hojas ya hechas**: Cámara,
+Antena, Switch PoE, Gabinete y PC. **No hay ni un paso inventado** —
+`hojas-de-arranque.ts` es copia literal de su archivo.
+
+### UNA HOJA POR TIPO DE EQUIPO, confirmado por él
+
+Una sola sirve para las cuatrocientas cámaras. Por eso `tipoEquipo` es ÚNICO:
+dos hojas para las cámaras significa que nadie sabe cuál es la buena. Si fuera
+por equipo habría que escribir los mismos catorce pasos cuatrocientas veces, y
+el día que cambie uno, corregirlo cuatrocientas.
+
+La pantalla enseña **cuántos equipos usa cada hoja**. Es lo que hace entender
+que tocar ese documento afecta a cuatrocientas intervenciones, no a una.
+
+### El límite de 40 caracteres — el corazón del módulo
+
+Su Excel lleva una columna que cuenta los caracteres. No es manía: **SAP corta
+ese campo en 40, y si UNA línea se pasa la carga se rechaza ENTERA** — no la
+línea, la carga. Y el mensaje de SAP no dice cuál fue.
+
+Se valida en tres sitios, a propósito:
+
+1. **En la pantalla, en vivo**, con el contador junto al campo. Corregir una
+   frase recién escrita cuesta un segundo; corregir setenta al final, media
+   mañana.
+2. **Al guardar, en el servidor.** El navegador no es de fiar.
+3. **En una prueba** que recorre las cinco hojas de arranque.
+
+### Decisiones del modelo
+
+- **La clave de control se DEDUCE, no se pide.** Sin suboperación es la
+  operación principal (`PM01`); con ella es un paso (`PM04`). Pedirla sería
+  dejar que alguien la ponga al revés.
+- **Los pasos se borran y se reescriben dentro de una transacción.** Es más
+  simple que casar cuáles cambiaron, y no hay ningún instante en que la hoja
+  exista sin sus pasos — un documento vacío diría que no hay que hacer nada.
+- **De diez en diez**, como en SAP: deja hueco para meter un paso entre dos sin
+  renumerar la hoja entera.
+- **Al reordenar se RENUMERA.** Si no, arrastrar una fila cambiaría la pantalla
+  y no el documento, y en SAP saldría en el orden viejo.
+- **`frecuenciaDias` se deriva, y si no se entiende queda `null`.** La hoja
+  vale igual como documento; sólo no se programa sola. Inventar 30 días haría
+  que el sistema generara órdenes con una frecuencia que nadie pidió.
+- **El material se guarda como TEXTO** y el enlace al almacén es opcional: la
+  hoja es un documento y tiene que poder nombrar algo que aún no está de alta.
+
+### Quién puede qué
+
+    LEER      wo.read     — el técnico consulta los pasos antes de subir
+    ESCRIBIR  wo.approve  — SÓLO el Jefe de Mantenimiento
+
+No es `wo.update` a propósito: quitar un paso de seguridad de aquí no afecta a
+una orden, afecta a **todas las que se hagan de ahora en adelante**.
+
+### Una hoja nueva nace segura
+
+Las cinco del ingeniero empiezan igual —EPP, LOTO, ausencia de tensión— y
+terminan documentando. Por eso una hoja nueva **ya viene con esos pasos
+puestos**: quien la crea no tiene que acordarse del bloqueo de energía, y sobre
+todo no puede olvidarse. Hay una prueba que lo fija.
+
+### El menú, en TRES puertas
+
+Palabras del usuario: *«sectorizamos tres ramas principales: GESTIÓN para los
+ingenieros, PRODUCCIÓN para los de púlpito y jefes, y la parte TÉCNICA que son
+los obreros que están en campo y llenan los datos»*.
+
+| Puerta | Qué contesta |
+|---|---|
+| *(sin título)* | Lo mío al llegar |
+| **Producción** | ¿Qué se ve y qué no? |
+| **Gestión del mantenimiento** | ¿Qué hay que hacer, con qué y cuándo? |
+| **Trabajo en campo** | ¿Qué hay ahí y cómo está conectado? |
+| **Sistema** | Administración |
+
+**Conexiones vive en CAMPO**, y ahí está el cable: no es un activo, es lo que
+une dos activos, y quien lo declara es el técnico que lo ve.
+
+### Del método, dos cosas
+
+- **`prisma generate` no corre aquí.** Para los CAMPOS nuevos bastaba duplicar
+  líneas del cliente generado; para MODELOS enteros ese truco **rompió el
+  cliente**. Lo correcto —y lo que queda escrito— es **añadir a mano los tres
+  accesores** en `internal/class.ts`, que son tres líneas. `PrismaClient` es un
+  ALIAS de tipo, no una interfaz, así que `declare module` no sirve.
+- Cuando el parche rompió el cliente, se pudo deshacer exacto porque la
+  transformación sólo INSERTABA líneas con nombres que antes no existían:
+  borrar toda línea con esos nombres lo devolvió a su estado. **Un parche
+  reversible por construcción vale mucho más que uno cuidadoso.**

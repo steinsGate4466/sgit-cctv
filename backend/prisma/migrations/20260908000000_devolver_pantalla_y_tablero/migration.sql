@@ -1,0 +1,33 @@
+-- ============================================================================
+-- DEVOLVER «PANTALLA» Y «TABLERO_ELECTRICO» A LA LISTA DE TIPOS
+-- ----------------------------------------------------------------------------
+-- QUÉ PASÓ, y es un fallo mío
+--
+-- La migración `20260906000000_la_fibra_no_es_un_activo` recrea la lista de
+-- tipos de equipo para quitar FIBER. En la versión que se aplicó en la base
+-- local, esa lista **no incluía PANTALLA ni TABLERO_ELECTRICO**, así que los
+-- borró en silencio: desde entonces esa base no puede dar de alta una pantalla
+-- de púlpito ni un tablero eléctrico.
+--
+-- No lo vio nadie porque no rompe nada al arrancar. Se ve el día que alguien
+-- intenta registrar una pantalla y el desplegable no la tiene.
+--
+-- ----------------------------------------------------------------------------
+-- POR QUÉ UNA MIGRACIÓN NUEVA Y NO CORREGIR LA DE ANTES
+--
+-- Porque **una migración aplicada es INMUTABLE**. Está escrito en CLAUDE.md
+-- desde el primer día y me lo salté: editar la anterior es lo que dejó la base
+-- local pidiendo un reinicio que habría borrado todos los datos de planta.
+--
+-- Se arregla hacia adelante. Siempre.
+--
+-- ----------------------------------------------------------------------------
+-- ES IDEMPOTENTE
+--
+-- `IF NOT EXISTS` en las dos líneas: si los valores ya están —como en una base
+-- nueva, o en Railway— no hace nada. Media aplicación es el estado del que no
+-- se sale sin tocar la base a mano, y ya costó un despliegue caído.
+-- ============================================================================
+
+ALTER TYPE "AssetType" ADD VALUE IF NOT EXISTS 'PANTALLA';
+ALTER TYPE "AssetType" ADD VALUE IF NOT EXISTS 'TABLERO_ELECTRICO';

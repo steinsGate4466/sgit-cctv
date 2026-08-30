@@ -153,6 +153,8 @@ model User {
 
   @@map("users")
   inspeccionesGrua InspeccionGrua[] @relation("InspeccionGruaPor")
+  /// Hojas de ruta que esta persona aprobó (bloque 75).
+  hojasDeRutaAprobadas HojaDeRuta[] @relation("HojaRutaAprobadaPor")
 }
 
 /// BLOQUE 42 — hay roles que NO deben ver la planta entera nunca.
@@ -2012,6 +2014,8 @@ model SparePart {
   @@index([sapCode])
   @@index([category])
   @@map("spare_parts")
+  /// Pasos de hoja de ruta que consumen este repuesto (bloque 75).
+  enHojasDeRuta MaterialOperacion[]
 }
 
 /// Compatibilidad repuesto <-> activo específico (además del match por modelo).
@@ -3233,4 +3237,139 @@ model ColorDeCable {
   tramos    AssetCable[]
 
   @@map("colores_de_cable")
+}
+
+// =====================================================================
+//  HOJAS DE RUTA — bloque 75
+//  El formato de SAP PM, tal cual el Excel del ingeniero.
+// =====================================================================
+
+/// UNA HOJA DE RUTA: los pasos de un mantenimiento preventivo.
+///
+/// -----------------------------------------------------------------------
+/// VA POR TIPO DE EQUIPO, NO POR EQUIPO — decisión del usuario, confirmada.
+///
+/// Una sola hoja «MANTENIMIENTO PREVENTIVO DE CAMARA» sirve para las
+/// cuatrocientas cámaras de Laminación. Si fuera por equipo habría que
+/// escribir los mismos catorce pasos cuatrocientas veces, y el día que
+/// cambie uno habría que corregirlo cuatrocientas veces — que es
+/// exactamente como se degradan estos documentos hasta que nadie se fía.
+///
+/// -----------------------------------------------------------------------
+/// LO QUE FALTABA Y ESTO CIERRA
+///
+/// El preventivo ya sabía CUÁNDO tocar cada equipo, pero no QUÉ hacer. El
+/// técnico recibía «toca revisar AA-CAM-T1-001» y el detalle vivía en un
+/// Excel en el PC de alguien. Ahora la orden nace con los pasos escritos.
+model HojaDeRuta {
+  id            String    @id @default(uuid())
+
+  /// A qué tipo de equipo se le aplica. ÚNICO: dos hojas para las cámaras
+  /// significa que nadie sabe cuál es la buena.
+  tipoEquipo    AssetType @unique
+
+  /// «MANTENIMIENTO PREVENTIVO DE CAMARA». Es el campo «Descripción
+  /// Principal de la H.R.» del Excel, y SAP lo corta a 40 caracteres.
+  descripcion   String
+
+  // ---- La cabecera, tal cual las columnas del Excel -------------------
+  /// Ubicación en SAP de la cabecera (ej. 1262AP01).
+  ubicacionSap  String?
+  /// Grupo planificador (ej. M06).
+  grupoPlanif   String?
+  /// Cada cuánto se hace. Texto porque en SAP es una estrategia con nombre
+  /// («3 MESES», «1M», «6M»), no un número de días.
+  frecuencia    String
+  /// Y esto SÍ es el número de días, para poder programar. Se deriva de la
+  /// frecuencia al guardar; si no se puede leer, queda en null y la hoja
+  /// sirve igual como documento — sólo no se programa sola.
+  frecuenciaDias Int?
+  /// Puesto de trabajo (ej. LAM1ELECT1).
+  puestoTrabajo String?
+  /// Centro (ej. 2100).
+  centro        String?
+  /// Horas de trabajo total, personas y duración en horas.
+  trabajoTotalH Float?
+  numPersonas   Int?
+  duracionH     Float?
+
+  activa        Boolean   @default(true)
+  /// Quién la aprobó. Una hoja de ruta sin firma es un borrador.
+  aprobadaPorId String?
+  aprobadaPor   User?     @relation("HojaRutaAprobadaPor", fields: [aprobadaPorId], references: [id], onDelete: SetNull)
+  aprobadaEn    DateTime?
+
+  operaciones   OperacionHojaRuta[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([activa])
+  @@map("hojas_de_ruta")
+}
+
+/// UN PASO de la hoja de ruta.
+///
+/// -----------------------------------------------------------------------
+/// LAS DOS CLAVES DE CONTROL, QUE ES LO QUE CONFUNDE A TODO EL MUNDO
+///
+///   PM01 = OPERACIÓN     — el trabajo (ej. «LIMPIEZA DE CAMARAS»)
+///   PM04 = SUBOPERACIÓN  — un paso dentro de ese trabajo
+///
+/// En el Excel se distinguen porque la suboperación lleva número en la
+/// columna «SubOpe.» y la operación no. Aquí se guarda igual: `subOperacion`
+/// nulo significa que es la operación principal.
+model OperacionHojaRuta {
+  id            String     @id @default(uuid())
+  hojaId        String
+  hoja          HojaDeRuta @relation(fields: [hojaId], references: [id], onDelete: Cascade)
+
+  /// Número de operación (10, 20, 30…). Va de diez en diez a propósito: es
+  /// la costumbre de SAP y deja hueco para meter un paso entre dos sin
+  /// renumerar todo.
+  operacion     Int
+  /// Número de suboperación (10, 20, 30…). Null = es la operación principal.
+  subOperacion  Int?
+
+  /// PM01 o PM04. Ver arriba.
+  claveControl  String     @default("PM04")
+
+  /// El texto que lee el técnico.
+  ///
+  /// **MÁXIMO 40 CARACTERES.** No es un capricho: es el límite del campo en
+  /// SAP, y el Excel del ingeniero lleva una columna que los cuenta
+  /// precisamente por eso. Si se pasa, la carga a SAP se rechaza entera y
+  /// hay que buscar cuál fue — por eso se valida al escribir, no al exportar.
+  descripcion   String
+
+  puestoTrabajo String?
+  centro        String?
+  duracionH     Float?
+  numPersonas   Int?
+
+  materiales    MaterialOperacion[]
+
+  @@unique([hojaId, operacion, subOperacion])
+  @@index([hojaId])
+  @@map("operaciones_hoja_ruta")
+}
+
+/// Un material que consume un paso. En el Excel son doce pares
+/// MATERIAL/CANT.; aquí son filas, que es lo mismo sin el tope de doce.
+model MaterialOperacion {
+  id           String            @id @default(uuid())
+  operacionId  String
+  operacion    OperacionHojaRuta @relation(fields: [operacionId], references: [id], onDelete: Cascade)
+
+  /// Se guarda el TEXTO y no un enlace al almacén a propósito: la hoja de
+  /// ruta es un documento y tiene que poder nombrar un material que todavía
+  /// no está dado de alta. Si existe en almacén, se enlaza además.
+  descripcion  String
+  cantidad     Float?
+  unidad       String?
+  sparePartId  String?
+  sparePart    SparePart?        @relation(fields: [sparePartId], references: [id], onDelete: SetNull)
+
+  @@index([operacionId])
+  @@map("materiales_operacion")
 }
