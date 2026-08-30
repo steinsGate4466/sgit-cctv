@@ -65,7 +65,11 @@ ALTER TYPE "AssetType" RENAME TO "AssetType_viejo";
 
 CREATE TYPE "AssetType" AS ENUM (
   'CAMERA', 'NVR', 'SWITCH', 'WIRELESS', 'ROUTER', 'FIREWALL', 'SERVER',
-  'UPS', 'CABINET', 'DECODER', 'PC', 'PSU', 'PHONE', 'OTHER'
+  'UPS', 'CABINET', 'DECODER', 'PC', 'PSU', 'PHONE', 'OTHER',
+  -- PANTALLA y TABLERO_ELECTRICO se anadieron en 20260830210025. Si faltaran
+  -- aqui, esta migracion los BORRARIA en silencio y las pantallas de purpito
+  -- y los tableros dejarian de poder darse de alta.
+  'PANTALLA', 'TABLERO_ELECTRICO'
 );
 
 -- ---------------------------------------------------------------------------
