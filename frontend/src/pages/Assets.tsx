@@ -17,7 +17,26 @@ import { useDialogos } from '../components/Dialogos';
 import { useOcultarAlSalir } from '../useVolverALaPantalla';
 import { fecha, plural } from '../formato';
 
-const TYPES = ['CAMERA', 'NVR', 'SWITCH', 'WIRELESS', 'DECODER', 'PANTALLA', 'PC', 'ROUTER', 'FIREWALL', 'SERVER', 'UPS', 'FIBER', 'CABINET', 'TABLERO_ELECTRICO', 'OTHER'];
+/* LOS TIPOS QUE SE PUEDEN DAR DE ALTA — bloque 74.
+   ---------------------------------------------------------------------------
+   `FIBER` YA NO ESTÁ, y es la regla 1 del estándar de activos:
+
+       UN CABLE NO ES UN ACTIVO. Es lo que CONECTA dos activos.
+
+   Un tramo de fibra no tiene marca ni serie, no se le hace una rutina, y no se
+   pide como repuesto con un código: se compra por metro. Lo que sí se hace es
+   declararlo en «Conexiones», que es donde vive un enlace entre dos equipos.
+
+   Cuando un tramo se corta, la orden NO se abre sobre el cable: se abre sobre
+   el equipo que se quedó sin comunicación, y en el diagnóstico se dice que fue
+   el tramo. Que es como se trabaja en planta.
+
+   Y ya no existe en la base tampoco: la migración
+   `20260906000000_la_fibra_no_es_un_activo` la borró de la lista, después de
+   comprobar que ninguna de las cinco tablas que la usan tenía un solo
+   registro. Queda además un verificador que lo caza si alguien lo vuelve a
+   poner. */
+const TYPES = ['CAMERA', 'NVR', 'SWITCH', 'WIRELESS', 'DECODER', 'PANTALLA', 'PC', 'ROUTER', 'FIREWALL', 'SERVER', 'UPS', 'CABINET', 'TABLERO_ELECTRICO', 'OTHER'];
 const STATES = ['OPERATIVO', 'FUERA_SERVICIO', 'MANTENIMIENTO', 'BAJA', 'STOCK'];
 const CRITS = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
 // Tipos montados en rack: es obligatorio indicar en qué gabinete están.
@@ -38,7 +57,7 @@ const PHOTO_KINDS = ['APUNTA', 'REFERENCIA', 'PLANO', 'GENERAL'];
 const PHOTO_KIND_ES: Record<string, string> = { APUNTA: 'Imagen en pantalla (púlpito)', REFERENCIA: 'Ubicación de referencia', PLANO: 'Ubicación en plano', GENERAL: 'General' };
 
 // Etiquetas en español (los valores internos siguen en inglés para no romper datos)
-const TYPE_ES: Record<string, string> = { CAMERA: 'Cámara', NVR: 'NVR', SWITCH: 'Switch', WIRELESS: 'Enlace inalámbrico', ROUTER: 'Router', FIREWALL: 'Firewall', SERVER: 'Servidor', UPS: 'UPS', FIBER: 'Fibra', CABINET: 'Gabinete', DECODER: 'Decodificador', PC: 'PC / iVMS-4200', PANTALLA: 'Pantalla de púlpito', OTHER: 'Otro' };
+const TYPE_ES: Record<string, string> = { CAMERA: 'Cámara', NVR: 'NVR', SWITCH: 'Switch', WIRELESS: 'Enlace inalámbrico', ROUTER: 'Router', FIREWALL: 'Firewall', SERVER: 'Servidor', UPS: 'UPS', CABINET: 'Gabinete', DECODER: 'Decodificador', PC: 'PC / iVMS-4200', PANTALLA: 'Pantalla de púlpito', OTHER: 'Otro' };
 const STATUS_ES: Record<string, string> = { OPERATIVO: 'Operativo', FUERA_SERVICIO: 'Fuera de servicio', MANTENIMIENTO: 'En mantenimiento', CON_INCIDENCIA: 'Con incidencia', BAJA: 'Baja', STOCK: 'En stock' };
 const CRIT_ES: Record<string, string> = { BAJA: 'Baja', MEDIA: 'Media', ALTA: 'Alta', CRITICA: 'Crítica' };
 const tEs = (v: string) => TYPE_ES[v] || v;

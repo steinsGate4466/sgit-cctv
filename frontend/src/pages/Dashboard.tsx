@@ -11,7 +11,7 @@ const COLORS = ['#2e5496', '#16a34a', '#d97706', '#dc2626', '#7c3aed', '#0891b2'
 
 const TYPE_ES: Record<string, string> = {
   CAMERA: 'Cámara', NVR: 'NVR', SWITCH: 'Switch', WIRELESS: 'Enlace', ROUTER: 'Router',
-  FIREWALL: 'Firewall', SERVER: 'Servidor', UPS: 'UPS', FIBER: 'Fibra', CABINET: 'Gabinete',
+  FIREWALL: 'Firewall', SERVER: 'Servidor', UPS: 'UPS', CABINET: 'Gabinete',
   DECODER: 'Decoder', PC: 'PC / iVMS', OTHER: 'Otro',
 };
 const STATUS_ES: Record<string, string> = {

@@ -41,7 +41,7 @@ const ESTADO: Record<string, string> = {
 };
 const TIPO: Record<string, string> = {
   CAMERA: 'Cámara', NVR: 'NVR', SWITCH: 'Switch', WIRELESS: 'Enlace', ROUTER: 'Router',
-  FIREWALL: 'Firewall', SERVER: 'Servidor', UPS: 'UPS', FIBER: 'Fibra', CABINET: 'Gabinete',
+  FIREWALL: 'Firewall', SERVER: 'Servidor', UPS: 'UPS', CABINET: 'Gabinete',
   DECODER: 'Decodificador', PC: 'PC / iVMS', OTHER: 'Otro',
 };
 const fecha = (d: Date | null | undefined) => (d ? d.toISOString().slice(0, 10) : '');

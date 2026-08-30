@@ -9,7 +9,10 @@ export const TIPOS_SITIO = [
 
 export const TIPOS_EQUIPO = [
   'CAMERA', 'NVR', 'SWITCH', 'WIRELESS', 'ROUTER', 'FIREWALL', 'SERVER',
-  'UPS', 'FIBER', 'CABINET', 'DECODER', 'PC', 'PANTALLA', 'OTHER',
+  /* Sin `FIBER`: un cable no es un activo, es una conexión (regla 1 del
+     estándar). Una instalación que termina crea un EQUIPO; si lo que se
+     instaló fue un tramo de fibra, lo que se declara es el enlace. */
+  'UPS', 'CABINET', 'DECODER', 'PC', 'PANTALLA', 'OTHER',
 ] as const;
 
 export const AMBIENTES = [

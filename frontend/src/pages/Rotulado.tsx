@@ -46,7 +46,7 @@ import { api } from '../api/client';
 const TIPOS = [
   ['CAMERA', 'Cámara'], ['NVR', 'Grabador NVR'], ['SWITCH', 'Switch'],
   ['WIRELESS', 'Punto de acceso'], ['ROUTER', 'Router'], ['FIREWALL', 'Cortafuegos'],
-  ['SERVER', 'Servidor'], ['UPS', 'UPS'], ['FIBER', 'Fibra'], ['CABINET', 'Gabinete'],
+  ['SERVER', 'Servidor'], ['UPS', 'UPS'], ['Fibra'], ['CABINET', 'Gabinete'],
   ['DECODER', 'Decodificador'], ['PC', 'PC'], ['SCREEN', 'Monitor'], ['OTHER', 'Otro'],
 ];
 

@@ -35,7 +35,7 @@ const SITIO_ES: Record<string, string> = {
 };
 const EQUIPO_ES: Record<string, string> = {
   CAMERA: 'Cámara', NVR: 'Grabador (NVR)', SWITCH: 'Switch', WIRELESS: 'Antena / radioenlace',
-  ROUTER: 'Router', FIREWALL: 'Firewall', SERVER: 'Servidor', UPS: 'UPS', FIBER: 'Fibra',
+  ROUTER: 'Router', FIREWALL: 'Firewall', SERVER: 'Servidor', UPS: 'UPS', 
   CABINET: 'Gabinete', DECODER: 'Decodificador', PC: 'PC de visualización',
   PANTALLA: 'Pantalla', OTHER: 'Otro',
 };

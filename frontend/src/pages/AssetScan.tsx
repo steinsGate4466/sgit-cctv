@@ -20,7 +20,7 @@ import { fecha, hoyParaInput } from '../fechas';
  */
 const TYPE_ES: Record<string, string> = {
   CAMERA: 'Cámara', NVR: 'NVR', SWITCH: 'Switch', WIRELESS: 'Enlace inalámbrico', ROUTER: 'Router',
-  FIREWALL: 'Firewall', SERVER: 'Servidor', UPS: 'UPS', FIBER: 'Fibra', CABINET: 'Gabinete',
+  FIREWALL: 'Firewall', SERVER: 'Servidor', UPS: 'UPS', CABINET: 'Gabinete',
   DECODER: 'Decodificador', PC: 'PC / iVMS-4200', OTHER: 'Otro',
 };
 const ESTADO_OM: Record<string, string> = {

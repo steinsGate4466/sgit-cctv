@@ -1390,3 +1390,174 @@ cambio invisible: si se ata a la equivocada, nadie tendría cómo notarlo.
 `['ALTA','CRITICA']` en vez de la regla. Se corrigió la PRUEBA para que mire
 la constante y sus dos usos: una prueba que se rompe al reordenar el código
 sin cambiar el comportamiento acaba borrada.
+
+---
+
+## 18. Bloque 73 — criticidad A/B/C POR DISPOSITIVO
+
+### La corrección del usuario, y por qué importa
+
+Yo propuse la criticidad por ZONA. Él corrigió: **por DISPOSITIVO**, porque es
+para **gestión de mantenimiento** — la pregunta es «¿cada cuánto subo a revisar
+ESTE aparato?», no «¿qué tan importante es este sitio?».
+
+Y **la zona no desaparece**: sigue diciendo cuánto importa ver ahí. Son dos
+afirmaciones distintas, de dos áreas distintas:
+
+| | Quién lo dice | Qué contesta |
+|---|---|---|
+| Criticidad de ZONA | Producción | Cuánto importa ver ahí |
+| Letra A/B/C del EQUIPO | Mantenimiento | Cada cuánto se revisa |
+
+### La regla que las une
+
+> El equipo hereda la exigencia del LUGAR, **repartida entre cuántos equipos
+> cubren ese lugar**.
+
+Zona crítica con UNA cámara → esa cámara es A. La misma zona con tres → cada
+una baja, porque hay respaldo. Es la «flexibilidad operacional» del método
+CTR, y en CCTV es literal.
+
+### El método: CTR (Criticidad Total por Riesgo)
+
+    CRITICIDAD = FRECUENCIA de falla × CONSECUENCIA
+
+    CONSECUENCIA = (Impacto operacional × Falta de respaldo)
+                 + Seguridad de personas
+                 + Dificultad de reparación
+
+**Se multiplica, no se suma**, y ésa es la decisión de fondo. Sumando, una
+zona muy importante daría A aunque el equipo lleve cinco años sin fallar — y
+se estaría subiendo a revisar algo que no lo necesita, que es el desperdicio
+que el método viene a evitar. Hay una prueba que lo fija en los dos sentidos.
+
+### La regla del SOPORTE — los equipos que no vigilan nada
+
+Un switch o un grabador no ven ninguna zona. Con la regla de arriba a secas
+saldrían C, que es al revés de la realidad: si cae el grabador se pierden las
+dieciséis cámaras que cuelgan de él.
+
+> **Un equipo de soporte hereda LA PEOR letra de todo lo que depende de él.**
+
+Y se resuelve **antes** que nada, no después: si se dejara para el final habría
+que declararle a un switch «qué pasa si dejas de ver», que no tiene respuesta.
+
+**La cantidad NO sube la letra.** Dieciséis cámaras C siguen dando C: perder
+dieciséis cosas que no importaban sigue sin importar. La cantidad se dice en
+el porqué, no en la letra.
+
+### Dos reglas que no se aflojan
+
+1. **La seguridad no se promedia.** Si vigila un sitio donde una persona puede
+   resultar herida, **es A** — aunque el impacto operacional sea 1, haya nueve
+   cámaras de respaldo y no haya fallado nunca. Hay una prueba que sube los
+   cortes a 9999 y la letra sigue siendo A: la regla no depende del puntaje.
+   El puntaje **se sigue enseñando**, para que se vea que la regla se saltó a
+   propósito y no que el sistema no calculó nada.
+
+2. **Sin datos, nunca C.** Un equipo sin clasificar es `SIN_CLASIFICAR` y sale
+   en pendientes. Ponerlo en C haría que cuatrocientas cámaras sin revisar
+   parecieran poco importantes, y nadie las revisaría nunca.
+
+### Cómo se junta con el ambiente, que ya existía
+
+**Manda el que más exige:** se toma el MENOR entre los días que pide la letra
+y los que pide el ambiente.
+
+    Cámara A en púlpito climatizado : letra 30 · ambiente 90 →  30 días
+    Cámara C en calor radiante      : letra 90 · ambiente 30 →  30 días
+
+Ninguna de las dos razones se pierde y no hay que discutir cuál pesa más — que
+es una discusión sin respuesta buena. Y **sin letra manda el ambiente**, que
+es lo que permite encender el módulo sin haber clasificado ni un equipo.
+
+### Qué se guarda y qué se calcula
+
+Regla de siempre: *lo que se puede calcular, no se guarda*.
+
+- **SE GUARDA** sólo lo que declara una persona: impacto operacional y si
+  vigila un riesgo para personas.
+- **SE CALCULA** en cada consulta: respaldo, dificultad de acceso, frecuencia
+  de fallas, la letra y el porqué.
+
+Guardar la letra sería mantener dos verdades, y la segunda se queda vieja el
+día que alguien añada una cámara a la zona.
+
+### Los números son de la planta
+
+Los cortes de A/B/C y los días de cada letra van **como parámetro**, no
+escritos en el cálculo. `PARAMETROS_PROPUESTOS` es sólo el punto de partida
+para que el módulo arranque el primer día, y está marcado como tal. Hay una
+prueba que cambia los cortes y comprueba que la letra cambia **sin tocar
+código**.
+
+---
+
+## 19. Bloque 74 — un cable NO es un activo
+
+### Lo que el usuario tuvo que repetirme tres veces
+
+> «El cableado no es un activo. Un cableado NO ES UN ACTIVO. La fibra es lo
+> que conecta y hace posible la comunicación.»
+
+Y tenía razón **contra el código**: `FIBER` estaba en la lista de tipos que se
+ofrecen al dar de alta un equipo, en **Activos** y en **Instalaciones**. Se
+podía crear una fibra como si fuera un aparato, con ficha, QR e historial.
+
+### La regla, que es la 1 del estándar
+
+    UN ACTIVO se mantiene, se avería y se reemplaza por otro igual: tiene
+    marca, modelo y serie, se le hace rutina y se pide como repuesto con
+    código.
+
+    UN CABLE es lo que CONECTA dos activos. Se compra por metro, no tiene
+    serie y no se le hace mantenimiento. Va en «Conexiones».
+
+Cuando un tramo se corta, **la orden NO se abre sobre el cable**: se abre
+sobre el equipo que se quedó sin comunicación, y el diagnóstico dice que fue
+el tramo. Que es como se trabaja en planta.
+
+### Por qué se prohíbe el uso en vez de borrar el valor
+
+Los valores de un enum de PostgreSQL **sólo se pueden AÑADIR**. Está escrito
+en este archivo desde el principio. Si hubiera un solo activo cargado como
+fibra, quitarlo del enum rompería la tabla.
+
+Así que se retira de donde se CREA y el valor sigue existiendo para que los
+registros viejos no se caigan. **Verificador 12 del backend**
+(`verificar:cable`) impide que alguien lo vuelva a ofrecer. Probado
+reintroduciendo el fallo: sale con código 1, archivo y línea.
+
+Detalle del verificador: **no barre todo el proyecto**. `FIBER` es legítimo en
+las tablas de traducción —hay que poder pintar «Fibra» si existe un registro
+viejo— y marcarlas sería un falso positivo. Se vigilan sólo los dos sitios
+donde se ELIGE el tipo al crear. Y si un archivo no aparece, **avisa en vez de
+dar luz verde**: un verificador que no encuentra lo que vigila es un
+verificador apagado.
+
+### La cadena de la planta, escrita de una vez
+
+    220 V (tablero + circuito)  →  SWITCH PoE  →  cámaras · antenas · NVR
+
+- Una cámara se cae → se pierde **una** vista.
+- El switch PoE se cae → se pierden **todas** las que cuelgan de él.
+- El circuito se cae → se pierden **todos** los switches del tablero.
+
+Por eso el switch no es un aparato más: **es donde una falla se multiplica**.
+
+### La criticidad SUBE por esa cadena
+
+> Un equipo que no vigila nada hereda la PEOR letra de todo lo que depende de
+> él.
+
+Switch ← la peor de sus cámaras. Tablero ← la peor de sus switches. Fuente PoE
+y UPS ← la peor de lo que alimentan.
+
+**La cantidad no sube la letra**: dieciséis cámaras C siguen dando C.
+
+### El estándar queda escrito en `docs/ESTANDAR_ACTIVOS.md`
+
+Siete reglas: qué es un activo, la cadena de dependencia, cómo sube la
+criticidad, el método CTR, cómo la letra decide el mantenimiento, las tres
+ramas del software y el rotulado. **Es la norma del proyecto**: lo que no la
+cumpla está mal.

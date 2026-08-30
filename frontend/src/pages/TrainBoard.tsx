@@ -32,7 +32,7 @@ import { fecha, plural } from '../formato';
 
 const TYPE_ES: Record<string, string> = {
   CAMERA: 'Cámara', NVR: 'Grabador', SWITCH: 'Switch', WIRELESS: 'Enlace', ROUTER: 'Router',
-  FIREWALL: 'Firewall', SERVER: 'Servidor', UPS: 'UPS', FIBER: 'Fibra', CABINET: 'Gabinete',
+  FIREWALL: 'Firewall', SERVER: 'Servidor', UPS: 'UPS', CABINET: 'Gabinete',
   DECODER: 'Decodificador', SCREEN: 'Pantalla', PC: 'PC / iVMS', OTHER: 'Otro',
 };
 const STATUS_ES: Record<string, string> = {

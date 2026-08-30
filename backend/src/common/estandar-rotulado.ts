@@ -119,7 +119,7 @@ export const colorDe = (p: PropositoCable) =>
 export const ABREVIATURA_TIPO: Record<string, string> = {
   CAMERA: 'CAM', NVR: 'NVR', SWITCH: 'SW', WIRELESS: 'AP',
   ROUTER: 'RTR', FIREWALL: 'FW', SERVER: 'SRV', UPS: 'UPS',
-  FIBER: 'FO', CABINET: 'GAB', DECODER: 'DEC', PC: 'PC',
+  CABINET: 'GAB', DECODER: 'DEC', PC: 'PC',
   SCREEN: 'MON', OTHER: 'GEN',
 };
 

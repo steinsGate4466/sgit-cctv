@@ -627,7 +627,13 @@ enum AssetType {
   FIREWALL
   SERVER
   UPS
-  FIBER
+  /// FIBRA BORRADA en el bloque 74. Un cable NO es un activo: es lo que CONECTA
+  /// dos activos. No tiene serie, no se le hace rutina y no se pide como
+  /// repuesto con código — se compra por metro. Se declara en «Conexiones»
+  /// (`NetworkLink`), que es donde vive un enlace entre dos equipos.
+  ///
+  /// Cuando un tramo se corta, la orden se abre sobre el EQUIPO que se quedó
+  /// sin comunicación, no sobre el cable. Así se trabaja en planta.
   CABINET
   DECODER    // video wall / decoder Hikvision
   PC         // estación de visualización (iVMS-4200) — parte del mantenimiento CCTV

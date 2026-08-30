@@ -20,7 +20,7 @@ const TIPO_ES: Record<string, string> = {
   CAMERA: 'Cámaras', NVR: 'Grabadores', SWITCH: 'Switches',
   WIRELESS: 'Antenas', DECODER: 'Decodificadores', PANTALLA: 'Pantallas',
   PC: 'PC de púlpito', ROUTER: 'Routers', FIREWALL: 'Firewalls',
-  SERVER: 'Servidores', UPS: 'UPS', FIBER: 'Fibra', CABINET: 'Gabinetes',
+  SERVER: 'Servidores', UPS: 'UPS', CABINET: 'Gabinetes',
   OTHER: 'Otros',
 };
 

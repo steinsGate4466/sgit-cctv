@@ -21,7 +21,7 @@ const TIPOS = [
   { v: 'WIRELESS', t: 'Antena / enlace' }, { v: 'DECODER', t: 'Decodificador' },
   { v: 'PANTALLA', t: 'Pantalla' }, { v: 'PC', t: 'PC / iVMS' }, { v: 'UPS', t: 'UPS' },
   { v: 'ROUTER', t: 'Router' }, { v: 'FIREWALL', t: 'Firewall' }, { v: 'SERVER', t: 'Servidor' },
-  { v: 'FIBER', t: 'Fibra' }, { v: 'CABINET', t: 'Gabinete' }, { v: 'OTHER', t: 'Otro' },
+  { v: 'CABINET', t: 'Gabinete' }, { v: 'OTHER', t: 'Otro' },
 ];
 const TIPO_ES = Object.fromEntries(TIPOS.map((t) => [t.v, t.t]));
 
