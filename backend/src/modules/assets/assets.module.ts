@@ -6,9 +6,10 @@ import { CablesController } from './cables.controller';
 import { HistoryService } from './history.service';
 import { AuditModule } from '../audit/audit.module';
 import { StorageModule } from '../storage/storage.module';
+import { CriticidadModule } from '../criticidad/criticidad.module';
 
 @Module({
-  imports: [AuditModule, StorageModule],
+  imports: [AuditModule, StorageModule, CriticidadModule],
   // CablesController va PRIMERO: su ruta (/assets/cables) es más específica.
   // Si fuera después, @Get(':id') de AssetsController capturaría "cables" y
   // el endpoint devolvería "activo no encontrado" en lugar de la lista.

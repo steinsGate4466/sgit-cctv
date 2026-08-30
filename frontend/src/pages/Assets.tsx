@@ -10,6 +10,7 @@ import { useAutoOcultar } from '../auth/useInactivity';
 import AssetSpecFields, { FICHA_DE } from '../components/AssetSpecFields';
 import AssetPhotoPicker, { FotoPendiente } from '../components/AssetPhotoPicker';
 import HistorialActivo from '../components/HistorialActivo';
+import CriticidadActivo from '../components/CriticidadActivo';
 import RepuestosDelActivo from '../components/RepuestosDelActivo';
 import BorrarDefinitivo from '../components/BorrarDefinitivo';
 import Icono from '../components/Iconos';
@@ -776,7 +777,14 @@ export default function Assets() {
             </div>
           )}
 
-          <Frow k="Criticidad" v={
+          {/* CRITICIDAD A/B/C DE MANTENIMIENTO (bloque 76).
+              Va ANTES de la ficha de datos porque contesta la pregunta con la
+              que se abre esta pantalla —«¿cada cuánto hay que subir a revisar
+              esto?»— y porque el cálculo llevaba tres bloques hecho sin que
+              hubiera forma de verlo. */}
+          <CriticidadActivo assetId={detail.id} />
+
+          <Frow k="Criticidad de la zona" v={
             detail.planta?.criticidadEfectiva && detail.planta.criticidadEfectiva !== detail.criticality
               ? `${cEs(detail.planta.criticidadEfectiva)} (elevada por la etapa)`
               : cEs(detail.criticality)

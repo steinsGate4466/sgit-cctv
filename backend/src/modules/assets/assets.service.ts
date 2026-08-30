@@ -5,6 +5,7 @@ import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { StorageService } from '../storage/storage.service';
+import { CriticidadService } from '../criticidad/criticidad.service';
 import { computeEffectiveStatuses, computeEffectiveStatus } from '../../common/asset-status';
 import { resolverContextoDePlanta } from '../../common/plant-context';
 import { evaluarFicha, resumenPendiente } from '../../common/asset-completeness';
@@ -33,6 +34,10 @@ export class AssetsService {
     private prisma: PrismaService,
     private audit: AuditService,
     private storage: StorageService,
+    /* Bloque 76. La letra A/B/C se pinta en la ficha, así que el cálculo tiene
+       que llegar hasta aquí. `CriticidadModule` sólo depende de Prisma: no hay
+       riesgo de dependencia circular. */
+    private criticidad: CriticidadService,
   ) {}
 
   /**
@@ -491,6 +496,24 @@ export class AssetsService {
       intervencionMotivo: c?.intervencionMotivo ?? '',
       esperaVentanaDeParada: c?.esperaVentanaDeParada ?? true,
     };
+    /* CRITICIDAD A/B/C DE ESTE EQUIPO (bloque 76).
+       -------------------------------------------------------------------
+       Va en la ficha por el mismo motivo que el nivel de bloqueo del 62-B:
+       la pregunta «¿cada cuánto hay que subir a revisar esto?» se hace CON
+       EL EQUIPO DELANTE, no en una pantalla de gestión a la que el técnico
+       no entra nunca.
+
+       Y si falla, la ficha SE PINTA IGUAL. La letra es información útil,
+       no un requisito para ver el equipo: dejar la ficha en blanco porque
+       el cálculo de criticidad tuvo un problema sería cambiar un dato
+       secundario por la pantalla entera. Es la misma regla del guard de
+       ámbito: esta capa no puede tumbar el sistema. */
+    try {
+      asset.criticidadAbc = await this.criticidad.deUnActivo(asset.id);
+    } catch {
+      asset.criticidadAbc = null;
+    }
+
     // Qué le falta a la ficha. Alimenta el QR ("faltan canal y foto") y el
     // panel de avance del mapeo.
     asset.completitud = evaluarFicha(asset);

@@ -42,6 +42,7 @@ import { CredentialsModule } from './modules/credentials/credentials.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { PreventiveModule } from './modules/preventive/preventive.module';
 import { HojasRutaModule } from './modules/hojas-ruta/hojas-ruta.module';
+import { CriticidadModule } from './modules/criticidad/criticidad.module';
 import { CorrectiveModule } from './modules/corrective/corrective.module';
 import { CabinetsModule } from './modules/cabinets/cabinets.module';
 import { AccessModule } from './modules/access/access.module';
@@ -79,6 +80,7 @@ import { RiesgoModule } from './modules/riesgo/riesgo.module';
     InventoryModule,
     PreventiveModule,
     HojasRutaModule,
+    CriticidadModule,
     CorrectiveModule,
     CabinetsModule,
     AccessModule,

@@ -140,6 +140,10 @@ model User {
   zonasIntervencion Location[]    @relation("ZonaIntervencionFirmada")
   /// Equipos en los que esta persona declaró cómo se llega (bloque 41).
   accesosDeclarados Asset[]       @relation("AccesoDeclaradoPor")
+  /// Equipos a los que esta persona les declaró el impacto y el riesgo (b76).
+  criticidadesDeclaradas Asset[]  @relation("CriticidadDeclaradaPor")
+  /// Quién tocó por última vez los números de la planta (b76).
+  parametrosCriticidad ParametrosCriticidad[] @relation("ParametrosCriticidadPor")
   // ---- Bloque 29 ----
   procedimientosCreados ProcedimientoRestauracion[] @relation("ProcedimientoCreadoPor")
   mejorasPropuestas     MejoraProcedimiento[]       @relation("MejoraPropuestaPor")
@@ -362,6 +366,25 @@ model Location {
   /// Si llegar al equipo exige manlift o escalera. Sube la exigencia sin
   /// importar lo fresca que esté la zona: subir es subir.
   requiereAltura           Boolean  @default(false)
+
+  // ---- RIESGO PARA PERSONAS (bloque 76) — entra en la criticidad A/B/C ----
+  /// ¿Aquí puede resultar HERIDA una persona? Barra caliente, paso de grúa,
+  /// tránsito de vehículos, foso.
+  ///
+  /// Va en la UBICACIÓN y no en cada cámara porque el peligro es del SITIO:
+  /// declararlo cámara por cámara sería escribir cuatrocientas veces el mismo
+  /// dato y que a la número treinta ya no coincida con la número tres.
+  /// El activo puede anularlo cuando de verdad difiera (una cámara de la misma
+  /// zona que sólo mira un pasillo), pero el valor por defecto es éste.
+  ///
+  /// NULL no es «no»: es «nadie lo ha dicho». Con NULL el equipo sale
+  /// SIN_CLASIFICAR y aparece en pendientes. Ponerlo en `false` por defecto
+  /// haría que un sitio peligroso sin declarar pareciera seguro.
+  riesgoPersonas           Boolean?
+  /// Qué es lo que puede herir. La pantalla lo pide cuando se marca que sí:
+  /// «puede resultar herida una persona» sin decir por qué no se puede
+  /// auditar ni discutir.
+  riesgoPersonasMotivo     String?
 
   // ---- Campos SAP-ready ----
   sapLocationCode  String?
@@ -761,6 +784,34 @@ model Asset {
   accesoDeclaradoPor   User?  @relation("AccesoDeclaradoPor", fields: [accesoDeclaradoPorId], references: [id], onDelete: SetNull)
   accesoDeclaradoEn    DateTime?
 
+  // ---- CRITICIDAD A/B/C — LO QUE DECLARA UNA PERSONA (bloque 76) ----
+  //
+  // De los cinco factores del método CTR, el sistema calcula cuatro: cuántos
+  // equipos cubren lo mismo, cómo se llega, cuántas veces falló y de quién
+  // depende. Sólo estos dos los tiene que decir alguien, y por eso son los
+  // únicos que se guardan (regla del proyecto: lo que se puede calcular, no
+  // se guarda).
+  //
+  // LOS DOS SON «ANULACIONES», NO EL DATO PRINCIPAL. Lo normal es que el
+  // equipo herede lo de su ubicación: el impacto sale de lo que declaró
+  // Producción en la zona, y el riesgo para personas sale del sitio. Estos
+  // campos existen para el caso real de dos cámaras en la misma zona que
+  // miran cosas distintas — una al paso de grúa y otra a un pasillo.
+  //
+  // NULL = «no se ha anulado nada, vale lo de la zona». No es un cero.
+  /// Si este equipo deja de ver, ¿qué le pasa a la producción?
+  /// 4 = hay que parar · 3 = se baja el ritmo · 2 = se opera con vigía · 1 = nada.
+  impactoOperacional Int?
+  /// ¿Este equipo en concreto vigila un sitio donde alguien puede resultar
+  /// herido? Si va a `true`, la letra es A y no la discute ningún puntaje.
+  riesgoPersonas     Boolean?
+  /// Quién lo declaró. Si se da de baja, el dato sobrevive sin nombre:
+  /// borrarlo devolvería el equipo a «sin clasificar» y alguien dejaría de
+  /// revisarlo.
+  criticidadDeclaradaPorId String?
+  criticidadDeclaradaPor   User?     @relation("CriticidadDeclaradaPor", fields: [criticidadDeclaradaPorId], references: [id], onDelete: SetNull)
+  criticidadDeclaradaEn    DateTime?
+
   // ---- Campos SAP-ready ----
   sapId         String?     @unique
   costCenter    String?
@@ -840,6 +891,11 @@ model Asset {
   // Bloque 45. El listado filtra por «sin padre» en cada carga.
   @@index([parteDeId])
   @@index([accesoDeclaradoPorId])
+  // Bloque 76. La pantalla de Gestión pide «los que faltan por declarar» en
+  // cada carga, y la clave foránea necesita índice para que dar de baja a una
+  // persona no obligue a recorrer la tabla entera.
+  @@index([impactoOperacional])
+  @@index([criticidadDeclaradaPorId])
   // NOTA PARA EL FUTURO: un índice creado en el SQL de una migración TIENE que
   // declararse también aquí. Si no, `prisma migrate dev` lo ve como algo que
   // sobra en la base y genera una migración que lo BORRA — con una fecha que
@@ -3372,4 +3428,39 @@ model MaterialOperacion {
 
   @@index([operacionId])
   @@map("materiales_operacion")
+}
+
+/// =============================================================================
+/// LOS NÚMEROS DE LA CRITICIDAD A/B/C — bloque 76
+/// =============================================================================
+///
+/// Dónde se corta entre A, B y C, y cada cuántos días se revisa cada letra.
+///
+/// POR QUÉ ESTO ES UNA TABLA Y NO UNA CONSTANTE EN EL CÓDIGO:
+/// es un dato de planta, y en este proyecto **todo lo de planta se edita desde
+/// la interfaz**. Si el ingeniero decide que una A se revisa cada 45 días en
+/// vez de cada 30, eso no puede exigir un despliegue.
+///
+/// FILA ÚNICA. El identificador es fijo (`unico`) a propósito: dos filas
+/// significarían dos verdades y nadie sabría cuál manda. Se lee siempre la
+/// misma y si no existe se usan los valores propuestos de
+/// `src/common/criticidad-abc.ts`, que están marcados como punto de partida.
+model ParametrosCriticidad {
+  id     String @id @default("unico")
+  /// Puntaje mínimo para ser A.
+  corteA Int
+  /// Puntaje mínimo para ser B. Por debajo de esto, C.
+  corteB Int
+  /// Cada cuántos días se revisa cada letra.
+  diasA  Int
+  diasB  Int
+  diasC  Int
+  /// Quién los cambió por última vez. Cambiar un corte reordena el trabajo de
+  /// toda la planta: tiene que quedar con nombre y fecha.
+  actualizadoPorId String?
+  actualizadoPor   User?    @relation("ParametrosCriticidadPor", fields: [actualizadoPorId], references: [id], onDelete: SetNull)
+  actualizadoEn    DateTime @updatedAt
+
+  @@index([actualizadoPorId])
+  @@map("parametros_criticidad")
 }

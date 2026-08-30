@@ -66,6 +66,7 @@ const Incidents = lazyConReintento(() => import('./pages/Incidents'));
 const Maintenance = lazyConReintento(() => import('./pages/Maintenance'));
 const Preventive = lazyConReintento(() => import('./pages/Preventive'));
 const HojasDeRuta = lazyConReintento(() => import('./pages/HojasDeRuta'));
+const Criticidad = lazyConReintento(() => import('./pages/Criticidad'));
 const Corrective = lazyConReintento(() => import('./pages/Corrective'));
 const Predictive = lazyConReintento(() => import('./pages/Predictive'));
 const Improvements = lazyConReintento(() => import('./pages/Improvements'));
@@ -141,6 +142,7 @@ export default function App() {
           <Route path="/maintenance" element={<Maintenance />} />
           <Route path="/preventive" element={<Preventive />} />
           {/* Bloque 75: los PASOS de cada preventivo, en formato SAP. */}
+          <Route path="/criticidad" element={<Criticidad />} />
           <Route path="/hojas-de-ruta" element={<HojasDeRuta />} />
           <Route path="/corrective" element={<Corrective />} />
           <Route path="/predictive" element={<Predictive />} />

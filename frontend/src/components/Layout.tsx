@@ -287,14 +287,26 @@ export default function Layout() {
        ingeniero justifica el presupuesto, no una sección de adorno. */
     {
       titulo: 'Gestión del mantenimiento',
-      rutas: ['/incidents', '/maintenance', '/paradas', '/hojas-de-ruta', '/preventive',
-        '/corrective', '/predictive', '/improvements', '/gruas', '/mejoras-procedimiento',
-        '/inventory', '/riesgo', '/dashboard', '/indicadores', '/exportar'],
+      rutas: ['/incidents', '/maintenance', '/paradas', '/criticidad', '/hojas-de-ruta',
+        '/preventive', '/corrective', '/predictive', '/improvements', '/gruas',
+        '/mejoras-procedimiento', '/inventory', '/riesgo', '/dashboard', '/indicadores',
+        '/exportar'],
       items: [
         can('incident.read') && <NavLink key="i" to="/incidents"><Icono n="incidencia" /> Incidencias</NavLink>,
         can('wo.read') && <NavLink key="m" to="/maintenance"><Icono n="orden" /> Órdenes (OM)</NavLink>,
         // Las paradas van con las órdenes: es CUÁNDO se puede trabajar.
         can('wo.read') && <NavLink key="pa" to="/paradas"><Icono n="parada" /> Ventanas de parada</NavLink>,
+        /* CRITICIDAD A/B/C (bloque 76). Va ANTES de las hojas de ruta y del
+           preventivo porque es lo primero de la cadena: la letra decide CADA
+           CUÁNTO se toca el equipo, la hoja de ruta dice QUÉ hacer y el
+           preventivo lo programa. Puesta al final parecería un informe; puesta
+           aquí se lee como el primer paso que es.
+
+           Con `activos.mirar` además de `asset.read`, por la lección del
+           bloque 68: cerrarlo sólo con el permiso fuerte dejaría al Jefe de
+           Tren sin poder ver cada cuánto se revisa su propio equipo. */
+        (can('asset.read') || can('activos.mirar'))
+          && <NavLink key="crit" to="/criticidad"><Icono n="alerta" /> Criticidad A/B/C</NavLink>,
         /* HOJAS DE RUTA (bloque 75). Va justo antes del preventivo porque es
            lo que le da contenido: el preventivo dice CUÁNDO tocar el equipo y
            la hoja de ruta dice QUÉ hacer. */

@@ -1661,3 +1661,144 @@ une dos activos, y quien lo declara es el técnico que lo ve.
   transformación sólo INSERTABA líneas con nombres que antes no existían:
   borrar toda línea con esos nombres lo devolvió a su estado. **Un parche
   reversible por construcción vale mucho más que uno cuidadoso.**
+
+---
+
+## 21. Bloque 76 — la criticidad ENCHUFADA, y el cálculo que llevaba tres bloques muerto
+
+### Lo que pasó, y es un fallo de método mío
+
+El usuario lo dijo así: **«la criticidad debe salir en ACTIVO y también en la
+parte de GESTIÓN»**. Tenía razón contra el código.
+
+`criticidad-abc.ts` se escribió en el bloque 73 con 26 pruebas en verde. En el
+bloque 76 se midió:
+
+    grep -rl "criticidad-abc" backend/src frontend/src
+    → backend/src/common/criticidad-abc.spec.ts
+
+**Sólo lo llamaba su propia prueba.** Ni una pantalla, ni un endpoint, ni un
+servicio. Y yo lo di por hecho en el informe de pendientes como si existiera.
+
+Es la misma regla que ya está escrita cuatro veces en este archivo —el mapa de
+red, el módulo de documentos, el aviso del QR, el barrido de endpoints del
+bloque 21— y esta vez la rompí yo mismo:
+
+> **Cálculo + pruebas en verde ≠ función.** Un archivo que sólo importa su
+> propio `.spec` no está enchufado a nada, y no hay verificador que lo vea
+> porque *compila, pasa el lint y pasa las pruebas*.
+
+Se caza en una línea: `grep -rl <archivo>` y mirar si aparece algo que no sea
+su prueba. Conviene repetirlo cada dos o tres bloques, igual que el barrido de
+endpoints del bloque 21.
+
+### La pieza que faltaba estaba EN MEDIO
+
+No faltaba la pantalla: faltaba **quién le da los cinco factores al cálculo**.
+Eso es `common/criticidad-datos.ts`, y sin él no había pantalla posible porque
+no había nada que pintar.
+
+**De los cinco factores, el sistema ya tenía CUATRO:**
+
+| Factor | De dónde sale, sin preguntar nada |
+|---|---|
+| Impacto operacional | `Location.criticidadProduccion` — lo declaró Producción en el bloque 26 |
+| Respaldo | cuántas cámaras más cuelgan de la misma ubicación |
+| Dificultad de acceso | `Asset.medioAcceso` — declarado en el bloque 41 |
+| Frecuencia de falla | incidencias del equipo en 12 meses |
+| Soporte | puertos del switch, grabador de la cámara, componentes, tablero |
+
+**Sólo hacía falta declarar UNO: el riesgo para personas.**
+
+> Un formulario que pide un dato que el sistema ya tiene se rellena mal, porque
+> quien lo rellena sabe que es redundante. Y si se pregunta dos veces lo mismo
+> con otras palabras, se obtienen dos respuestas distintas y a los tres meses
+> nadie sabe cuál mirar.
+
+### El riesgo para personas va en la ZONA, no en la cámara
+
+El peligro lo tiene el SITIO: la barra caliente, el paso de grúa, el foso.
+Declararlo cámara por cámara es escribir cuatrocientas veces el mismo dato y
+que a la número treinta ya no coincida con la número tres.
+
+**Pero el activo puede anularlo**, porque el caso real existe: dos cámaras en
+la misma zona, una mirando el paso de grúa y otra un pasillo. Sin la anulación
+habría que elegir entre subir de más toda la zona o dejar sin proteger la que
+lo necesita.
+
+`NULL` significa **«vale lo de la zona»**, no «no». Por eso `declarar()`
+distingue entre «no vino en la petición» y «vino como `null`»: si se trataran
+igual, un impacto puesto por error se quedaría para siempre. Es el mismo
+cuidado del bloque 16 — *`false` es una respuesta, `''` no*.
+
+### Lo que se guarda y lo que no
+
+**No se guarda la letra.** Se recalcula en cada consulta. Guardarla sería
+mantener dos verdades, y la segunda se queda vieja el día que alguien añada una
+cámara a la zona. Hay una prueba que lo fija leyendo el código.
+
+**Los números SÍ se guardan**, en `parametros_criticidad`, fila única. Los
+cortes y los días son un dato de planta y todo lo de planta se edita desde la
+interfaz. **La migración no inserta ninguna fila a propósito**: mientras no
+exista, se usan los PROPUESTOS del código y la pantalla lo dice con esas
+palabras. Insertarlos los convertiría en una decisión que nadie tomó.
+
+Y se validan dos cosas que no son burocracia:
+
+- `corteA <= corteB` dejaría la letra B **sin ningún puntaje posible**: la
+  planta entera repartida entre A y C, el sistema funcionando y las cifras
+  basura.
+- `diasA > diasC` diría que lo más crítico se revisa menos a menudo, que es al
+  revés de para qué existe el módulo.
+
+### La cascada, y las dos guardas de ciclo
+
+Tablero ← switch ← cámaras. Se resuelve con memoria y **con guarda de ciclo en
+los dos sitios**: en las dependencias y en el árbol de ubicaciones. Si alguien
+declara desde la pantalla que A cuelga de B y B de A, sin guarda la recursión
+no termina y **la pantalla nunca responde**. Un fallo de datos no puede dejar
+la pantalla en blanco.
+
+**Un switch SIN NADA ENCHUFADO no se trata como soporte.** Si se tratara,
+quedaría en `SIN_CLASIFICAR` para siempre cuando lo que pasa es que aún no se
+ha declarado qué tiene conectado. Cae por el camino normal y sale como
+pendiente, que es la verdad.
+
+**El alimentado vía PoE no cuenta dos veces en el tablero.** Esa cámara cuelga
+del switch y el switch ya cuelga del tablero. No cambiaría la letra —se toma la
+peor— pero inflaría el «de él dependen 40 equipos», y una cifra inflada es una
+cifra en la que se deja de confiar.
+
+### Los permisos, y la lección del bloque 68 aplicada por delante
+
+    MIRAR      asset.read  O  activos.mirar
+    DECLARAR   asset.update       — lo dice quien está delante del equipo
+    LOS NÚMEROS wo.approve        — reordena el trabajo de la planta ENTERA
+
+Cerrar la lectura sólo con `asset.read` dejaría al Jefe de Tren sin poder ver
+cada cuánto se revisa su propio equipo. **Es exactamente lo que pasó con el QR
+en el 68 y esta vez se puso desde el principio.** Probado quitándolo: las dos
+pruebas se caen.
+
+### Dos verificadores míos me cazaron otra vez
+
+- **`verificar:clases`**: usé `crit-${letra}`, que genera clases que no existen
+  en la hoja de estilos, y `.tabla-tarjetas`, que tampoco existe. La clase
+  dinámica se quitó entera: **el color viene del dato y va en línea**. Tenerlo
+  además en el CSS serían dos reglas para lo mismo y una ganaría en silencio,
+  que es lo que cazó `verificar:cascada` en el 67.
+- **`verificar:textos`**: 127 caracteres en un párrafo de ayuda. Reescrito en
+  una línea.
+
+### Del método
+
+- **El parche del cliente de Prisma ahora es un script**
+  (`scripts/parche-cliente-prisma-b76.js`), con su `--deshacer`. Es reversible
+  **por construcción**: sólo inserta líneas y todas contienen un nombre que
+  antes no existía, así que deshacerlo es borrar toda línea con esos nombres.
+  Es la lección del bloque 75 convertida en herramienta.
+- **El build del frontend NO se puede correr aquí**: `rolldown` necesita un
+  binario nativo que no está en este entorno. Lo que sí corre y se corrió:
+  `typecheck`, `lint` y los 15 verificadores —incluido el de formato, que pasa
+  cada archivo por **esbuild**, el mismo analizador que usa Vite—. Se dice tal
+  cual y no se escribe «build verde».
