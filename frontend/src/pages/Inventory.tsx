@@ -1,5 +1,6 @@
 import { useEffect, useState, FormEvent, ReactNode } from 'react';
 import { api } from '../api/client';
+import { mensajeDeError } from '../avisos';
 import Paginacion from '../components/Paginacion';
 import Modal from '../components/Modal';
 import BotonPurgar from '../components/BotonPurgar';
@@ -155,7 +156,15 @@ export default function Inventory() {
     await openCompat(compat);
   }
   async function removeLink(assetId: string) {
-    await api.delete('/inventory/' + compat.id + '/link/' + assetId).catch(() => {});
+    /* Si falla se dice (bloque 77). Antes se tragaba el error y la lista se
+       recargaba con el repuesto todavía vinculado: se pulsa, no pasa nada, se
+       vuelve a pulsar. El de arriba (`addLink`) sí avisaba; éste no. */
+    try {
+      await api.delete('/inventory/' + compat.id + '/link/' + assetId);
+    } catch (e: any) {
+      await avisar(mensajeDeError(e, 'quitar el vínculo con el equipo'));
+      return;
+    }
     await openCompat(compat);
   }
 
@@ -374,7 +383,12 @@ export default function Inventory() {
           {!(compat.assets || []).length && <div className="muted" style={{ fontSize: 12 }}>Sin activos vinculados directamente.</div>}
           {can('inventory.manage') && (
             <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-              <select aria-label="&nbsp;" value={linkAssetId} onChange={(e) => setLinkAssetId(e.target.value)} style={{ flex: 1 }}>
+              <select
+                aria-label="Elegir el equipo al que vincular este repuesto"
+                value={linkAssetId}
+                onChange={(e) => setLinkAssetId(e.target.value)}
+                style={{ flex: 1 }}
+              >
                 <option value="">— vincular activo —</option>
                 {assets.map((a) => <option key={a.id} value={a.id}>{a.assetCode}</option>)}
               </select>

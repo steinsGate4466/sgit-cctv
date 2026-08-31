@@ -85,6 +85,33 @@ for (const archivo of tsx(RAIZ)) {
       const cierra = antes.lastIndexOf('</label>');
       if (abre > cierra) continue;
 
+      /* `<Campo etiqueta="...">` YA ENVUELVE al control en su propio `<label>`
+         (ver `components/Campo.tsx`). El verificador mira archivo por archivo y
+         no puede saberlo, así que aquí se le dice.
+         -------------------------------------------------------------------
+         POR QUÉ ESTO NO ES AFLOJAR EL VERIFICADOR: se exige que el `<Campo>`
+         traiga su `etiqueta=`, que es lo que acaba dentro del `<label>`. Un
+         `<Campo>` sin etiqueta sigue saliendo como fallo.
+
+         Nació de un caso real: ocho campos llevaban `aria-label="&nbsp;"`
+         —una etiqueta que no dice NADA— puesto para callar a este verificador.
+         Callarlo en vez de arreglar lo que señala es la peor de las opciones,
+         y pasó porque la única salida barata era un `aria-label` postizo. */
+      const aCampo = antes.lastIndexOf('<Campo');
+      const cierraCampo = antes.lastIndexOf('</Campo>');
+      if (aCampo > cierraCampo) {
+        /* Se mira SÓLO hasta el `>` que cierra la etiqueta de apertura, no una
+           ventana de caracteres. La primera versión usaba 400 caracteres y al
+           probarla quitando una `etiqueta=` a propósito NO la cazó: la ventana
+           se comía el `<Campo>` siguiente y encontraba SU etiqueta.
+
+           Es el mismo fallo del verificador 9 con las ventanas de 3.000
+           caracteres. Un verificador que no caza el fallo para el que se
+           escribió es un verificador que no existe. */
+        const apertura = txt.slice(aCampo, finDeEtiqueta(txt, aCampo) + 1);
+        if (/etiqueta=["'{]/.test(apertura)) continue;
+      }
+
       const linea = antes.split('\n').length;
       fallos.push(
         `${rel}:${linea}  <${campo}> sin etiqueta asociada. Envuélvelo en su `

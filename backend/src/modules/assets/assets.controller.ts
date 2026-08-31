@@ -173,8 +173,19 @@ export class AssetsController {
 
   // ---------- Identificación por QR ----------
   // Hoja de etiquetas para imprimir y pegar en los equipos de planta.
+  /* LAS DOS PUERTAS DEL QR VAN CON LOS DOS PERMISOS (bloque 77).
+     -------------------------------------------------------------------------
+     Cerrado sólo con `asset.read`, un Jefe de Tren NO PODÍA IMPRIMIR LA
+     ETIQUETA DE SU PROPIO EQUIPO. Es el agujero del bloque 68 a medio cerrar:
+     allí se abrió la FICHA con `@RequireAlguno` y se dejó fuera la etiqueta,
+     que es lo que hay que pegar en el aparato para que la ficha se pueda
+     escanear. Una sin la otra no sirve de nada.
+
+     Quien tiene `activos.mirar` ya recibe los equipos de su tren en lista:
+     imprimir su rótulo no le da ningún dato nuevo. Y `@AmbitoDe('asset')`
+     sigue limitando a su tren. */
   @Get('qr/sheet')
-  @RequirePermissions('asset.read')
+  @RequireAlguno('asset.read', 'activos.mirar')
   async qrSheet(@Res() res: Response, @Query('ids') ids?: string) {
     const list = ids ? ids.split(',').map((s) => s.trim()).filter(Boolean) : undefined;
     const { buffer, filename } = await this.assets.qrSheet(list);
@@ -186,7 +197,7 @@ export class AssetsController {
   // QR individual (PNG) del activo.
   @AmbitoDe('asset')
   @Get(':id/qr')
-  @RequirePermissions('asset.read')
+  @RequireAlguno('asset.read', 'activos.mirar')
   async qr(@Param('id') id: string, @Res() res: Response) {
     const { buffer } = await this.assets.qrPng(id);
     res.setHeader('Content-Type', 'image/png');

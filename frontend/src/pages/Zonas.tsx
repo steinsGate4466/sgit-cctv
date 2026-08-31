@@ -112,9 +112,11 @@ export default function Zonas() {
           cámaras de la zona y de las que cuelgan por debajo.
         </div>
         <div style={{ marginTop: 8 }}>
-          Declarar <b>Alta</b> o <b>Crítica</b> obliga a escribir el porqué. Sin
-          esa frase, en unos meses todas las zonas son críticas y el campo deja
-          de ordenar nada.
+          {/* Recortado en el bloque 77 para hacer sitio a la declaración de
+              seguridad, que es más importante que esta explicación: la regla
+              se aplica igual aunque no se lea aquí — el formulario no deja
+              guardar sin el motivo y lo dice al pulsar. */}
+          <b>Alta</b> y <b>Crítica</b> obligan a escribir el porqué.
         </div>
       </div>
 
@@ -297,11 +299,22 @@ function EditorZona({ zona, onCerrar, onGuardado }: {
   const [revisar, setRevisar] = useState(
     zona.revisarAntesDe ? String(zona.revisarAntesDe).slice(0, 10) : '',
   );
+  /* RIESGO PARA PERSONAS (bloque 77). Se guarda como texto —'', 'true', 'false'—
+     y no como booleano porque son TRES estados, no dos: sí, no, y «nadie lo ha
+     dicho todavía». Con un booleano, «sin declarar» y «no» serían el mismo
+     valor y un sitio peligroso sin revisar parecería seguro. */
+  const [riesgo, setRiesgo] = useState<string>(
+    zona.riesgoPersonas === true ? 'true' : zona.riesgoPersonas === false ? 'false' : '',
+  );
+  const [riesgoMotivo, setRiesgoMotivo] = useState(zona.riesgoPersonasMotivo || '');
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
 
   const exigeMotivo = nivel === 'ALTA' || nivel === 'CRITICA';
   const faltaMotivo = exigeMotivo && !porQue.trim();
+  // Igual que arriba: «aquí puede resultar herida una persona» sin decir qué
+  // es lo que puede herirla no se puede auditar ni discutir.
+  const faltaRiesgoMotivo = riesgo === 'true' && !riesgoMotivo.trim();
 
   async function guardar() {
     setGuardando(true); setError('');
@@ -313,6 +326,20 @@ function EditorZona({ zona, onCerrar, onGuardado }: {
         queSeVigila: vigila,
         revisarAntesDe: revisar || null,
       }, `Zona ${zona.nombre}`);
+      /* El riesgo para personas va por su propio endpoint porque pertenece a
+         la criticidad A/B/C de mantenimiento, no a la declaración de
+         Producción del bloque 26. Son dos afirmaciones de dos áreas distintas
+         y cada una tiene su permiso.
+
+         Este endpoint EXISTÍA desde el bloque 76 y no había pantalla que lo
+         llamara — y la pantalla de Criticidad prometía en su cabecera «se
+         declara la zona una vez y se clasifican todas sus cámaras de golpe»,
+         una función que no se podía hacer. Prometer en pantalla algo que no
+         existe es peor que no tenerlo. */
+      await api.put(`/criticidad/zona/${zona.id}`, {
+        riesgoPersonas: riesgo === '' ? null : riesgo === 'true',
+        riesgoPersonasMotivo: riesgoMotivo,
+      });
       onGuardado(`Zona «${zona.nombre}» actualizada. La prioridad de sus ${zona.activosEnLaRama || 0} equipos se recalcula sola.`);
     } catch (e: any) {
       setError(mensajeDeError(e, 'guardar'));
@@ -328,7 +355,10 @@ function EditorZona({ zona, onCerrar, onGuardado }: {
         <>
           <button className="btn-mini" onClick={onCerrar}>Cancelar</button>
           <BotonConMotivo onClick={guardar} ocupado={guardando}
-            falta={queFalta([faltaMotivo, 'Explica por qué esta zona es vital: es obligatorio en ALTA y CRÍTICA.'])}>
+            falta={queFalta(
+              [faltaMotivo, 'Explica por qué esta zona es vital: es obligatorio en ALTA y CRÍTICA.'],
+              [faltaRiesgoMotivo, 'Di qué es lo que puede herir a una persona en esta zona.'],
+            )}>
             {guardando ? 'Guardando…' : 'Guardar declaración'}
           </BotonConMotivo>
         </>
@@ -348,7 +378,7 @@ function EditorZona({ zona, onCerrar, onGuardado }: {
           ayuda="No el nombre de la zona: a qué da visión. «Salida del horno y entrada al desbaste»."
           ancho
         >
-          <input aria-label="&nbsp;" value={vigila} onChange={(e) => setVigila(e.target.value)}
+          <input value={vigila} onChange={(e) => setVigila(e.target.value)}
                  placeholder="Salida del horno y entrada al desbaste" />
         </Campo>
 
@@ -357,7 +387,7 @@ function EditorZona({ zona, onCerrar, onGuardado }: {
           ayuda={NIVELES.find((n) => n.v === nivel)?.ayuda}
           obligatorio={false}
         >
-          <select aria-label="&nbsp;" value={nivel} onChange={(e) => setNivel(e.target.value)}>
+          <select value={nivel} onChange={(e) => setNivel(e.target.value)}>
             {NIVELES.map((n) => <option key={n.v} value={n.v}>{n.et}</option>)}
           </select>
         </Campo>
@@ -366,28 +396,62 @@ function EditorZona({ zona, onCerrar, onGuardado }: {
           etiqueta="Revisar antes de"
           ayuda="La planta cambia. Una criticidad de hoy aplicada dentro de tres años sin que nadie la mire es una mentira con fecha."
         >
-          <input aria-label="&nbsp;" type="date" value={revisar} onChange={(e) => setRevisar(e.target.value)} />
+          <input type="date" value={revisar} onChange={(e) => setRevisar(e.target.value)} />
         </Campo>
 
         <Campo
           etiqueta="Por qué es importante"
           obligatorio={exigeMotivo}
           error={faltaMotivo ? 'Alta y Crítica exigen escribir el motivo.' : undefined}
-          ayuda="Una frase. Es lo que va a leer el técnico a las tres de la mañana."
+          ayuda="Una frase. Es lo que leerá el técnico de madrugada."
           ancho
         >
-          <textarea aria-label="&nbsp;" value={porQue} onChange={(e) => setPorQue(e.target.value)}
+          <textarea value={porQue} onChange={(e) => setPorQue(e.target.value)}
                     placeholder="Es el único punto desde el que se ve el colado; sin esa cámara no hay forma de saber si la barra salió bien." />
         </Campo>
 
         <Campo
           etiqueta="Qué pasa si se cae"
-          ayuda="El efecto concreto: se para la línea, se pierde la trazabilidad, no se ve a la cuadrilla en el foso."
+          ayuda="El efecto concreto: se para la línea, se pierde la trazabilidad."
           ancho
         >
-          <textarea aria-label="&nbsp;" value={impacto} onChange={(e) => setImpacto(e.target.value)}
+          <textarea value={impacto} onChange={(e) => setImpacto(e.target.value)}
                     placeholder="Se detiene el tren hasta restablecer la vista." />
         </Campo>
+      </Seccion>
+
+      {/* RIESGO PARA PERSONAS (bloque 77).
+          Va en SU PROPIA sección y no mezclado con lo de Producción porque son
+          dos afirmaciones de dos áreas: Producción dice cuánto importa VER
+          aquí; esto dice si aquí se puede HACER DAÑO a alguien. Y la segunda
+          manda sobre la primera: una zona sin importancia productiva con paso
+          de grúa es A igual. */}
+      <Seccion titulo="Seguridad de las personas">
+        <Campo
+          etiqueta="¿Puede herirse alguien aquí?"
+          ayuda="Barra caliente, grúa, foso. Si sí, sus cámaras son A."
+          ancho
+        >
+          {/* Son TRES estados, no dos. Con un booleano, «sin declarar» y «no»
+              serían el mismo valor y un sitio peligroso sin revisar parecería
+              seguro — que es justo al revés de como falla este proyecto. */}
+          <select value={riesgo} onChange={(e) => setRiesgo(e.target.value)}>
+            <option value="">— sin declarar —</option>
+            <option value="true">Sí</option>
+            <option value="false">No</option>
+          </select>
+        </Campo>
+
+        {riesgo === 'true' && (
+          <Campo etiqueta="¿Qué la puede herir?" obligatorio ancho>
+            <textarea
+              value={riesgoMotivo}
+              onChange={(e) => setRiesgoMotivo(e.target.value)}
+              rows={2}
+              placeholder="Pasa la barra caliente a 3 m."
+            />
+          </Campo>
+        )}
       </Seccion>
     </Modal>
   );
@@ -471,7 +535,7 @@ function FirmaIntervencion({ zona, onCerrar, onGuardado }: {
           etiqueta="Cómo se interviene"
           ayuda={INTERVENCION[nivel]?.ayuda}
         >
-          <select aria-label="&nbsp;" value={nivel} onChange={(e) => setNivel(e.target.value)}>
+          <select value={nivel} onChange={(e) => setNivel(e.target.value)}>
             <option value="">Sin firmar — el sistema pedirá parada</option>
             {Object.entries(INTERVENCION).filter(([k]) => k !== 'SIN_CLASIFICAR')
               .map(([k, v]) => <option key={k} value={k}>{v.et}</option>)}
@@ -496,7 +560,7 @@ function FirmaIntervencion({ zona, onCerrar, onGuardado }: {
           ayuda="Es lo que va a leer el técnico antes de acercarse, y lo que respalda tu firma si algún día hay que revisarla."
           ancho
         >
-          <textarea aria-label="&nbsp;" value={motivo} onChange={(e) => setMotivo(e.target.value)}
+          <textarea value={motivo} onChange={(e) => setMotivo(e.target.value)}
                     placeholder="El grabador está en la cabina del púlpito, cerrada y a 30 m de la línea. No hay exposición a la barra." />
         </Campo>
       </Seccion>

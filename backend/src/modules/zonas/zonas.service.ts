@@ -63,6 +63,9 @@ export class ZonasService {
           id: true, code: true, name: true, type: true, parentId: true,
           criticidadProduccion: true, porQueEsVital: true,
           impactoSiSeCae: true, queSeVigila: true,
+          // Bloque 77: sin esto la pantalla abre el formulario en blanco y
+          // parece que la zona nunca se declaró.
+          riesgoPersonas: true, riesgoPersonasMotivo: true,
           declaradoEn: true, revisarAntesDe: true,
           declaradoPor: { select: { fullName: true } },
           environment: true,
@@ -110,6 +113,8 @@ export class ZonasService {
       porQueEsVital: u.porQueEsVital,
       impactoSiSeCae: u.impactoSiSeCae,
       queSeVigila: u.queSeVigila,
+      riesgoPersonas: u.riesgoPersonas,
+      riesgoPersonasMotivo: u.riesgoPersonasMotivo,
       declaradoPor: u.declaradoPor?.fullName ?? null,
       declaradoEn: u.declaradoEn,
       revisarAntesDe: u.revisarAntesDe,

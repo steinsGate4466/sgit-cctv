@@ -150,8 +150,13 @@ export default function Criticidad() {
       return {
         tono: 'atender' as const,
         texto: `${pendientes} equipo(s) todavía sin clasificar`,
+        /* Esta frase PROMETÍA una función que no existía: el endpoint de zona
+           estaba escrito y no había pantalla que lo llamara (bloque 77). Ya la
+           hay —Ubicaciones → la zona → «Seguridad de las personas»— y por eso
+           ahora se dice DÓNDE. Prometer en pantalla algo que no se puede hacer
+           es peor que no tenerlo. */
         apoyo: 'Sin clasificar no entran en el plan: nadie sabe cada cuánto revisarlos. '
-          + 'Se declara la zona una vez y se clasifican todas sus cámaras de golpe.',
+          + 'La vía rápida es declararlo por zona, en Ubicaciones.',
       };
     }
     return {

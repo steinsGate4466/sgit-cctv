@@ -1802,3 +1802,122 @@ pruebas se caen.
   `typecheck`, `lint` y los 15 verificadores —incluido el de formato, que pasa
   cada archivo por **esbuild**, el mismo analizador que usa Vite—. Se dice tal
   cual y no se escribe «build verde».
+
+---
+
+## 22. Bloque 77 — la auditoría, y tres escrituras que fallaban en silencio
+
+### Los cuatro barridos, que es lo reutilizable
+
+Se buscaron bugs de forma sistemática en vez de por intuición. Los cuatro se
+pueden repetir cada dos o tres bloques y están descritos en
+`docs/AUDITORIA_BLOQUE_77.md`:
+
+| Barrido | Qué caza | Resultado |
+|---|---|---|
+| **A1** · archivos que sólo importa su `.spec` | Código construido y no enchufado | 1 (`colores-de-cable.ts`) |
+| **A2** · endpoints sin llamada en el frontend | Funciones sin puerta de entrada | 43, de los que ~10 son huecos reales |
+| **B** · escrituras que no confirman nada | Botones que se sienten rotos | 4 bugs reales |
+| **D** · permiso de la pantalla vs. permiso de sus llamadas | Pantallas que salen vacías | 0 automáticos, 1 conocido |
+
+**A2 requiere normalizar el frontend antes de comparar.** La primera versión dio
+70 resultados y la mitad eran falsos positivos: las rutas se construyen
+concatenando (`'/assets/' + id + '/status'`), así que en el texto no aparece
+`/assets/x/status` sino comillas y un `+` en medio. Sustituyendo `' + loQueSea
++ '` y `${...}` por un comodín, bajó a 43.
+
+### El patrón que hay que perseguir: `.catch(() => {})`
+
+Los tres bugs graves eran el mismo:
+
+**1. La contraseña del equipo se perdía en silencio.** Al dar de alta un activo,
+si el guardado de la credencial fallaba, el activo se creaba, la pantalla decía
+«guardado» y la contraseña no estaba en ningún sitio. Nadie se enteraba hasta
+que alguien iba a conectarse a la cámara.
+
+**2. Borrar una credencial que no se borraba.** El peor, y **no es un fallo de
+comodidad, es de seguridad**: se da de baja a un contratista, se borran sus
+accesos, el borrado falla, y la contraseña sigue guardada creyendo todos que no.
+
+**3. Borrar una foto que no se borraba.** Se recarga la lista, la foto sigue, se
+vuelve a pulsar, sigue. Es literalmente cómo se aprende que un software no
+funciona.
+
+> **Regla: un `.catch(() => {})` sobre una ESCRITURA es siempre un bug.** Sobre
+> una lectura es deuda —el bloque queda vacío—; sobre una escritura es una
+> mentira: la pantalla afirma que algo pasó y no pasó.
+
+Detalle que lo delata: en Inventario, el botón de *vincular* sí avisaba y el de
+*desvincular*, justo debajo, no. Cuando dos acciones gemelas se comportan
+distinto, una de las dos está mal.
+
+### Callar un verificador es peor que ignorarlo
+
+`<Campo>` ponía el `<label>` **al lado** del control, no envolviéndolo, así que
+el navegador no los asociaba: tocar la etiqueta no enfocaba el campo, y con
+guantes eso es la diferencia entre rellenarlo y no.
+
+`verificar:etiquetas` se quejaba con razón. Y en **ocho campos** alguien lo calló
+con `aria-label="&nbsp;"` — una etiqueta que no dice NADA, que el lector de
+pantalla lee como un espacio en blanco.
+
+**Se arregló en el componente**, no campo por campo, y los ocho postizos se
+borraron. Al verificador se le enseñó a reconocer `<Campo>` **exigiendo que
+traiga su `etiqueta=`**: un `<Campo>` sin etiqueta sigue siendo un fallo.
+
+**Y el verificador me cazó a mí otra vez:** la primera versión de esa excepción
+miraba una ventana de 400 caracteres y **no cazaba el fallo** — la ventana se
+comía el `<Campo>` siguiente y encontraba SU etiqueta. Es el mismo error de las
+ventanas de 3.000 caracteres del verificador 9. Corregido a mirar sólo hasta el
+`>` que cierra la etiqueta de apertura, y **probado reintroduciendo el fallo**.
+
+### Una etiqueta que MIENTE es peor que ninguna
+
+El desplegable de *gabinete* llevaba `aria-label="Elegir tablero eléctrico"` —
+el nombre del campo de al lado. Quien no ve la pantalla elegía el campo
+equivocado **sin ninguna pista de que se estaba equivocando**.
+
+### El QR imprimible: medio agujero cerrado es un agujero
+
+El bloque 68 abrió la FICHA con `@RequireAlguno` y se dejó fuera la ETIQUETA
+(`/assets/:id/qr` y `/assets/qr/sheet`). Un Jefe de Tren no podía imprimir el
+rótulo de su propio equipo — y el rótulo es lo que hay que pegar para que la
+ficha se pueda escanear. **Una sin la otra no sirve de nada.**
+
+> Cuando se abra un permiso en una ruta, buscar **todas** las rutas de esa misma
+> función. Cerrar la mitad deja algo que parece que funciona y no funciona.
+
+### Y un error mío de 24 horas
+
+El bloque 76 dejó `PUT /criticidad/zona/:id` **escrito y sin pantalla**, y la
+pantalla de Criticidad prometía en su cabecera *«se declara la zona una vez y se
+clasifican todas sus cámaras de golpe»*.
+
+**Prometer en pantalla algo que no se puede hacer es peor que no tenerlo.** El
+usuario lo busca, no lo encuentra, y deja de fiarse del resto de lo que lee.
+
+Cerrado: Ubicaciones → la zona → «Seguridad de las personas». Tres estados —sí,
+no, sin declarar— porque con un booleano «sin declarar» y «no» serían el mismo
+valor y un sitio peligroso sin revisar parecería seguro.
+
+### Error de método: inserté código en el componente equivocado
+
+Al añadir la sección de seguridad usé como ancla `<Seccion titulo="La firma">`
+y ese texto aparecía en DOS componentes del mismo archivo. El bloque acabó
+dentro de `FirmaIntervencion` en vez de `EditorZona`. Lo cazó el typecheck
+—`Cannot find name 'riesgo'`— pero podría no haberlo cazado si los dos
+componentes hubieran tenido variables con el mismo nombre.
+
+**Regla: antes de insertar por ancla, comprobar que el ancla es ÚNICA en el
+archivo.** Un `grep -c` cuesta un segundo.
+
+### `verificar:densidad` me cazó, y el arreglo correcto no fue subir el tope
+
+La sección nueva dejó Zonas en 197 palabras con tope 195. Recorté tres veces
+las `ayuda=` y el número **no se movía**: el verificador cuenta el texto ENTRE
+etiquetas JSX, no los atributos. Leer cómo cuenta antes de recortar habría
+ahorrado tres intentos.
+
+Se recortó donde sobraba sabor y no información —una explicación de tres líneas
+sobre por qué Alta y Crítica exigen motivo, cuando el formulario ya lo impide y
+lo dice al pulsar—. **Subir la línea base habría sido la salida fácil y falsa.**

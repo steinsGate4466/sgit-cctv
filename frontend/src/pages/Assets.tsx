@@ -17,6 +17,7 @@ import Icono from '../components/Iconos';
 import { useDialogos } from '../components/Dialogos';
 import { useOcultarAlSalir } from '../useVolverALaPantalla';
 import { fecha, plural } from '../formato';
+import { mensajeDeError } from '../avisos';
 
 /* LOS TIPOS QUE SE PUEDEN DAR DE ALTA — bloque 74.
    ---------------------------------------------------------------------------
@@ -310,8 +311,23 @@ export default function Assets() {
         return;
       }
       assetId = form.id || (r.datos as any)?.id;
+      /* LA CONTRASEÑA DEL EQUIPO NO SE PIERDE EN SILENCIO (bloque 77).
+         ANTES: `.catch(() => {})`. Si el guardado fallaba, el activo se creaba,
+         la pantalla decía «guardado» y la contraseña NO estaba en ningún sitio.
+         Nadie se enteraba hasta que alguien iba a conectarse a la cámara —
+         semanas después, y sin forma de saber qué pasó.
+
+         Se avisa Y se dice qué hacer. El alta del activo SÍ salió bien: no hay
+         que repetirla, sólo volver a poner la contraseña desde la ficha. */
       if (form.devicePass && assetId) {
-        await api.post('/credentials', { assetId, username: 'admin', secret: form.devicePass, type: 'equipo' }).catch(() => {});
+        try {
+          await api.post('/credentials', { assetId, username: 'admin', secret: form.devicePass, type: 'equipo' });
+        } catch (e: any) {
+          await avisar(
+            `El activo se registró, pero la contraseña del equipo NO se guardó.\n\n${mensajeDeError(e, 'guardar la contraseña')}\n\n`
+            + 'Vuelve a ponerla desde la ficha del activo. El alta no hay que repetirla.',
+          );
+        }
       }
 
       // Fotos tomadas durante el alta. Se suben una por una: si alguna falla no
@@ -435,7 +451,15 @@ export default function Assets() {
   }
   async function delPhoto(ph: any) {
     if (!(await confirmar('¿Eliminar esta foto?'))) return;
-    await api.delete('/assets/photos/' + ph.id).catch(() => {});
+    /* Si el borrado falla se DICE (bloque 77). Antes se tragaba el error, se
+       recargaba la lista y la foto seguía ahí: el usuario la ve, vuelve a
+       pulsar, sigue ahí, y concluye —con razón— que el software no funciona. */
+    try {
+      await api.delete('/assets/photos/' + ph.id);
+    } catch (e: any) {
+      await avisar(mensajeDeError(e, 'eliminar la foto'));
+      return;
+    }
     const list = await api.get('/assets/' + detail.id + '/photos').then((r) => r.data).catch(() => []);
     setPhotos(list || []);
   }
@@ -553,7 +577,19 @@ export default function Assets() {
 
   async function delCredential(id: string) {
     if (!(await confirmar('¿Eliminar esta credencial?'))) return;
-    await api.delete('/credentials/' + id).catch(() => {});
+    /* ÉSTE ES EL PEOR DE LOS TRES (bloque 77). Antes se tragaba el error: el
+       usuario creía que había borrado la contraseña de una cámara y la
+       contraseña seguía guardada. No es un fallo de comodidad, es de
+       seguridad — alguien da de baja a un contratista, borra sus accesos,
+       falla el borrado y nadie se entera. */
+    try {
+      await api.delete('/credentials/' + id);
+    } catch (e: any) {
+      await avisar(
+        `${mensajeDeError(e, 'eliminar la credencial')}\n\nLA CREDENCIAL SIGUE GUARDADA. Vuelve a intentarlo.`,
+      );
+      return;
+    }
     const c = await api.get('/credentials?assetId=' + detail.id).then((r) => r.data).catch(() => []);
     setCreds(c || []);
   }
@@ -1035,7 +1071,11 @@ export default function Assets() {
                 obligar a inventar uno daría dos registros para una sola cosa
                 física. Se elige uno de los dos, no los dos. */}
             <label>Gabinete{CABINET_REQUIRED.includes(form.type) && !form.tableroId ? ' (obligatorio para este tipo)' : ''}</label>
-            <select aria-label="Elegir tablero eléctrico" value={form.cabinetId}
+            {/* La etiqueta decía «Elegir tablero eléctrico» y esto es el
+                GABINETE (bloque 77). Un lector de pantalla leía el nombre del
+                campo de al lado: quien no ve la pantalla elegía el campo
+                equivocado sin ninguna pista de que se estaba equivocando. */}
+            <select aria-label="Elegir gabinete" value={form.cabinetId}
               onChange={(e) => setForm({ ...form, cabinetId: e.target.value, tableroId: e.target.value ? '' : form.tableroId })}
               disabled={!!form.tableroId}
               required={CABINET_REQUIRED.includes(form.type) && !form.tableroId}>

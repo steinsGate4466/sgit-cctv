@@ -30,13 +30,30 @@ export default function Campo({
 }) {
   return (
     <div className={'campo' + (ancho ? ' campo-ancho' : '') + (error ? ' campo-error' : '')}>
+      {/* EL `<label>` ENVUELVE AL CONTROL (bloque 77).
+          -------------------------------------------------------------------
+          Antes iba al lado y no lo envolvía, así que el navegador NO asociaba
+          los dos. Dos consecuencias que se veían y no se ataban:
+
+            · Tocar la etiqueta no enfocaba el campo. Con guantes, delante de
+              un gabinete, eso es la diferencia entre rellenarlo y no.
+            · `verificar:etiquetas` se quejaba con razón, y en ocho campos
+              alguien lo calló poniendo `aria-label="&nbsp;"` — una etiqueta
+              que no dice NADA. El lector de pantalla leía un espacio en
+              blanco donde tenía que leer «Qué se ve desde aquí».
+
+          Callar un verificador en vez de arreglar lo que señala es la peor de
+          las tres opciones. Arreglado aquí, en el componente, y los ocho
+          `aria-label` postizos se han borrado. */}
       <label>
-        {etiqueta}
-        {/* El asterisco lleva título: quien usa lector de pantalla también
-            tiene que enterarse de que el campo es obligatorio. */}
-        {obligatorio && <span className="campo-req" title="Obligatorio">*</span>}
+        <span className="campo-nombre">
+          {etiqueta}
+          {/* El asterisco lleva título: quien usa lector de pantalla también
+              tiene que enterarse de que el campo es obligatorio. */}
+          {obligatorio && <span className="campo-req" title="Obligatorio">*</span>}
+        </span>
+        {children}
       </label>
-      {children}
       {error
         ? <span className="campo-msg campo-msg-error">{error}</span>
         : ayuda && <span className="campo-msg">{ayuda}</span>}

@@ -1199,7 +1199,11 @@ input::placeholder, textarea::placeholder { color: #a8b2c4; }
 }
 .campo { display: flex; flex-direction: column; min-width: 0; }
 .campo-ancho { grid-column: 1 / -1; }
-.campo label { margin: 0 0 5px; }
+/* El `<label>` ENVUELVE al control (bloque 77), así que ahora es una columna:
+   nombre arriba, campo debajo. Antes iba al lado sin envolverlo y el navegador
+   no los asociaba — tocar la etiqueta no enfocaba el campo. */
+.campo label { margin: 0; display: flex; flex-direction: column; min-width: 0; }
+.campo-nombre { margin: 0 0 5px; }
 .campo-req { color: var(--red); margin-left: 3px; font-weight: 700; }
 .campo-msg {
   font-size: 11.5px; color: var(--muted); margin-top: 4px; line-height: 1.4;
