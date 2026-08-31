@@ -2042,3 +2042,103 @@ El editor de zonas tenía `zona.criticidad` y la sección de seguridad nueva
 exige `wo.approve`: sin una guarda, un Supervisor TI habría rellenado el
 formulario entero, la primera llamada saldría bien y la segunda daría 403 —
 guardado a medias con un error que no explica qué parte se guardó.
+
+---
+
+## 24. Bloque 80 — cinco correcciones del usuario sobre la hoja del ingeniero
+
+### La hoja, leída de verdad
+
+Hasta este bloque yo trabajaba de memoria sobre «los cuatro indicadores». El
+usuario mandó la foto del papel y decía otra cosa:
+
+```
+② Criticidad de ACTIVOS        ③ Planeamiento de Mant.
+   A → MP? (fre 1)                ↳ Hojas Ruta
+   B → MP? (fre 2)
+   C → MP? (fre 3)             ⑤ Reunión
+                                  40 CORREC │ 30 PREV      →   (meta)
+④ Ejecución                            30 PRED
+   KPIs (Backlog)
+   % cumplim MP
+   Nivel de servicio
+   Cumplim. de Normativa
+```
+
+**Regla que queda: cuando el usuario diga que hay una imagen, buscarla antes de
+responder.** Yo había implementado el nivel de servicio como disponibilidad de
+cámaras sin haberla mirado.
+
+### 1 · Fuera el PREDICTIVO
+
+> «¿Qué se va a predecir con las cámaras o los switch?»
+
+Tiene razón de planta. El predictivo tiene sentido donde hay desgaste medible
+—vibración de un rodamiento, análisis de aceite, termografía de un motor—. Una
+cámara **da imagen o no la da**. Lo que aquí llamábamos predictivo era
+DETECCIÓN TEMPRANA, y eso ya lo hace el módulo de monitoreo.
+
+**El valor del enum NO se borra** (regla de siempre: un enum sólo admite
+AÑADIR, y hay órdenes viejas cargadas así). Se retira del reparto y de la
+entrada de menú, y las predictivas viejas salen en `otros`, junto a mejora y
+mapeo, para que el total siga cuadrando con la lista de Órdenes.
+
+### 2 · Se llama CRITICIDAD DE ACTIVOS
+
+En la hoja pone «② Criticidad de activos». «De mantenimiento» sonaba a escala
+interna del área, y no lo es: **es una propiedad del equipo** que además decide
+cada cuánto se le hace mantenimiento.
+
+### 3 · Producción no ve la gestión, y el motivo era un permiso compartido
+
+> «Producción no tiene que ver toda la parte de gestión, sólo para agendar OM y
+> verificar almacén.»
+
+La causa: el Jefe de línea y el Jefe de Tren tienen `dashboard.read` —lo
+necesitan para SU tablero, «Estado por Tren»— y ese mismo permiso les abría el
+Dashboard del ingeniero, los Indicadores y Exportar.
+
+**La capacidad que separa es `wo.read`**: quien gestiona órdenes es quien mira
+los indicadores de esas órdenes. Ni un nombre de rol.
+
+Y al revés: **el almacén se ABRIÓ** a `om.mirar` porque él lo pidió. En lectura,
+y en el endpoint TAMBIÉN — abrir sólo la entrada del menú habría dejado la
+pantalla cargando y saliendo vacía con un 403, que es el fallo del bloque 68.
+
+> Cuando se abre una entrada de menú, se abre su endpoint en la misma entrega.
+> Media puerta es peor que ninguna: parece que funciona.
+
+### 4 · Lo irreversible estaba en la primera línea de la ficha
+
+«Dar de baja» y «Eliminar definitivamente» iban en la misma fila que «Código
+QR». **Lo primero que se veía al abrir una cámara era el botón de borrarla.**
+
+Bajan al final, en su propia zona roja con título. El objetivo no es que sea
+difícil pulsarlos: es que no se pulsen POR INERCIA buscando otra cosa. La
+confirmación escrita a mano sigue puesta — son dos barreras, y la primera es
+haber tenido que leer la ficha entera para llegar.
+
+### 5 · El Dashboard tenía DOCE indicadores
+
+> «Quita todo eso innecesario, sólo deja análisis.»
+
+Estaban DUPLICADOS: el cumplimiento del preventivo y las OM vencidas viven en
+Indicadores, la salud de la visión en «Estado por Tren», los activos totales en
+Activos. Doce números repartidos entre cuatro pantallas hacen que no se mire
+ninguno.
+
+Se quedan **cuatro**, con un criterio único: **que se pueda hacer algo con
+ellos hoy**. Los cuatro llevan a una pantalla donde actuar; los ocho que se
+fueron sólo describían.
+
+Y el **quesito del reparto** pasa a ser el primer panel de Análisis: es el
+único que contesta «¿apagamos incendios o nos adelantamos?». Los otros tres
+describen el inventario.
+
+### Del método
+
+`verificar:densidad` me cazó TRES veces en este bloque —Indicadores, Assets y
+Zonas— y las tres tenía razón: cada función nueva trae su párrafo explicativo y
+la pantalla engorda sin que se note. El arreglo fue siempre el mismo: **recortar
+donde sobra sabor, no donde hay información**. Subir la línea base no se hizo
+ni una vez.

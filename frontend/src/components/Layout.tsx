@@ -288,7 +288,7 @@ export default function Layout() {
     {
       titulo: 'Gestión del mantenimiento',
       rutas: ['/incidents', '/maintenance', '/paradas', '/criticidad', '/hojas-de-ruta',
-        '/preventive', '/corrective', '/predictive', '/improvements', '/gruas',
+        '/preventive', '/corrective', '/improvements', '/gruas',
         '/mejoras-procedimiento', '/inventory', '/riesgo', '/dashboard', '/indicadores',
         '/exportar'],
       items: [
@@ -306,14 +306,23 @@ export default function Layout() {
            bloque 68: cerrarlo sólo con el permiso fuerte dejaría al Jefe de
            Tren sin poder ver cada cuánto se revisa su propio equipo. */
         (can('asset.read') || can('activos.mirar'))
-          && <NavLink key="crit" to="/criticidad"><Icono n="alerta" /> Criticidad A/B/C</NavLink>,
+          && <NavLink key="crit" to="/criticidad"><Icono n="alerta" /> Criticidad de activos</NavLink>,
         /* HOJAS DE RUTA (bloque 75). Va justo antes del preventivo porque es
            lo que le da contenido: el preventivo dice CUÁNDO tocar el equipo y
            la hoja de ruta dice QUÉ hacer. */
         can('wo.read') && <NavLink key="hr" to="/hojas-de-ruta"><Icono n="nota" /> Hojas de ruta</NavLink>,
         can('wo.read') && <NavLink key="p" to="/preventive"><Icono n="preventivo" /> Preventivo</NavLink>,
         can('wo.read') && <NavLink key="c" to="/corrective"><Icono n="correctivo" /> Correctivo</NavLink>,
-        can('wo.read') && <NavLink key="pr" to="/predictive"><Icono n="predictivo" /> Predictivo</NavLink>,
+        /* PREDICTIVO FUERA DEL MENÚ (bloque 80).
+           Decisión del usuario, y con razón de planta: ¿qué se va a predecir
+           en una cámara o en un switch? El predictivo tiene sentido donde hay
+           desgaste medible —vibración de un rodamiento, análisis de aceite—.
+           Una cámara da imagen o no la da.
+
+           Lo que aquí parecía predictivo era DETECCIÓN TEMPRANA, y eso ya lo
+           hace el módulo de monitoreo. La pantalla NO se borra: hay órdenes
+           viejas cargadas así y su ruta sigue funcionando para consultarlas
+           (está en EXENTAS del verificador del menú, con este motivo). */
         can('wo.read') && <NavLink key="me" to="/improvements"><Icono n="mejora" /> Mejora</NavLink>,
         // Las grúas fallan distinto: cable fatigado, antena desalineada, y no
         // se llega sin manlift. Por eso tienen su propio mantenimiento.
@@ -322,7 +331,12 @@ export default function Layout() {
           && <NavLink key="mej" to="/mejoras-procedimiento"><Icono n="nota" />
             {can('procedimiento.manage') ? ' Mejoras propuestas' : ' Mis propuestas'}
           </NavLink>,
-        can('inventory.read') && <NavLink key="inv" to="/inventory"><Icono n="inventario" /> Inventario</NavLink>,
+        /* ALMACÉN: el usuario lo pidió expresamente para Producción —«verificar
+           almacén»—. Va con `inventory.read` O con `om.mirar`: quien supervisa
+           las órdenes de su tren necesita saber si hay repuesto antes de pedir
+           el trabajo. Es LECTURA; retirar material sigue pidiendo su permiso. */
+        (can('inventory.read') || can('om.mirar'))
+          && <NavLink key="inv" to="/inventory"><Icono n="inventario" /> Inventario</NavLink>,
         can('infra.read') && <NavLink key="rg" to="/riesgo"><Icono n="alerta" /> Riesgo</NavLink>,
         can('dashboard.read') && <NavLink key="d" to="/dashboard"><Icono n="tablero" /> Dashboard</NavLink>,
         can('dashboard.read') && <NavLink key="ind" to="/indicadores"><Icono n="indicadores" /> Indicadores</NavLink>,

@@ -198,7 +198,7 @@ describe('Peores equipos · la conversación de presupuesto', () => {
    prueba con el mismo cuidado que el MTTR: es el número que va a mirar una
    jefatura para decidir si el mantenimiento está mejorando.
 ============================================================================= */
-describe('reparto correctivo / preventivo / predictivo', () => {
+describe('reparto correctivo / preventivo', () => {
   const om = (tipo: string, n: number) =>
     Array.from({ length: n }, (_, i) => ({
       id: `${tipo}-${i}`, tipo, estado: 'CERRADA', assetId: 'a1',
@@ -206,10 +206,12 @@ describe('reparto correctivo / preventivo / predictivo', () => {
       programada: new Date('2026-08-01'),
     }));
 
-  it('reparte en porcentaje sobre las TRES estrategias', () => {
-    const r = repartoDeTrabajo([...om('CORRECTIVO', 4), ...om('PREVENTIVO', 3), ...om('PREDICTIVO', 3)]);
+  it('reparte en porcentaje sobre las DOS estrategias', () => {
+    /* Eran tres hasta el bloque 80. El predictivo salió a `otros` porque en
+       CCTV no hay nada que predecir: una cámara da imagen o no la da. */
+    const r = repartoDeTrabajo([...om('CORRECTIVO', 4), ...om('PREVENTIVO', 6)]);
     expect(r.base).toBe(10);
-    expect(r.pct).toEqual({ correctivo: 40, preventivo: 30, predictivo: 30 });
+    expect(r.pct).toEqual({ correctivo: 40, preventivo: 60 });
   });
 
   it('MEJORA y MAPEO se cuentan aparte y NO entran en el porcentaje', () => {
@@ -218,8 +220,8 @@ describe('reparto correctivo / preventivo / predictivo', () => {
        mapeo deja de medir mantenimiento. */
     const r = repartoDeTrabajo([...om('CORRECTIVO', 5), ...om('MEJORA', 20), ...om('MAPEO', 30)]);
     expect(r.base).toBe(5);
-    expect(r.pct).toEqual({ correctivo: 100, preventivo: 0, predictivo: 0 });
-    expect(r.otros).toEqual({ mejora: 20, mapeo: 30 });
+    expect(r.pct).toEqual({ correctivo: 100, preventivo: 0 });
+    expect(r.otros).toEqual({ mejora: 20, mapeo: 30, predictivo: 0 });
   });
 
   it('SIN ÓRDENES devuelve null, nunca «0 % correctivo»', () => {
@@ -236,9 +238,33 @@ describe('reparto correctivo / preventivo / predictivo', () => {
   });
 
   it('reconoce el mantenimiento planificado', () => {
-    const r = repartoDeTrabajo([...om('CORRECTIVO', 1), ...om('PREVENTIVO', 7), ...om('PREDICTIVO', 2)]);
-    expect(r.pct!.preventivo + r.pct!.predictivo).toBeGreaterThanOrEqual(70);
+    const r = repartoDeTrabajo([...om('CORRECTIVO', 1), ...om('PREVENTIVO', 7)]);
+    expect(r.pct!.preventivo).toBeGreaterThanOrEqual(70);
     expect(r.lectura).toContain('planificado');
+  });
+
+  it('el PREDICTIVO no entra en el reparto, pero se sigue contando', () => {
+    /* BLOQUE 80, decisión del usuario y con razón de planta: ¿qué se va a
+       predecir en una cámara o en un switch? El predictivo tiene sentido donde
+       hay desgaste medible —vibración, aceite, termografía de un motor—. Una
+       cámara da imagen o no la da.
+
+       Pero el valor NO se borra: hay órdenes viejas cargadas así, y hacerlas
+       desaparecer del recuento dejaría el total sin cuadrar con la lista de
+       Órdenes. Salen por `otros`, junto a mejora y mapeo. */
+    const r = repartoDeTrabajo([
+      ...om('CORRECTIVO', 5), ...om('PREVENTIVO', 5), ...om('PREDICTIVO', 3),
+    ]);
+    expect(r.base).toBe(10);
+    expect(r.pct).toEqual({ correctivo: 50, preventivo: 50 });
+    expect(r.otros.predictivo).toBe(3);
+  });
+
+  it('los porcentajes suman 100 sin el predictivo', () => {
+    const r = repartoDeTrabajo([
+      ...om('CORRECTIVO', 3), ...om('PREVENTIVO', 1), ...om('PREDICTIVO', 6),
+    ]);
+    expect(r.pct!.correctivo + r.pct!.preventivo).toBe(100);
   });
 });
 

@@ -28,6 +28,7 @@ export default function Dashboard() {
   const [causes, setCauses] = useState<any[]>([]);
   const [bandeja, setBandeja] = useState<any>(null);
   const [criticos, setCriticos] = useState<any[]>([]);
+  const [reparto, setReparto] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     Promise.all([
@@ -40,9 +41,15 @@ export default function Dashboard() {
       // pregunta al abrir: "¿que hago primero?" y "¿donde me duele la red?".
       api.get('/dashboard/bandeja').then((r) => r.data).catch(() => null),
       api.get('/network/criticos').then((r) => r.data?.equipos || []).catch(() => []),
-    ]).then(([k, o, m, c, b, cr]) => {
+      /* EL REPARTO DEL TRABAJO (bloque 80). Lo pidió el usuario aquí: es el
+         quesito que el ingeniero dibujó en el centro de su hoja, y el Dashboard
+         es la pantalla de ANÁLISIS. En Indicadores sigue estando con su meta
+         al lado; aquí va la foto de hoy, que es lo que se mira al entrar. */
+      api.get('/indicadores', { params: { dias: 90 } })
+        .then((r) => r.data?.reparto).catch(() => null),
+    ]).then(([k, o, m, c, b, cr, rep]) => {
       setKpis(k); setOv(o); setMetrics(m); setCauses(c || []);
-      setBandeja(b); setCriticos(cr.slice(0, 3)); setLoading(false);
+      setBandeja(b); setCriticos(cr.slice(0, 3)); setReparto(rep); setLoading(false);
     });
   }, []);
 
@@ -118,52 +125,91 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ───────── Bloque 1: SALUD DE LA VISIÓN (lo que le importa a Producción) ───────── */}
-      <div className="section-title">Salud de la visión</div>
+      {/* ───────── LO QUE HAY QUE ATENDER (bloque 80) ─────────
+          -----------------------------------------------------------------
+          Había DOCE indicadores en tres bloques. El usuario: «quita todo eso
+          innecesario, sólo deja análisis».
+
+          Tenía razón, y el motivo es que estaban DUPLICADOS: el cumplimiento
+          del preventivo y las OM vencidas viven en Indicadores, la salud de la
+          visión en «Estado por Tren», los activos totales en Activos. Doce
+          números repartidos entre cuatro pantallas hacen que ninguno se mire.
+
+          Se quedan CUATRO, y el criterio es uno solo: **que se pueda hacer
+          algo con ellos hoy**. Los cuatro llevan a una pantalla donde actuar;
+          los ocho que se fueron sólo describían. */}
+      <div className="section-title">Lo que hay que atender</div>
       <div className="kpi-grid">
         <Kpi
-          label="Disponibilidad de visión"
-          value={(kpis?.cameraAvailabilityPct ?? 0) + '%'}
-          cls={availClass(kpis?.cameraAvailabilityPct)}
-          hint={`${kpis?.cameras ?? 0} cámaras en operación`}
+          label="Cámaras sin servicio" value={kpis?.camerasDown ?? 0}
+          cls={kpis?.camerasDown ? 'crit' : 'ok'}
+          hint="Fuera de servicio, con incidencia o en mantenimiento"
+          ir={() => nav('/assets?status=FUERA_SERVICIO')}
         />
-        <Kpi label="Cámaras sin servicio" value={kpis?.camerasDown ?? 0} cls={kpis?.camerasDown ? 'crit' : 'ok'} hint="Fuera de servicio, con incidencia o en mantenimiento" ir={() => nav('/assets?status=FUERA_SERVICIO')} />
-        <Kpi label="Incidencias abiertas" value={kpis?.openIncidents ?? 0} cls={kpis?.openIncidents ? 'red' : 'ok'} hint={`${kpis?.criticalIncidents ?? 0} de prioridad alta/crítica`} ir={() => nav('/incidents')} />
-        <Kpi label="Tiempo medio de reparación" value={(metrics?.mttrMinutes ?? 0) + ' min'} hint="MTTR de incidencias resueltas" />
-      </div>
-
-      {/* El estado por Tren tiene su propia pantalla ("Estado por Tren"):
-          aquí solo se muestra el resumen ejecutivo de toda la planta. */}
-      <div className="hint-link">
-        ¿Necesitas el detalle de una zona? Revisa <b>Estado por Tren</b> en el menú.
-      </div>
-
-      {/* ───────── Bloque 2: CUMPLIMIENTO DEL MANTENIMIENTO (el Jefe) ───────── */}
-      <div className="section-title">Cumplimiento del mantenimiento</div>
-      <div className="kpi-grid">
         <Kpi
-          label="Cumplimiento preventivo"
-          value={(kpis?.preventiveCompliancePct ?? 100) + '%'}
-          cls={complianceClass(kpis?.preventiveCompliancePct)}
-          hint={`${kpis?.preventiveOverdue ?? 0} planes vencidos`}
+          label="Incidencias abiertas" value={kpis?.openIncidents ?? 0}
+          cls={kpis?.openIncidents ? 'red' : 'ok'}
+          hint={`${kpis?.criticalIncidents ?? 0} de prioridad alta o crítica`}
+          ir={() => nav('/incidents')}
         />
-        <Kpi label="OM pendientes" value={kpis?.pendingWorkOrders ?? 0} cls="warn" hint="Abiertas, en proceso o en espera" ir={() => nav('/maintenance')} />
-        <Kpi label="OM vencidas" value={kpis?.overdueWorkOrders ?? 0} cls={kpis?.overdueWorkOrders ? 'crit' : 'ok'} hint="Programadas y no ejecutadas" ir={() => nav('/bandeja')} />
-        <Kpi label="OM próximas (7 días)" value={kpis?.upcomingWorkOrders ?? 0} hint="Planificar cuadrilla" />
-      </div>
-
-      {/* ───────── Bloque 3: RECURSOS Y RIESGO ───────── */}
-      <div className="section-title">Recursos y riesgo</div>
-      <div className="kpi-grid">
-        <Kpi label="Activos críticos" value={kpis?.criticalAssets ?? 0} cls="warn" hint="Su falla afecta producción" />
-        <Kpi label="Repuestos bajo mínimo" value={kpis?.lowStockParts ?? 0} cls={kpis?.lowStockParts ? 'crit' : 'ok'} hint="Reponer en almacén" ir={() => nav('/inventory')} />
-        <Kpi label="Accesos por aprobar" value={kpis?.accessRequestsPending ?? 0} cls={kpis?.accessRequestsPending ? 'warn' : 'ok'} hint="Manlift / trabajo en altura" ir={() => nav('/access')} />
-        <Kpi label="Activos totales" value={kpis?.totalAssets ?? 0} hint="Inventario técnico" ir={() => nav('/assets')} />
+        <Kpi
+          label="Órdenes vencidas" value={kpis?.overdueWorkOrders ?? 0}
+          cls={kpis?.overdueWorkOrders ? 'crit' : 'ok'}
+          hint="Programadas y no ejecutadas"
+          ir={() => nav('/bandeja')}
+        />
+        <Kpi
+          label="Repuestos bajo mínimo" value={kpis?.lowStockParts ?? 0}
+          cls={kpis?.lowStockParts ? 'crit' : 'ok'}
+          hint="Reponer en almacén"
+          ir={() => nav('/inventory')}
+        />
       </div>
 
       {/* ───────── Gráficos ───────── */}
       <div className="section-title">Análisis</div>
       <div className="panel-grid">
+        {/* EL QUESITO DEL INGENIERO, EL PRIMERO DEL ANÁLISIS (bloque 80).
+            -----------------------------------------------------------------
+            Es el que dibujó en el centro de su hoja, y contesta la pregunta
+            que ninguno de los otros contesta: **¿apagamos incendios o nos
+            adelantamos?**
+
+            Los otros tres paneles describen el inventario —cuántos hay de cada
+            tipo, en qué estado—. Éste describe cómo se TRABAJA, y por eso va
+            primero.
+
+            SIN PREDICTIVO: en CCTV no hay nada que predecir. Una cámara da
+            imagen o no la da. */}
+        <Panel title="Cómo se reparte el trabajo">
+          {reparto?.pct ? (
+            <>
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: 'Correctivo', value: reparto.pct.correctivo },
+                      { name: 'Preventivo', value: reparto.pct.preventivo },
+                    ].filter((x) => x.value > 0)}
+                    dataKey="value" nameKey="name" outerRadius={70} label
+                  >
+                    {['#c0392b', '#15803d']
+                      .filter((_, i) => [reparto.pct.correctivo, reparto.pct.preventivo][i] > 0)
+                      .map((c, i) => <Cell key={i} fill={c} />)}
+                  </Pie>
+                  <Tooltip formatter={(v: any, n: any) => [`${v} %`, String(n)]} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="muted" style={{ fontSize: 12 }}>{reparto.lectura}</div>
+            </>
+          ) : (
+            /* No se pinta un quesito vacío: sin órdenes no hay reparto, y un
+               círculo en blanco parece un fallo de carga. */
+            <div className="empty">Sin órdenes en los últimos 90 días.</div>
+          )}
+        </Panel>
+
         <Panel title="Activos por estado operativo">
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={tr(STATUS_ES, ov?.byStatus)}>

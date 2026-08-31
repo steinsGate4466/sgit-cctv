@@ -11,7 +11,7 @@ import { QuerySpareDto } from './dto/query-spare.dto';
 import { MovementDto } from './dto/movement.dto';
 import { CheckDto } from './dto/check.dto';
 import { LinkAssetDto } from './dto/link-asset.dto';
-import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { RequireAlguno, RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { SinAmbito } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
@@ -117,12 +117,22 @@ export class InventoryController {
     return this.inv.desactivarHerramienta(toolId);
   }
 
+  /* LAS DOS LECTURAS QUE ABREN LA PANTALLA (bloque 80).
+     -------------------------------------------------------------------------
+     El usuario pidió que Producción pueda «verificar almacén». La entrada del
+     menú se abrió con `om.mirar`, y si el endpoint no se abre también, la
+     pantalla carga y sale VACÍA con un 403 — que es exactamente el fallo del
+     bloque 68 con el QR.
+
+     Se abre SÓLO la lectura: `inventory.manage` sigue guardando todo lo que
+     mueve stock. Quien supervisa las órdenes de su tren necesita saber si hay
+     repuesto ANTES de pedir el trabajo; no necesita poder retirarlo. */
   @Get('summary')
-  @RequirePermissions('inventory.read')
+  @RequireAlguno('inventory.read', 'om.mirar')
   summary() { return this.inv.summary(); }
 
   @Get()
-  @RequirePermissions('inventory.read')
+  @RequireAlguno('inventory.read', 'om.mirar')
   findAll(@Query() q: QuerySpareDto) { return this.inv.findAll(q); }
 
   // Repuestos compatibles con un activo (por vínculo o modelo).

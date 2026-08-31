@@ -170,7 +170,12 @@ export default function Criticidad() {
 
   return (
     <div>
-      <h2><Icono n="alerta" size={20} /> Criticidad de mantenimiento</h2>
+      {/* SE LLAMA CRITICIDAD DE ACTIVOS (bloque 80).
+          En la hoja del ingeniero pone «② Criticidad de activos», y es lo
+          correcto: la criticidad es DEL EQUIPO. «De mantenimiento» sonaba a
+          que era una escala interna del área, y no lo es — es una propiedad
+          del activo que además decide cada cuánto se le hace mantenimiento. */}
+      <h2><Icono n="alerta" size={20} /> Criticidad de activos</h2>
       <p className="muted" style={{ marginTop: -6 }}>
         Cada cuánto hay que revisar cada equipo, y por qué. Método CTR:
         frecuencia de falla × consecuencia.

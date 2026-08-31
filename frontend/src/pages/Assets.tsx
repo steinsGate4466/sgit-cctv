@@ -795,19 +795,22 @@ export default function Assets() {
 
       {detail && (
         <Modal title={detail.assetCode} onClose={() => setDetail(null)}>
+          {/* ARRIBA SÓLO LO QUE NO DESTRUYE NADA (bloque 80).
+              -----------------------------------------------------------------
+              «Dar de baja» y «Eliminar definitivamente» estaban AQUÍ, en la
+              primera línea de la ficha, antes que la marca y el modelo. Lo
+              primero que se veía al abrir una cámara era el botón rojo de
+              borrarla.
+
+              Con guantes y prisa, un botón destructivo en el sitio donde
+              esperas «Código QR» es un accidente esperando a pasar. Bajan al
+              FINAL, después de todo lo que hay que leer, en su propia zona
+              marcada. La confirmación escrita a mano sigue puesta: son dos
+              barreras, no una. */}
           <div className="acciones-ficha">
             <button className="btn-mini" onClick={() => openQr(detail)}><Icono n="qr" size={14} /> Código QR</button>
             <button className="btn-mini" onClick={() => descargarInforme(detail)}><Icono n="pdf" size={14} /> Informe (PDF)</button>
             {can('credential.read') && <button className="btn-mini" onClick={() => openEdit(detail)}><Icono n="editar" size={14} /> Editar activo</button>}
-            {can('asset.delete') && (
-              <button className="btn-mini btn-danger" onClick={() => removeAsset(detail)}><Icono n="alerta" size={14} /> Dar de baja</button>
-            )}
-            {/* Sólo el Jefe de Mantenimiento. El servidor lo vuelve a comprobar:
-                esconder un botón no protege nada, sólo evita la confusión. */}
-            {can('asset.delete') && can('purga.definitiva') && (
-              <button className="btn-mini btn-peligro" title="Elimina el registro de la base de datos. Para pruebas, duplicados y códigos mal tecleados. No se recupera."
-                      onClick={() => setAPurgar(detail.id)}><Icono n="papelera" size={14} /> Eliminar definitivamente</button>
-            )}
           </div>
           <Frow k="Tipo" v={tEs(detail.type)} />
           <Frow k="Marca / Modelo" v={[detail.brand, detail.model].filter(Boolean).join(' ')} />
@@ -889,7 +892,7 @@ export default function Assets() {
                   {savingStatus ? 'Guardando…' : 'Guardar estado'}
                 </button>
               </div>
-              <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>Estado base del activo. Si el activo tiene una OM o incidencia abierta, el sistema muestra automáticamente “En mantenimiento” / “Fuera de servicio” aunque aquí figure “Operativo”.</div>
+              <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>Estado base. Con OM o incidencia abierta se muestra el real.</div>
             </div>
           )}
 
@@ -960,7 +963,7 @@ export default function Assets() {
               </>
             ) : (
               <div className="muted" style={{ fontSize: 12 }}>
-                Equipo con acceso normal. Si no se puede intervenir sin plataforma, grúa o andamio, márcalo aquí.
+                Si hace falta plataforma, grúa o andamio, márcalo aquí.
               </div>
             )}
             {can('access.request') && (
@@ -1054,6 +1057,42 @@ export default function Assets() {
               <Icono n="candado" size={14} /> Datos de red y accesos ocultos — requiere permiso de red (Jefe de Mantenimiento, Supervisor TI o Técnico de Red).
             </div>
           )}
+
+          {/* LO IRREVERSIBLE, AL FINAL Y EN SU PROPIA ZONA (bloque 80).
+              -----------------------------------------------------------------
+              Estaba arriba del todo, en la misma fila que «Código QR». Aquí
+              abajo hay que haber pasado por delante de toda la ficha —lo que
+              es el equipo, dónde está, qué órdenes tiene— antes de llegar. Esa
+              lectura ES la primera barrera; la frase escrita a mano es la
+              segunda.
+
+              Y va marcado en rojo con un título encima: separado del resto no
+              se pulsa por inercia buscando otra cosa. */}
+          {can('asset.delete') && (
+            <div className="zona-peligro">
+              <div className="zp-titulo">Retirar este equipo</div>
+              <div className="zp-botones">
+                <button className="btn-mini btn-danger" onClick={() => removeAsset(detail)}>
+                  <Icono n="alerta" size={14} /> Dar de baja
+                </button>
+                {/* Sólo el Jefe de Mantenimiento. El servidor lo vuelve a
+                    comprobar: esconder un botón no protege nada, sólo evita
+                    la confusión. */}
+                {can('purga.definitiva') && (
+                  <button
+                    className="btn-mini btn-peligro"
+                    title="Elimina el registro de la base de datos. Para pruebas, duplicados y códigos mal tecleados. No se recupera."
+                    onClick={() => setAPurgar(detail.id)}
+                  >
+                    <Icono n="papelera" size={14} /> Eliminar definitivamente
+                  </button>
+                )}
+              </div>
+              <div className="zp-nota">
+                Dar de baja conserva el historial. Eliminar no.
+              </div>
+            </div>
+          )}
         </Modal>
       )}
 
@@ -1096,14 +1135,18 @@ export default function Assets() {
             </label>
             <label>Ubicación (obligatorio)</label>
             <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>
-              De la ubicación se deducen el tren y la etapa del proceso. Elige el punto
-              más específico que exista.
+              De aquí salen el tren y la etapa.
             </div>
-            <select value={form.locationId} onChange={(e) => setForm({ ...form, locationId: e.target.value })} required>
+            <select
+              aria-label="Elegir la ubicación del equipo"
+              value={form.locationId}
+              onChange={(e) => setForm({ ...form, locationId: e.target.value })}
+              required
+            >
               <option value="">— selecciona ubicación —</option>
               {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
-            <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>¿No está la ubicación? Regístrala primero en el menú “Ubicaciones”.</div>
+            <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>¿No está? Regístrala en Ubicaciones.</div>
             {/* DÓNDE ESTÁ MONTADO: gabinete O tablero eléctrico.
                 En planta hay tableros que llevan dentro switches pequeños.
                 Ese switch no está en ningún gabinete de comunicaciones, y
@@ -1131,13 +1174,11 @@ export default function Assets() {
             </select>
             </label>
             <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
-              Para los switches pequeños atornillados dentro de un tablero. Se elige
-              gabinete <b>o</b> tablero, no los dos: son dos sitios distintos y el
-              equipo sólo está en uno.
+              Para los switches dentro de un tablero. Se elige gabinete <b>o</b> tablero, no los dos.
             </div>
             {CABINET_REQUIRED.includes(form.type) && !form.cabinetId && !form.tableroId && (
               <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
-                Este tipo va montado en algún sitio: di en cuál, para poder encontrarlo en planta.
+                Di dónde está montado, para poder encontrarlo.
               </div>
             )}
             <label>Lugar de referencia (texto libre)
@@ -1185,7 +1226,7 @@ export default function Assets() {
       {qrFor && (
         <Modal title={'Etiqueta QR · ' + qrFor.assetCode} onClose={() => { setQrFor(null); setQrUrl(''); }}>
           <div className="sign-note">
-            Imprime y pega la etiqueta. Al escanearla se abre la ficha del activo.
+            Imprime y pega la etiqueta: al escanearla se abre la ficha.
           </div>
           <div style={{ textAlign: 'center', padding: '10px 0' }}>
             {qrUrl
@@ -1218,7 +1259,7 @@ export default function Assets() {
 
       {quick && (
         <Modal title={'Editar IP y contraseña · ' + quick.assetCode} onClose={() => setQuick(null)}>
-          <div className="sign-note">Edición en tiempo real de los accesos del equipo. Solo Jefe de Mantenimiento, Supervisor TI y Técnico de Red.</div>
+          <div className="sign-note">Accesos del equipo. Sólo con permiso de red.</div>
           <label>IP principal
             <input value={qIp} onChange={(e) => setQIp(e.target.value)} placeholder="172.16.x.x" />
           </label>

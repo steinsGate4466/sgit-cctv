@@ -3938,3 +3938,26 @@ input::-webkit-datetime-edit { padding: 0; }
   .rep-ruedas { grid-template-columns: 1fr; }
   .rep-flecha { transform: rotate(90deg); }
 }
+
+/* =============================================================================
+   LA ZONA DE LO IRREVERSIBLE — bloque 80
+   -----------------------------------------------------------------------------
+   «Dar de baja» y «Eliminar definitivamente» estaban en la PRIMERA línea de la
+   ficha, al lado de «Código QR». Lo primero que se veía al abrir una cámara era
+   el botón de borrarla.
+
+   Ahora van al final, separados por una franja roja y con su propio título. El
+   objetivo no es que sea difícil pulsarlos: es que no se pulsen POR INERCIA
+   buscando otra cosa.
+============================================================================= */
+.zona-peligro {
+  margin-top: 22px;
+  padding: 12px 14px;
+  border: 1px solid #fca5a5;
+  border-left: 4px solid #c0392b;
+  border-radius: 8px;
+  background: #fef2f2;
+}
+.zp-titulo { font-weight: 700; color: #991b1b; font-size: 13px; margin-bottom: 8px; }
+.zp-botones { display: flex; gap: 8px; flex-wrap: wrap; }
+.zp-nota { font-size: 11px; color: #991b1b; margin-top: 8px; }

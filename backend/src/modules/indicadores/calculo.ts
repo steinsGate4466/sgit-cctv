@@ -187,14 +187,30 @@ export function peoresEquipos(ordenes: OrdenParaCalculo[], top = 10) {
 }
 
 /* =============================================================================
-   EL REPARTO CORRECTIVO / PREVENTIVO / PREDICTIVO
+   EL REPARTO CORRECTIVO / PREVENTIVO
    -----------------------------------------------------------------------------
    EL INDICADOR QUE PIDIÓ EL INGENIERO, Y EL ÚNICO QUE DIBUJÓ EN EL CENTRO
    DE SU HOJA.
 
-   En su esquema de cinco pasos, el punto 5 —«Reunión»— es un quesito con el
-   reparto de hoy y una flecha a otro quesito con el reparto al que se quiere
-   llegar. Menos correctivo, más preventivo y predictivo.
+   En su esquema, el punto 5 —«Reunión»— es un quesito con el reparto de hoy y
+   una flecha a otro quesito con el reparto al que se quiere llegar.
+
+   -----------------------------------------------------------------------------
+   FUERA EL PREDICTIVO (bloque 80)
+
+   Decisión del usuario, y tiene razón de planta: **¿qué se va a predecir en una
+   cámara o en un switch?** El predictivo tiene sentido donde hay desgaste que
+   se puede medir —vibración de un rodamiento, análisis de aceite, termografía
+   de un motor—. Una cámara no avisa: da imagen o no la da.
+
+   Lo que en CCTV parecía predictivo era en realidad **detección temprana**, y
+   eso ya lo hace el módulo de monitoreo: avisa cuando un equipo deja de
+   responder. Llamarlo predictivo inflaba el lado bueno del quesito con trabajo
+   que no previene nada.
+
+   EL VALOR DEL ENUM NO SE BORRA. Un enum de PostgreSQL sólo admite AÑADIR
+   valores, y hay órdenes viejas cargadas como predictivas. Se retira de donde
+   se CREA y se sigue contando aparte para que esas órdenes no desaparezcan.
 
    POR QUÉ ES EL INDICADOR QUE DE VERDAD IMPORTA
 
@@ -203,12 +219,11 @@ export function peoresEquipos(ordenes: OrdenParaCalculo[], top = 10) {
    que se repara rápido y se rompe todo el rato: eso no es mantenimiento, es
    una brigada.
 
-   EL MAPEO A LAS TRES FAMILIAS
+   EL MAPEO A LAS DOS FAMILIAS
 
-   El sistema tiene cinco tipos de orden. MEJORA y MAPEO no son estrategias de
-   mantenimiento —una cambia el activo, la otra lo descubre— así que se
-   cuentan aparte y NO entran en el porcentaje. Meterlas dentro inflaría el
-   lado bueno del quesito con trabajo que no previene nada.
+   MEJORA y MAPEO no son estrategias de mantenimiento —una cambia el activo, la
+   otra lo descubre— así que se cuentan aparte y NO entran en el porcentaje.
+   PREDICTIVO se les une por el motivo de arriba.
 
    Y SIN DATOS, NO HAY PORCENTAJE
 
@@ -218,13 +233,12 @@ export function peoresEquipos(ordenes: OrdenParaCalculo[], top = 10) {
 export interface RepartoDeTrabajo {
   correctivo: number;
   preventivo: number;
-  predictivo: number;
-  /** Total que entra en el porcentaje (sin mejora ni mapeo). */
+  /** Total que entra en el porcentaje (sin mejora, mapeo ni predictivo). */
   base: number;
   /** Porcentajes, o null si no hay ni una orden que repartir. */
-  pct: { correctivo: number; preventivo: number; predictivo: number } | null;
+  pct: { correctivo: number; preventivo: number } | null;
   /** Fuera del reparto, pero se enseñan para que el total cuadre. */
-  otros: { mejora: number; mapeo: number };
+  otros: { mejora: number; mapeo: number; predictivo: number };
   /** Qué habría que mover para acercarse a un mantenimiento planificado. */
   lectura: string;
 }
@@ -234,20 +248,26 @@ export function repartoDeTrabajo(ordenes: OrdenParaCalculo[]): RepartoDeTrabajo 
 
   const correctivo = cuenta('CORRECTIVO');
   const preventivo = cuenta('PREVENTIVO');
-  const predictivo = cuenta('PREDICTIVO');
-  const otros = { mejora: cuenta('MEJORA'), mapeo: cuenta('MAPEO') };
-  const base = correctivo + preventivo + predictivo;
+  /* PREDICTIVO sale del reparto (bloque 80) pero se sigue CONTANDO: hay
+     órdenes viejas cargadas así y desaparecerlas del recuento haría que el
+     total no cuadrase con la lista de Órdenes. */
+  const otros = {
+    mejora: cuenta('MEJORA'),
+    mapeo: cuenta('MAPEO'),
+    predictivo: cuenta('PREDICTIVO'),
+  };
+  const base = correctivo + preventivo;
 
   if (base === 0) {
     return {
-      correctivo, preventivo, predictivo, base, otros, pct: null,
+      correctivo, preventivo, base, otros, pct: null,
       lectura: 'Sin órdenes de mantenimiento en el periodo. No hay reparto que medir.',
     };
   }
 
   const p = (n: number) => Math.round((n / base) * 100);
-  const pct = { correctivo: p(correctivo), preventivo: p(preventivo), predictivo: p(predictivo) };
-  const planificado = pct.preventivo + pct.predictivo;
+  const pct = { correctivo: p(correctivo), preventivo: p(preventivo) };
+  const planificado = pct.preventivo;
 
   /* La lectura no felicita ni regaña: dice dónde está el reparto y hacia dónde
      tiene que moverse. Un indicador que sólo pinta un número obliga a que
@@ -264,7 +284,7 @@ export function repartoDeTrabajo(ordenes: OrdenParaCalculo[]): RepartoDeTrabajo 
       + 'La meta es seguir moviendo trabajo al lado planificado.';
   }
 
-  return { correctivo, preventivo, predictivo, base, otros, pct, lectura };
+  return { correctivo, preventivo, base, otros, pct, lectura };
 }
 
 /* =============================================================================

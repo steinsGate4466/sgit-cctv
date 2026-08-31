@@ -53,9 +53,12 @@ function Indicador({ valor, unidad, titulo, explica, aviso, color }: {
    que el ingeniero fije la suya se edita esta línea (o se sube a la tabla de
    parámetros, como se hizo con los cortes de la criticidad).
 
-   El sentido es el que él dibujó: menos correctivo, más predictivo. Apagar
-   menos incendios y adelantarse más. */
-const META = { correctivo: 20, preventivo: 30, predictivo: 50 };
+   El sentido es el que él dibujó: menos correctivo, más planificado. Apagar
+   menos incendios y adelantarse más.
+
+   SIN PREDICTIVO (bloque 80): en CCTV no hay nada que predecir. Una cámara da
+   imagen o no la da; no avisa como avisa un rodamiento. */
+const META = { correctivo: 20, preventivo: 80 };
 
 export default function Indicadores() {
   const nav = useNavigate();
@@ -399,7 +402,6 @@ El MTTR de mantenimiento es <b>Reparar</b>.
               {[
                 { k: 'correctivo' as const, et: 'Correctivo', c: '#c0392b' },
                 { k: 'preventivo' as const, et: 'Preventivo', c: '#15803d' },
-                { k: 'predictivo' as const, et: 'Predictivo', c: '#2e5496' },
               ].filter((x) => t.reparto.pct[x.k] > 0).map((x) => (
                 <div key={x.k} className="reparto-tramo"
                   style={{ width: `${t.reparto.pct[x.k]}%`, background: x.c }}
@@ -412,7 +414,6 @@ El MTTR de mantenimiento es <b>Reparar</b>.
             <div className="reparto-leyenda">
               <span><i style={{ background: '#c0392b' }} /> Correctivo · {t.reparto.correctivo}</span>
               <span><i style={{ background: '#15803d' }} /> Preventivo · {t.reparto.preventivo}</span>
-              <span><i style={{ background: '#2e5496' }} /> Predictivo · {t.reparto.predictivo}</span>
             </div>
 
             {/* EL QUESITO Y LA META, COMO LOS DIBUJÓ EL INGENIERO.
@@ -433,13 +434,12 @@ El MTTR de mantenimiento es <b>Reparar</b>.
                       data={[
                         { name: 'Correctivo', value: t.reparto.pct.correctivo },
                         { name: 'Preventivo', value: t.reparto.pct.preventivo },
-                        { name: 'Predictivo', value: t.reparto.pct.predictivo },
                       ].filter((x) => x.value > 0)}
                       dataKey="value" nameKey="name" outerRadius={62} label
                     >
-                      {['#c0392b', '#15803d', '#2e5496']
-                        .filter((_, i) => [t.reparto.pct.correctivo, t.reparto.pct.preventivo,
-                          t.reparto.pct.predictivo][i] > 0)
+                      {['#c0392b', '#15803d']
+                        .filter((_, i) => [t.reparto.pct.correctivo,
+                          t.reparto.pct.preventivo][i] > 0)
                         .map((c, i) => <Cell key={i} fill={c} />)}
                     </Pie>
                     <Tooltip formatter={(v: any, n: any) => [`${v} %`, String(n)]} />
@@ -457,11 +457,10 @@ El MTTR de mantenimiento es <b>Reparar</b>.
                       data={[
                         { name: 'Correctivo', value: META.correctivo },
                         { name: 'Preventivo', value: META.preventivo },
-                        { name: 'Predictivo', value: META.predictivo },
                       ]}
                       dataKey="value" nameKey="name" outerRadius={62} label
                     >
-                      {['#c0392b', '#15803d', '#2e5496'].map((c, i) => (
+                      {['#c0392b', '#15803d'].map((c, i) => (
                         <Cell key={i} fill={c} fillOpacity={0.45} />
                       ))}
                     </Pie>
@@ -472,16 +471,20 @@ El MTTR de mantenimiento es <b>Reparar</b>.
             </div>
 
             <p className="muted" style={{ fontSize: 12 }}>
-              Meta: menos correctivo, más predictivo.
+              Meta: menos correctivo, más preventivo.
             </p>
 
             <p className="muted" style={{ fontSize: 12.5, marginTop: 10 }}>
               {t.reparto.lectura}
             </p>
 
-            {(t.reparto.otros.mejora > 0 || t.reparto.otros.mapeo > 0) && (
+            {(t.reparto.otros.mejora > 0 || t.reparto.otros.mapeo > 0
+              || t.reparto.otros.predictivo > 0) && (
               <p className="muted" style={{ fontSize: 11.5 }}>
-                Fuera del reparto: {t.reparto.otros.mejora} de mejora y {t.reparto.otros.mapeo} de mapeo.
+                Fuera del reparto: {t.reparto.otros.mejora} de mejora,{' '}
+                {t.reparto.otros.mapeo} de mapeo
+                {t.reparto.otros.predictivo > 0
+                  && ` y ${t.reparto.otros.predictivo} predictivas (tipo retirado)`}.
               </p>
             )}
           </>

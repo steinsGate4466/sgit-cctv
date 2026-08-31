@@ -51,6 +51,9 @@ const EXENTAS = {
   '/login': 'Se llega sin sesión; no hay menú todavía.',
   '/a/:id': 'El QR de un activo. Se llega escaneando, nunca desde el menú.',
   '/g/:id': 'El QR de un gabinete. Igual que el anterior.',
+  '/predictive': 'Bloque 80: retirado del menú. En CCTV no hay nada que predecir '
+    + '—una cámara da imagen o no la da—. La ruta se queda para poder consultar '
+    + 'las órdenes viejas cargadas como predictivas, que no se borran.',
 };
 
 const leer = (f) => fs.readFileSync(path.join(SRC, f), 'utf8');
