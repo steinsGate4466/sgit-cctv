@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
+} from 'recharts';
 import { api } from '../api/client';
 import { EsqueletoTablero } from '../components/Esqueleto';
 
@@ -43,6 +46,17 @@ function Indicador({ valor, unidad, titulo, explica, aviso, color }: {
   );
 }
 
+/* LA META DEL REPARTO — la segunda rueda de la hoja del ingeniero.
+   -----------------------------------------------------------------------------
+   Es UNA PROPUESTA DE ARRANQUE, no un objetivo que nadie haya firmado. Está
+   aquí y no repartida por el código para que se cambie en un sitio, y el día
+   que el ingeniero fije la suya se edita esta línea (o se sube a la tabla de
+   parámetros, como se hizo con los cortes de la criticidad).
+
+   El sentido es el que él dibujó: menos correctivo, más predictivo. Apagar
+   menos incendios y adelantarse más. */
+const META = { correctivo: 20, preventivo: 30, predictivo: 50 };
+
 export default function Indicadores() {
   const nav = useNavigate();
   const [dias, setDias] = useState(90);
@@ -60,6 +74,13 @@ export default function Indicadores() {
   }, []);
 
   useEffect(() => { setCargando(true); cargar(dias, tren).finally(() => setCargando(false)); }, [dias, tren, cargar]);
+
+  /* Verde a partir del 90, ámbar del 75, rojo por debajo. Los mismos cortes
+     que el cumplimiento del preventivo: dos indicadores hermanos con escalas
+     distintas se comparan mal. */
+  const ns = t?.nivelDeServicio?.pct;
+  const nsColor = ns === null || ns === undefined ? '#64748b'
+    : ns >= 90 ? '#15803d' : ns >= 75 ? '#b45309' : '#c0392b';
 
   if (cargando) return <EsqueletoTablero kpis={4} paneles={2} />;
   if (!t) return <div className="card aviso-error">No se pudieron calcular los indicadores.</div>;
@@ -99,6 +120,56 @@ export default function Indicadores() {
           </label></div>
       </div>
 
+      {/* ==========================================================
+           ④ EJECUCIÓN — LOS CUATRO KPI DE LA HOJA DEL INGENIERO
+           ----------------------------------------------------------
+           Él los dibujó JUNTOS y en este orden, bajo el título
+           «Ejecución»:
+
+               KPIs (Backlog)
+               % cumplimiento MP
+               Nivel de servicio
+               Cumplimiento de Normativa
+
+           Estaban repartidos por la pantalla —el backlog abajo del
+           todo, el cumplimiento en otra tarjeta—, así que había que
+           recorrerla entera para responder una sola pregunta.
+
+           Se agrupan porque en su cabeza son UN paso del ciclo, no
+           cuatro números sueltos. Los de fiabilidad (MTTR, MTBF)
+           siguen debajo: son el detalle de por qué salen así.
+           ========================================================== */}
+      <div className="section-title">Ejecución · los cuatro indicadores</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12, marginBottom: 16 }}>
+        <Indicador
+          titulo="Backlog"
+          valor={t.backlog?.total ?? null} unidad=""
+          explica="Órdenes abiertas esperando. Si crece, el equipo no da abasto."
+          aviso="No hay ninguna orden abierta."
+        />
+        <Indicador
+          titulo="Cumplimiento del MP"
+          valor={t.preventivo.pct} unidad="%"
+          color={cumpColor}
+          explica="Rutinas preventivas cerradas ANTES de su fecha."
+          aviso="Todavía no se ha cerrado ninguna rutina con fecha programada."
+        />
+        <Indicador
+          titulo="Nivel de servicio"
+          valor={t.nivelDeServicio?.pct ?? null} unidad="%"
+          color={nsColor}
+          explica="De las órdenes con plazo, cuántas se atendieron dentro de él."
+          aviso="Todavía no hay órdenes con fecha programada que juzgar."
+        />
+        <Indicador
+          titulo="Cumplimiento normativo"
+          valor={t.cumplimiento?.pct ?? null} unidad="%"
+          explica="De las reglas que el sistema exige, cuántas se cumplen."
+          aviso="Todavía no hay nada cargado a lo que aplicarle las reglas."
+        />
+      </div>
+
+      <div className="section-title">Fiabilidad</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 12 }}>
         <Indicador
           titulo="MTTR · tiempo de reparación"
@@ -119,14 +190,88 @@ export default function Indicadores() {
           explica={t.disponibilidad.significa}
           aviso="Hace falta el MTTR y el MTBF para poder calcularla."
         />
-        <Indicador
-          titulo="Cumplimiento del preventivo"
-          valor={t.preventivo.pct} unidad="%"
-          color={cumpColor}
-          explica="Rutinas cerradas ANTES de su fecha. Es el indicador que predice a los demás: si baja, en dos meses sube el correctivo."
-          aviso="Todavía no se ha cerrado ninguna rutina preventiva con fecha programada."
-        />
       </div>
+
+      {/* ==========================================================
+           NIVEL DE SERVICIO — indicador ④ del ingeniero (bloque 79)
+           ----------------------------------------------------------
+           Lo que preguntó él, textual: «las órdenes de mantenimiento
+           ATENDIDAS». Yo lo había hecho como disponibilidad de
+           cámaras, que es otra cosa.
+
+           EL QUESITO Y EL NÚMERO VAN JUNTOS, y no es adorno: el
+           porcentaje solo dice cómo vamos, y el quesito dice POR QUÉ
+           —si lo que falta está tarde o está sin tocar—, que es lo que
+           decide qué hacer mañana.
+           ========================================================== */}
+      {t.nivelDeServicio && (
+        <div className="card">
+          <div className="section-title" style={{ marginTop: 0 }}>
+            Nivel de servicio · órdenes atendidas
+          </div>
+
+          {t.nivelDeServicio.pct === null ? (
+            /* `null`, no 0 %. Un cero se leería como «no atendemos nada»
+               cuando lo que pasa es que no hay órdenes con fecha. */
+            <p className="nada-que-hacer">
+              Todavía no hay órdenes con fecha programada que juzgar.
+            </p>
+          ) : (
+            <div className="ns-fila">
+              <div className="ns-numero">
+                <div className="ns-pct" style={{ color: nsColor }}>
+                  {t.nivelDeServicio.pct}<span className="ns-u">%</span>
+                </div>
+                <div className="ns-sub">
+                  {t.nivelDeServicio.aTiempo} de {t.nivelDeServicio.conPlazo} órdenes
+                  atendidas dentro de plazo
+                </div>
+                {/* Las que no se pueden juzgar se DICEN, no se esconden: si
+                    fueran la mitad, el porcentaje de al lado valdría poco. */}
+                {t.nivelDeServicio.sinPlazo > 0 && (
+                  <div className="ns-nota">
+                    {t.nivelDeServicio.sinPlazo} orden(es) sin fecha programada
+                    quedan fuera: sin plazo no hay forma de decir si llegó a tiempo.
+                  </div>
+                )}
+              </div>
+
+              <div className="ns-quesito">
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: 'A tiempo', value: t.nivelDeServicio.aTiempo, c: '#15803d' },
+                        { name: 'Tarde', value: t.nivelDeServicio.tarde, c: '#b45309' },
+                        { name: 'Pendientes', value: t.nivelDeServicio.pendientes, c: '#c0392b' },
+                      ].filter((x) => x.value > 0)}
+                      dataKey="value"
+                      nameKey="name"
+                      outerRadius={72}
+                      label
+                    >
+                      {[
+                        { c: '#15803d', v: t.nivelDeServicio.aTiempo },
+                        { c: '#b45309', v: t.nivelDeServicio.tarde },
+                        { c: '#c0392b', v: t.nivelDeServicio.pendientes },
+                      ].filter((x) => x.v > 0).map((x, i) => <Cell key={i} fill={x.c} />)}
+                    </Pie>
+                    {/* El `formatter` NO es opcional: sin él la etiqueta dice
+                        «value : 3», que es el nombre interno de la columna.
+                        Lo caza `verificar:graficos` desde el bloque 64. */}
+                    <Tooltip formatter={(v: any, n: any) => [`${v} orden(es)`, String(n)]} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          <p className="muted" style={{ fontSize: 12, marginBottom: 0 }}>
+            Atendida = cerrada antes de su fecha.
+          </p>
+        </div>
+      )}
 
       {/* ==========================================================
            LOS TRES TRAMOS, CADA UNO CON SU DUEÑO — bloque 78
@@ -184,7 +329,7 @@ export default function Indicadores() {
             })}
           </div>
           <p className="muted" style={{ fontSize: 12 }}>
-            El MTTR que le corresponde a mantenimiento es <b>Reparar</b>.
+El MTTR de mantenimiento es <b>Reparar</b>.
           </p>
         </div>
       )}
@@ -195,16 +340,10 @@ export default function Indicadores() {
       {t.fiabilidad && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 12, marginBottom: 14 }}>
           <Indicador
-            titulo="Nivel de servicio"
-            valor={t.fiabilidad.nivelDeServicio.pct} unidad="%"
-            explica={t.fiabilidad.nivelDeServicio.significa}
+            titulo="Vigilancia disponible"
+            valor={t.fiabilidad.vigilanciaDisponible.pct} unidad="%"
+            explica={t.fiabilidad.vigilanciaDisponible.significa}
             aviso="Hace falta al menos una cámara en servicio para poder calcularlo."
-          />
-          <Indicador
-            titulo="Cumplimiento normativo"
-            valor={t.cumplimiento?.pct ?? null} unidad="%"
-            explica="De las reglas que el sistema exige, cuántas se cumplen. Es lo que se enseña en una auditoría."
-            aviso="Todavía no hay nada cargado a lo que aplicarle las reglas."
           />
         </div>
       )}
@@ -276,6 +415,66 @@ export default function Indicadores() {
               <span><i style={{ background: '#2e5496' }} /> Predictivo · {t.reparto.predictivo}</span>
             </div>
 
+            {/* EL QUESITO Y LA META, COMO LOS DIBUJÓ EL INGENIERO.
+                -----------------------------------------------------
+                En su hoja hay DOS ruedas con una flecha en medio: la de
+                ahora y a dónde quiere llegar. Ésa es toda la idea del
+                indicador — no el número de hoy, sino la distancia que
+                falta.
+
+                La barra de arriba se queda: en el móvil un quesito de
+                tres porciones no se lee, y la barra sí. */}
+            <div className="rep-ruedas">
+              <div className="rep-rueda">
+                <div className="rep-tit">Ahora</div>
+                <ResponsiveContainer width="100%" height={180}>
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: 'Correctivo', value: t.reparto.pct.correctivo },
+                        { name: 'Preventivo', value: t.reparto.pct.preventivo },
+                        { name: 'Predictivo', value: t.reparto.pct.predictivo },
+                      ].filter((x) => x.value > 0)}
+                      dataKey="value" nameKey="name" outerRadius={62} label
+                    >
+                      {['#c0392b', '#15803d', '#2e5496']
+                        .filter((_, i) => [t.reparto.pct.correctivo, t.reparto.pct.preventivo,
+                          t.reparto.pct.predictivo][i] > 0)
+                        .map((c, i) => <Cell key={i} fill={c} />)}
+                    </Pie>
+                    <Tooltip formatter={(v: any, n: any) => [`${v} %`, String(n)]} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="rep-flecha">→</div>
+
+              <div className="rep-rueda">
+                <div className="rep-tit">A dónde ir</div>
+                <ResponsiveContainer width="100%" height={180}>
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: 'Correctivo', value: META.correctivo },
+                        { name: 'Preventivo', value: META.preventivo },
+                        { name: 'Predictivo', value: META.predictivo },
+                      ]}
+                      dataKey="value" nameKey="name" outerRadius={62} label
+                    >
+                      {['#c0392b', '#15803d', '#2e5496'].map((c, i) => (
+                        <Cell key={i} fill={c} fillOpacity={0.45} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(v: any, n: any) => [`${v} %`, String(n)]} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <p className="muted" style={{ fontSize: 12 }}>
+              Meta: menos correctivo, más predictivo.
+            </p>
+
             <p className="muted" style={{ fontSize: 12.5, marginTop: 10 }}>
               {t.reparto.lectura}
             </p>
@@ -324,19 +523,21 @@ export default function Indicadores() {
           )}
         </div>
         <div className="muted" style={{ fontSize: 12.5, marginTop: 8, lineHeight: 1.6 }}>
-          De izquierda a derecha: menos de una semana · 1 a 4 semanas · 1 a 3 meses ·
-          más de 3 meses. <b>Un backlog estable es normal</b>; uno que crece dice que
-          el equipo no da abasto — y eso se ve antes en la antigüedad que en el total.
+          {/* Recortado en el bloque 79 para hacer sitio a los cuatro KPI de la
+              hoja del ingeniero. La idea se mantiene entera: lo que importa es
+              la antigüedad, no el total. */}
+          <b>Un backlog estable es normal</b>; uno que envejece dice que el
+          equipo no da abasto.
           {t.backlog.masDe90 > 0 && (
-            <> Hay <b>{t.backlog.masDe90}</b> con más de tres meses: eso ya nadie
-            recuerda por qué se abrió, y esconde lo urgente.</>
+            <> Hay <b>{t.backlog.masDe90}</b> de más de tres meses.
+          </>
           )}
         </div>
         {t.preventivo.pendientesVencidas > 0 && (
           <div className="card peligro" style={{ marginTop: 12 }}>
             <b>{t.preventivo.pendientesVencidas} rutina(s) preventiva(s) vencida(s) y sin cerrar.</b>
             <div style={{ fontSize: 13, marginTop: 4 }}>
-              Es lo que se convierte en correctivo dentro de dos meses.
+              Se convierte en correctivo en dos meses.
             </div>
           </div>
         )}
@@ -370,7 +571,7 @@ export default function Indicadores() {
               </tbody>
             </table>
             <div className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>
-              Un equipo arriba tres periodos seguidos justifica su reemplazo.
+              Tres periodos seguidos arriba justifica el reemplazo.
             </div>
           </>
         )}

@@ -266,3 +266,90 @@ export function repartoDeTrabajo(ordenes: OrdenParaCalculo[]): RepartoDeTrabajo 
 
   return { correctivo, preventivo, predictivo, base, otros, pct, lectura };
 }
+
+/* =============================================================================
+   NIVEL DE SERVICIO — indicador ④ del ingeniero · bloque 79
+   =============================================================================
+
+   QUÉ CONTESTA, en una frase:
+
+       De todo el trabajo que le entró a mantenimiento, ¿cuánto se atendió
+       DENTRO DE PLAZO?
+
+   -----------------------------------------------------------------------------
+   LO QUE ESTABA MAL, Y ERA MÍO
+
+   En el bloque 78 lo implementé como disponibilidad de cámaras ponderada por
+   horas. El usuario lo corrigió: **nivel de servicio son las ÓRDENES DE
+   MANTENIMIENTO ATENDIDAS.** No es lo mismo ni de lejos — el otro mide cuánto
+   se vio, éste mide cuánto respondió el área.
+
+   Los dos números son útiles y los dos se quedan, pero con su nombre: el de
+   cámaras pasa a llamarse «vigilancia disponible» y ÉSTE es el nivel de
+   servicio.
+
+   -----------------------------------------------------------------------------
+   QUÉ CUENTA COMO ATENDIDA — decisión del usuario
+
+       CERRADA DENTRO DE SU PLAZO.
+
+   Una orden cerrada tres semanas tarde está hecha, pero NO se atendió: es
+   justo lo que un comité pregunta. Contarla como atendida convertiría el
+   indicador en un contador de trabajo, y ése ya existe (`totalOrdenes`).
+
+   -----------------------------------------------------------------------------
+   TRES REGLAS QUE LO HACEN HONESTO
+
+   1. **SIN PLAZO NO SE PUEDE JUZGAR.** Una orden sin fecha programada no
+      entra en el denominador. Meterla como «no atendida» castigaría al área
+      por un dato que falta en la orden, no por un trabajo mal hecho — y
+      meterla como atendida sería regalar el indicador.
+
+   2. **LAS PENDIENTES SE VEN, NO SE ESCONDEN.** Una orden abierta todavía no
+      se atendió, y es la porción que hay que mirar: es el trabajo que se está
+      acumulando ahora mismo.
+
+   3. **SIN ÓRDENES, `null`.** Un 100 % sin nada que atender es la peor cifra
+      posible: dice que todo va perfecto justo cuando no hay nada cargado.
+============================================================================= */
+
+export interface NivelDeServicio {
+  /** Porcentaje atendido dentro de plazo. `null` si no hay nada que juzgar. */
+  pct: number | null;
+  /** Las tres porciones del quesito. */
+  aTiempo: number;
+  tarde: number;
+  pendientes: number;
+  /** El denominador: las que SÍ se pueden juzgar. */
+  conPlazo: number;
+  /** Las que no entran por no tener fecha programada. Se dicen aparte. */
+  sinPlazo: number;
+}
+
+export function nivelDeServicioOrdenes(ordenes: OrdenParaCalculo[]): NivelDeServicio {
+  /* Sólo las que tienen contra qué compararse. Sin fecha programada no hay
+     plazo, y sin plazo no hay «a tiempo». */
+  const conPlazo = ordenes.filter((o) => o.programada);
+  const sinPlazo = ordenes.length - conPlazo.length;
+
+  let aTiempo = 0;
+  let tarde = 0;
+  let pendientes = 0;
+
+  for (const o of conPlazo) {
+    if (!o.cerrada) { pendientes++; continue; }
+    if (o.cerrada <= o.programada!) aTiempo++;
+    else tarde++;
+  }
+
+  return {
+    pct: conPlazo.length === 0
+      ? null
+      : Number(((aTiempo / conPlazo.length) * 100).toFixed(1)),
+    aTiempo,
+    tarde,
+    pendientes,
+    conPlazo: conPlazo.length,
+    sinPlazo,
+  };
+}

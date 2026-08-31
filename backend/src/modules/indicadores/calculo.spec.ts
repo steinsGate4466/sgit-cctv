@@ -1,4 +1,4 @@
-import { HORA, OrdenParaCalculo, backlog, cumplimientoPreventivo, disponibilidad, mtbf, mttr, peoresEquipos, repartoDeTrabajo } from './calculo';
+import { HORA, OrdenParaCalculo, backlog, cumplimientoPreventivo, disponibilidad, mtbf, mttr, nivelDeServicioOrdenes, peoresEquipos, repartoDeTrabajo } from './calculo';
 
 /**
  * INDICADORES DE MANTENIMIENTO
@@ -239,5 +239,67 @@ describe('reparto correctivo / preventivo / predictivo', () => {
     const r = repartoDeTrabajo([...om('CORRECTIVO', 1), ...om('PREVENTIVO', 7), ...om('PREDICTIVO', 2)]);
     expect(r.pct!.preventivo + r.pct!.predictivo).toBeGreaterThanOrEqual(70);
     expect(r.lectura).toContain('planificado');
+  });
+});
+
+/* =============================================================================
+   BLOQUE 79 · NIVEL DE SERVICIO — indicador ④ del ingeniero
+   -----------------------------------------------------------------------------
+   De todo el trabajo que le entró a mantenimiento, cuánto se atendió DENTRO DE
+   PLAZO. En el bloque 78 lo implementé como disponibilidad de cámaras y estaba
+   mal: eso mide cuánto se VIO, esto mide cuánto RESPONDIÓ el área.
+============================================================================= */
+describe('Bloque 79 — nivel de servicio', () => {
+  const om = (o: Partial<OrdenParaCalculo> = {}): OrdenParaCalculo => ({
+    id: 'x', tipo: 'CORRECTIVO', estado: 'CERRADA',
+    creada: fecha(0), cerrada: fecha(24), programada: fecha(48), ...o,
+  });
+
+  it('atendida = cerrada ANTES de su fecha', () => {
+    const r = nivelDeServicioOrdenes([om()]);
+    expect(r.aTiempo).toBe(1);
+    expect(r.pct).toBe(100);
+  });
+
+  it('cerrada TARDE está hecha, pero no cuenta como atendida', () => {
+    /* Es justo lo que pregunta un comité. Contarla convertiría el indicador en
+       un contador de trabajo, y ése ya existe. */
+    const r = nivelDeServicioOrdenes([om({ cerrada: fecha(72), programada: fecha(48) })]);
+    expect(r.tarde).toBe(1);
+    expect(r.pct).toBe(0);
+  });
+
+  it('las abiertas cuentan como PENDIENTES, no se esconden', () => {
+    /* Es la porción que hay que mirar: el trabajo que se acumula ahora mismo. */
+    const r = nivelDeServicioOrdenes([om({ cerrada: null, estado: 'ABIERTA' })]);
+    expect(r.pendientes).toBe(1);
+    expect(r.pct).toBe(0);
+  });
+
+  it('sin fecha programada NO entra en el cálculo, y se dice cuántas son', () => {
+    /* Sin plazo no hay «a tiempo». Meterla como no atendida castigaría al área
+       por un dato que falta en la orden, no por un trabajo mal hecho. */
+    const r = nivelDeServicioOrdenes([om(), om({ programada: null })]);
+    expect(r.conPlazo).toBe(1);
+    expect(r.sinPlazo).toBe(1);
+    expect(r.pct).toBe(100);
+  });
+
+  it('las tres porciones del quesito suman el denominador', () => {
+    const r = nivelDeServicioOrdenes([
+      om(),
+      om({ cerrada: fecha(72) }),
+      om({ cerrada: null, estado: 'ABIERTA' }),
+      om({ programada: null }),
+    ]);
+    expect(r.aTiempo + r.tarde + r.pendientes).toBe(r.conPlazo);
+    expect(r.pct).toBeCloseTo(33.3, 1);
+  });
+
+  it('sin órdenes con plazo devuelve null, nunca 100 %', () => {
+    /* Un 100 % sin nada que atender dice que todo va perfecto justo cuando no
+       hay nada cargado, y nadie vuelve a mirarlo. */
+    expect(nivelDeServicioOrdenes([]).pct).toBeNull();
+    expect(nivelDeServicioOrdenes([om({ programada: null })]).pct).toBeNull();
   });
 });

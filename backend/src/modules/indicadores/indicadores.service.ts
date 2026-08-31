@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
-  HORA, OrdenParaCalculo, backlog, cumplimientoPreventivo, disponibilidad, mtbf, mttr, peoresEquipos, repartoDeTrabajo,
+  HORA, OrdenParaCalculo, backlog, cumplimientoPreventivo, disponibilidad, mtbf, mttr,
+  nivelDeServicioOrdenes, peoresEquipos, repartoDeTrabajo,
 } from './calculo';
 import {
   FallaParaCalculo, disponibilidadReal, mtbfReal, nivelDeServicio,
@@ -143,6 +144,15 @@ export class IndicadoresService {
         significa: 'Porcentaje del tiempo que los equipos están sirviendo.',
       },
       preventivo: cumplimientoPreventivo(ordenes),
+      /* NIVEL DE SERVICIO — indicador ④ del ingeniero (bloque 79).
+         -------------------------------------------------------------------
+         De todo el trabajo que le entró a mantenimiento, cuánto se atendió
+         DENTRO DE PLAZO. Va aquí arriba, con los cuatro grandes, porque es
+         uno de los cuatro que él pidió — no un extra.
+
+         En el bloque 78 lo implementé como disponibilidad de cámaras. Estaba
+         mal: eso mide cuánto se VIO, y esto mide cuánto RESPONDIÓ el área. */
+      nivelDeServicio: nivelDeServicioOrdenes(ordenes),
       /* EL REPARTO DEL TRABAJO — bloque 65.
          El indicador que el ingeniero dibujó en el centro de su hoja: cuánto
          del trabajo es apagar incendios y cuánto es adelantarse. El MTTR dice
@@ -331,8 +341,14 @@ export class IndicadoresService {
         significa: 'Horas medias entre una avería y la siguiente, contadas sobre averías reales.',
       },
       disponibilidad: disponibilidadReal(fallas, horasDelPeriodo),
-      /* INDICADOR ④ DEL INGENIERO. */
-      nivelDeServicio: {
+      /* OJO CON EL NOMBRE (bloque 79). Esto NO es el nivel de servicio: es la
+         VIGILANCIA DISPONIBLE, que mide cuánto se vio. El nivel de servicio
+         son las órdenes atendidas y vive arriba, en el tablero.
+
+         Se llamaba «nivelDeServicio» y era mi error. Los dos números sirven,
+         pero mezclar los nombres hace que en un comité se responda una
+         pregunta con el número de la otra. */
+      vigilanciaDisponible: {
         ...nivelDeServicio(fallas, equiposEnServicio, horasDelPeriodo),
         significa: 'Qué porcentaje de la vigilancia estuvo disponible, contando cada cámara y cada hora.',
       },
