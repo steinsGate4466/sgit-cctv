@@ -144,6 +144,8 @@ model User {
   criticidadesDeclaradas Asset[]  @relation("CriticidadDeclaradaPor")
   /// Quién tocó por última vez los números de la planta (b76).
   parametrosCriticidad ParametrosCriticidad[] @relation("ParametrosCriticidadPor")
+  /// Averías que esta persona registró o corrigió (b78).
+  fallasRegistradas FailureEvent[] @relation("FallaRegistradaPor")
   // ---- Bloque 29 ----
   procedimientosCreados ProcedimientoRestauracion[] @relation("ProcedimientoCreadoPor")
   mejorasPropuestas     MejoraProcedimiento[]       @relation("MejoraPropuestaPor")
@@ -872,6 +874,9 @@ model Asset {
   tableroElectrico TableroElectrico[]
   /// Reservas de IP declaradas para este equipo.
   reservasIp    ReservaIp[]
+  /// Averías de este equipo, con sus cuatro marcas de tiempo (bloque 78).
+  /// Prisma EXIGE el lado inverso aunque sólo FailureEvent guarde la clave.
+  fallas        FailureEvent[]
   /// Avisos pegados a ESTE equipo para el que llegue después (bloque 29).
   /// Es la entrega de turno: aparece sola al escanear el QR.
   notasDeCampo NotaDeCampo[]
@@ -1450,6 +1455,9 @@ model WorkOrder {
   /// Instalaciones que se ejecutan con esta orden. Lado inverso obligatorio:
   /// Prisma exige el campo en AMBOS modelos aunque sólo uno lleve la clave.
   instalaciones Instalacion[]
+  /// Averías que esta orden resolvió (bloque 78). Normalmente una, pero una
+  /// orden de mapeo puede cerrar varias de golpe.
+  fallas        FailureEvent[]
   // ---- Bloque 29: lo que salió de esta orden ----
   mejorasPropuestas MejoraProcedimiento[] @relation("MejoraDesdeOm")
   notasDeCampo      NotaDeCampo[]         @relation("NotaDesdeOm")
@@ -1636,6 +1644,8 @@ model Incident {
   reaparecio      Boolean          @default(false)
 
   workOrders      WorkOrder[]        // OM generadas a partir de esta incidencia
+  /// La avería que este aviso reportó (bloque 78). Uno a uno.
+  falla           FailureEvent?
   evidences       IncidentEvidence[] // fotografías de campo
   avisos          IncidentAviso[]    // los reportes repetidos del mismo problema
 
@@ -3463,4 +3473,117 @@ model ParametrosCriticidad {
 
   @@index([actualizadoPorId])
   @@map("parametros_criticidad")
+}
+
+/// =============================================================================
+/// EVENTO DE FALLA — bloque 78
+/// =============================================================================
+///
+/// LO QUE CIERRA, y es lo primero que pica un ingeniero de mantenimiento:
+///
+///     Hasta ahora el MTTR se medía de «orden creada» a «orden cerrada» y el
+///     MTBF contaba órdenes correctivas. Las dos cosas son APROXIMACIONES:
+///
+///       · Una cámara que se apaga a las 3 de la madrugada y cuya orden se
+///         abre a las 10 carga siete horas de MTTR en las que nadie sabía que
+///         estaba caída. Eso no es tiempo de reparación: es tiempo de
+///         detección, y tiene otro dueño.
+///       · Dos órdenes sobre la misma avería —porque se reabrió— cuentan como
+///         dos fallos y hunden el MTBF sin que el equipo haya fallado dos veces.
+///
+/// EL EVENTO DE FALLA SEPARA LAS CUATRO MARCAS DE TIEMPO REALES:
+///
+///     ocurrió ──► detectado ──► empieza reparación ──► restablecido
+///        │            │                 │                    │
+///        └── DETECCIÓN┘                 └───── REPARACIÓN ────┘
+///        └────────────── INDISPONIBILIDAD (lo que ve Producción) ──────────┘
+///
+/// Y cada tramo tiene un dueño distinto, que es de lo que va todo esto:
+///
+///     ocurrió → detectado    = cuánto tardamos en ENTERARNOS   (monitoreo)
+///     detectado → empieza    = cuánto tardamos en IR           (organización)
+///     empieza → restablecido = MTTR de verdad                  (mantenimiento)
+///
+/// -----------------------------------------------------------------------------
+/// POR QUÉ ES UNA TABLA APARTE Y NO CAMPOS EN LA ORDEN
+///
+/// Porque una avería y una orden NO son lo mismo:
+///
+///   · Una avería puede necesitar DOS órdenes (se diagnostica, se pide el
+///     repuesto, se cierra la primera, se abre otra al llegar).
+///   · Una orden puede no venir de ninguna avería (un preventivo).
+///   · Una avería puede resolverse SIN orden (se reinició y volvió).
+///
+/// Meterlo en `WorkOrder` obligaría a elegir cuál de las dos órdenes lleva las
+/// fechas buenas, y esa elección la acabaría haciendo cada uno a su manera.
+///
+/// -----------------------------------------------------------------------------
+/// NO ES UN FORMULARIO MÁS
+///
+/// El evento NACE SOLO al reportar una incidencia y SE CIERRA SOLO al
+/// resolverla. Lo que se puede corregir a mano son las horas, porque el
+/// técnico sí sabe a qué hora llegó. Un formulario nuevo que alguien tenga que
+/// acordarse de rellenar no se rellena, y entonces el indicador queda peor que
+/// antes: con huecos y pareciendo completo.
+model FailureEvent {
+  id          String   @id @default(uuid())
+  assetId     String
+  asset       Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  // ---- LAS CUATRO MARCAS ----
+  /// Cuándo dejó de funcionar DE VERDAD. Si no se sabe, vale `detectedAt` y
+  /// se marca en `ocurrioEsEstimado`: un dato estimado que no se distingue de
+  /// uno medido es peor que no tenerlo.
+  occurredAt  DateTime
+  /// Cuándo alguien se enteró. Es `reportedAt` de la incidencia, o el instante
+  /// en que el monitoreo lo detectó.
+  detectedAt  DateTime
+  /// Cuándo se puso alguien a arreglarlo. NULL = todavía nadie.
+  repairStartedAt DateTime?
+  /// Cuándo volvió a funcionar. NULL = sigue caído.
+  restoredAt  DateTime?
+
+  /// TRUE cuando `occurredAt` se rellenó con la hora del reporte porque nadie
+  /// sabía la real. Los indicadores lo usan para poder decir «este dato es
+  /// estimado» en vez de presentarlo como medido.
+  ocurrioEsEstimado Boolean @default(true)
+
+  // ---- DE DÓNDE SALIÓ Y QUIÉN LO CERRÓ ----
+  /// La incidencia que lo reportó. Uno a uno: una incidencia es un aviso de
+  /// una avería. Si llegan tres avisos de lo mismo, el módulo de incidencias
+  /// ya los agrupa antes de llegar aquí.
+  incidentId  String?  @unique
+  incident    Incident? @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+  /// La orden que lo resolvió, si hubo. Opcional a propósito: hay averías que
+  /// se resuelven reiniciando y no generan orden, y no contarlas haría que el
+  /// MTBF dijera que el equipo falla menos de lo que falla.
+  workOrderId String?
+  workOrder   WorkOrder? @relation(fields: [workOrderId], references: [id], onDelete: SetNull)
+
+  // ---- QUÉ FALLÓ ----
+  /// Se reutiliza el catálogo de categorías de incidencia, que salió de la
+  /// planta. Inventar aquí una lista nueva daría dos formas de nombrar lo
+  /// mismo y a los tres meses nadie sabría cuál mirar.
+  categoria   IncidentCategory @default(GENERAL)
+  /// Causa raíz, del catálogo editable. Texto porque el catálogo se edita.
+  causaRaiz   String?
+  /// Descarta el evento de los indicadores SIN borrarlo. Una falsa alarma
+  /// borrada no se puede auditar, y hay que poder responder «¿por qué no
+  /// cuenta ésta?».
+  esFalsaAlarma Boolean @default(false)
+  notaFalsaAlarma String?
+
+  registradoPorId String?
+  registradoPor   User?    @relation("FallaRegistradaPor", fields: [registradoPorId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  /// El MTBF pregunta «cuántas veces falló ESTE equipo en el periodo», y esa
+  /// consulta es siempre por activo y por fecha de ocurrencia.
+  @@index([assetId, occurredAt])
+  @@index([occurredAt])
+  @@index([workOrderId])
+  @@index([registradoPorId])
+  @@index([esFalsaAlarma])
+  @@map("failure_events")
 }

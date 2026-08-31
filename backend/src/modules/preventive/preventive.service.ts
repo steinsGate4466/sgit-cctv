@@ -6,6 +6,11 @@ import { UpsertPreventivePlanDto } from './dto/upsert-plan.dto';
 import {
   conReintentoDeCodigo, esChoqueDeUnicidad, siguienteCorrelativo,
 } from '../../common/correlativo';
+import {
+  PlanParaProgramar, VentanaParaProgramar, actividadDeLaOrden, programar,
+} from '../../common/programacion-preventiva';
+import { resolverContextoDePlanta, intervaloParaAmbiente } from '../../common/plant-context';
+import { CriticidadService } from '../criticidad/criticidad.service';
 
 /* OM preventivas que cuentan como "ya en curso" (no se duplica la generación).
 
@@ -23,6 +28,9 @@ export class PreventiveService {
   constructor(
     private prisma: PrismaService,
     private audit: AuditService,
+    /* Bloque 78. La frecuencia del preventivo la manda la letra A/B/C, no sólo
+       el intervalo que se escribió a mano en el plan. */
+    private criticidad: CriticidadService,
   ) {}
 
   private addDays(base: Date, days: number): Date {
@@ -182,8 +190,54 @@ export class PreventiveService {
       orderBy: { nextDueAt: 'asc' },
     });
 
+    /* ------------------------------------------------------------------ b78
+       LO QUE HACE FALTA PARA PROGRAMAR DE VERDAD, y no sólo para «crear hoy».
+
+       Tres consultas más, UNA VEZ para todo el lote — no una por plan. El lote
+       corre de madrugada sobre cuatrocientos activos: una consulta por plan
+       serían mil doscientas.
+
+         · ventanas   → cuándo se puede entrar si la zona exige tren parado
+         · hojas      → qué hacer, por tipo de equipo
+         · letras     → cada cuánto según el método CTR
+         · contexto   → tren y ambiente de cada activo
+
+       Si algo de esto falla, el lote SIGUE con lo que tenía antes: generar la
+       orden aunque sea sin pasos vale más que no generarla. */
+    const activos = due.map((d) => ({ id: d.assetId, locationId: (d.asset as any).locationId ?? null }));
+    const [ventanas, hojas, letras, ctx] = await Promise.all([
+      this.prisma.ventanaParada.findMany({
+        where: { estado: { in: ['ANUNCIADA', 'CONFIRMADA'] as any }, inicioPrevisto: { gte: now } },
+        select: { id: true, tren: true, estado: true, inicioPrevisto: true },
+      }).catch(() => [] as any[]),
+      this.prisma.hojaDeRuta.findMany({
+        where: { activa: true },
+        select: {
+          tipoEquipo: true,
+          operaciones: { select: { operacion: true, subOperacion: true, descripcion: true } },
+        },
+      }).catch(() => [] as any[]),
+      this.criticidad.resumen().then((r: any) => {
+        const m: Record<string, any> = {};
+        for (const e of r.equipos || []) m[e.id] = e;
+        return m;
+      }).catch(() => ({} as Record<string, any>)),
+      resolverContextoDePlanta(this.prisma, activos as any).catch(() => ({} as any)),
+    ]);
+
+    const pasosPorTipo = new Map<string, { op: number; sub: number | null; texto: string }[]>();
+    for (const h of hojas as any[]) {
+      pasosPorTipo.set(h.tipoEquipo, (h.operaciones || []).map((o: any) => ({
+        op: o.operacion, sub: o.subOperacion, texto: o.descripcion,
+      })));
+    }
+
     const created: { code: string; asset: string; dueAt: Date | null }[] = [];
     const skipped: { asset: string; motivo: string }[] = [];
+    /* Las que se generan sin poder hacerse todavía. Van en la respuesta y no
+       en el registro de auditoría: es trabajo que alguien tiene que desatascar
+       pidiendo una parada, no un fallo del lote. */
+    const esperandoParada: { asset: string; tren: string | null }[] = [];
 
     for (const plan of due) {
       // Regla 3: no duplicar si ya hay una preventiva en curso para ese activo.
@@ -200,6 +254,36 @@ export class PreventiveService {
       const zone = plan.asset.cabinet?.code
         ? `${plan.asset.location?.name || 'Planta'} — ${plan.asset.cabinet.code}`
         : plan.asset.location?.name || undefined;
+
+      /* --------------------------------------------------------------- b78
+         SE PROGRAMA DE VERDAD: fecha, frecuencia y pasos.
+
+         Antes esto era `scheduledDate: plan.nextDueAt || now` y una frase.
+         Ahora la fecha sale de casar tres cosas —cuándo vence, qué frecuencia
+         manda y cuándo se puede entrar— y la orden nace con los pasos de su
+         hoja de ruta dentro. */
+      const c = (ctx as any)[plan.assetId];
+      const paraProgramar: PlanParaProgramar = {
+        assetId: plan.assetId,
+        assetCode: plan.asset.assetCode,
+        tipoEquipo: plan.asset.type as string,
+        trenCode: c?.trenCode ?? null,
+        vencePlan: plan.nextDueAt,
+        diasDelPlan: plan.intervalDays,
+        diasPorLetra: (letras as any)[plan.assetId]?.diasEntreRevisiones ?? null,
+        diasPorAmbiente: c?.intervaloDias ?? intervaloParaAmbiente(c?.ambiente ?? null),
+        /* Lo FIRMADO, no la propuesta. Sin firma vale EXIGE_PARADA: un equipo
+           sin declarar espera ventana, que es fallar hacia el lado seguro. */
+        intervencionAplica: c?.intervencionAplica ?? 'EXIGE_PARADA',
+      };
+      const pr = programar(paraProgramar, ventanas as VentanaParaProgramar[], now);
+      if (pr.esperandoVentana) {
+        esperandoParada.push({ asset: plan.asset.assetCode, tren: paraProgramar.trenCode });
+      }
+      const actividad = actividadDeLaOrden(
+        pr,
+        pasosPorTipo.get(plan.asset.type as string) ?? [],
+      );
 
       /* BLOQUE 37 — SE REINTENTA EN VEZ DE OMITIR.
          --------------------------------------------------------------------
@@ -222,10 +306,10 @@ export class PreventiveService {
               status: 'ABIERTA',
               assetId: plan.assetId,
               zone,
-              activity:
-                `Mantenimiento preventivo programado del activo ${plan.asset.assetCode} ` +
-                `(frecuencia: cada ${plan.intervalDays} días${plan.zoneCritical ? ', zona crítica' : ''}).`,
-              scheduledDate: plan.nextDueAt || now, // Regla 5
+              activity: actividad,
+              // La fecha ya viene resuelta: vencimiento real, o la ventana de
+              // parada si la zona la exige.
+              scheduledDate: pr.fecha,
             },
           });
           return c;
@@ -255,7 +339,16 @@ export class PreventiveService {
       },
     });
 
-    return { generated: created.length, codes: created.map((c) => c.code), created, skipped };
+    return {
+      generated: created.length,
+      codes: created.map((c) => c.code),
+      created,
+      skipped,
+      /* Se devuelve aparte para que la pantalla lo pueda pintar como lo que
+         es: trabajo generado que NADIE PUEDE HACER hasta que se pida una
+         parada. Mezclado con las creadas pasaría desapercibido. */
+      esperandoParada,
+    };
   }
 
   /**

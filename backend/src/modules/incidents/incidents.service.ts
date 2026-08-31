@@ -118,6 +118,38 @@ export class IncidentsService {
       include: assetSel,
     });
 
+    /* EL EVENTO DE FALLA NACE SOLO (bloque 78).
+       -----------------------------------------------------------------------
+       No hay un formulario nuevo que rellenar. Un formulario que alguien tenga
+       que acordarse de abrir no se abre, y entonces el indicador queda peor
+       que antes: con huecos y con pinta de estar completo.
+
+       Se crea aquí, con lo que ya se sabe:
+         · `occurredAt` de la incidencia si el técnico lo puso, y si no, la
+           hora del reporte MARCADA COMO ESTIMADA. Un dato estimado que no se
+           distingue de uno medido envenena el indicador de detección.
+         · `detectedAt` es siempre la hora del reporte: es cuando nos enteramos.
+
+       Sólo se crea si hay EQUIPO. Una incidencia sin activo —«el púlpito 2 se
+       ve raro»— no se puede atribuir a ninguna máquina y contarla hundiría el
+       MTBF de un equipo que no falló.
+
+       Y si falla, la incidencia SE CREA IGUAL. Perder el aviso por no poder
+       escribir un indicador sería cambiar lo urgente por lo importante. */
+    if (inc.assetId) {
+      await this.prisma.failureEvent.create({
+        data: {
+          assetId: inc.assetId,
+          occurredAt: inc.occurredAt ?? inc.reportedAt,
+          detectedAt: inc.reportedAt,
+          ocurrioEsEstimado: !inc.occurredAt,
+          incidentId: inc.id,
+          categoria: inc.category,
+          registradoPorId: (dto as any).reportedById ?? null,
+        },
+      }).catch(() => null);
+    }
+
     // AVISO DE INCIDENCIA ALTA O CRÍTICA.
     //
     // Sólo esas dos. Avisar de todas convertiría el bot en ruido y la gente
@@ -487,6 +519,24 @@ export class IncidentsService {
       },
       include: assetSel,
     });
+
+    /* Y EL EVENTO SE CIERRA SOLO (bloque 78).
+       -----------------------------------------------------------------------
+       `restoredAt` es la hora de la firma: es cuando alguien afirma que el
+       equipo volvió a funcionar.
+
+       NO se toca `repairStartedAt`: eso lo pone quien empieza a trabajar,
+       desde la orden. Rellenarlo aquí con la misma hora que el cierre haría
+       que el tiempo de reparación saliera CERO en todos los casos, y un cero
+       constante se lee como «reparamos al instante» en vez de «no se apuntó».
+
+       `updateMany` y no `update` a propósito: si la incidencia no llegó a
+       tener evento —porque no tenía equipo— esto no hace nada y no revienta el
+       cierre. Cerrar una incidencia no puede fallar por un indicador. */
+    await this.prisma.failureEvent.updateMany({
+      where: { incidentId: id, restoredAt: null },
+      data: { restoredAt: inc.resolvedAt || resolvedAt, causaRaiz: dto.rootCause ?? inc.rootCause },
+    }).catch(() => null);
 
     await this.audit.record({
       userId: signer!.id, action: 'RESOLVE', entity: 'incidents', entityId: id, ip,

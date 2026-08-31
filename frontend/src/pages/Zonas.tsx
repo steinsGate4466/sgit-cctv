@@ -292,6 +292,16 @@ export default function Zonas() {
 function EditorZona({ zona, onCerrar, onGuardado }: {
   zona: any; onCerrar: () => void; onGuardado: (msg: string) => void;
 }) {
+  /* Bloque 78. La declaración de Producción y la de seguridad son dos
+     permisos distintos: `zona.criticidad` la primera, `wo.approve` la segunda.
+     Quien tenga sólo el primero ve el formulario SIN la sección de seguridad,
+     y NO se llama a ese endpoint al guardar.
+
+     Sin esta guarda, un Supervisor TI rellenaría el formulario entero, pulsaría
+     Guardar, la primera llamada saldría bien y la segunda daría 403: guardado
+     a medias, con un error que no explica qué parte se guardó. */
+  const { can } = useAuth();
+  const puedeSeguridad = can('wo.approve');
   const [nivel, setNivel] = useState(zona.criticidadProduccion || '');
   const [porQue, setPorQue] = useState(zona.porQueEsVital || '');
   const [impacto, setImpacto] = useState(zona.impactoSiSeCae || '');
@@ -336,10 +346,12 @@ function EditorZona({ zona, onCerrar, onGuardado }: {
          declara la zona una vez y se clasifican todas sus cámaras de golpe»,
          una función que no se podía hacer. Prometer en pantalla algo que no
          existe es peor que no tenerlo. */
-      await api.put(`/criticidad/zona/${zona.id}`, {
-        riesgoPersonas: riesgo === '' ? null : riesgo === 'true',
-        riesgoPersonasMotivo: riesgoMotivo,
-      });
+      if (puedeSeguridad) {
+        await api.put(`/criticidad/zona/${zona.id}`, {
+          riesgoPersonas: riesgo === '' ? null : riesgo === 'true',
+          riesgoPersonasMotivo: riesgoMotivo,
+        });
+      }
       onGuardado(`Zona «${zona.nombre}» actualizada. La prioridad de sus ${zona.activosEnLaRama || 0} equipos se recalcula sola.`);
     } catch (e: any) {
       setError(mensajeDeError(e, 'guardar'));
@@ -357,7 +369,7 @@ function EditorZona({ zona, onCerrar, onGuardado }: {
           <BotonConMotivo onClick={guardar} ocupado={guardando}
             falta={queFalta(
               [faltaMotivo, 'Explica por qué esta zona es vital: es obligatorio en ALTA y CRÍTICA.'],
-              [faltaRiesgoMotivo, 'Di qué es lo que puede herir a una persona en esta zona.'],
+              [puedeSeguridad && faltaRiesgoMotivo, 'Di qué es lo que puede herir a una persona en esta zona.'],
             )}>
             {guardando ? 'Guardando…' : 'Guardar declaración'}
           </BotonConMotivo>
@@ -426,6 +438,7 @@ function EditorZona({ zona, onCerrar, onGuardado }: {
           aquí; esto dice si aquí se puede HACER DAÑO a alguien. Y la segunda
           manda sobre la primera: una zona sin importancia productiva con paso
           de grúa es A igual. */}
+      {puedeSeguridad && (
       <Seccion titulo="Seguridad de las personas">
         <Campo
           etiqueta="¿Puede herirse alguien aquí?"
@@ -453,6 +466,7 @@ function EditorZona({ zona, onCerrar, onGuardado }: {
           </Campo>
         )}
       </Seccion>
+      )}
     </Modal>
   );
 }

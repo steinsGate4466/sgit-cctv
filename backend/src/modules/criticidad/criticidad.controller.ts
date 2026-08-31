@@ -62,8 +62,11 @@ export class CriticidadController {
   }
 
   /** El riesgo para personas de una ZONA: clasifica de golpe todo lo que cuelga. */
+  /* La zona con más razón todavía: declararla A arrastra a TODAS sus cámaras
+     de golpe. Si el equipo suelto ya exige la firma del Jefe, el que mueve
+     cuarenta a la vez no puede pedir menos. */
   @Put('zona/:id')
-  @RequirePermissions('location.manage')
+  @RequirePermissions('wo.approve')
   @AmbitoDe('location')
   declararZona(@Param('id') id: string, @Body() dto: any, @CurrentUser() user: any) {
     return this.criticidad.declararZona(id, dto, user?.userId);
@@ -85,8 +88,20 @@ export class CriticidadController {
     return this.criticidad.deUnActivo(id);
   }
 
+  /* DECIDIDO POR EL USUARIO (bloque 78): «sólo el Jefe de Mantenimiento puede
+     alterar eso y todos los demás pueden verlo».
+     -------------------------------------------------------------------------
+     ESTABA MAL Y ERA MÍO. Lo puse en `asset.update` razonando que lo declara
+     quien está delante del equipo. El dato sí es de campo; la CONSECUENCIA no:
+     marcar «hay que parar la línea» convierte esa cámara en A y pasa a
+     revisarse cada 30 días en vez de cada 90. Eso reordena el plan de
+     mantenimiento, y `asset.update` lo tienen cuatro roles — dos de ellos
+     técnicos.
+
+     Es el mismo razonamiento por el que CERRAR una orden es `wo.approve` y no
+     `wo.update`: no es la dificultad de la acción, es lo que afirma. */
   @Post(':id')
-  @RequirePermissions('asset.update')
+  @RequirePermissions('wo.approve')
   @AmbitoDe('asset')
   declarar(@Param('id') id: string, @Body() dto: any, @CurrentUser() user: any) {
     return this.criticidad.declarar(id, dto, user?.userId);

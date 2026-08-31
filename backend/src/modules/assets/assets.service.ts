@@ -199,9 +199,28 @@ export class AssetsService {
     // El tren ya NO viene de la columna Asset.train: se deduce subiendo el árbol
     // de ubicaciones. Así desaparece la posibilidad de que un activo cuelgue del
     // Tren 2 y diga TREN_1.
-    const [eff, ctx] = await Promise.all([
+    const [eff, ctx, letras] = await Promise.all([
       computeEffectiveStatuses(this.prisma, rows),
       resolverContextoDePlanta(this.prisma, rows as any),
+      /* LA LETRA A/B/C EN EL LISTADO (bloque 78).
+         -------------------------------------------------------------------
+         Decisión del usuario: la criticidad se ve «en el campo de activos y
+         donde aparezca el activo en sí». En la lista es donde de verdad
+         ordena el trabajo: se abre Activos y se ve de un vistazo qué hay que
+         revisar antes.
+
+         Se pide UNA VEZ para toda la página, no una por fila. El cálculo
+         recorre la planta entera —la letra de una cámara depende de sus
+         vecinas y la de un switch de sus cámaras—, así que hacerlo por fila
+         serían cincuenta recorridos para pintar una tabla.
+
+         Y si falla, la lista SE PINTA IGUAL, sin letra. Es un dato útil, no
+         un requisito para ver el inventario. */
+      this.criticidad.resumen().then((r: any) => {
+        const m: Record<string, any> = {};
+        for (const e of r.equipos || []) m[e.id] = e;
+        return m;
+      }).catch(() => ({} as Record<string, any>)),
     ]);
 
     const enriquecer = (a: any) => ({
@@ -214,6 +233,10 @@ export class AssetsService {
       // Porcentaje de ficha completa. Se calcula sobre lo que trae el listado,
       // así que es orientativo; el detalle exacto está en la ficha del activo.
       fichaPct: evaluarFicha(a).porcentaje,
+      // Bloque 78. `null` significa «no se pudo calcular», y la pantalla lo
+      // distingue de `SIN_CLASIFICAR`, que significa «falta declararlo».
+      criticidadAbc: letras[a.id]?.letra ?? null,
+      diasEntreRevisiones: letras[a.id]?.diasEntreRevisiones ?? null,
     });
 
     if (!sensitive) {

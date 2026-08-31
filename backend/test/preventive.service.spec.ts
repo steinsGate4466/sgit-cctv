@@ -43,9 +43,27 @@ describe('PreventiveService — generación automática de OM', () => {
           return Promise.resolve(data);
         }),
       },
+      /* BLOQUE 78. El generador ahora consulta tres cosas más para PROGRAMAR
+         de verdad —ventanas de parada, hojas de ruta y el árbol de planta— en
+         vez de crear la orden «para hoy» y ya.
+
+         Se devuelven vacías a propósito: estas pruebas fijan las reglas del
+         generador (no duplicar, sólo PREVENTIVO, reintentar el código), no la
+         programación. Esa tiene sus propias pruebas sobre la función pura
+         `programacion-preventiva.ts`, que no necesita base de datos. */
+      ventanaParada: { findMany: jest.fn().mockResolvedValue([]) },
+      hojaDeRuta: { findMany: jest.fn().mockResolvedValue([]) },
+      location: { findMany: jest.fn().mockResolvedValue([]) },
+      asset: { findMany: jest.fn().mockResolvedValue([]) },
+      processStage: { findMany: jest.fn().mockResolvedValue([]) },
     };
     const audit: any = { record: jest.fn().mockResolvedValue(undefined) };
-    return { service: new PreventiveService(prisma, audit), prisma, audit, created };
+    // La letra A/B/C: sin equipos clasificados manda el intervalo del plan.
+    const criticidad: any = { resumen: jest.fn().mockResolvedValue({ equipos: [] }) };
+    return {
+      service: new PreventiveService(prisma, audit, criticidad),
+      prisma, audit, created,
+    };
   }
 
   it('SOLO crea órdenes de tipo PREVENTIVO', async () => {

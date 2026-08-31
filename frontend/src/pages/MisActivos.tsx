@@ -42,6 +42,11 @@ import DeclararAcceso from '../components/DeclararAcceso';
  *  riesgo» — y aquí importa el doble, porque un número bajo se aprueba y el día
  *  del trabajo falta el equipo.
  */
+/* Colores de la letra A/B/C. Los mismos que en Activos, la ficha y Gestión:
+   un dato que cambia de color según dónde se mire deja de reconocerse. */
+const LETRA_FONDO: Record<string, string> = { A: '#fee2e2', B: '#ffedd5', C: '#e0e7ff' };
+const LETRA_COLOR: Record<string, string> = { A: '#991b1b', B: '#9a3412', C: '#3730a3' };
+
 export default function MisActivos() {
   const { can } = useAuth();
   const puedeDeclarar = can('asset.update');
@@ -378,6 +383,18 @@ function Fila({ a, puedeDeclarar, alDeclarar }: {
       <div className="activo-id">
         <b>{a.codigo}</b>
         {a.zonaVital && <span className="badge crit">Zona vital</span>}
+        {/* LA LETRA A/B/C (bloque 78). Va junto al código, no en una columna
+            aparte: esta pantalla es una lista de tarjetas y lo que se busca de
+            un vistazo es «¿a cuál le toca antes?». */}
+        {a.criticidadAbc && a.criticidadAbc !== 'SIN_CLASIFICAR' && (
+          <span
+            className="crit-pastilla"
+            style={{ background: LETRA_FONDO[a.criticidadAbc], color: LETRA_COLOR[a.criticidadAbc] }}
+            title={`Se revisa cada ${a.diasEntreRevisiones} días`}
+          >
+            {a.criticidadAbc}
+          </span>
+        )}
         {a.estaCaido && <span className={'badge ' + a.estado}>{etiquetaEstado(a.estado)}</span>}
       </div>
 

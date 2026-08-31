@@ -215,7 +215,21 @@ export default function AssetScan() {
             que impone su etapa del proceso. La columna a secas puede decir
             MEDIA en una cámara de colada, y eso es engañar a quien decide
             si esperar a la parada. */}
-        <Row k="Criticidad" v={a.planta?.criticidadEfectiva || a.criticality} />
+        <Row k="Criticidad de la zona" v={a.planta?.criticidadEfectiva || a.criticality} />
+        {/* CADA CUÁNTO SE REVISA ESTE EQUIPO (bloque 78).
+            Decisión del usuario: la letra se ve «donde aparezca el activo en
+            sí». Aquí es donde más sirve — el técnico está delante del equipo y
+            la pregunta «¿a éste cuándo le toca?» se hace ahí, no en una
+            pantalla de gestión a la que no entra nunca.
+
+            NO se pinta cuando no hay letra: una fila «Se revisa: —» en todos
+            los equipos es ruido que esconde a los pocos que sí la tienen. */}
+        {a.criticidadAbc?.letra && a.criticidadAbc.letra !== 'SIN_CLASIFICAR' && (
+          <Row
+            k="Se revisa"
+            v={`Cada ${a.criticidadAbc.diasEntreRevisiones} días · criticidad ${a.criticidadAbc.letra}`}
+          />
+        )}
         {can('credential.read') && <Row k="IP" v={a.ipAddress} mono />}
       </div>
 

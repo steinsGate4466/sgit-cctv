@@ -1921,3 +1921,124 @@ ahorrado tres intentos.
 Se recortó donde sobraba sabor y no información —una explicación de tres líneas
 sobre por qué Alta y Crítica exigen motivo, cuando el formulario ya lo impide y
 lo dice al pulsar—. **Subir la línea base habría sido la salida fácil y falsa.**
+
+---
+
+## 23. Bloque 78 — el ciclo del ingeniero, entero
+
+### La corrección del usuario sobre el permiso, y por qué tenía razón
+
+> «Sólo el jefe de mantenimiento pueda alterar eso y todos los demás puedan
+> verlo en el campo de activos y donde aparezca el activo en sí.»
+
+Yo había puesto `asset.update` razonando que lo declara quien está delante del
+equipo. **El DATO sí es de campo; la CONSECUENCIA no.** Marcar «hay que parar
+la línea» convierte esa cámara en A y pasa a revisarse cada 30 días en vez de
+cada 90: eso reordena el plan de mantenimiento de la planta.
+
+Y `asset.update` lo tienen CUATRO roles, dos de ellos técnicos. Se midió antes
+de responder, no de memoria.
+
+> **La regla: el permiso no lo decide la dificultad de la acción, lo decide lo
+> que la acción AFIRMA.** Es lo mismo que hace que cerrar una orden sea
+> `wo.approve` y no `wo.update`.
+
+**Cerrar la escritura no cierra la lectura.** La letra se ve ahora en la ficha,
+en la lista de Activos, en «Mis activos» y en el QR — y a quien no puede
+declararla se le dice quién sí, porque un formulario que no está y no se
+explica parece una función que falta.
+
+### El evento de falla: por qué el MTTR mentía
+
+    03:00  la cámara se apaga
+    08:00  el púlpito lo ve al entrar de turno   ← 5 h de DETECCIÓN
+    10:00  el técnico sube                        ← 2 h de ORGANIZACIÓN
+    11:00  vuelve a funcionar                     ← 1 h de REPARACIÓN
+
+El MTTR viejo —de orden abierta a orden cerrada— decía **8 horas** y le cargaba
+a mantenimiento 7 que no son suyas. `FailureEvent` separa los tres tramos, cada
+uno con su dueño.
+
+**Es una tabla APARTE de la orden**, y no unos campos más, porque una avería y
+una orden no son lo mismo: una avería puede necesitar dos órdenes, una orden
+puede no venir de ninguna avería, y una avería puede resolverse sin orden.
+
+**Y NO ES UN FORMULARIO NUEVO.** El evento nace solo al reportar la incidencia,
+`repairStartedAt` se marca con el primer avance de la orden y `restoredAt` con
+la firma de resolución. Un formulario que alguien tenga que acordarse de abrir
+no se abre, y entonces el indicador queda peor que antes: con huecos y con
+pinta de estar completo.
+
+**Lo estimado se dice.** Cuando nadie sabe la hora real de la caída se usa la
+del reporte y se marca `ocurrioEsEstimado`. Esos eventos **quedan fuera del
+tramo de detección**: con `occurredAt = detectedAt` saldría cero y diría que
+nos enteramos al instante, que es justo la mentira que el módulo viene a
+quitar.
+
+**El histórico NO se rellena.** Fabricar un evento por cada incidencia cerrada
+daría `occurredAt = reportedAt` en el 100 % de los casos. Una serie que empieza
+es honesta; una serie inventada no.
+
+### La programación: tres cosas que había que casar
+
+    CUÁNDO TOCA  ×  QUÉ HACER  ×  CUÁNDO SE PUEDE ENTRAR
+
+Faltaba la tercera, y sin ella una orden de una zona que exige tren parado
+**nacía imposible**: vencía, entraba en el backlog, hundía el cumplimiento, y
+nadie podía haberla hecho.
+
+- **El intervalo lo manda el que MÁS exige** entre la letra, el ambiente y el
+  plan. No se promedian: un promedio no lo defiende nadie. En empate gana la
+  LETRA, porque es el criterio que se puede explicar en pantalla.
+- **Lo vencido conserva su fecha original.** Reprogramarlo para hoy haría que
+  el cumplimiento dijera que va a tiempo con tres semanas de retraso. La deuda
+  se ve o no se paga.
+- **Si exige parada y no hay ventana, se genera IGUAL** y se avisa aparte. No
+  generarla la sacaría del backlog: un trabajo que nadie puede hacer tampoco lo
+  vería nadie.
+- **La orden nace con los pasos de su hoja de ruta COPIADOS**, no enlazados. Si
+  mañana cambia la hoja, las órdenes ya emitidas no pueden cambiar solas —
+  quedarían firmadas diciendo que se pidió algo que no se pidió.
+
+#### El fallo que se me escapó al escribirlo, y lo caza una prueba
+
+La ventana guarda el enum `TREN_1`; el árbol de planta da `AASA-PISCO-T1`.
+
+    'TREN_1'.includes('T1')   →   FALSO
+
+Comparar por texto —que es lo primero que sale— hacía que **ninguna orden
+encontrara su ventana**. Y no rompía nada: todas salían «esperando parada»,
+que es un resultado plausible. **Ése es el tipo de fallo que se queda meses.**
+Se compara por el NÚMERO, que es lo único que las dos formas comparten.
+
+### Cumplimiento normativo: la lista, no el porcentaje
+
+Contesta «si mañana viene una auditoría, ¿qué NO vamos a poder enseñar?». No
+mide si el trabajo se hizo —eso es el cumplimiento del preventivo—: mide si
+está **documentado** como el propio sistema exige.
+
+**Las seis reglas salen de obligaciones que este proyecto YA declaró**, cada una
+en su bloque. No se inventa ninguna: un requisito que el sistema no pide daría
+un indicador imposible de poner en verde, y eso se deja de mirar.
+
+- **Se devuelven sólo las que se INCUMPLEN.** Una lista donde el 80 % dice
+  «bien» esconde las que dicen «mal».
+- **Cada hallazgo dice DÓNDE se arregla.** Sin eso es un reproche, no una tarea.
+- **Lo peor primero por PROPORCIÓN**, no por número: cinco de cinco es más
+  grave que cincuenta de cuatrocientas.
+- **Una regla sin nadie a quien aplicarle NO cuenta como cumplida.** Contarla
+  inflaría el porcentaje con reglas que no se han probado — la forma más fácil
+  de que un indicador diga que todo va bien sin haber mirado nada.
+
+### Dos reglas de método que se repitieron
+
+**La prueba se actualiza escribiendo la decisión nueva.** `criticidad-quien-
+puede.spec.ts` fijaba `asset.update` y se cayó al cerrarlo. Se cambió a
+`wo.approve` **y se añadió que NO acepte el viejo**: un patrón que acepte los
+dos deja de fijar nada.
+
+**Cuando se abre un permiso, hay que mirar qué OTRA cosa deja de funcionar.**
+El editor de zonas tenía `zona.criticidad` y la sección de seguridad nueva
+exige `wo.approve`: sin una guarda, un Supervisor TI habría rellenado el
+formulario entero, la primera llamada saldría bien y la segunda daría 403 —
+guardado a medias con un error que no explica qué parte se guardó.

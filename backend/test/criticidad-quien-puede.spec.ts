@@ -48,8 +48,36 @@ describe('Bloque 76 — criticidad A/B/C', () => {
   });
 
   describe('Quién puede declarar y quién puede mover los números', () => {
-    it('declarar un equipo pide `asset.update` — lo dice quien está delante', () => {
-      expect(C).toMatch(/@RequirePermissions\('asset\.update'\)/);
+    it('SÓLO el Jefe de Mantenimiento altera la criticidad de un equipo', () => {
+      /* DECISIÓN DEL USUARIO EN EL BLOQUE 78, textual: «sólo el jefe de
+         mantenimiento pueda alterar eso y todos los demás puedan verlo».
+
+         Esta prueba decía `asset.update` en el bloque 77 y se cayó al cambiarlo.
+         Se actualiza ESCRIBIENDO LA DECISIÓN NUEVA, no ensanchando el patrón
+         para que acepte los dos: si aceptara los dos, dejaría de fijar nada.
+
+         Por qué se cerró: `asset.update` lo tienen cuatro roles, dos de ellos
+         técnicos. Marcar «hay que parar la línea» convierte esa cámara en A y
+         pasa a revisarse cada 30 días en vez de cada 90 — eso reordena el plan
+         de mantenimiento de la planta, y no es una edición de campo. */
+      const declarar = C.slice(C.indexOf("@Post(':id')"));
+      expect(declarar.slice(0, 200)).toContain("@RequirePermissions('wo.approve')");
+      expect(declarar.slice(0, 200)).not.toContain("'asset.update'");
+    });
+
+    it('declarar el riesgo de una ZONA también, y con más razón', () => {
+      /* Declarar una zona arrastra a TODAS sus cámaras de golpe. Si el equipo
+         suelto ya exige la firma del Jefe, el que mueve cuarenta a la vez no
+         puede pedir menos. */
+      const zona = C.slice(C.indexOf("@Put('zona/:id')"));
+      expect(zona.slice(0, 200)).toContain("@RequirePermissions('wo.approve')");
+    });
+
+    it('pero MIRARLA sigue abierta a quien tiene `activos.mirar`', () => {
+      /* Cerrar la escritura no puede cerrar la lectura. La letra se ve en la
+         ficha, en la lista, en «Mis activos» y en el QR — es la otra mitad de
+         lo que pidió el usuario. */
+      expect(C).toMatch(/@RequireAlguno\('asset\.read', 'activos\.mirar'\)/);
     });
 
     it('mover los cortes o los días pide `wo.approve`', () => {

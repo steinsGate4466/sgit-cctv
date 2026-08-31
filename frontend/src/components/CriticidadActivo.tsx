@@ -120,7 +120,14 @@ export default function CriticidadActivo({ assetId }: { assetId: string }) {
 
   const letra: string = dato.letra || 'SIN_CLASIFICAR';
   const c = COLOR[letra] || COLOR.SIN_CLASIFICAR;
-  const puedeDeclarar = can('asset.update');
+  /* SÓLO EL JEFE DE MANTENIMIENTO ALTERA LA CRITICIDAD (bloque 78).
+     Decisión del usuario, textual: «sólo el jefe de mantenimiento pueda
+     alterar eso y todos los demás puedan verlo».
+
+     La CAJA se pinta siempre, para todos. Lo que se cierra es el formulario.
+     Esconder también la letra sería el error de siempre: el dato más caro de
+     la ficha calculado y sin enseñar. */
+  const puedeDeclarar = can('wo.approve');
 
   return (
     <div
@@ -169,6 +176,13 @@ export default function CriticidadActivo({ assetId }: { assetId: string }) {
       )}
 
       {error && <div className="crit-error">{error}</div>}
+
+      {!puedeDeclarar && dato.faltaDeclarar?.length > 0 && (
+        /* Sin esto, quien ve «falta declarar el impacto» y no encuentra el
+           botón cree que el software está roto. Decir a QUIÉN pedírselo
+           convierte un callejón sin salida en una acción. */
+        <div className="crit-nota">Lo declara el Jefe de Mantenimiento.</div>
+      )}
 
       {puedeDeclarar && (
         <div className="crit-declarar">

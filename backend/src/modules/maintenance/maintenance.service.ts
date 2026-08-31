@@ -633,6 +633,26 @@ export class MaintenanceService {
         );
       }
 
+      /* EL PRIMER AVANCE MARCA EL INICIO DE LA REPARACIÓN (bloque 78).
+         ---------------------------------------------------------------------
+         Es la única señal fiable de que alguien SE PUSO a trabajar. Abrir la
+         orden no lo es: se abren órdenes que se quedan tres días esperando
+         repuesto, y contar esa espera como reparación le carga a mantenimiento
+         un tiempo que es de almacén.
+
+         `repairStartedAt: null` en el `where` hace que sólo cuente el PRIMER
+         avance. Sin eso, cada parte de avance movería la marca hacia adelante
+         y el tiempo de reparación iría encogiendo hasta ser casi cero.
+
+         Va DENTRO de la transacción: si el avance no se guarda, tampoco se
+         marca que empezó. */
+      if (wo.assetId) {
+        await tx.failureEvent.updateMany({
+          where: { assetId: wo.assetId, restoredAt: null, repairStartedAt: null },
+          data: { repairStartedAt: new Date(), workOrderId: id },
+        });
+      }
+
       await tx.workOrderProgress.create({
         data: {
           workOrderId: id,

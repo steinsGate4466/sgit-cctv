@@ -8,8 +8,15 @@ import { CamarasCaidasService } from './camaras-caidas.service';
 import { CamarasCaidasController } from './camaras-caidas.controller';
 import { ActivosPorTrenService } from './activos-por-tren.service';
 import { ActivosPorTrenController } from './activos-por-tren.controller';
+import { CriticidadModule } from '../criticidad/criticidad.module';
 
 @Module({
+  // Bloque 78. `ActivosPorTrenService` inyecta `CriticidadService` para pintar
+  // la letra A/B/C en «Mis activos». Toda clase inyectada por constructor
+  // tiene que llegar por un módulo importado, o Nest aborta AL ARRANCAR — no
+  // al compilar. Lo vigila `verificar:inyeccion` y hay una prueba que monta
+  // este módulo de verdad.
+  imports: [CriticidadModule],
   // InfraController PRIMERO: lo específico antes de lo genérico. Sus rutas
   // ('dashboard/infra/...') no chocan hoy con las del tablero ejecutivo, pero
   // el orden deja la regla escrita para quien venga después.

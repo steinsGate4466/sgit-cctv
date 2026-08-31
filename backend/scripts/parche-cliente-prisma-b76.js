@@ -55,7 +55,12 @@ const CAMPOS = [
 ];
 
 /** Los nombres que este parche introduce. Sirven para deshacerlo. */
-const NOMBRES = [...new Set(CAMPOS.map((c) => c[1])), 'parametrosCriticidad'];
+const NOMBRES = [
+  ...new Set(CAMPOS.map((c) => c[1])),
+  'parametrosCriticidad',
+  // Bloque 78: el modelo del evento de falla.
+  'failureEvent',
+];
 
 function deshacer() {
   let tocados = 0;
@@ -123,9 +128,11 @@ function aplicar() {
     }
     fs.writeFileSync(cls, src.replace(
       ancla,
-      `${ancla}\n\n  /** Bloque 76 — parche del agente, se pisa al regenerar. */\n  get parametrosCriticidad(): any;`,
+      `${ancla}\n\n  /** Bloques 76 y 78 — parche del agente, se pisa al regenerar. */`
+      + `\n  get parametrosCriticidad(): any;`
+      + `\n  get failureEvent(): any;`,
     ));
-    console.log('  [OK] class.ts · parametrosCriticidad');
+    console.log('  [OK] class.ts · parametrosCriticidad · failureEvent');
   }
 }
 

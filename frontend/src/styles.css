@@ -3849,3 +3849,42 @@ input::-webkit-datetime-edit { padding: 0; }
 }
 .crit-razon { display: block; font-size: 12px; }
 .crit-razon-falta { color: #92400e; font-weight: 600; }
+
+/* =============================================================================
+   LOS TRES TRAMOS DE UNA AVERÍA — bloque 78
+   -----------------------------------------------------------------------------
+   Cuatro cajas en fila con el mismo tamaño. Es deliberado: lo que informa no
+   es cada número, es la COMPARACIÓN entre ellos —«tardamos más en enterarnos
+   que en reparar»—, y eso sólo se ve si tienen el mismo peso visual.
+
+   El color va EN LÍNEA desde el componente porque identifica el tramo, que es
+   un dato. Tenerlo también aquí serían dos reglas para lo mismo.
+============================================================================= */
+.fi-tramos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin: 10px 0;
+}
+.fi-tramo {
+  border: 1px solid;
+  border-left-width: 4px;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fff;
+}
+.fi-et { font-size: 12px; font-weight: 600; color: var(--navy); }
+.fi-valor { font-size: 24px; font-weight: 800; line-height: 1.2; }
+.fi-dueno { font-size: 11px; color: #64748b; }
+/* La muestra SIEMPRE debajo del número. Un indicador sin su muestra se cree a
+   ciegas, y aquí la muestra puede ser de dos averías. */
+.fi-muestra { font-size: 10px; color: #94a3b8; margin-top: 2px; }
+.fi-aviso {
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  color: #92400e;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  font-size: 13px;
+}

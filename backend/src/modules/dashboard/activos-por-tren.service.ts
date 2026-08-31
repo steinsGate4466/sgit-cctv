@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CriticidadService } from '../criticidad/criticidad.service';
 import { resolverContextoDePlanta } from '../../common/plant-context';
 import { computeEffectiveStatuses } from '../../common/asset-status';
 import { alcanza, ambitoDelUsuario, noVeNada } from '../../common/ambito-usuario';
@@ -52,7 +53,11 @@ import {
  */
 @Injectable()
 export class ActivosPorTrenService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    // Bloque 78: la letra A/B/C también se ve aquí.
+    private readonly criticidad: CriticidadService,
+  ) {}
 
   /** Estados en los que el equipo no está prestando servicio. */
   private readonly CAIDO = ['FUERA_SERVICIO', 'MANTENIMIENTO', 'CON_INCIDENCIA'];
@@ -92,9 +97,20 @@ export class ActivosPorTrenService {
       orderBy: { assetCode: 'asc' },
     });
 
-    const [estados, ctx] = await Promise.all([
+    const [estados, ctx, letras] = await Promise.all([
       computeEffectiveStatuses(this.prisma, activos),
       resolverContextoDePlanta(this.prisma, activos),
+      /* Bloque 78. Una sola llamada para todo el tren: el cálculo recorre la
+         planta entera (la letra de un switch depende de sus cámaras), así que
+         pedirlo por activo serían cincuenta recorridos.
+
+         Si falla, la lista se pinta igual sin letra: es un dato útil, no un
+         requisito para ver el inventario del tren. */
+      this.criticidad.resumen().then((r: any) => {
+        const m: Record<string, any> = {};
+        for (const e of r.equipos || []) m[e.id] = e;
+        return m;
+      }).catch(() => ({} as Record<string, any>)),
     ]);
 
     const delTren = activos.filter((a) =>
@@ -153,6 +169,12 @@ export class ActivosPorTrenService {
           estado: estados[a.id] || a.status,
           estaCaido: this.CAIDO.includes(estados[a.id] || a.status),
           criticidad: ctx[a.id]?.criticidad ?? a.criticality,
+          /* LA LETRA A/B/C (bloque 78). «Mis activos» es la lista del Jefe de
+             Tren: la equivalente a Activos para quien no tiene `asset.read`.
+             Si la letra saliera en una y no en la otra, la mitad de la planta
+             no la vería nunca. */
+          criticidadAbc: letras[a.id]?.letra ?? null,
+          diasEntreRevisiones: letras[a.id]?.diasEntreRevisiones ?? null,
           zonaVital: !!ctx[a.id]?.zonaVital,
           etapa: ctx[a.id]?.etapaNombre ?? null,
           ubicacion: a.location?.name ?? null,

@@ -42,6 +42,12 @@ const TYPES = ['CAMERA', 'NVR', 'SWITCH', 'WIRELESS', 'DECODER', 'PANTALLA', 'PC
 const STATES = ['OPERATIVO', 'FUERA_SERVICIO', 'MANTENIMIENTO', 'BAJA', 'STOCK'];
 const CRITS = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
 // Tipos montados en rack: es obligatorio indicar en qué gabinete están.
+/* Los colores de la letra A/B/C (bloque 78). Mismos que en la ficha y en la
+   pantalla de Gestión: si un mismo dato se pinta de dos colores según dónde
+   se mire, deja de reconocerse de un vistazo. */
+const LETRA_FONDO: Record<string, string> = { A: '#fee2e2', B: '#ffedd5', C: '#e0e7ff' };
+const LETRA_COLOR: Record<string, string> = { A: '#991b1b', B: '#9a3412', C: '#3730a3' };
+
 const CABINET_REQUIRED = ['NVR', 'SWITCH', 'SERVER', 'DECODER', 'ROUTER', 'FIREWALL'];
 // Tipos de fotografía del activo.
 // Zona productiva de la planta a la que pertenece el activo.
@@ -703,7 +709,40 @@ export default function Assets() {
                   </td>
                 )}
                 <td><span className={'badge ' + (a.effectiveStatus || a.status)}>{sEs(a.effectiveStatus || a.status)}</span></td>
-                <td><span className={'badge ' + a.criticality}>{cEs(a.criticality)}</span></td>
+                {/* LA LETRA A/B/C VA EN LA COLUMNA QUE YA EXISTE (bloque 78).
+                    No se abre una columna nueva: la tabla tiene 11 y en la
+                    pantalla del púlpito ya hay que desplazarse de lado. Y las
+                    dos cosas contestan preguntas hermanas —cuánto importa esa
+                    zona / cada cuánto se revisa ese equipo—, así que juntas se
+                    leen mejor que separadas. */}
+                <td>
+                  <span className={'badge ' + a.criticality}>{cEs(a.criticality)}</span>
+                  {a.criticidadAbc && a.criticidadAbc !== 'SIN_CLASIFICAR' && (
+                    <span
+                      className="crit-pastilla"
+                      style={{
+                        marginLeft: 4,
+                        background: LETRA_FONDO[a.criticidadAbc],
+                        color: LETRA_COLOR[a.criticidadAbc],
+                      }}
+                      title={`Criticidad ${a.criticidadAbc}: se revisa cada ${a.diasEntreRevisiones} días`}
+                    >
+                      {a.criticidadAbc}
+                    </span>
+                  )}
+                  {a.criticidadAbc === 'SIN_CLASIFICAR' && (
+                    /* Se marca, pero con un guión y no con la palabra: en una
+                       lista de cuatrocientas filas, «sin letra» repetido es
+                       ruido que tapa a las que SÍ la tienen.
+                       El sitio para trabajarlos es Criticidad → pestaña «Sin
+                       clasificar», donde salen juntos y se pueden declarar. */
+                    <span
+                      className="muted"
+                      style={{ fontSize: 12, marginLeft: 4 }}
+                      title="Sin criticidad A/B/C. Se declara en Criticidad A/B/C."
+                    >—</span>
+                  )}
+                </td>
                 <td className="muted">{a.location?.name || '—'}</td>
                 <td style={{ whiteSpace: 'nowrap' }}>
                   {/* El informe se ofrece desde la tabla: antes solo existía

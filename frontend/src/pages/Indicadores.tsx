@@ -73,14 +73,13 @@ export default function Indicadores() {
 
   return (
     <div className="page">
+      {/* Recortado en el bloque 78 para hacer sitio a los tramos de la avería
+          y a los dos indicadores nuevos. La regla del «sin datos» no se pierde:
+          se sigue APLICANDO en cada indicador, y cada uno dice el suyo en su
+          propio aviso, que es donde de verdad hace falta leerla. */}
       <div className="card explica">
-        <b>Estos son los números que se llevan a un comité.</b> Salen de las órdenes
-        que ya se registran: no hay que cargar nada nuevo.
-        <div style={{ marginTop: 8 }}>
-          Donde no hay datos suficientes dice <b>«sin datos»</b> y no un cero. Un cero
-          se leería como «tardamos cero horas en reparar», y eso acabaría en una
-          diapositiva siendo mentira.
-        </div>
+        <b>Los números que se llevan a un comité.</b> Donde no hay muestra
+        suficiente dice <b>«sin datos»</b>, nunca cero.
       </div>
 
       <div className="filters">
@@ -128,6 +127,119 @@ export default function Indicadores() {
           aviso="Todavía no se ha cerrado ninguna rutina preventiva con fecha programada."
         />
       </div>
+
+      {/* ==========================================================
+           LOS TRES TRAMOS, CADA UNO CON SU DUEÑO — bloque 78
+           ----------------------------------------------------------
+           El MTTR de arriba mide de «orden abierta» a «orden cerrada»,
+           y eso mezcla tres cosas con tres responsables distintos.
+
+           Una cámara que se apaga a las 3 y se repara a las 11 daría
+           8 horas ahí arriba, con 7 que no son de mantenimiento: 5 de
+           enterarse y 2 de organizarse.
+
+           Se enseñan los cuatro números juntos porque separados no
+           dicen nada: lo que informa es la COMPARACIÓN entre ellos.
+           ========================================================== */}
+      {t.fiabilidad && (
+        <div className="card">
+          <div className="section-title" style={{ marginTop: 0 }}>
+            Dónde se va el tiempo cuando algo falla
+          </div>
+
+          {/* La muestra va PRIMERO. Con cuatro averías registradas ningún
+              número significa nada, y hay que poder decirlo antes de pintar
+              una cifra grande que se va a copiar a una diapositiva. */}
+          {t.fiabilidad.muestra.aviso && (
+            <div className="fi-aviso">{t.fiabilidad.muestra.aviso}</div>
+          )}
+          <p className="muted" style={{ fontSize: 12, marginTop: 0 }}>
+            {t.fiabilidad.muestra.total} avería(s) medidas
+            {t.fiabilidad.muestra.sinHoraRealDeCaida > 0
+              && ` · ${t.fiabilidad.muestra.sinHoraRealDeCaida} sin hora real de caída`}
+            {t.fiabilidad.muestra.falsasAlarmas > 0
+              && ` · ${t.fiabilidad.muestra.falsasAlarmas} falsa(s) alarma(s), descartadas`}
+          </p>
+
+          <div className="fi-tramos">
+            {[
+              { k: 'deteccion', et: 'Enterarnos', c: '#b45309' },
+              { k: 'respuesta', et: 'Llegar', c: '#7c3aed' },
+              { k: 'reparacion', et: 'Reparar', c: '#15803d' },
+              { k: 'sinServicio', et: 'Sin ver (total)', c: '#c0392b' },
+            ].map((x) => {
+              const d = (t.fiabilidad as any)[x.k];
+              return (
+                <div key={x.k} className="fi-tramo" style={{ borderColor: x.c }}>
+                  <div className="fi-et">{x.et}</div>
+                  <div className="fi-valor" style={{ color: x.c }}>
+                    {d.horas === null ? '—' : `${d.horas} h`}
+                  </div>
+                  <div className="fi-dueno">{d.dueno}</div>
+                  <div className="fi-muestra">
+                    {d.muestra === 0 ? 'sin datos' : `${d.muestra} avería(s)`}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p className="muted" style={{ fontSize: 12 }}>
+            El MTTR que le corresponde a mantenimiento es <b>Reparar</b>.
+          </p>
+        </div>
+      )}
+
+      {/* ==========================================================
+           NIVEL DE SERVICIO Y CUMPLIMIENTO — indicadores ④ y ⑤
+           ========================================================== */}
+      {t.fiabilidad && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 12, marginBottom: 14 }}>
+          <Indicador
+            titulo="Nivel de servicio"
+            valor={t.fiabilidad.nivelDeServicio.pct} unidad="%"
+            explica={t.fiabilidad.nivelDeServicio.significa}
+            aviso="Hace falta al menos una cámara en servicio para poder calcularlo."
+          />
+          <Indicador
+            titulo="Cumplimiento normativo"
+            valor={t.cumplimiento?.pct ?? null} unidad="%"
+            explica="De las reglas que el sistema exige, cuántas se cumplen. Es lo que se enseña en una auditoría."
+            aviso="Todavía no hay nada cargado a lo que aplicarle las reglas."
+          />
+        </div>
+      )}
+
+      {/* Lo que NO podríamos enseñar. Va en lista y no en un porcentaje
+          porque un «85 %» no dice qué hacer; la lista sí. */}
+      {t.cumplimiento?.hallazgos?.length > 0 && (
+        <div className="card">
+          <div className="section-title" style={{ marginTop: 0 }}>
+            Lo que no podríamos enseñar en una auditoría
+          </div>
+          <table className="tabla">
+            <thead>
+              <tr><th>Falta</th><th>Cuántos</th><th>Dónde se arregla</th></tr>
+            </thead>
+            <tbody>
+              {t.cumplimiento.hallazgos.map((h: any) => (
+                <tr key={h.regla}>
+                  <td>
+                    <b>{h.exige}</b>
+                    <div className="muted" style={{ fontSize: 11 }}>{h.porque}</div>
+                  </td>
+                  <td className="num">{h.cuantos} de {h.deTotal}</td>
+                  <td>
+                    {h.donde}
+                    <div className="muted" style={{ fontSize: 11 }}>
+                      {h.ejemplos.slice(0, 3).join(', ')}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* ==========================================================
            EL REPARTO DEL TRABAJO — bloque 65
