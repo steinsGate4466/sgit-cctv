@@ -3961,3 +3961,54 @@ input::-webkit-datetime-edit { padding: 0; }
 .zp-titulo { font-weight: 700; color: #991b1b; font-size: 13px; margin-bottom: 8px; }
 .zp-botones { display: flex; gap: 8px; flex-wrap: wrap; }
 .zp-nota { font-size: 11px; color: #991b1b; margin-top: 8px; }
+
+/* =============================================================================
+   ESTRUCTURA DE ACTIVOS — el reparto por criticidad — bloque 81
+   -----------------------------------------------------------------------------
+   Cuatro tarjetas que además FILTRAN. Es lo primero que se ve al abrir la
+   pantalla y contesta la pregunta con la que se entra: «¿qué es lo importante
+   de lo que tengo?». Una lista plana de cuatrocientas filas no la contesta.
+
+   Los colores van EN LÍNEA desde el componente porque dependen de la letra,
+   que es un dato. Aquí sólo la forma — tenerlos en los dos sitios crearía dos
+   reglas para lo mismo y una ganaría en silencio (bloque 67).
+============================================================================= */
+.ea-reparto {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+.ea-tarjeta {
+  border: 2px solid transparent;
+  border-radius: 10px;
+  padding: 12px 14px;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  transition: transform .1s, box-shadow .1s;
+}
+.ea-tarjeta:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0, 0, 0, .08); }
+/* La activa se marca con el borde en su propio color, no con otro color: si
+   cambiara de color al pulsarla habría que aprenderse dos códigos. */
+.ea-activa { border-color: currentColor; }
+.ea-num { font-size: 28px; font-weight: 800; line-height: 1.05; }
+.ea-et { font-size: 12.5px; font-weight: 600; }
+.ea-pie { font-size: 11px; opacity: .8; }
+
+.ea-aviso {
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+  color: #1e40af;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  font-size: 12.5px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}

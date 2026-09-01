@@ -17,6 +17,7 @@ import Icono from '../components/Iconos';
 import { useDialogos } from '../components/Dialogos';
 import { useOcultarAlSalir } from '../useVolverALaPantalla';
 import { fecha, plural } from '../formato';
+import { fechaTabla } from '../fechas';
 import { mensajeDeError } from '../avisos';
 
 /* LOS TIPOS QUE SE PUEDEN DAR DE ALTA — bloque 74.
@@ -46,7 +47,12 @@ const CRITS = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
    pantalla de Gestión: si un mismo dato se pinta de dos colores según dónde
    se mire, deja de reconocerse de un vistazo. */
 const LETRA_FONDO: Record<string, string> = { A: '#fee2e2', B: '#ffedd5', C: '#e0e7ff' };
+/* Las tarjetas del reparto llevan también el ámbar de «sin clasificar»: un
+   pendiente no es un error, es trabajo por hacer. El rojo se reserva para lo
+   que ya falló. */
+const LETRA_FONDO_T: Record<string, string> = { ...LETRA_FONDO, SIN_CLASIFICAR: '#fef3c7' };
 const LETRA_COLOR: Record<string, string> = { A: '#991b1b', B: '#9a3412', C: '#3730a3' };
+const LETRA_COLOR_T: Record<string, string> = { ...LETRA_COLOR, SIN_CLASIFICAR: '#92400e' };
 
 const CABINET_REQUIRED = ['NVR', 'SWITCH', 'SERVER', 'DECODER', 'ROUTER', 'FIREWALL'];
 // Tipos de fotografía del activo.
@@ -132,6 +138,14 @@ export default function Assets() {
   const [ambito, setAmbito] = useState<Ambito>(AMBITO_VACIO);
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState<any>({ total: 0, page: 1, pageSize: 50, pages: 1 });
+  /* ESTRUCTURA DE ACTIVOS (bloque 81).
+     El reparto de TODA la planta —no de la página—: es lo que se pinta en las
+     cuatro tarjetas de arriba. Un recuento por página sería un número que
+     cambia al pasar de hoja, y eso destruye la confianza en la cifra. */
+  const [reparto, setReparto] = useState<Record<string, number>>(
+    { A: 0, B: 0, C: 0, SIN_CLASIFICAR: 0 },
+  );
+  const [fLetra, setFLetra] = useState('');
   // QR del activo
   const [qrFor, setQrFor] = useState<any>(null);
   const [qrUrl, setQrUrl] = useState('');
@@ -176,11 +190,13 @@ export default function Assets() {
     if (fq.trim()) params.search = fq.trim();
     if (fType) params.type = fType;
     if (fStatus) params.status = fStatus;
+    if (fLetra) params.letra = fLetra;
     const r = await api.get('/assets', { params }).then((x) => x.data).catch(() => null);
     if (!r) return;
     setRows(r.items || []);
     setMeta({ total: r.total, page: r.page, pageSize: r.pageSize, pages: r.pages });
-  }, [page, fq, fType, fStatus, ambito]);
+    if (r.reparto) setReparto(r.reparto);
+  }, [page, fq, fType, fStatus, fLetra, ambito]);
 
   // Catálogos que no cambian con el filtro: se cargan una sola vez.
   useEffect(() => {
@@ -610,11 +626,16 @@ export default function Assets() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 className="page-title">Activos Tecnológicos</h1>
+          {/* ESTRUCTURA DE ACTIVOS (bloque 81).
+              Se llamaba «Activos Tecnológicos». En la hoja del ingeniero es el
+              paso ① y se llama «Estructura de activos» — y el nombre importa
+              porque describe lo que hay que hacer con la pantalla: no mirar
+              una lista, sino ver cómo está REPARTIDA la planta. */}
+          <h1 className="page-title">Estructura de activos</h1>
           <p className="page-sub">
             {hayFiltro
-              ? `${meta.total} activos encontrados`
-              : `${meta.total} activos · haz clic en uno para ver el detalle`}
+              ? `${meta.total} equipos encontrados`
+              : `${meta.total} equipos · pulsa uno para ver su ficha`}
             {meta.pages > 1 && ` · página ${meta.page} de ${meta.pages}`}
           </p>
         </div>
@@ -623,6 +644,55 @@ export default function Assets() {
           {can('asset.create') && <button className="btn-primary" onClick={openNew}>+ Nuevo activo</button>}
         </div>
       </div>
+      {/* ============================================================ b81
+           EL REPARTO DE LA PLANTA POR CRITICIDAD
+           --------------------------------------------------------------
+           Es lo primero que se ve, y contesta la pregunta con la que se
+           abre esta pantalla: **¿qué es lo importante de lo que tengo?**
+
+           Una lista plana de cuatrocientas filas no lo contesta. Cuatro
+           números sí, y además FILTRAN: pulsar «A» deja sólo las A.
+
+           LOS SIN CLASIFICAR NO SE ESCONDEN. Son lo único accionable de
+           las cuatro tarjetas —una letra no se «arregla», un pendiente
+           sí— y por eso van con su color de aviso, no en gris.
+           ============================================================ */}
+      <div className="ea-reparto">
+        {([
+          { k: 'A', et: 'Criticidad A', pie: 'Lo más exigente' },
+          { k: 'B', et: 'Criticidad B', pie: 'Exigencia media' },
+          { k: 'C', et: 'Criticidad C', pie: 'Puede esperar' },
+          { k: 'SIN_CLASIFICAR', et: 'Sin clasificar', pie: 'Falta declararlos' },
+        ] as const).map((x) => (
+          <button
+            key={x.k}
+            type="button"
+            className={`ea-tarjeta${fLetra === x.k ? ' ea-activa' : ''}`}
+            style={{ background: LETRA_FONDO_T[x.k], color: LETRA_COLOR_T[x.k] }}
+            aria-pressed={fLetra === x.k}
+            onClick={() => { setFLetra(fLetra === x.k ? '' : x.k); setPage(1); }}
+          >
+            <span className="ea-num">{reparto[x.k] ?? 0}</span>
+            <span className="ea-et">{x.et}</span>
+            <span className="ea-pie">{x.pie}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Filtrando por letra, el paginador cuenta lo de ESTA página y no la
+          tabla entera: la letra se recalcula en cada consulta y no se puede
+          filtrar en la base. Se dice, porque callarlo haría leer «8 de letra
+          A» creyendo que son los 8 de la planta. */}
+      {fLetra && (
+        <div className="ea-aviso">
+          Viendo sólo <b>{fLetra === 'SIN_CLASIFICAR' ? 'los pendientes' : `criticidad ${fLetra}`}</b>{' '}
+          dentro de esta página. El total de la planta es el de la tarjeta.
+          <button className="btn-mini" onClick={() => { setFLetra(''); setPage(1); }}>
+            Ver todos
+          </button>
+        </div>
+      )}
+
       {omMapeo && (
         <div style={{
           background: '#dbeafe', border: '1px solid #93c5fd', borderRadius: 8,
@@ -667,14 +737,28 @@ export default function Assets() {
       <div className="card">
         <table>
           <thead>
-            <tr><th>Código</th><th>Tipo</th><th>Ficha</th><th>Tren / Etapa</th><th>Marca / Modelo</th>{can('credential.read') && <th>IP</th>}{can('credential.read') && <th>Contraseña</th>}<th>Estado</th><th>Criticidad</th><th>Ubicación</th><th></th></tr>
+            {/* LA COLUMNA DE ACTUALIZACIÓN, Y POR QUÉ SE AGRUPÓ EL RESTO (b81).
+                --------------------------------------------------------------
+                El usuario pidió la fecha de actualización al costado. Añadirla
+                a secas dejaba la tabla en DOCE columnas, y en la pantalla del
+                púlpito (1366 px) eso obliga a desplazarse de lado para leer
+                una fila.
+
+                Así que en vez de añadir, se AGRUPA lo que va junto:
+                  · el tipo baja debajo del código
+                  · el tren y la etapa bajan debajo de la ubicación
+                Quedan las mismas once, con la fecha dentro y sin desplazar. */}
+            <tr><th>Equipo</th><th>Ficha</th><th>Marca / Modelo</th>{can('credential.read') && <th>IP</th>}{can('credential.read') && <th>Contraseña</th>}<th>Estado</th><th>Criticidad</th><th>Ubicación</th><th>Actualizado</th><th></th></tr>
           </thead>
           <tbody>
             {visibles.map((a) => (
               <tr key={a.id} style={{ cursor: 'pointer' }} onClick={() => openDetail(a.id)}>
                 {/* `dato-fijo`: un código no se parte nunca. Ver styles.css. */}
-                <td className="dato-fijo" style={{ fontWeight: 600 }}>{a.assetCode}</td>
-                <td>{tEs(a.type)}</td>
+                {/* `dato-fijo`: un código no se parte nunca. Ver styles.css. */}
+                <td className="dato-fijo">
+                  <div style={{ fontWeight: 600 }}>{a.assetCode}</div>
+                  <div className="muted" style={{ fontSize: 11 }}>{tEs(a.type)}</div>
+                </td>
                 <td style={{ minWidth: 74 }}>
                   {/* Avance de la ficha. Es lo que permite repartir el trabajo
                       de mapeo y saber cuánto falta de los 400 activos. */}
@@ -688,14 +772,6 @@ export default function Assets() {
                   <div className="muted" style={{ fontSize: 10 }}>
                     {a.fichaPct ?? 0}%{a.isDraft ? ' · incompleta' : ''}
                   </div>
-                </td>
-                <td>
-                  {a.trenNombre
-                    ? <span className="badge MEDIA">{a.trenNombre}</span>
-                    : <span className="muted" style={{ fontSize: 11 }}>Sin tren</span>}
-                  {a.etapaNombre
-                    ? <div className="muted" style={{ fontSize: 11 }}>{a.etapaNombre}</div>
-                    : <div className="muted" style={{ fontSize: 11, fontStyle: 'italic' }}>falta etapa</div>}
                 </td>
                 <td>{[a.brand, a.model].filter(Boolean).join(' ') || '—'}</td>
                 {can('credential.read') && <td className="muted dato-fijo" style={{ fontFamily: 'monospace', fontSize: 12 }}>{a.ip || '—'}</td>}
@@ -743,7 +819,27 @@ export default function Assets() {
                     >—</span>
                   )}
                 </td>
-                <td className="muted">{a.location?.name || '—'}</td>
+                <td>
+                  <div>{a.location?.name || '—'}</div>
+                  {/* El tren y la etapa BAJAN aquí: son el mismo dato —dónde
+                      está— visto de más lejos. Antes ocupaban su propia
+                      columna y dejaban la tabla en doce. */}
+                  <div className="muted" style={{ fontSize: 11 }}>
+                    {a.trenNombre || 'Sin tren'}
+                    {a.etapaNombre ? ` · ${a.etapaNombre}` : ' · falta etapa'}
+                  </div>
+                </td>
+                {/* CUÁNDO SE TOCÓ POR ÚLTIMA VEZ (bloque 81), que es lo que
+                    pidió el usuario. Sirve para lo que no se ve de otra forma:
+                    un equipo que lleva un año sin que nadie le cambie una
+                    coma probablemente tiene la ficha desactualizada.
+
+                    Va por `fechaTabla`, que da «26 ago · 00:16» en 24 horas.
+                    Todas las fechas de la aplicación pasan por ahí —lo vigila
+                    `verificar:fechas`— para que no haya tres formatos. */}
+                <td className="muted dato-fijo" style={{ fontSize: 12 }}>
+                  {a.updatedAt ? fechaTabla(a.updatedAt) : '—'}
+                </td>
                 <td style={{ whiteSpace: 'nowrap' }}>
                   {/* El informe se ofrece desde la tabla: antes solo existía
                       dentro de la ficha y nadie sabía que estaba. */}

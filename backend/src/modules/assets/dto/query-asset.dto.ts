@@ -24,4 +24,20 @@ export class QueryAssetDto {
 
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(200)
   pageSize?: number;
+
+  /* ---- ESTRUCTURA DE ACTIVOS (bloque 81) ----
+     La letra A/B/C NO es una columna: se recalcula en cada consulta a partir
+     del árbol de planta, las vecinas y el historial. Por eso el filtro NO
+     puede ir en el `where` de Prisma — se aplica DESPUÉS, sobre la página ya
+     enriquecida.
+
+     Consecuencia que hay que saber: filtrando por letra, el total y el
+     paginador se calculan sobre lo filtrado, no sobre la tabla. Se dice en
+     pantalla para que nadie lea «12 activos» pensando que son todos. */
+  @IsOptional() @IsString() letra?: string;
+
+  /* Cómo se ordena. Por defecto, POR CRITICIDAD: es la pregunta con la que se
+     abre esta pantalla —«¿qué es lo importante?»— y una lista alfabética de
+     cuatrocientas filas no la contesta. */
+  @IsOptional() @IsString() orden?: string;
 }

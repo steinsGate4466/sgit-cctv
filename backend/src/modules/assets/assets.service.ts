@@ -239,10 +239,54 @@ export class AssetsService {
       diasEntreRevisiones: letras[a.id]?.diasEntreRevisiones ?? null,
     });
 
+    /* ------------------------------------------------------------------ b81
+       ESTRUCTURA DE ACTIVOS: filtrar y ordenar POR CRITICIDAD.
+
+       La letra no es una columna —se recalcula en cada consulta— así que ni
+       el `where` ni el `orderBy` de Prisma pueden con ella. Se aplica aquí,
+       sobre la página ya enriquecida.
+
+       LO QUE ESO IMPLICA, y hay que decirlo en pantalla: filtrando por letra
+       el paginador cuenta lo filtrado DE ESTA PÁGINA, no de la tabla entera.
+       Callarlo haría que alguien leyera «8 de letra A» creyendo que son los 8
+       de la planta. Por eso el reparto REAL viaja aparte, calculado sobre
+       todo el inventario. */
+    const peso: Record<string, number> = { A: 0, SIN_CLASIFICAR: 1, B: 2, C: 3 };
+    const ordenar = (lista: any[]) => {
+      if (q.orden === 'codigo') return lista;   // el de Prisma, ya viene así
+      if (q.orden === 'actualizado') {
+        return [...lista].sort((x, y) =>
+          new Date(y.updatedAt).getTime() - new Date(x.updatedAt).getTime());
+      }
+      /* POR DEFECTO, POR CRITICIDAD. Es la pregunta con la que se abre la
+         pantalla —«¿qué es lo importante?»— y una lista alfabética de
+         cuatrocientas filas no la contesta.
+
+         Los SIN CLASIFICAR van SEGUNDOS, no al final: son lo único
+         accionable de la lista, y al final de cuatrocientas filas no los ve
+         nadie. */
+      return [...lista].sort((x, y) =>
+        (peso[x.criticidadAbc ?? 'SIN_CLASIFICAR'] ?? 4)
+        - (peso[y.criticidadAbc ?? 'SIN_CLASIFICAR'] ?? 4)
+        || String(x.assetCode).localeCompare(String(y.assetCode)));
+    };
+    const filtrar = (lista: any[]) =>
+      (q.letra ? lista.filter((x) => (x.criticidadAbc ?? 'SIN_CLASIFICAR') === q.letra) : lista);
+
+    /* EL REPARTO DE TODA LA PLANTA, no de la página. Es lo que se pinta en las
+       cuatro tarjetas de arriba, y tiene que ser el total de verdad: un
+       recuento «de esta página» sería un número que cambia al pasar de hoja. */
+    const repartoPlanta = { A: 0, B: 0, C: 0, SIN_CLASIFICAR: 0 } as Record<string, number>;
+    for (const e of Object.values(letras as Record<string, any>)) {
+      const l = e?.letra ?? 'SIN_CLASIFICAR';
+      if (l in repartoPlanta) repartoPlanta[l]++;
+    }
+
     if (!sensitive) {
       return {
         ...meta,
-        items: rows.map((a: any) => ({ ...a, ...enriquecer(a) })),
+        reparto: repartoPlanta,
+        items: ordenar(filtrar(rows.map((a: any) => ({ ...a, ...enriquecer(a) })))),
       };
     }
     // IP visible para roles con credential.read (Jefe, Supervisor TI, Técnico de Red).
@@ -253,7 +297,8 @@ export class AssetsService {
     // sola, bajo demanda, por el endpoint /credentials/:id/reveal, que queda auditado.
     return {
       ...meta,
-      items: rows.map((a: any) => {
+      reparto: repartoPlanta,
+      items: ordenar(filtrar(rows.map((a: any) => {
         const { credentials, camera, switchDev, nvr, ...rest } = a;
         const c = credentials?.[0];
         return {
@@ -263,7 +308,7 @@ export class AssetsService {
           hasPassword: !!c,
           credentialId: c?.id || null,
         };
-      }),
+      }))),
     };
   }
 

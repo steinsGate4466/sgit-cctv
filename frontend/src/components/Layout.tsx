@@ -13,7 +13,7 @@ import { MarcaSGIT } from './Ilustraciones';
 const TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard Ejecutivo',
   '/trains': 'Estado por Tren',
-  '/assets': 'Activos Tecnológicos',
+  '/assets': 'Estructura de activos',
   '/cabinets': 'Gabinetes',
   '/locations': 'Ubicaciones',
   '/access': 'Accesibilidad y Trabajo en Altura',
@@ -360,7 +360,7 @@ export default function Layout() {
         '/grabadores', '/mapa-de-red', '/ipam', '/topologia', '/monitoreo',
         '/equipos', '/rotulado', '/salud-de-datos', '/documentos'],
       items: [
-        can('asset.read') && <NavLink key="a" to="/assets"><Icono n="activos" /> Activos</NavLink>,
+        can('asset.read') && <NavLink key="a" to="/assets"><Icono n="activos" /> Estructura de activos</NavLink>,
         can('asset.read') && <NavLink key="u" to="/locations"><Icono n="ubicacion" /> Ubicaciones</NavLink>,
         can('asset.read') && <NavLink key="g" to="/cabinets"><Icono n="gabinete" /> Gabinetes</NavLink>,
         // Una instalación terminada CREA el activo: es la puerta de entrada.

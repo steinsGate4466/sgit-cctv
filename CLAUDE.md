@@ -2142,3 +2142,63 @@ Zonas— y las tres tenía razón: cada función nueva trae su párrafo explicat
 la pantalla engorda sin que se note. El arreglo fue siempre el mismo: **recortar
 donde sobra sabor, no donde hay información**. Subir la línea base no se hizo
 ni una vez.
+
+---
+
+## 25. Bloque 81 — Estructura de activos
+
+### Se llamaba «Activos Tecnológicos»
+
+En la hoja del ingeniero es el paso ① y se llama **«Estructura de activos»**. El
+nombre importa porque describe qué hay que hacer con la pantalla: no mirar una
+lista, sino ver **cómo está repartida la planta**.
+
+### El reparto por criticidad, arriba y filtrando
+
+Cuatro tarjetas —A, B, C y sin clasificar— con el recuento de **TODA la
+planta**, no de la página. Un recuento por página sería un número que cambia al
+pasar de hoja, y eso destruye la confianza en la cifra.
+
+Al pulsarlas filtran. Y **los pendientes no se esconden**: van con su color de
+aviso porque son lo único accionable de las cuatro — una letra no se «arregla»,
+un pendiente sí.
+
+### La letra no es una columna, y eso tiene consecuencias
+
+Se recalcula en cada consulta, así que **ni el `where` ni el `orderBy` de
+Prisma pueden con ella**: el filtro y el orden se aplican sobre la página ya
+enriquecida.
+
+Consecuencia: **filtrando por letra, el paginador cuenta lo de esa página**, no
+la tabla entera. Se dice en pantalla, porque callarlo haría leer «8 de letra A»
+creyendo que son los 8 de la planta. El total real viaja aparte, en `reparto`.
+
+### El orden por defecto es POR CRITICIDAD
+
+Es la pregunta con la que se abre la pantalla —«¿qué es lo importante?»— y una
+lista alfabética de cuatrocientas filas no la contesta.
+
+**Los SIN CLASIFICAR van SEGUNDOS**, justo detrás de las A. Al final de
+cuatrocientas filas no los ve nadie.
+
+### La fecha de actualización, sin romper la tabla
+
+El usuario la pidió al costado. Añadirla a secas dejaba **doce columnas**, y en
+la pantalla del púlpito (1366 px) eso obliga a desplazarse de lado para leer
+una fila.
+
+Así que en vez de añadir, **se agrupó lo que va junto**:
+
+- el tipo baja debajo del código
+- el tren y la etapa bajan debajo de la ubicación
+
+Quedan las mismas once columnas, con la fecha dentro y sin desplazamiento. La
+fecha pasa por `fechaTabla` como todas las del sistema — lo vigila
+`verificar:fechas`, para que no haya tres formatos distintos.
+
+### Sobre las dependencias
+
+El usuario pidió una rama «Dependencias» con la estructura de red. **Ya existe**
+y no hay que construirla: `De qué depende` (bloque 47) y `Mapa de red` (bloque
+48) están en «Trabajo en campo». Cuando se haga será agruparlas bajo ese
+nombre, no escribirlas de cero.
