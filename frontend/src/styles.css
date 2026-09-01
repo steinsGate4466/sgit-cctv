@@ -1931,11 +1931,36 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 @keyframes aparece { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; } }
 
 /* ---- 4. EL PULGAR: todo lo pulsable, alcanzable -------------------------
-   En planta se usa con una mano y con guante. 44 px es el mínimo cómodo. */
-.btn-mini { min-height: 34px; padding: 7px 12px; }
-.btn-primary { min-height: 42px; }
+   En planta se usa con una mano y con guante. 44 px es el mínimo cómodo.
+
+   ------------------------------------------------------------------------
+   BLOQUE 84 · «ARREGLA ESE BOTÓN Y TODOS LOS BOTONES ENCAJONADOS
+   PERFECTAMENTE» — palabras del usuario.
+
+   AQUÍ ESTABA EL FALLO, y es de una línea: `.btn-mini` medía 34 px y
+   `.btn-primary` 42. OCHO PÍXELES. En una barra de acciones donde conviven
+   los dos —la ficha del activo, la cabecera de casi todas las pantallas— eso
+   se ve como una fila de botones que no se alinean, medio encajados, medio no.
+
+   Y el comentario de arriba lleva desde el bloque 37 diciendo «44 px es el
+   mínimo cómodo» mientras el código ponía 34 en escritorio y 42 en móvil. Tres
+   números para una sola decisión.
+
+   > **UNA VARIABLE, UNA ALTURA.** Con dos números escritos a mano, el día que
+   > alguien toque uno los botones se vuelven a desalinear y nadie sabrá por
+   > qué. Lo vigila `verificar:botones-alto`, probado reintroduciendo el fallo.
+
+   38 px en escritorio: 34 quedaba por debajo de lo cómodo y 42 hace que una
+   fila de tabla con tres acciones crezca de más. En móvil sí manda el guante.
+   ------------------------------------------------------------------------ */
+:root { --alto-boton: 38px; }
+.btn-mini { min-height: var(--alto-boton); padding: 7px 12px; }
+.btn-primary { min-height: var(--alto-boton); }
 @media (max-width: 720px) {
-  .btn-mini { min-height: 42px; padding: 10px 14px; font-size: 13.5px; }
+  /* 44 y no 42: es el número que el comentario de esta sección lleva
+     declarando desde el bloque 37, y con guantes se nota. */
+  :root { --alto-boton: 44px; }
+  .btn-mini { padding: 10px 14px; font-size: 13.5px; }
   /* Las acciones de fila, apiladas y anchas: se dejan de pulsar por error. */
   .tabla td:last-child { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
   .filters { flex-direction: column; align-items: stretch; }
@@ -4062,3 +4087,76 @@ input::-webkit-datetime-edit { padding: 0; }
   font-weight: 700;
   white-space: nowrap;
 }
+
+/* ===========================================================================
+   TARJETAS DE INDICADOR — bloque 84
+   ---------------------------------------------------------------------------
+   Petición del usuario: «lo necesito más bonito, más llamativo y entendible,
+   sin muchas letras. Guíate de dashboards de internet, Power BI».
+
+   Lo que copian los tableros que funcionan no es el color: es la JERARQUÍA.
+   Título pequeño y apagado · número enorme · variación al lado. En ese orden,
+   y con esos tamaños, el ojo va al dato sin que nadie se lo indique.
+
+   La explicación larga se fue al `title` de la tarjeta (ver el componente):
+   con ocho tarjetas, ocho párrafos en gris convierten un tablero en un manual.
+=========================================================================== */
+.kpi { display: flex; flex-direction: column; gap: 2px; }
+
+.kpi-tit {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+}
+
+/* 42 px y no 38: es el único elemento de la tarjeta que se lee desde lejos, y
+   estas pantallas se miran de pie y por encima del hombro en una reunión. */
+.kpi-num {
+  font-size: 42px;
+  font-weight: 800;
+  line-height: 1.05;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.kpi-u { font-size: 17px; font-weight: 600; margin-left: 3px; }
+
+.kpi-nada { font-size: 24px; font-weight: 700; color: var(--muted); margin-top: 6px; }
+.kpi-aviso { font-size: 12px; line-height: 1.5; color: var(--muted); margin-top: 4px; }
+
+/* LA VARIACIÓN.
+   Va en pastilla y no en texto suelto porque tiene que leerse como UNA cosa
+   —flecha, número y palabra juntos—. Suelto, el ojo lee tres. */
+.kpi-delta {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 2px;
+  margin-top: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+/* VERDE = MEJOR, ROJO = PEOR, y NUNCA «verde si sube».
+   El MTTR baja y es buena noticia; la disponibilidad baja y es mala. Un
+   tablero que pinte de verde todo lo que sube enseña a leerlo al revés. El
+   veredicto lo decide el servidor, aquí sólo se pinta. */
+.kpi-mejor { background: #dcfce7; color: #15803d; }
+.kpi-peor  { background: #fee2e2; color: #b91c1c; }
+.kpi-igual { background: #f1f5f9; color: #475569; font-weight: 600; }
+/* Sin comparación: apagado a propósito. No es una noticia, es la ausencia de
+   una — y pintarlo con el mismo peso que un dato real sería mentir. */
+.kpi-sin   { background: transparent; color: #94a3b8; font-weight: 500; padding-left: 0; }
+
+.kpi-pct { font-weight: 600; opacity: .85; }
+.kpi-vs  { font-weight: 600; }
+
+.kpi-pie { font-size: 11px; color: #94a3b8; margin: 6px 0 16px; }
+
+/* El botón de descarga, alineado con los desplegables de la barra de filtros.
+   Sin esto queda pegado arriba, porque los `select` llevan su `<label>` encima
+   y el botón no. */
+.filtro-accion { display: flex; align-items: flex-end; }

@@ -26,7 +26,8 @@
     "verificar:textos": "node scripts/verificar-textos.cjs",
     "verificar:tablas": "node scripts/verificar-tablas.cjs",
     "verificar:botones": "node scripts/verificar-botones.cjs",
-    "verificar:menu": "node scripts/verificar-menu.cjs"
+    "verificar:menu": "node scripts/verificar-menu.cjs",
+    "verificar:botones-alto": "node scripts/verificar-botones-alto.cjs"
   },
   "dependencies": {
     "axios": "^1.7.7",

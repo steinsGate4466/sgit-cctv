@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
-  HORA, OrdenParaCalculo, backlog, cumplimientoPreventivo, disponibilidad, mtbf, mttr,
+  HORA, OrdenParaCalculo, backlog, comparar, cumplimientoPreventivo, disponibilidad, mtbf, mttr,
   nivelDeServicioOrdenes, peoresEquipos, repartoDeTrabajo,
 } from './calculo';
 import {
@@ -80,36 +80,19 @@ export class IndicadoresService {
       idsUbicacion = [...dentro];
     }
 
-    const where: any = { createdAt: { gte: desde } };
-    if (idsUbicacion) {
-      where.OR = [
-        { locationId: { in: idsUbicacion } },
-        { asset: { locationId: { in: idsUbicacion } } },
-      ];
-    }
+    const ordenes = await this.ordenesEntre(desde, null, idsUbicacion);
 
-    const filas = await this.prisma.workOrder.findMany({
-      where,
-      select: {
-        id: true, type: true, status: true, assetId: true,
-        createdAt: true, executedDate: true, endedAt: true, scheduledDate: true,
-      },
-    });
+    /* EL PERIODO ANTERIOR, EXACTAMENTE IGUAL DE LARGO — bloque 84.
+       -----------------------------------------------------------------------
+       Es lo que convierte «MTTR 4,2 h» en «MTTR 4,2 h, una hora mejor que el
+       trimestre pasado». El primero no dice nada a quien lo lee por primera
+       vez; el segundo se entiende sin saber qué es el MTTR.
 
-    /* CUÁNDO SE DA POR CERRADA UNA ORDEN.
-       Se prefiere `endedAt` —la hora real que puso el técnico en campo— y si
-       no la hay, `executedDate`. Sólo se considera cerrada si el ESTADO lo
-       dice: una orden con fecha de ejecución pero abierta sigue abierta, y
-       contarla cerrada mejoraría el MTTR con trabajo que no terminó. */
-    const ordenes: OrdenParaCalculo[] = filas.map((o) => ({
-      id: o.id,
-      tipo: o.type as string,
-      estado: o.status as string,
-      assetId: o.assetId,
-      creada: o.createdAt,
-      cerrada: o.status === 'CERRADA' ? (o.endedAt ?? o.executedDate ?? null) : null,
-      programada: o.scheduledDate,
-    }));
+       Se pide PEGADO al actual y de la MISMA duración: comparar 90 días
+       contra «el mes pasado» daría siempre peor al que más días tiene, y la
+       flecha mentiría en todos los casos. */
+    const antesDesde = new Date(desde.getTime() - dias * 24 * HORA);
+    const previas = await this.ordenesEntre(antesDesde, desde, idsUbicacion);
 
     const r = mttr(ordenes);
     const fallos = ordenes.filter((o) => o.tipo === 'CORRECTIVO').length;
@@ -159,6 +142,16 @@ export class IndicadoresService {
          cómo de rápido se repara; éste dice si hace falta reparar tanto. */
       reparto: repartoDeTrabajo(ordenes),
       backlog: backlog(ordenes),
+
+      /* CÓMO VAMOS RESPECTO AL PERIODO ANTERIOR — bloque 84.
+         -------------------------------------------------------------------
+         Se calcula AQUÍ y no en la pantalla, y el veredicto MEJOR/PEOR viaja
+         resuelto: si lo decidiera el frontend, dos pantallas que enseñaran el
+         mismo número podrían pintarlo de colores distintos. Y cada indicador
+         declara hacia dónde es mejor —el MTTR baja y es buena noticia; la
+         disponibilidad baja y es mala—, porque un tablero que pinte de verde
+         todo lo que sube enseña a leerlo al revés. */
+      comparativa: this.comparativa(ordenes, previas, horasDelPeriodo),
       peores: peores.map((p) => ({
         ...p,
         assetCode: porId.get(p.assetId)?.assetCode ?? '(borrado)',
@@ -182,6 +175,94 @@ export class IndicadoresService {
       fiabilidad: await this.fiabilidad(desde, horasDelPeriodo, idsUbicacion),
       /* INDICADOR ⑤ DEL INGENIERO (bloque 78). */
       cumplimiento: await this.cumplimiento(desde, idsUbicacion),
+    };
+  }
+
+  /**
+   * Las órdenes de una ventana de tiempo, ya traducidas al tipo del cálculo.
+   *
+   * Se extrajo del tablero para poder pedir DOS periodos con el mismo criterio
+   * (bloque 84). Si el periodo anterior se leyera con un `select` distinto o
+   * con otra regla de «cerrada», la comparación estaría midiendo dos cosas que
+   * no son la misma — y una flecha que compara peras con manzanas es peor que
+   * no tener flecha.
+   *
+   * `hasta = null` significa «hasta ahora».
+   */
+  private async ordenesEntre(
+    desde: Date,
+    hasta: Date | null,
+    idsUbicacion: string[] | null,
+  ): Promise<OrdenParaCalculo[]> {
+    const where: any = {
+      createdAt: hasta ? { gte: desde, lt: hasta } : { gte: desde },
+    };
+    if (idsUbicacion) {
+      where.OR = [
+        { locationId: { in: idsUbicacion } },
+        { asset: { locationId: { in: idsUbicacion } } },
+      ];
+    }
+    const filas = await this.prisma.workOrder.findMany({
+      where,
+      select: {
+        id: true, type: true, status: true, assetId: true,
+        createdAt: true, executedDate: true, endedAt: true, scheduledDate: true,
+      },
+    });
+    /* CUÁNDO SE DA POR CERRADA UNA ORDEN.
+       Se prefiere `endedAt` —la hora real que puso el técnico en campo— y si
+       no la hay, `executedDate`. Sólo se considera cerrada si el ESTADO lo
+       dice: una orden con fecha de ejecución pero abierta sigue abierta, y
+       contarla cerrada mejoraría el MTTR con trabajo que no terminó. */
+    return filas.map((o) => ({
+      id: o.id,
+      tipo: o.type as string,
+      estado: o.status as string,
+      assetId: o.assetId,
+      creada: o.createdAt,
+      cerrada: o.status === 'CERRADA' ? (o.endedAt ?? o.executedDate ?? null) : null,
+      programada: o.scheduledDate,
+    }));
+  }
+
+  /**
+   * Los cinco números del ingeniero, comparados con el periodo anterior.
+   *
+   * Sólo se comparan los CINCO de la hoja. Comparar los veinte que devuelve el
+   * tablero llenaría la pantalla de flechas y ninguna se miraría: la flecha
+   * funciona porque hay pocas.
+   */
+  private comparativa(
+    ahora: OrdenParaCalculo[],
+    antes: OrdenParaCalculo[],
+    horasDelPeriodo: number,
+  ) {
+    const mide = (os: OrdenParaCalculo[]) => {
+      const r = mttr(os);
+      const fallos = os.filter((o) => o.tipo === 'CORRECTIVO').length;
+      const entre = mtbf(fallos, horasDelPeriodo);
+      return {
+        mttr: r.horas,
+        mtbf: entre,
+        disponibilidad: disponibilidad(r.horas, entre),
+        preventivo: cumplimientoPreventivo(os).pct,
+        nivelDeServicio: nivelDeServicioOrdenes(os).pct,
+        ordenes: os.length,
+      };
+    };
+    const a = mide(ahora);
+    const b = mide(antes);
+    return {
+      /* Se dice CUÁNTAS órdenes tenía el periodo anterior. Con dos órdenes
+         detrás, una flecha verde no significa nada, y quien mira tiene
+         derecho a saberlo antes de llevarse el número a un comité. */
+      muestraAnterior: b.ordenes,
+      mttr: comparar(a.mttr, b.mttr, 'BAJAR_ES_MEJOR'),
+      mtbf: comparar(a.mtbf, b.mtbf, 'SUBIR_ES_MEJOR'),
+      disponibilidad: comparar(a.disponibilidad, b.disponibilidad, 'SUBIR_ES_MEJOR'),
+      preventivo: comparar(a.preventivo, b.preventivo, 'SUBIR_ES_MEJOR'),
+      nivelDeServicio: comparar(a.nivelDeServicio, b.nivelDeServicio, 'SUBIR_ES_MEJOR'),
     };
   }
 

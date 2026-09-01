@@ -379,9 +379,7 @@ export default function Layout() {
     {
       titulo: 'Gestión técnica',
       rutas: ['/assets', '/locations', '/cabinets', '/instalaciones', '/campanas',
-        '/mapeo', '/access', '/conexiones', '/cableado', '/electricidad',
-        '/grabadores', '/mapa-de-red', '/ipam', '/topologia', '/monitoreo',
-        '/equipos', '/rotulado', '/salud-de-datos', '/documentos'],
+        '/mapeo', '/access', '/equipos', '/rotulado', '/salud-de-datos', '/documentos'],
       items: [
         can('asset.read') && <NavLink key="a" to="/assets"><Icono n="activos" /> Estructura de activos</NavLink>,
         can('asset.read') && <NavLink key="u" to="/locations"><Icono n="ubicacion" /> Ubicaciones</NavLink>,
@@ -391,23 +389,63 @@ export default function Layout() {
         can('asset.read') && <NavLink key="cmp" to="/campanas"><Icono n="ok" /> Campañas de mapeo</NavLink>,
         can('asset.read') && <NavLink key="mp" to="/mapeo"><Icono n="mapeo" /> Avance del mapeo</NavLink>,
         can('access.read') && <NavLink key="ac" to="/access"><Icono n="acceso" /> Accesibilidad</NavLink>,
-        /* CONEXIONES. Aquí es donde vive el CABLE, y por eso está en Campo:
-           un cable no es un activo, es lo que une dos activos, y quien lo
-           declara es el técnico que lo ve (regla 1 del estándar). */
-        can('red.read') && <NavLink key="cx" to="/conexiones"><Icono n="puertos" /> Conexiones</NavLink>,
-        can('infra.read') && <NavLink key="cb" to="/cableado"><Icono n="cableado" /> Cableado</NavLink>,
-        can('infra.read') && <NavLink key="el" to="/electricidad"><Icono n="electricidad" /> Electricidad</NavLink>,
-        can('red.read') && <NavLink key="gr" to="/grabadores"><Icono n="grabador" /> Grabadores</NavLink>,
-        can('red.read') && <NavLink key="mred" to="/mapa-de-red"><Icono n="gabinete" /> Mapa de red</NavLink>,
-        can('red.read') && <NavLink key="ip" to="/ipam"><Icono n="ipam" /> Direccionamiento IP</NavLink>,
-        can('red.read') && <NavLink key="tp" to="/topologia"><Icono n="critico" /> Puntos críticos</NavLink>,
-        can('monitor.read') && <NavLink key="mo" to="/monitoreo"><Icono n="reloj" /> Monitoreo</NavLink>,
         can('asset.read') && <NavLink key="eq" to="/equipos"><Icono n="pc" /> Equipos conocidos</NavLink>,
         can('infra.read') && <NavLink key="rt" to="/rotulado"><Icono n="etiqueta" /> Rotulado</NavLink>,
         // Fichas incompletas: sin IP, sin ubicación, sin foto. Cierra la
         // sección porque habla de la CALIDAD de todo lo de arriba.
         can('asset.update') && <NavLink key="sdd" to="/salud-de-datos"><Icono n="ok" /> Salud de los datos</NavLink>,
         can('document.read') && <NavLink key="dc" to="/documentos"><Icono n="etiqueta" /> Manuales y planos</NavLink>,
+      ].filter(Boolean) as ReactNode[],
+    },
+
+    /* ========================================================== DEPENDENCIAS
+       Petición del usuario: «quiero una rama que diga dependencias, dentro de
+       esto que haya antenas, cámaras, ya sabes, estructura de red o
+       infraestructura de cómo está».
+
+       -----------------------------------------------------------------------
+       NO SE CONSTRUYE NADA NUEVO: las siete pantallas ya existían, repartidas
+       dentro de una «Gestión técnica» que tenía DIECISÉIS entradas. Ahí dentro,
+       el direccionamiento IP —que se mira una vez al mes— convivía con las
+       Instalaciones, que se rellenan en planta con guantes. Es el mismo
+       problema que el bloque 69 arregló con «Infraestructura», reaparecido.
+
+       EL CRITERIO QUE LAS UNE es uno y se puede decir en una frase:
+       **qué cuelga de qué, y qué se cae si esto se cae.**
+
+           220 V (tablero + circuito)  →  SWITCH PoE  →  cámaras · antenas · NVR
+
+       Cableado y Electricidad entran porque la corriente ES una dependencia —y
+       la primera, según `arranque-de-diagnostico.ts`: si se va una cámara, lo
+       primero que se comprueba es la corriente—. Separar «la red» de «la
+       energía» obligaría a saltar entre dos secciones para seguir UNA cadena.
+
+       -----------------------------------------------------------------------
+       «DE QUÉ DEPENDE» NO SE MUEVE AQUÍ, Y ES DELIBERADO.
+
+       Se queda en Producción porque la pregunta que contesta —«¿qué dejo de
+       ver si se cae esto?»— es de Producción, y quien la hace es el Jefe de
+       Tren, que tiene `om.mirar` y NO tiene `red.read`. Traerla aquí le
+       dejaría una sección de un solo elemento, que es exactamente lo que el
+       bloque 69 quitó: una sección de una entrada no es una sección, es una
+       línea con un título encima. */
+    {
+      titulo: 'Dependencias',
+      rutas: ['/conexiones', '/cableado', '/electricidad', '/grabadores',
+        '/mapa-de-red', '/ipam', '/topologia', '/monitoreo'],
+      items: [
+        /* CONEXIONES ABRE LA SECCIÓN. Aquí es donde vive el CABLE, y es lo que
+           declara qué está unido con qué: sin esto, todo lo demás sale como
+           cajas sueltas y parece roto (bloque 12.1). */
+        can('red.read') && <NavLink key="cx" to="/conexiones"><Icono n="puertos" /> Conexiones</NavLink>,
+        can('red.read') && <NavLink key="mred" to="/mapa-de-red"><Icono n="gabinete" /> Mapa de red</NavLink>,
+        can('red.read') && <NavLink key="tp" to="/topologia"><Icono n="critico" /> Puntos críticos</NavLink>,
+        can('red.read') && <NavLink key="gr" to="/grabadores"><Icono n="grabador" /> Grabadores</NavLink>,
+        can('red.read') && <NavLink key="ip" to="/ipam"><Icono n="ipam" /> Direccionamiento IP</NavLink>,
+        can('infra.read') && <NavLink key="cb" to="/cableado"><Icono n="cableado" /> Cableado</NavLink>,
+        can('infra.read') && <NavLink key="el" to="/electricidad"><Icono n="electricidad" /> Electricidad</NavLink>,
+        // Cierra la sección: es lo que dice si la cadena de arriba está viva.
+        can('monitor.read') && <NavLink key="mo" to="/monitoreo"><Icono n="reloj" /> Monitoreo</NavLink>,
       ].filter(Boolean) as ReactNode[],
     },
 

@@ -373,3 +373,92 @@ export function nivelDeServicioOrdenes(ordenes: OrdenParaCalculo[]): NivelDeServ
     sinPlazo,
   };
 }
+
+/* =============================================================================
+   COMPARACIÓN CON EL PERIODO ANTERIOR — bloque 84
+   -----------------------------------------------------------------------------
+   PETICIÓN DEL USUARIO: «lo necesito más bonito, más llamativo y entendible,
+   sin muchas letras. Guíate de dashboards de internet, Power BI y toda esa
+   mierda».
+
+   Lo que hace que un tablero se entienda de un vistazo no es el color: es que
+   cada número traiga AL LADO si va mejor o peor que antes. «MTTR 4,2 h» no
+   dice nada a quien lo mira por primera vez. «MTTR 4,2 h ▼ 1,1 h mejor que el
+   trimestre pasado» se entiende sin saber qué es el MTTR.
+
+   -----------------------------------------------------------------------------
+   TRES DECISIONES, Y NINGUNA ES DE ADORNO
+
+   1. **El periodo anterior es EXACTAMENTE igual de largo**, pegado al actual.
+      Comparar 90 días contra «el mes pasado» daría siempre peor el que más
+      días tiene, y la flecha mentiría en todos los casos.
+
+   2. **Cada indicador declara HACIA DÓNDE es mejor.** El MTTR baja y es una
+      buena noticia; la disponibilidad baja y es una mala. Un tablero que
+      pinte de verde todo lo que sube enseña a leerlo al revés — y ése es el
+      error que hace que un indicador acabe justificando lo contrario de lo
+      que mide.
+
+   3. **Sin dato antes, NO hay flecha.** Un mes sin órdenes daría «+100 %»
+      contra cero, que es una cifra inventada. Se dice «sin comparación» y se
+      deja el hueco: es la regla de siempre —sin datos, nunca cero—.
+============================================================================= */
+
+/** Hacia dónde tiene que moverse un número para que sea una buena noticia. */
+export type Sentido = 'SUBIR_ES_MEJOR' | 'BAJAR_ES_MEJOR';
+
+export interface Comparado {
+  /** El valor de ahora. `null` si no se pudo calcular. */
+  ahora: number | null;
+  /** El mismo valor en el periodo anterior, de igual duración. */
+  antes: number | null;
+  /** `ahora - antes`. `null` si falta alguno de los dos. */
+  delta: number | null;
+  /** Variación relativa en %, redondeada a un decimal. */
+  deltaPct: number | null;
+  /**
+   * `MEJOR` | `PEOR` | `IGUAL` | `SIN_COMPARACION`.
+   * Se calcula aquí y no en la pantalla: si lo decidiera el frontend, dos
+   * pantallas que enseñen el mismo número podrían pintarlo de colores
+   * distintos.
+   */
+  veredicto: 'MEJOR' | 'PEOR' | 'IGUAL' | 'SIN_COMPARACION';
+}
+
+/**
+ * Compara un número con el del periodo anterior.
+ *
+ * El margen de indiferencia (`epsilon`) existe porque un cambio del 0,3 % no
+ * es una mejora ni un empeoramiento: es ruido. Pintarlo con flecha haría que
+ * el tablero pareciera moverse todos los días sin que pase nada, y a la
+ * semana se deja de mirar.
+ */
+export function comparar(
+  ahora: number | null,
+  antes: number | null,
+  sentido: Sentido,
+  epsilon = 0.01,
+): Comparado {
+  if (ahora === null || antes === null) {
+    return { ahora, antes, delta: null, deltaPct: null, veredicto: 'SIN_COMPARACION' };
+  }
+  const delta = Number((ahora - antes).toFixed(2));
+  /* División por cero: si antes era 0, no hay porcentaje que valga. El valor
+     absoluto sigue estando, y la flecha se decide por el delta. */
+  const deltaPct = antes === 0
+    ? null
+    : Number((((ahora - antes) / Math.abs(antes)) * 100).toFixed(1));
+
+  /* El margen se mide en PROPORCIÓN, no en unidades: 0,1 horas sobre un MTTR
+     de 2 h importa; 0,1 puntos sobre un 99 % de disponibilidad no. Con un
+     margen fijo, el mismo umbral serviría para las dos cosas y fallaría en
+     una de las dos. */
+  const referencia = Math.max(Math.abs(antes), Math.abs(ahora), 1e-9);
+  if (Math.abs(delta) / referencia < epsilon) {
+    return { ahora, antes, delta, deltaPct, veredicto: 'IGUAL' };
+  }
+
+  const subio = delta > 0;
+  const bueno = sentido === 'SUBIR_ES_MEJOR' ? subio : !subio;
+  return { ahora, antes, delta, deltaPct, veredicto: bueno ? 'MEJOR' : 'PEOR' };
+}

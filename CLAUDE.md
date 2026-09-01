@@ -2426,3 +2426,160 @@ correcto. Corregida a buscar `.get(a.id)`, con el argumento.
 **Cuarta vez que el mismo fallo aparece con otra cara** —verificador 9, el de
 etiquetas, la prueba del bloque 82 y ésta—: *un patrón más flojo de lo
 necesario acaba leyendo otra cosa*.
+
+---
+
+## 28. Bloque 84 — el tablero que se entiende de un vistazo
+
+### La flecha, que es todo el bloque
+
+Palabras del usuario: *«lo necesito más bonito, más llamativo y entendible, sin
+muchas letras. Guíate de dashboards que hay en internet, Excels, macros, Power
+BI y toda esa mierda»*.
+
+Lo que hace que un tablero se entienda de un vistazo **no es el color: es que
+cada número traiga al lado si va mejor o peor que antes.** «MTTR 4,2 h» no dice
+nada a quien lo mira por primera vez. «4,2 h ▼ 1,1 mejor» se entiende sin saber
+qué es el MTTR.
+
+**Tres reglas de la comparación, y ninguna es de adorno:**
+
+1. **El periodo anterior es EXACTAMENTE igual de largo**, pegado al actual.
+   Comparar 90 días contra «el mes pasado» daría siempre peor al que más días
+   tiene, y la flecha mentiría en todos los casos.
+2. **Cada indicador declara HACIA DÓNDE es mejor.** El MTTR baja y es buena
+   noticia; la disponibilidad baja y es mala. Un tablero que pinte de verde
+   todo lo que sube **enseña a leerlo al revés**, y ése es el error que hace
+   que un indicador acabe justificando lo contrario de lo que mide. Hay una
+   prueba que aplica el MISMO movimiento a los dos sentidos y exige veredictos
+   opuestos.
+3. **Sin dato antes, NO hay flecha.** Un mes sin órdenes daría «+100 %» contra
+   cero, que es una cifra inventada. Es la regla de siempre: sin datos, nunca
+   un número.
+
+**Y el ruido no es una noticia.** Un cambio del 0,3 % no es una mejora ni un
+empeoramiento. Con flecha, el tablero parecería moverse todos los días sin que
+pase nada, y a la semana se deja de mirar. El margen se mide en **proporción**,
+no en unidades: 0,1 sobre un MTTR de 2 h importa; 0,1 sobre un 99 % de
+disponibilidad no.
+
+**El veredicto viaja RESUELTO desde el servidor.** Si lo decidiera cada
+pantalla, dos que enseñaran el mismo número podrían pintarlo de colores
+distintos.
+
+**Y se dice el tamaño de la muestra anterior.** Con quince órdenes detrás, una
+flecha verde no significa nada — y estos números van a un comité.
+
+### La explicación se va al tooltip
+
+Cada tarjeta llevaba su párrafo en gris debajo. Con ocho tarjetas eso son ocho
+párrafos: la pantalla se leía como un manual y el número —lo único que se mira
+en una reunión— quedaba pequeño entre texto. La explicación se conserva ENTERA
+en el `title` de la tarjeta, así que sigue estando para quien la necesite; sólo
+deja de competir con el dato.
+
+`title` en la TARJETA y no en un iconito: el objetivo es leerla pasando el
+ratón por encima, no acertándole a un símbolo de doce píxeles con guantes.
+
+### El Excel, y por qué Excel y no Power BI
+
+La planta **ya trabaja en Excel**: el ingeniero entregó sus hojas de ruta en un
+.xlsx de SAP y el comité se prepara pegando tablas en un correo. Un `.pbix`
+exigiría licencia, y **Power BI abre un .xlsx sin problema** — el Excel sirve
+para los dos caminos y el .pbix sólo para uno.
+
+Cinco hojas: Resumen (con la comparación dentro), Reparto, Backlog, Equipos que
+más fallan y Cumplimiento normativo.
+
+- **No recalcula NADA.** Pide el mismo `tablero()` que la pantalla, con los
+  mismos parámetros. Si tuviera su propio cálculo, un día el número de la
+  pantalla y el del archivo dejarían de coincidir y el ingeniero llevaría al
+  comité el que no toca sin saberlo.
+- **`null` se escribe «sin datos», nunca 0.** Un cero en una celda de Excel se
+  suma, se promedia y acaba en un gráfico diciendo que la disponibilidad fue
+  del 0 %.
+- **El mismo permiso que la pantalla** (`dashboard.read`): el archivo enseña lo
+  que la pantalla ya enseña. Y `RITMO_PESADO`, porque el libro se arma entero
+  en memoria — mismo motivo que el hallazgo S-03.
+
+**Probado de verdad**, armando el libro con datos y volviéndolo a leer con
+ExcelJS. No basta con que compile: un `addRow` con la clave equivocada escribe
+celdas vacías y pasa el typecheck.
+
+### La rama Dependencias
+
+Petición del usuario. **No se construyó nada nuevo**: las ocho pantallas ya
+existían, repartidas dentro de una «Gestión técnica» que tenía DIECISÉIS
+entradas — el direccionamiento IP, que se mira una vez al mes, conviviendo con
+las Instalaciones, que se rellenan en planta con guantes. Es el mismo problema
+que el bloque 69 arregló con «Infraestructura», reaparecido por acumulación.
+
+El criterio que las une cabe en una frase: **qué cuelga de qué, y qué se cae si
+esto se cae.** Cableado y Electricidad entran porque la corriente ES una
+dependencia —y la primera que se comprueba, según `arranque-de-diagnostico.ts`—;
+separar «la red» de «la energía» obligaría a saltar entre dos secciones para
+seguir UNA cadena.
+
+**«De qué depende» NO se movió aquí, y es deliberado.** Se queda en Producción
+porque la pregunta que contesta —«¿qué dejo de ver si se cae esto?»— es de
+Producción, y quien la hace es el Jefe de Tren, que tiene `om.mirar` y no
+`red.read`. Traerla aquí le dejaría una sección de un solo elemento, que es
+justo lo que el bloque 69 quitó.
+
+### Los botones encajonados — ocho píxeles
+
+Palabras del usuario: *«arregla ese botón y todos los botones encajonados
+perfectamente»*. El fallo era de una línea:
+
+    .btn-mini    { min-height: 34px; }
+    .btn-primary { min-height: 42px; }
+
+En cualquier barra donde convivan los dos —la ficha del activo, la cabecera de
+casi todas las pantallas— eso se ve como una fila que no cuadra. Y el
+comentario de esa sección llevaba desde el bloque 37 diciendo «44 px es el
+mínimo cómodo» mientras el código ponía 34 en escritorio y 42 en móvil: **tres
+números para una sola decisión.**
+
+**Una variable, una altura.** `--alto-boton`, 38 px en escritorio y 44 en móvil
+—que es el número que el propio comentario llevaba declarando—.
+
+#### Verificador 16, y las DOS veces que me cazó a mí mismo
+
+`verificar:botones-alto` exige que las familias declaren su altura con
+`var(--alto-boton)` y no con un número a mano.
+
+**Primera versión, primer fallo:** buscaba `--alto-boton:` en cualquier parte
+del archivo. Al borrar la declaración de escritorio, la del bloque móvil seguía
+ahí y **daba VERDE** — mientras en escritorio el `var()` no resolvía y los
+botones se quedaban sin altura mínima. Verde justo en el caso peor.
+
+**Segundo fallo, al arreglar el primero:** conté la profundidad de llaves pero
+admití `<= 1`, y dentro de una `@media` la profundidad al empezar la línea vale
+exactamente 1. Seguía pasando. Con `=== 0` ya lo caza.
+
+> **Dos veces seguidas el mismo error: ser más permisivo de lo necesario.** Es
+> el que lleva apareciendo desde el verificador 9, y aquí además convertía el
+> verificador en una mentira — que es peor que no tenerlo.
+
+Probado con los tres casos: altura a mano en cada familia, y variable fuera de
+sitio.
+
+### `verificar:densidad` tenía DOS fallos, uno en cada dirección
+
+Me marcó **once tarjetas de indicador donde hay una**. El patrón era `\bkpi\b`,
+y `\b` casa también con el guion: contaba `kpi-num`, `kpi-tit`, `kpi-delta`…
+como si cada una fuera una tarjeta.
+
+Y tenía el fallo simétrico, que es el que de verdad importaba: el trozo
+`[^"'}]*` no puede cruzar una comilla, así que `className={'kpi ' + cls}` —la
+forma que usan Bandeja, Dashboard, Inventario y cuatro más— **no se contaba
+nunca**. O sea: contaba de más donde no había e ignoraba justo las pantallas
+que sí acumulan tarjetas.
+
+Corregido, Bandeja pasa de 0 a 1 y Zonas de 2 a 3 —las que se ignoraban— y
+desaparecen los prefijos.
+
+**Lo de las palabras sí era mío**, y se recortó donde sobraba sabor: se fue la
+frase «los números que se llevan a un comité», que es una declaración de
+intenciones; se quedó la regla del «sin datos», que explica algo que se ve en
+pantalla. **Subir la línea base no se hizo.**

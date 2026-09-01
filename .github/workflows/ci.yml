@@ -315,6 +315,14 @@ jobs:
         working-directory: frontend
         run: npm run verificar:botones
 
+      # `.btn-mini` media 34 px y `.btn-primary` 42. Ocho pixeles: en cualquier
+      # barra donde convivan los dos, la fila se ve encajonada. No lo ve el
+      # compilador ni las pruebas; se ve ABRIENDO la pantalla, que es como lo
+      # encontro el usuario. Ahora la altura sale de una sola variable.
+      - name: Los botones se alinean entre si
+        working-directory: frontend
+        run: npm run verificar:botones-alto
+
       # Una pantalla sin entrada en el menu NO EXISTE para el usuario: la ruta
       # funciona y no hay forma de llegar. Al reagrupar 44 entradas por oficio
       # (bloque 69) es justo el fallo que se comete y que no rompe nada.

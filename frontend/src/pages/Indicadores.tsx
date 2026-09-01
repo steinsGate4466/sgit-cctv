@@ -5,6 +5,9 @@ import {
 } from 'recharts';
 import { api } from '../api/client';
 import { EsqueletoTablero } from '../components/Esqueleto';
+import Icono from '../components/Iconos';
+import { useDialogos } from '../components/Dialogos';
+import { mensajeDeError } from '../avisos';
 
 /**
  * INDICADORES DE GESTIÓN
@@ -21,27 +24,74 @@ import { EsqueletoTablero } from '../components/Esqueleto';
  * reparar», y eso acaba en una diapositiva siendo mentira.
  */
 
-/** Un número grande con su explicación debajo. Sin datos, lo dice. */
-function Indicador({ valor, unidad, titulo, explica, aviso, color }: {
+/* =============================================================================
+   LA FLECHA CONTRA EL PERIODO ANTERIOR — bloque 84
+   -----------------------------------------------------------------------------
+   Petición del usuario: «lo necesito más bonito, más llamativo y entendible,
+   sin muchas letras. Guíate de dashboards de internet, Power BI y toda esa
+   mierda».
+
+   Lo que hace que un tablero se entienda de un vistazo no es el color: es que
+   cada número traiga al lado si va MEJOR o PEOR que antes. «MTTR 4,2 h» no
+   dice nada a quien lo mira por primera vez. «4,2 h ▼ 1,1 mejor» sí.
+
+   EL VEREDICTO VIENE DEL SERVIDOR, no se decide aquí. El MTTR baja y es buena
+   noticia; la disponibilidad baja y es mala. Si lo decidiera cada pantalla,
+   dos que enseñaran el mismo número podrían pintarlo de colores distintos.
+============================================================================= */
+function Delta({ c }: { c?: any }) {
+  if (!c || c.veredicto === 'SIN_COMPARACION') {
+    /* NO se pinta nada. Un «—» o un «0 %» donde no hay comparación se lee como
+       «no ha cambiado», que es otra cosa muy distinta de «no lo sé». */
+    return <div className="kpi-delta kpi-sin">sin comparación</div>;
+  }
+  if (c.veredicto === 'IGUAL') {
+    return <div className="kpi-delta kpi-igual">= sin cambios</div>;
+  }
+  const subio = c.delta > 0;
+  return (
+    <div className={'kpi-delta ' + (c.veredicto === 'MEJOR' ? 'kpi-mejor' : 'kpi-peor')}>
+      <span aria-hidden="true">{subio ? '▲' : '▼'}</span>
+      {' '}{Math.abs(c.delta)}
+      {c.deltaPct !== null && <span className="kpi-pct"> ({Math.abs(c.deltaPct)} %)</span>}
+      <span className="kpi-vs">{c.veredicto === 'MEJOR' ? ' mejor' : ' peor'}</span>
+    </div>
+  );
+}
+
+/**
+ * Un número grande, su variación y poco más.
+ *
+ * LA EXPLICACIÓN SE VA AL TOOLTIP. Antes iba debajo en gris, y con ocho
+ * tarjetas eso son ocho párrafos: la pantalla se leía como un manual y el
+ * número —que es lo único que se mira en un comité— quedaba pequeño entre
+ * texto. Se conserva entera en `title`, así que sigue estando para quien la
+ * necesite; sólo deja de competir con el dato.
+ *
+ * `title` en el CONTENEDOR y no en un iconito: el objetivo es que se lea
+ * pasando el ratón por encima de la tarjeta, no acertándole a un símbolo de
+ * doce píxeles con guantes.
+ */
+function Indicador({ valor, unidad, titulo, explica, aviso, color, comp }: {
   valor: number | null; unidad?: string; titulo: string;
-  explica: string; aviso?: string | null; color?: string;
+  explica: string; aviso?: string | null; color?: string; comp?: any;
 }) {
   return (
-    <div className="card" style={{ margin: 0 }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: '#46536b', textTransform: 'uppercase', letterSpacing: .6 }}>
-        {titulo}
-      </div>
+    <div className="card kpi" style={{ margin: 0 }} title={explica}>
+      <div className="kpi-tit">{titulo}</div>
       {valor === null ? (
         <>
-          <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--muted)', marginTop: 6 }}>Sin datos</div>
-          {aviso && <div className="muted" style={{ fontSize: 12, lineHeight: 1.5, marginTop: 4 }}>{aviso}</div>}
+          <div className="kpi-nada">Sin datos</div>
+          {aviso && <div className="kpi-aviso">{aviso}</div>}
         </>
       ) : (
-        <div style={{ fontSize: 38, fontWeight: 800, color: color || 'var(--navy)', lineHeight: 1.1, marginTop: 4 }}>
-          {valor}<span style={{ fontSize: 17, fontWeight: 600, marginLeft: 3 }}>{unidad}</span>
-        </div>
+        <>
+          <div className="kpi-num" style={{ color: color || 'var(--navy)' }}>
+            {valor}<span className="kpi-u">{unidad}</span>
+          </div>
+          <Delta c={comp} />
+        </>
       )}
-      <div className="muted" style={{ fontSize: 12, lineHeight: 1.5, marginTop: 6 }}>{explica}</div>
     </div>
   );
 }
@@ -62,6 +112,7 @@ const META = { correctivo: 20, preventivo: 80 };
 
 export default function Indicadores() {
   const nav = useNavigate();
+  const { avisar } = useDialogos();
   const [dias, setDias] = useState(90);
   const [tren, setTren] = useState('');
   const [t, setT] = useState<any>(null);
@@ -77,6 +128,39 @@ export default function Indicadores() {
   }, []);
 
   useEffect(() => { setCargando(true); cargar(dias, tren).finally(() => setCargando(false)); }, [dias, tren, cargar]);
+
+  /* DESCARGA EN EXCEL — bloque 84.
+     ---------------------------------------------------------------------------
+     SE AVISA SI FALLA, y no es una formalidad: el archivo tarda unos segundos
+     en armarse, así que si algo va mal el usuario está mirando una pantalla
+     que no cambia. Sin aviso, la conclusión es que el botón no hace nada — el
+     bug número 3 del bloque 64, otra vez.
+
+     Y el botón se APAGA mientras baja, que es el único caso en que apagar un
+     botón está bien (bloque 67): la razón es evidente y dura un segundo. */
+  const [bajando, setBajando] = useState(false);
+  async function descargar() {
+    setBajando(true);
+    try {
+      const r = await api.get('/indicadores/excel', {
+        params: { dias, tren: tren || undefined },
+        responseType: 'blob',
+      });
+      const nombre =
+        /filename="?([^";]+)"?/.exec(r.headers['content-disposition'] || '')?.[1]
+        || 'sgit_indicadores.xlsx';
+      const url = URL.createObjectURL(r.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = nombre;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      await avisar(mensajeDeError(e, 'preparar el Excel de indicadores'));
+    } finally {
+      setBajando(false);
+    }
+  }
 
   /* Verde a partir del 90, ámbar del 75, rojo por debajo. Los mismos cortes
      que el cumplimiento del preventivo: dos indicadores hermanos con escalas
@@ -101,9 +185,17 @@ export default function Indicadores() {
           y a los dos indicadores nuevos. La regla del «sin datos» no se pierde:
           se sigue APLICANDO en cada indicador, y cada uno dice el suyo en su
           propio aviso, que es donde de verdad hace falta leerla. */}
+      {/* RECORTADO EN EL BLOQUE 84, y el verificador de densidad tenía razón:
+          la sección nueva de comparación subió la pantalla a 175 palabras con
+          tope 174. Se recorta donde sobra SABOR, no donde hay información —
+          subir la línea base es la salida fácil y falsa.
+
+          Lo que se va: la frase de «los números que se llevan a un comité»,
+          que es una declaración de intenciones, no un dato. Lo que se queda:
+          la regla del «sin datos», porque explica algo que se ve en pantalla
+          y sin ella un hueco parece un fallo. */}
       <div className="card explica">
-        <b>Los números que se llevan a un comité.</b> Donde no hay muestra
-        suficiente dice <b>«sin datos»</b>, nunca cero.
+        Donde no hay muestra suficiente dice <b>«sin datos»</b>, nunca cero.
       </div>
 
       <div className="filters">
@@ -121,6 +213,21 @@ export default function Indicadores() {
             {['T1', 'T2', 'T3'].map((x) => <option key={x} value={x}>{x}</option>)}
           </select>
           </label></div>
+        {/* DESCARGA EN EXCEL — bloque 84.
+            Petición del usuario. Se eligió Excel y no Power BI porque la planta
+            ya trabaja en Excel —el ingeniero entregó sus hojas de ruta en un
+            .xlsx de SAP— y porque Power BI abre un .xlsx sin problema: el Excel
+            sirve para los dos caminos, el .pbix sólo para uno.
+
+            Se lleva EL MISMO periodo y el mismo tren que hay en pantalla. Un
+            botón que descargue otra cosa distinta de lo que se está mirando es
+            la forma más rápida de llevar al comité el número que no toca. */}
+        <div className="filtro-accion">
+          <button className="btn-primary" onClick={descargar} disabled={bajando}>
+            <Icono n="exportar" size={14} />
+            {bajando ? ' Preparando…' : ' Descargar en Excel'}
+          </button>
+        </div>
       </div>
 
       {/* ==========================================================
@@ -154,6 +261,7 @@ export default function Indicadores() {
           titulo="Cumplimiento del MP"
           valor={t.preventivo.pct} unidad="%"
           color={cumpColor}
+          comp={t.comparativa?.preventivo}
           explica="Rutinas preventivas cerradas ANTES de su fecha."
           aviso="Todavía no se ha cerrado ninguna rutina con fecha programada."
         />
@@ -161,6 +269,7 @@ export default function Indicadores() {
           titulo="Nivel de servicio"
           valor={t.nivelDeServicio?.pct ?? null} unidad="%"
           color={nsColor}
+          comp={t.comparativa?.nivelDeServicio}
           explica="De las órdenes con plazo, cuántas se atendieron dentro de él."
           aviso="Todavía no hay órdenes con fecha programada que juzgar."
         />
@@ -177,12 +286,14 @@ export default function Indicadores() {
         <Indicador
           titulo="MTTR · tiempo de reparación"
           valor={t.mttr.horas} unidad="h"
+          comp={t.comparativa?.mttr}
           explica={t.mttr.significa}
           aviso="Todavía no hay ninguna orden correctiva cerrada en el periodo."
         />
         <Indicador
           titulo="MTBF · entre averías"
           valor={t.mtbf.horas} unidad="h"
+          comp={t.comparativa?.mtbf}
           explica={t.mtbf.significa}
           aviso={t.mtbf.sinDatos}
         />
@@ -190,10 +301,22 @@ export default function Indicadores() {
           titulo="Disponibilidad"
           valor={t.disponibilidad.pct} unidad="%"
           color={dispColor}
+          comp={t.comparativa?.disponibilidad}
           explica={t.disponibilidad.significa}
           aviso="Hace falta el MTTR y el MTBF para poder calcularla."
         />
       </div>
+
+      {/* EL TAMAÑO DE LA MUESTRA ANTERIOR, DICHO.
+          Con quince órdenes detrás una flecha verde no significa nada, y estos
+          números van a un comité. Callarlo convertiría el ruido de dos meses
+          flojos en una conclusión. */}
+      {t.comparativa && (
+        <p className="kpi-pie">
+          Las flechas comparan con los {dias} días anteriores
+          ({t.comparativa.muestraAnterior} órdenes).
+        </p>
+      )}
 
       {/* ==========================================================
            NIVEL DE SERVICIO — indicador ④ del ingeniero (bloque 79)

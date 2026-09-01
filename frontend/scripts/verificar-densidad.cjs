@@ -182,8 +182,29 @@ for (const f of fs.readdirSync(PAGINAS).filter((x) => x.endsWith('.tsx'))) {
     ...(cuerpo.match(/<thead>[\s\S]*?<\/thead>/g) || []).map((b) => (b.match(/<th\b/g) || []).length),
   );
 
-  /* Tarjetas de indicador: `className="kpi ..."` y el componente <Kpi>. */
-  const indicadores = (cuerpo.match(/className=["'{][^"'}]*\bkpi\b/g) || []).length
+  /* TARJETAS DE INDICADOR: `className="kpi ..."` y el componente <Kpi>.
+     ---------------------------------------------------------------------------
+     FALSO POSITIVO CORREGIDO EN EL BLOQUE 84, y me lo encontré de frente.
+
+     El patrón era `\bkpi\b`, y `\b` casa también con el guion: contaba
+     `kpi-num`, `kpi-tit`, `kpi-delta`… como si cada una fuera una tarjeta.
+     Al dar estilo propio a las tarjetas de Indicadores, la pantalla pasó a
+     declarar ONCE tarjetas donde hay UNA. Un verificador que informa de once
+     cuando hay una no se corrige: se ignora.
+
+     Y tenía el fallo simétrico, que es el que de verdad importaba: el trozo
+     `[^"'}]*` no puede cruzar una comilla, así que `className={'kpi ' + cls}`
+     —la forma que usan Bandeja, Dashboard, Inventario y cuatro más— NUNCA se
+     contaba. Es decir: contaba de más donde no había e ignoraba justo las
+     pantallas que sí acumulan tarjetas.
+
+     Ahora:
+       · `(?![\w-])` exige que `kpi` sea la clase ENTERA, no un prefijo;
+       · `\{?["']` permite entrar en la comilla de una concatenación.
+
+     Comprobado contra las 51 pantallas: Bandeja pasa de 0 a 1 y Zonas de 2 a
+     3 —las que se ignoraban—, y desaparecen los prefijos. */
+  const indicadores = (cuerpo.match(/className=\{?["'][^"']*\bkpi(?![\w-])/g) || []).length
     + (cuerpo.match(/<Kpi\b/g) || []).length;
 
   const exenta = EXENTAS[f];
