@@ -6,7 +6,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { StorageService } from '../storage/storage.service';
 import { CriticidadService } from '../criticidad/criticidad.service';
-import { computeEffectiveStatuses, computeEffectiveStatus } from '../../common/asset-status';
+import { computeEffectiveStatuses, computeEffectiveStatus, motivoDelEstado } from '../../common/asset-status';
 import { resolverContextoDePlanta } from '../../common/plant-context';
 import { evaluarFicha, resumenPendiente } from '../../common/asset-completeness';
 import { filtroDeUbicaciones } from '../../common/ambito-planta';
@@ -513,11 +513,19 @@ export class AssetsService {
     }
     // Estado operativo derivado (F5) y contexto de planta derivado (F8),
     // para que la ficha sea coherente con las OM/incidencias y con el árbol.
-    const [effStatus, ctx] = await Promise.all([
+    const [effStatus, motivo, ctx] = await Promise.all([
       computeEffectiveStatus(this.prisma, asset),
+      motivoDelEstado(this.prisma, asset),
       resolverContextoDePlanta(this.prisma, [asset]),
     ]);
     asset.effectiveStatus = effStatus;
+    /* POR QUÉ ESTÁ ASÍ (bloque 83). El usuario lo reportó como un bug: pone el
+       equipo en OPERATIVO, recarga y sigue diciendo «En mantenimiento».
+       El cálculo era correcto —una orden abierta lo retiene—, pero no lo
+       explicaba nadie, y un cálculo correcto que no se explica es
+       indistinguible de un fallo. Viaja con el estado, no en otro endpoint:
+       separarlos garantizaría que alguien pinte uno sin el otro. */
+    asset.porQueEseEstado = motivo;
 
     const c = ctx[asset.id];
     asset.planta = {

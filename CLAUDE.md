@@ -2312,3 +2312,117 @@ la ventana se comía el SIGUIENTE, que sí lleva `active: false`. La prueba de
 
 **Tercera vez que el mismo fallo aparece con otra cara.** Se acota al método
 buscando el siguiente `async`, no a un número de caracteres.
+
+---
+
+## 27. Bloque 83 — lo que yo mismo había roto
+
+### 83-A · Producción podía abrir una orden y no podía ver NINGUNA
+
+Palabras del usuario: *«con el apartado de Producción ellos SÍ deben ver cierta
+parte de gestión para poder enviar las OM o incidencias»*.
+
+Y tenía razón contra el código, **y el código lo había escrito yo en el bloque
+80**. Allí cerré la gestión entera con `wo.read` para sacar a Producción de los
+indicadores del ingeniero —eso estaba bien— y de paso me llevé por delante la
+lista de órdenes y las ventanas de parada.
+
+Resultado: el Jefe de Tren tenía `wo.create`, abría una orden desde el QR, y
+**no podía verla nunca más**. Pedir un trabajo y no poder comprobar jamás si
+alguien lo cogió es exactamente cómo se deja de usar un sistema y se vuelve a
+la radio.
+
+**Es la TERCERA vez que aparece el mismo patrón** —el QR del bloque 68, el QR
+imprimible del 77 y ahora esto—, y las tres veces la causa fue idéntica:
+
+> **Cerrar un permiso sin preguntarse QUÉ DEJA DE FUNCIONAR.** Cambiar un
+> agujero de seguridad por una función muerta no es un arreglo, y la función
+> muerta tarda meses en verse porque no rompe nada: devuelve 403 y la pantalla
+> sale vacía.
+
+#### Lo que se reabre, y lo que NO
+
+    LEER órdenes y paradas   wo.read  O  om.mirar      ← se reabre
+    ESCRIBIR una orden       wo.update                  ← no se movió
+    CERRAR una orden         wo.approve                 ← no se movió
+    APUNTAR / MOVER parada   wo.update                  ← no se movió
+
+`om.mirar` significa «supervisa el mantenimiento de su tren» (bloque 68, regla
+1). Ni un nombre de rol. Y **`wo.read` sigue cerrado**: es lo que abre el
+Dashboard del ingeniero, los Indicadores y Exportar, que es de lo que el bloque
+80 les sacó con razón.
+
+#### Las CUATRO lecturas de paradas, no tres
+
+La pantalla llama a `/paradas`, `/paradas/proximas`, `/paradas/fiabilidad` y
+`/paradas/:id`. Abrir tres de cuatro deja un bloque en blanco que parece un
+fallo del software. **Media puerta es peor que ninguna.** Hay una prueba que
+recorre las cuatro, y se comprobó cerrando `fiabilidad` a propósito: se cae.
+
+`fiabilidad` no es un indicador de mantenimiento: mide cuánto se MUEVEN las
+ventanas respecto a lo anunciado. Es la desviación de Producción sobre su
+propio aviso, así que si es de alguien, es suya.
+
+**El Operador de Púlpito no gana nada.** Su perfil es el más estrecho a
+propósito: mira un monitor y avisa. Hay una prueba que lo fija.
+
+### 83-B · El estado que «no se actualizaba» no era un bug
+
+El usuario lo reportó así: *«eso del estado es grave, ¿cómo es que funciona esa
+lógica si aquí se supone que se actualizó?»*.
+
+El estado se DERIVA desde el bloque F5, y **una orden abierta lo fija en
+MANTENIMIENTO por diseño**: el equipo puede estar reparado, pero mientras la
+orden siga abierta el sistema dice —con razón— que hay trabajo en curso.
+
+El fallo era otro, y es el de siempre en este archivo con otra cara:
+
+> **Un cálculo correcto que no se explica es indistinguible de un fallo.**
+
+El técnico ponía el activo en OPERATIVO, recargaba, seguía leyendo «En
+mantenimiento», y lo único que había en pantalla era un gris de nota al pie que
+decía «calculado en vivo desde sus OM/incidencias abiertas». No decía CUÁL. Con
+eso, la conclusión razonable es que el software no guarda.
+
+**No se tocó el cálculo. Se dice quién lo retiene, con su código y su enlace**,
+para poder ir a cerrarla. `porQueEseEstado` viaja DENTRO de la ficha, no en un
+endpoint aparte: separarlos garantizaría que algún día alguien pinte el estado
+sin el motivo.
+
+#### Tres decisiones del motivo
+
+- **Mismo orden de precedencia que el estado**, no uno propio. BAJA/STOCK →
+  ORDEN → INCIDENCIA. Dos criterios paralelos acaban discrepando, y una
+  pantalla que enseña un estado y al lado un motivo que no le corresponde es
+  peor que no enseñar el motivo: el usuario ya no sabe cuál creerse.
+- **La orden MÁS ANTIGUA**, no la más reciente. Si un equipo arrastra dos
+  abiertas, la vieja es la que lleva semanas falseando el estado.
+- **Entre incidencias gana la de MAYOR prioridad.** Con la primera a secas, un
+  equipo con una avería crítica y una menor anterior explicaría su
+  FUERA_SERVICIO citando la menor — el motivo diría lo contrario que el estado.
+- **Ámbar, no rojo.** No es un error, es una explicación. El rojo se reserva
+  para lo que ya falló (misma decisión que los botones del bloque 67).
+
+### 83-C · «Trabajo en campo» pasa a llamarse «Gestión técnica»
+
+Decisión del usuario. El nombre viejo describía DÓNDE se está; el nuevo
+describe QUÉ se hace. Y dentro no sólo se rellena con guantes: también se
+consulta la red, la energía y la calidad de las fichas, que es trabajo de mesa.
+«Campo» dejaba fuera la mitad de lo que hay en la sección.
+
+### Del método
+
+**Un tropiezo de los de siempre:** escribí `orderBy: { createdAt: 'asc' }` para
+las incidencias. **`Incident` no tiene `createdAt`, tiene `reportedAt`.** Lo
+cazó el typecheck. Es el mismo error del `name` del bloque 6 y del
+`environment` del 16.2: dar por hecho que un modelo tiene un campo porque el de
+al lado lo tiene.
+
+**Y una prueba mía me falló por la misma causa de siempre:** buscaba
+`porIncidencia.get` y encontraba la del bucle que ARMA el mapa, no la del bucle
+de precedencia. Salía antes que la orden y la prueba fallaba señalando código
+correcto. Corregida a buscar `.get(a.id)`, con el argumento.
+
+**Cuarta vez que el mismo fallo aparece con otra cara** —verificador 9, el de
+etiquetas, la prueba del bloque 82 y ésta—: *un patrón más flojo de lo
+necesario acaba leyendo otra cosa*.

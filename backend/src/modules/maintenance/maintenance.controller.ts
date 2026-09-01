@@ -12,7 +12,7 @@ import { QueryWorkOrderDto } from './dto/query-work-order.dto';
 import { CloseWorkOrderDto } from './dto/close-work-order.dto';
 import { OpenWorkOrderDto } from './dto/open-work-order.dto';
 import { ProgressWorkOrderDto } from './dto/progress-work-order.dto';
-import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { RequirePermissions, RequireAlguno } from '../../common/decorators/permissions.decorator';
 import { AmbitoDe } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
@@ -29,8 +29,28 @@ export class MaintenanceController {
     return this.wo.create(dto);
   }
 
+  /* ===========================================================================
+     LA LISTA DE ÓRDENES, TAMBIÉN PARA PRODUCCIÓN — bloque 83
+     ---------------------------------------------------------------------------
+     Palabras del usuario: «con el apartado de Producción ellos SÍ deben ver
+     cierta parte de gestión para poder enviar las OM o incidencias».
+
+     Y tenía razón contra el código: el bloque 80 cerró la gestión con
+     `wo.read` para sacar a Producción de los indicadores del ingeniero, y de
+     paso se llevó por delante la lista de órdenes. Consecuencia: el Jefe de
+     Tren podía ABRIR una orden (`wo.create`) y **no podía ver ninguna**. Pedir
+     un trabajo y no poder comprobar nunca si alguien lo cogió es exactamente
+     cómo se deja de usar un sistema y se vuelve a la radio.
+
+     `om.mirar` es la capacidad correcta y no un remiendo: significa «supervisa
+     el mantenimiento de su tren» (bloque 68, regla 1). No es un nombre de rol.
+
+     NO ABRE NADA MÁS. La lista ya viene recortada por `filtroConAmbito`, así
+     que cada uno ve su tren; escribir sigue pidiendo `wo.update` y cerrar
+     `wo.approve`, que no se han movido.
+  =========================================================================== */
   @Get()
-  @RequirePermissions('wo.read')
+  @RequireAlguno('wo.read', 'om.mirar')
   findAll(@Query() q: QueryWorkOrderDto, @CurrentUser() user: any) {
     return this.wo.findAll(q, user?.userId);
   }
@@ -91,9 +111,13 @@ export class MaintenanceController {
     res.send(buffer);
   }
 
+  /* Abrir la ficha de UNA orden. Va con la lista, y no es opcional: dar la
+     lista sin poder pulsar una fila deja una pantalla que parece que funciona
+     y no funciona — el medio agujero del bloque 77 con el QR imprimible.
+     `@AmbitoDe` sigue limitando a su tren. */
   @AmbitoDe('workOrder')
   @Get(':id')
-  @RequirePermissions('wo.read')
+  @RequireAlguno('wo.read', 'om.mirar')
   findOne(@Param('id') id: string) {
     return this.wo.findOne(id);
   }
@@ -134,10 +158,12 @@ export class MaintenanceController {
     return this.wo.addProgress(id, dto, user?.userId, ip);
   }
 
-  /** Historial de avance, para que el Jefe vea la secuencia completa. */
+  /* Historial de avance. Con `om.mirar` también: es LA respuesta a «pedí el
+     trabajo, ¿en qué va?», que es justo lo que Producción viene a preguntar.
+     Escribir un avance sigue siendo `wo.update`, arriba. */
   @AmbitoDe('workOrder')
   @Get(':id/progress')
-  @RequirePermissions('wo.read')
+  @RequireAlguno('wo.read', 'om.mirar')
   progressList(@Param('id') id: string) {
     return this.wo.listProgress(id);
   }

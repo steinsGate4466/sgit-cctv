@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { enviarConRespaldo, TEXTO_PENDIENTE } from '../envio-seguro';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, conAmbito, AvisoAmbito } from '../components/FiltroAmbito';
@@ -915,9 +915,31 @@ export default function Assets() {
             <span className="k">Estado operativo</span>
             <span className="v"><span className={'badge ' + (detail.effectiveStatus || detail.status)}>{sEs(detail.effectiveStatus || detail.status)}</span></span>
           </div>
-          {detail.effectiveStatus && detail.effectiveStatus !== detail.status && (
-            <div className="muted" style={{ fontSize: 11, marginTop: -2, marginBottom: 4 }}>
-              Estado calculado en vivo desde sus OM/incidencias abiertas. Estado base registrado: {sEs(detail.status)}.
+          {/* POR QUÉ ESTÁ ASÍ (bloque 83).
+              El usuario lo reportó como un bug: pone el equipo en OPERATIVO,
+              recarga y sigue leyendo «En mantenimiento». El cálculo era
+              correcto —una orden abierta lo retiene—, pero antes aquí ponía
+              «calculado en vivo desde sus OM/incidencias abiertas», que no
+              dice CUÁL ni permite ir a cerrarla.
+
+              Un cálculo correcto que no se explica es indistinguible de un
+              fallo. El código de la orden y el enlace convierten la frase en
+              algo accionable: se pulsa y se va a cerrarla. */}
+          {detail.effectiveStatus && detail.effectiveStatus !== detail.status
+            && detail.porQueEseEstado && (
+            <div className="estado-porque">
+              <b>Estado base guardado: {sEs(detail.status)}.</b>{' '}
+              {detail.porQueEseEstado.texto}
+              {detail.porQueEseEstado.tipo === 'ORDEN' && can('wo.read') && (
+                <> <Link to={`/maintenance?q=${detail.porQueEseEstado.codigo}`}>
+                  Ver {detail.porQueEseEstado.codigo}
+                </Link></>
+              )}
+              {detail.porQueEseEstado.tipo === 'INCIDENCIA' && can('incident.read') && (
+                <> <Link to={`/incidents?q=${detail.porQueEseEstado.codigo}`}>
+                  Ver {detail.porQueEseEstado.codigo}
+                </Link></>
+              )}
             </div>
           )}
           {/* Retroalimentación: qué le ha pasado antes a este equipo.

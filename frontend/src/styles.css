@@ -4035,3 +4035,30 @@ input::-webkit-datetime-edit { padding: 0; }
   margin-right: 6px;
   vertical-align: middle;
 }
+
+/* ===========================================================================
+   POR QUÉ EL EQUIPO ESTÁ EN ESE ESTADO — bloque 83
+   ---------------------------------------------------------------------------
+   ÁMBAR, NO ROJO, y es la misma decisión del bloque 67 con los botones: esto
+   no es un error, es una explicación. El rojo se reserva para lo que ya falló.
+   Pintar de rojo «lo retiene la orden OM-42» diría que hay un problema donde
+   sólo hay un trabajo en curso.
+
+   Y no es `muted` como antes: en gris de nota al pie no lo leía nadie, y era
+   justo la línea que evitaba que el usuario creyera que el software no guarda.
+=========================================================================== */
+.estado-porque {
+  background: #fffbeb;
+  border-left: 3px solid #f59e0b;
+  border-radius: 0 6px 6px 0;
+  padding: 8px 10px;
+  margin: 2px 0 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #78350f;
+}
+.estado-porque a {
+  color: #92400e;
+  font-weight: 700;
+  white-space: nowrap;
+}

@@ -294,9 +294,25 @@ export default function Layout() {
         '/exportar'],
       items: [
         can('incident.read') && <NavLink key="i" to="/incidents"><Icono n="incidencia" /> Incidencias</NavLink>,
-        can('wo.read') && <NavLink key="m" to="/maintenance"><Icono n="orden" /> Órdenes (OM)</NavLink>,
-        // Las paradas van con las órdenes: es CUÁNDO se puede trabajar.
-        can('wo.read') && <NavLink key="pa" to="/paradas"><Icono n="parada" /> Ventanas de parada</NavLink>,
+        /* ÓRDENES Y PARADAS, TAMBIÉN PARA PRODUCCIÓN (bloque 83).
+           Palabras del usuario: «ellos SÍ deben ver cierta parte de gestión
+           para poder enviar las OM o incidencias».
+
+           El bloque 80 cerró la gestión entera con `wo.read` para sacarles de
+           los indicadores del ingeniero, y de paso se llevó estas dos. El Jefe
+           de Tren podía ABRIR una orden y no podía ver NINGUNA: pedir un
+           trabajo y no poder comprobar nunca si alguien lo cogió es cómo se
+           vuelve a la radio.
+
+           `om.mirar` = «supervisa el mantenimiento de su tren» (bloque 68).
+           Es LECTURA: los botones de escribir siguen mirando `wo.update` y
+           `wo.approve`, y ninguno de los dos se ha movido. */
+        (can('wo.read') || can('om.mirar'))
+          && <NavLink key="m" to="/maintenance"><Icono n="orden" /> Órdenes (OM)</NavLink>,
+        // Las paradas van con las órdenes: es CUÁNDO se puede trabajar. Y las
+        // apunta Producción, que es quien se entera por radio (bloque 16).
+        (can('wo.read') || can('om.mirar'))
+          && <NavLink key="pa" to="/paradas"><Icono n="parada" /> Ventanas de parada</NavLink>,
         /* CRITICIDAD A/B/C (bloque 76). Va ANTES de las hojas de ruta y del
            preventivo porque es lo primero de la cadena: la letra decide CADA
            CUÁNTO se toca el equipo, la hoja de ruta dice QUÉ hacer y el
@@ -345,9 +361,15 @@ export default function Layout() {
       ].filter(Boolean) as ReactNode[],
     },
 
-    /* ======================================================= TRABAJO EN CAMPO
+    /* ======================================================== GESTIÓN TÉCNICA
        Los técnicos que levantan y mantienen los datos. Palabras del usuario:
        «los obreros que están en campo y llenan los datos».
+
+       SE LLAMABA «Trabajo en campo» y lo cambió él (bloque 83). El nombre
+       viejo describía DÓNDE se está; el nuevo describe QUÉ se hace. Y aquí no
+       sólo se rellena con guantes: también se consulta la red, la energía y la
+       calidad de las fichas, que es trabajo de mesa. «Campo» dejaba fuera la
+       mitad de lo que hay dentro.
 
        TODO el inventario técnico está aquí, y eso es deliberado: son ellos
        quienes lo levantan. El ingeniero lo consulta, pero no lo llena.
@@ -355,7 +377,7 @@ export default function Layout() {
        Se abre con lo que se rellena con el equipo delante, y sigue con la red
        y la energía, que es lo que se consulta en el gabinete. */
     {
-      titulo: 'Trabajo en campo',
+      titulo: 'Gestión técnica',
       rutas: ['/assets', '/locations', '/cabinets', '/instalaciones', '/campanas',
         '/mapeo', '/access', '/conexiones', '/cableado', '/electricidad',
         '/grabadores', '/mapa-de-red', '/ipam', '/topologia', '/monitoreo',
