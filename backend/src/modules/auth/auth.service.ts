@@ -219,7 +219,17 @@ export class AuthService {
    */
   private async buildTokens(user: any, ip?: string | null, dispositivo?: string | null) {
     const permissions = user.role.permissions.map((rp: any) => rp.permission.code);
-    const payload = { sub: user.id, email: user.email, role: user.role.name, permissions };
+    /* `pv` = versión de permisos (bloque 82). Va DENTRO del token para poder
+       compararlo en cada petición: subir el contador del usuario mata todos
+       sus tokens a la vez. Es lo que convierte «desactivar» en un corte real
+       en vez de una espera de quince minutos. */
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role.name,
+      permissions,
+      pv: (user as any).permisosVersion ?? 1,
+    };
 
     // CADA REFRESH TOKEN NACE CON SU FILA DE SESIÓN.
     //

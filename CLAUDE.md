@@ -2202,3 +2202,113 @@ El usuario pidió una rama «Dependencias» con la estructura de red. **Ya exist
 y no hay que construirla: `De qué depende` (bloque 47) y `Mapa de red` (bloque
 48) están en «Trabajo en campo». Cuando se haga será agruparlas bajo ese
 nombre, no escribirlas de cero.
+
+---
+
+## 26. Bloque 82 — cortar el acceso de inmediato
+
+### El agujero, y lo encontró el usuario
+
+> «Imagina que nos hackeen, podemos quitarle el acceso rápidamente.»
+
+**Y NO SE PODÍA.** `jwt.strategy.ts` valida la FIRMA del token y ya: no
+consultaba la base para nada. Los permisos viajan dentro del token, que dura 15
+minutos. Consecuencia real:
+
+- **desactivar a alguien no le cortaba el acceso** — seguía entrando;
+- quitarle un rol tampoco: mantenía sus permisos viejos;
+- una sesión robada valía quince minutos.
+
+Estaba escrito en este archivo desde el bloque 15 como «S-04, conocido y
+aceptado». No era aceptable.
+
+### La solución: un contador por usuario
+
+El token lleva `pv`. En cada petición se compara con `users.permisosVersion`.
+Subir el contador mata TODOS sus tokens a la vez.
+
+**Por qué un contador y no `updatedAt`:** `updatedAt` cambia con cualquier
+edición. Corregirle el apellido a alguien le tumbaría la sesión en mitad de una
+orden, sin motivo, y a la tercera vez el software se percibe como inestable.
+El contador sube SÓLO cuando cambia lo que la persona puede hacer.
+
+### Las dos reglas que evitan tumbar la planta
+
+1. **Un token SIN contador PASA.** Los vivos el día del despliegue se emitieron
+   antes de que esto existiera. Rechazarlos echaría a todo el mundo a la vez,
+   en mitad de un turno. Es una ventana de un cuarto de hora, UNA vez.
+2. **Si la base no responde, PASA.** Defensa en profundidad, no única capa: el
+   token sigue firmado y sin caducar. Un fallo de base de datos no puede dejar
+   a la planta sin sistema. Misma decisión que el guard de ámbito del 12.3.
+
+### Caché de 15 segundos, y por qué el corte es instantáneo igual
+
+Sin caché sería una consulta a la base EN CADA PETICIÓN. Con 15 segundos el
+techo del retraso son 15 segundos — frente a 15 minutos.
+
+Pero `cortarAcceso` **borra la caché a mano**, así que en la práctica el corte
+se nota en la siguiente petición. Los 15 segundos sólo aplican si corren varias
+instancias y el corte lo atendió otra.
+
+### Cortar hace TRES cosas, y las tres juntas
+
+    1. Sube el contador   → sus tokens de acceso dejan de valer
+    2. Revoca sus sesiones → no puede renovar con el token de refresco
+    3. Borra la caché      → el corte es inmediato
+
+**Hacer sólo una deja media puerta abierta.** Subir el contador sin revocar
+sesiones permitiría renovar; revocar sin subir el contador dejaría vivo el
+token de acceso quince minutos.
+
+**Cortar NO desactiva al usuario, a propósito.** Cortar una sesión sospechosa
+es urgente y reversible; dar de baja a una persona es administrativo. Juntarlas
+obligaría a elegir entre no cortar o cortar de más.
+
+### «Quién está dentro»
+
+La otra mitad: cortar sin ver es disparar a ciegas. La pantalla enseña quién,
+desde qué IP y aparato, desde cuándo y su última actividad.
+
+- **Una sesión VIVA de un usuario DESACTIVADO se pinta en rojo y sube al
+  titular.** Es la única fila del sistema que lo hace: significa que alguien
+  dado de baja sigue dentro, que es exactamente el agujero que esto cierra.
+- **El punto verde** = usada en los últimos diez minutos. Separa «está
+  trabajando» de «se dejó la pestaña abierta el martes», y esa distinción es lo
+  que decide a quién cortar.
+- **Se refresca sola cada 30 segundos.** Es la única pantalla que lo hace: se
+  abre justo cuando algo está pasando.
+- **El motivo del corte se escribe** y queda en la auditoría. «Se le cortó el
+  acceso» sin motivo no explica nada tres semanas después.
+
+### DOS ERRORES MÍOS EN EL PARCHE DEL CLIENTE DE PRISMA
+
+**1. Un patrón demasiado permisivo rompió `User.ts`.** El parche copiaba toda
+línea que contuviera el campo de origen EN CUALQUIER POSICIÓN. Con `active`
+eso incluyó una línea de `UserOmit` donde el campo aparece dentro de una unión
+de literales de texto. Duplicarla rompió el archivo con veinte errores de
+sintaxis que **no mencionaban `active` por ningún lado**.
+
+Corregido a exigir que el campo sea una CLAVE al principio de línea. Es el
+mismo error de las ventanas anchas del verificador 9.
+
+**2. El `deshacer` borró código legítimo de Prisma.** La lista de nombres a
+borrar llevaba `parametrosCriticidad` —un MODELO— y el cliente generado ya lo
+conocía: `User.ts` tenía su propio bloque `User$parametrosCriticidadArgs`. El
+deshacer se lo llevó por delante y hubo que reconstruirlo a mano.
+
+> **REGLA: un parche reversible por construcción sólo es seguro si los nombres
+> que introduce NO EXISTÍAN ANTES en los archivos que toca.** Con los CAMPOS se
+> cumple —son nuevos—. Con los MODELOS no, porque Prisma los usa en las
+> relaciones de otros modelos.
+
+Ahora los nombres de modelo se deshacen SÓLO en `class.ts`, que es el único
+archivo donde el parche los escribe.
+
+### Y una ventana ancha más, esta vez en una prueba
+
+`corte-de-acceso.spec.ts` miraba «los primeros 1.200 caracteres» del método y
+la ventana se comía el SIGUIENTE, que sí lleva `active: false`. La prueba de
+«cortar no desactiva» fallaba señalando código que no era el suyo.
+
+**Tercera vez que el mismo fallo aparece con otra cara.** Se acota al método
+buscando el siguiente `async`, no a un número de caracteres.

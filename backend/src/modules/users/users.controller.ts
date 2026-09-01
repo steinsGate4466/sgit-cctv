@@ -80,6 +80,36 @@ export class UsersController {
     return this.users.listRoles();
   }
 
+  /* QUIÉN ESTÁ DENTRO AHORA — bloque 82.
+     Ruta literal ANTES de `:id`, o Nest leería «sesiones» como identificador
+     (regla del proyecto).
+
+     Va con `user.manage` y no con `user.read`: la lista dice desde qué IP y
+     qué aparato entra cada persona. Eso es información de seguridad, no de
+     directorio. */
+  @SinAmbito()
+  @Get('sesiones')
+  @RequirePermissions('user.manage')
+  sesionesActivas() {
+    return this.users.sesionesActivas();
+  }
+
+  @SinAmbito()
+  @Delete('sesiones/:sesionId')
+  @RequirePermissions('user.manage')
+  cerrarSesion(@Param('sesionId') sesionId: string, @Body() dto: any) {
+    return this.users.cerrarSesion(sesionId, dto?.motivo);
+  }
+
+  /* CORTAR EL ACCESO DE UNA PERSONA, AHORA. Sube su contador y revoca todas
+     sus sesiones de golpe. No la desactiva: son dos decisiones distintas. */
+  @SinAmbito()
+  @Post(':id/cortar-acceso')
+  @RequirePermissions('user.manage')
+  cortarAcceso(@Param('id') id: string, @Body() dto: any) {
+    return this.users.cortarAcceso(id, dto?.motivo);
+  }
+
   @SinAmbito()  // usuarios: configuración del sistema
   @Get(':id')
   @RequirePermissions('user.read')

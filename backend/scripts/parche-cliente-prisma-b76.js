@@ -52,15 +52,41 @@ const CAMPOS = [
   ['Asset.ts', 'criticidadDeclaradaEn', 'accesoDeclaradoEn', []],
   ['Location.ts', 'riesgoPersonas', 'porQueEsVital', [['String', 'Bool'], ['string', 'boolean']]],
   ['Location.ts', 'riesgoPersonasMotivo', 'porQueEsVital', []],
+  // Bloque 82: el contador que corta el acceso.
+  ['User.ts', 'permisosVersion', 'active', [['Bool', 'Int'], ['boolean', 'number']]],
 ];
 
-/** Los nombres que este parche introduce. Sirven para deshacerlo. */
-const NOMBRES = [
-  ...new Set(CAMPOS.map((c) => c[1])),
-  'parametrosCriticidad',
-  // Bloque 78: el modelo del evento de falla.
-  'failureEvent',
-];
+/**
+ * Los nombres que este parche introduce EN LOS ARCHIVOS DE MODELO.
+ *
+ * ------------------------------------------------------------------------
+ * FALLO GRAVE QUE COMETÍ AQUÍ, Y LA REGLA QUE DEJA (bloque 82)
+ *
+ * Esta lista llevaba también `parametrosCriticidad` y `failureEvent` —los dos
+ * MODELOS nuevos— porque el parche añade sus accesores en `class.ts`.
+ *
+ * Pero `deshacer()` borra TODA línea que contenga uno de estos nombres, EN
+ * TODOS los archivos de la lista. Y el cliente generado ya conocía esos
+ * modelos: `User.ts` tenía su propio bloque `User$parametrosCriticidadArgs`,
+ * legítimo, escrito por Prisma.
+ *
+ * Al deshacer, se llevó por delante ese bloque y **rompió `User.ts` con veinte
+ * errores de sintaxis** que no mencionaban el nombre por ningún lado. Hubo que
+ * reconstruirlo a mano.
+ *
+ * > **REGLA: un parche reversible por construcción sólo es seguro si los
+ * > nombres que introduce NO EXISTÍAN ANTES en los archivos que toca.**
+ * > Con los CAMPOS se cumple —son nuevos—. Con los MODELOS no, porque Prisma
+ * > los usa en las relaciones de otros modelos.
+ *
+ * Por eso los nombres de modelo se deshacen SÓLO en `class.ts`, que es el
+ * único archivo donde este parche los escribe.
+ * ------------------------------------------------------------------------
+ */
+const NOMBRES = [...new Set(CAMPOS.map((c) => c[1]))];
+
+/** Nombres que el parche escribe ÚNICAMENTE en `class.ts`. */
+const NOMBRES_CLASS = ['parametrosCriticidad', 'failureEvent'];
 
 function deshacer() {
   let tocados = 0;
@@ -68,12 +94,17 @@ function deshacer() {
     ...new Set(CAMPOS.map((c) => path.join(GEN, 'models', c[0]))),
     path.join(GEN, 'internal', 'class.ts'),
   ];
+  const cls = path.join(GEN, 'internal', 'class.ts');
   for (const f of archivos) {
     if (!fs.existsSync(f)) continue;
+    /* En `class.ts` se borran también los accesores de MODELO; en los archivos
+       de modelo, NO — ahí esos nombres son de Prisma y borrarlos rompe el
+       archivo. Ver la nota larga de arriba. */
+    const aBorrar = f === cls ? [...NOMBRES, ...NOMBRES_CLASS] : NOMBRES;
     const antes = fs.readFileSync(f, 'utf8');
     const despues = antes
       .split('\n')
-      .filter((l) => !NOMBRES.some((n) => l.includes(n)))
+      .filter((l) => !aBorrar.some((n) => l.includes(n)))
       .join('\n');
     if (antes !== despues) { fs.writeFileSync(f, despues); tocados++; }
   }
@@ -97,9 +128,19 @@ function aplicar() {
     let copiadas = 0;
     for (const l of lineas) {
       salida.push(l);
-      // Sólo las líneas donde el campo aparece como CLAVE, no dentro de otra
-      // palabra: `alturaMetros` y `alturaMetrosAlgo` son campos distintos.
-      const re = new RegExp(`(^|[^A-Za-z0-9_])${copiaDe}([^A-Za-z0-9_]|$)`);
+      /* Sólo las líneas donde el campo es una CLAVE al principio de la línea:
+         `  active: boolean`, `  active?: true`.
+
+         La primera versión aceptaba el nombre en CUALQUIER posición, y con
+         `active` eso incluyó una línea gigante de `UserOmit` donde el campo
+         aparece dentro de una unión de literales de texto. Duplicarla rompió
+         el archivo entero con veinte errores de sintaxis que NO mencionaban a
+         `active` por ningún lado.
+
+         Es el mismo error de las ventanas anchas del verificador 9: cuanto más
+         permisivo es el patrón, más cosas que no son lo que busca acaba
+         cazando. */
+      const re = new RegExp(`^\\s*${copiaDe}\\??\\s*:`);
       if (re.test(l)) {
         let copia = l.split(copiaDe).join(nuevo);
         for (const [de, a] of subs) copia = copia.split(de).join(a);

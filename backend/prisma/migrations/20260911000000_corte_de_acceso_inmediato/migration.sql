@@ -1,0 +1,45 @@
+-- =============================================================================
+-- BLOQUE 82 · CORTE DE ACCESO INMEDIATO
+-- =============================================================================
+--
+-- EL AGUJERO QUE CIERRA, y lo detectó el usuario:
+--
+--     «Imagina que nos hackeen, podemos quitarle el acceso rápidamente.»
+--
+-- Hasta ahora NO se podía. Los permisos viajan DENTRO del token de sesión, que
+-- dura 15 minutos, y la validación no consultaba la base para nada. Eso
+-- significaba que:
+--
+--   · desactivar a una persona no le cortaba el acceso — seguía entrando;
+--   · quitarle un rol tampoco: mantenía sus permisos viejos;
+--   · si alguien roba una sesión, hay quince minutos de margen.
+--
+-- Y quince minutos, en un incidente de seguridad, es una eternidad.
+--
+-- -----------------------------------------------------------------------------
+-- CÓMO SE CIERRA
+--
+-- Un contador por usuario. El token se emite con ese número dentro y en cada
+-- petición se compara con el de la base:
+--
+--     token.pv === usuario.permisosVersion   →  pasa
+--     token.pv !== usuario.permisosVersion   →  401, «vuelve a entrar»
+--
+-- Cambiar el rol, desactivar a la persona o pulsar «cortar acceso» SUBE el
+-- contador, y en la siguiente petición todos sus tokens dejan de valer.
+--
+-- -----------------------------------------------------------------------------
+-- POR QUÉ UN CONTADOR Y NO `updatedAt`
+--
+-- Porque `updatedAt` cambia con CUALQUIER edición. Corregirle el apellido a
+-- alguien le tumbaría la sesión en mitad de una orden, sin motivo, y a la
+-- tercera vez el sistema se percibe como inestable.
+--
+-- Este contador sube SÓLO cuando cambia lo que la persona puede hacer.
+-- =============================================================================
+
+-- Todos los usuarios existentes arrancan en 1. Los tokens que estén vivos
+-- ahora mismo NO llevan el número dentro, así que la comprobación los deja
+-- pasar (ver el comentario del guard): al desplegar nadie se queda fuera de
+-- golpe, y en 15 minutos el ciclo natural los renueva ya con contador.
+ALTER TABLE "users" ADD COLUMN "permisosVersion" INTEGER NOT NULL DEFAULT 1;

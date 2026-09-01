@@ -8,6 +8,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { PermissionsGuard } from './common/guards/permissions.guard';
 import { RitmoGuard } from './common/guards/ritmo.guard';
 import { AmbitoGuard } from './common/guards/ambito.guard';
+import { AccesoVigenteGuard } from './common/guards/acceso-vigente.guard';
 import { AccesoDispositivoGuard } from './modules/acceso/acceso-dispositivo.guard';
 
 import { AuthModule } from './modules/auth/auth.module';
@@ -115,6 +116,14 @@ import { RiesgoModule } from './modules/riesgo/riesgo.module';
     // 2) PermissionsGuard valida @RequirePermissions (pasa si no se exige ninguno).
     { provide: APP_GUARD, useClass: RitmoGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    /* 1-bis) AccesoVigenteGuard (bloque 82): ¿este acceso SIGUE valiendo?
+       Va JUSTO DESPUÉS del JWT y ANTES de los permisos, y el orden importa:
+       si a alguien se le acaba de quitar el rol, no tiene sentido comprobar
+       qué permisos lleva su token —esos permisos ya no son suyos—.
+
+       Es lo que convierte «desactivar a una persona» en un corte real. Antes
+       el token seguía valiendo hasta quince minutos. */
+    { provide: APP_GUARD, useClass: AccesoVigenteGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
     // 3) AmbitoGuard: el ÚLTIMO a propósito. Sólo tiene sentido preguntarse
     //    "¿este activo es de tu tren?" cuando ya se sabe quién eres y que

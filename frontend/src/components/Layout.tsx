@@ -26,6 +26,7 @@ const TITLES: Record<string, string> = {
   '/inventory': 'Inventario de Repuestos',
   '/audit': 'Auditoría',
   '/users': 'Usuarios',
+  '/sesiones': 'Quién está dentro',
   '/roles': 'Roles y permisos',
   '/mi-tren': 'Mi tren',
   '/topologia': 'Puntos críticos de la red',
@@ -393,9 +394,16 @@ export default function Layout() {
        y no se entra aquí por costumbre. */
     {
       titulo: 'Sistema',
-      rutas: ['/users', '/roles', '/audit', '/avisos', '/limpieza', '/mi-cuenta'],
+      rutas: ['/users', '/sesiones', '/roles', '/audit', '/avisos', '/limpieza', '/mi-cuenta'],
       items: [
         can('user.manage') && <NavLink key="us" to="/users"><Icono n="usuarios" /> Usuarios</NavLink>,
+        /* QUIÉN ESTÁ DENTRO (bloque 82). Va JUSTO detrás de Usuarios: la
+           pregunta «¿quién está trabajando ahora?» se hace mirando la lista de
+           gente, y desde aquí se le corta el acceso a alguien en dos pulsaciones.
+
+           `user.manage` y no `user.read`: la lista dice desde qué IP y qué
+           aparato entra cada persona. Eso es seguridad, no directorio. */
+        can('user.manage') && <NavLink key="se" to="/sesiones"><Icono n="candado" /> Quién está dentro</NavLink>,
         can('role.manage') && <NavLink key="ro" to="/roles"><Icono n="candado" /> Roles y permisos</NavLink>,
         can('audit.read') && <NavLink key="au" to="/audit"><Icono n="auditoria" /> Auditoría</NavLink>,
         // Avisos lo ve CUALQUIERA: todo el mundo puede vincular su Telegram.

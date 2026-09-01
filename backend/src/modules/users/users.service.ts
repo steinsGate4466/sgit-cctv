@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { AccesoVigenteGuard } from '../../common/guards/acceso-vigente.guard';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SetPinDto, VerifyPinDto } from './dto/pin.dto';
@@ -115,7 +116,60 @@ export class UsersService {
       this.exigirPasswordDecente(dto.password, [yo?.email, dto.fullName ?? yo?.fullName]);
       data.passwordHash = await argon2.hash(dto.password);
     }
-    return this.prisma.user.update({ where: { id }, data, select: userSelect });
+    /* SUBIR EL CONTADOR MATA TODOS SUS TOKENS (bloque 82).
+       -----------------------------------------------------------------------
+       Sólo si cambió lo que la persona PUEDE HACER: el rol, si está activa, o
+       su contraseña. Corregirle el nombre no le tumba la sesión — hacerlo
+       sería sacar a alguien del sistema en mitad de una orden, sin motivo, y a
+       la tercera vez el software se percibe como inestable.
+
+       Antes de esto, quitarle un rol a alguien no le quitaba nada: su token
+       seguía llevando los permisos viejos hasta quince minutos. */
+    const cambiaLoQuePuedeHacer =
+      dto.roleId !== undefined || dto.active !== undefined || !!dto.password;
+    if (cambiaLoQuePuedeHacer) data.permisosVersion = { increment: 1 };
+
+    const r = await this.prisma.user.update({ where: { id }, data, select: userSelect });
+    /* Y se borra de la caché del guard para que el corte se note EN EL ACTO,
+       no dentro de quince segundos. */
+    if (cambiaLoQuePuedeHacer) AccesoVigenteGuard.olvidar(id);
+    return r;
+  }
+
+  /**
+   * CORTAR EL ACCESO DE ALGUIEN, AHORA.
+   *
+   * Es lo que pidió el usuario: «cómo quitar accesos de inmediato». Hace las
+   * TRES cosas que hacen falta, y las tres juntas — hacer sólo una deja media
+   * puerta abierta:
+   *
+   *   1. Sube el contador  → sus tokens de acceso dejan de valer.
+   *   2. Revoca sus sesiones → no puede renovar con el token de refresco.
+   *   3. Lo borra de la caché → el corte es inmediato, no en quince segundos.
+   *
+   * NO desactiva al usuario a propósito. Son dos decisiones distintas: cortar
+   * una sesión sospechosa es urgente y reversible; dar de baja a una persona
+   * es administrativo. Juntarlas obligaría a elegir entre no cortar o cortar
+   * de más.
+   */
+  async cortarAcceso(id: string, motivo?: string) {
+    await this.findOne(id);
+    const [, sesiones] = await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id },
+        data: { permisosVersion: { increment: 1 } } as any,
+        select: { id: true },
+      }),
+      this.prisma.sesion.updateMany({
+        where: { userId: id, revocadaEn: null },
+        data: {
+          revocadaEn: new Date(),
+          motivoRevocacion: motivo?.trim() || 'acceso cortado por el administrador',
+        },
+      }),
+    ]);
+    AccesoVigenteGuard.olvidar(id);
+    return { ok: true, sesionesCerradas: sesiones.count };
   }
 
   // Baja lógica: desactiva el usuario (no se borra, preserva trazabilidad).
@@ -125,7 +179,88 @@ export class UsersService {
       throw new BadRequestException('No puedes desactivar tu propio usuario.');
     }
     await this.assertNoDejaSinJefe(id, 'desactivar este usuario');
-    return this.prisma.user.update({ where: { id }, data: { active: false }, select: userSelect });
+    /* Desactivar SÍ sube el contador y cierra sus sesiones: si no, la persona
+       seguiría dentro hasta quince minutos después de darla de baja. Ése era
+       el agujero. */
+    const r = await this.prisma.user.update({
+      where: { id },
+      data: { active: false, permisosVersion: { increment: 1 } } as any,
+      select: userSelect,
+    });
+    await this.prisma.sesion.updateMany({
+      where: { userId: id, revocadaEn: null },
+      data: { revocadaEn: new Date(), motivoRevocacion: 'usuario desactivado' },
+    });
+    AccesoVigenteGuard.olvidar(id);
+    return r;
+  }
+
+  /**
+   * QUIÉN ESTÁ DENTRO AHORA MISMO — bloque 82.
+   *
+   * Es la otra mitad de lo que pidió el usuario: «identificar usuarios que
+   * están ahí». Sin esta lista, cortar el acceso es disparar a ciegas — hay
+   * que poder ver primero quién está, desde dónde y desde cuándo.
+   *
+   * QUÉ SE ENSEÑA, Y POR QUÉ CADA COSA:
+   *   · nombre y rol      → a quién llamar
+   *   · IP y equipo       → reconocer una sesión que no cuadra. Un turno de
+   *                         noche desde una IP de oficina es la señal.
+   *   · dispositivo       → «Chrome en Windows» dice más que un identificador
+   *   · desde cuándo      → una sesión de hace seis días no es de hoy
+   *   · último uso        → distingue «está trabajando» de «se dejó abierto»
+   *
+   * NO se enseña el identificador de sesión completo: no hace falta para
+   * decidir y es lo que se usaría para suplantarla.
+   */
+  async sesionesActivas() {
+    const ahora = new Date();
+    const filas = await this.prisma.sesion.findMany({
+      where: { revocadaEn: null, expiraEn: { gt: ahora } },
+      orderBy: [{ ultimoUsoEn: 'desc' }, { creadaEn: 'desc' }],
+      take: 200,
+      select: {
+        id: true, creadaEn: true, ultimoUsoEn: true, expiraEn: true,
+        ip: true, dispositivo: true, equipo: true,
+        user: { select: { id: true, fullName: true, email: true, active: true, role: { select: { name: true } } } },
+      },
+    });
+
+    return filas.map((f) => ({
+      id: f.id,
+      userId: f.user.id,
+      persona: f.user.fullName,
+      email: f.user.email,
+      rol: f.user.role?.name ?? null,
+      /* Una sesión VIVA de un usuario DESACTIVADO es exactamente lo que hay
+         que ver de un vistazo: significa que se dio de baja a alguien y su
+         sesión sigue en pie. La pantalla lo pinta en rojo. */
+      usuarioActivo: f.user.active,
+      ip: f.ip,
+      equipo: f.equipo,
+      dispositivo: f.dispositivo,
+      desde: f.creadaEn,
+      ultimoUso: f.ultimoUsoEn,
+      /* «Activa ahora» = usada en los últimos 10 minutos. Es lo que separa a
+         quien está trabajando de quien se dejó la pestaña abierta el martes,
+         y sin esa distinción la lista no sirve para decidir a quién cortar. */
+      activaAhora: !!f.ultimoUsoEn && (ahora.getTime() - f.ultimoUsoEn.getTime()) < 600_000,
+    }));
+  }
+
+  /** Cerrar UNA sesión concreta, sin tocar las demás de esa persona. */
+  async cerrarSesion(sesionId: string, motivo?: string) {
+    const r = await this.prisma.sesion.updateMany({
+      where: { id: sesionId, revocadaEn: null },
+      data: {
+        revocadaEn: new Date(),
+        motivoRevocacion: motivo?.trim() || 'cerrada por el administrador',
+      },
+    });
+    /* NO se sube el contador aquí a propósito: cerrar UNA sesión no cambia lo
+       que la persona puede hacer, y subirlo tumbaría también las otras — que
+       es justo lo contrario de lo que se pidió. Para eso está `cortarAcceso`. */
+    return { ok: true, cerradas: r.count };
   }
 
   // Roles disponibles con sus permisos (para asignar al crear/editar usuarios).

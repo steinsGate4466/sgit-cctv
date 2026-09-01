@@ -93,6 +93,23 @@ model User {
   fullName     String
   passwordHash String
   active       Boolean   @default(true)
+
+  /// EL CONTADOR QUE CORTA EL ACCESO AL INSTANTE (bloque 82).
+  ///
+  /// EL PROBLEMA QUE RESUELVE: los permisos viajan DENTRO del token, que dura
+  /// 15 minutos. Hasta ahora, desactivar a alguien o quitarle un rol no le
+  /// cortaba nada — seguía entrando con el token que ya tenía. Si a alguien le
+  /// roban la sesión, quince minutos son una eternidad.
+  ///
+  /// CÓMO FUNCIONA: el token se emite con este número dentro. En cada petición
+  /// se compara con el de la base. Cambiar el rol, desactivar a la persona o
+  /// pulsar «cortar acceso» SUBE el número, y todos sus tokens dejan de valer
+  /// en la siguiente petición.
+  ///
+  /// No se usa `updatedAt` para esto a propósito: cualquier edición del
+  /// usuario —corregirle el nombre— tumbaría su sesión sin motivo. Este
+  /// contador sube SÓLO cuando cambia lo que puede hacer.
+  permisosVersion Int     @default(1)
   roleId       String
   role         Role      @relation(fields: [roleId], references: [id])
   lastLoginAt  DateTime?

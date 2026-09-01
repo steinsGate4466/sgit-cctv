@@ -19,6 +19,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       email: payload.email,
       role: payload.role,
       permissions: payload.permissions ?? [],
+      /* La versión de permisos (bloque 82). `undefined` en tokens emitidos
+         antes de que esto existiera: `AccesoVigenteGuard` los deja pasar a
+         propósito para no echar a toda la planta el día del despliegue. */
+      pv: payload.pv,
     };
   }
 }

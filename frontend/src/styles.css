@@ -4012,3 +4012,26 @@ input::-webkit-datetime-edit { padding: 0; }
   gap: 10px;
   flex-wrap: wrap;
 }
+
+/* =============================================================================
+   QUIÉN ESTÁ DENTRO — bloque 82
+   -----------------------------------------------------------------------------
+   Una sesión VIVA de un usuario DESACTIVADO se pinta en rojo, y es la única
+   fila de todo el sistema que lo hace: significa que se dio de baja a alguien
+   y su sesión sigue en pie. Es el agujero que este bloque vino a cerrar, y si
+   aparece una, es lo único que importa de la pantalla.
+============================================================================= */
+.ses-barra { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
+.ses-barra input { flex: 1; min-width: 200px; }
+.ses-zombi { background: #fef2f2; }
+.ses-alerta { font-size: 11px; font-weight: 700; color: #991b1b; margin-top: 2px; }
+/* El punto verde: «usada en los últimos diez minutos». Separa a quien está
+   trabajando de quien se dejó la pestaña abierta el martes. */
+.ses-punto {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #16a34a;
+  margin-right: 6px;
+  vertical-align: middle;
+}
