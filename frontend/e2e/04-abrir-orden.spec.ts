@@ -61,11 +61,45 @@ test.describe('4 · Abrir una orden de mantenimiento', () => {
     const modal = page.locator('.modal');
     await expect(modal).toBeVisible();
 
+    /* SE RELLENAN LOS OBLIGATORIOS, no sólo la actividad.
+       -----------------------------------------------------------------------
+       MI PRIMERA VERSIÓN sólo escribía la actividad y pulsaba «Crear OM». El
+       formulario exige además **«Zona a levantar»**, así que el `required` del
+       navegador bloqueaba el envío: la petición NO SALÍA y la prueba fallaba
+       veinte segundos después con «no aparece en la lista» — un mensaje que
+       apunta a la lista cuando el problema estaba en el formulario.
+
+       Y esto es lo que un recorrido tiene que hacer: rellenar lo que rellena
+       una persona. Si el formulario pide un dato, la prueba lo da. */
+    const zona = modal.locator('select').filter({ hasNotText: '@@@' }).first();
+    const opciones = await zona.locator('option').count();
+    if (opciones <= 1) {
+      throw new Error(
+        '\n\n  El desplegable de zona no tiene ninguna opción.\n'
+        + '  Sin ubicaciones cargadas no se puede abrir una orden — y eso, si\n'
+        + '  pasa en planta, es un fallo del software, no de la prueba.\n\n',
+      );
+    }
+    await zona.selectOption({ index: 1 });
     await modal.getByLabel(/Actividad/i).fill(`Prueba automatica ${marca}`);
-    await modal.getByRole('button', { name: 'Crear OM' }).click();
+
+    /* Se escucha la respuesta: si falta otro campo, el mensaje lo dirá en vez
+       de dejarme adivinar veinte segundos. */
+    const [respuesta] = await Promise.all([
+      page.waitForResponse(
+        (r) => r.url().includes('/work-orders') && r.request().method() === 'POST',
+        { timeout: 20_000 },
+      ).catch(() => null),
+      modal.getByRole('button', { name: 'Crear OM' }).click(),
+    ]);
+    const detalle = respuesta
+      ? `El servidor respondió ${respuesta.status()}: ${(await respuesta.text().catch(() => '')).slice(0, 300)}`
+      : 'El navegador NO llegó a enviar el alta: falta algún campo obligatorio del formulario.';
+    expect(respuesta?.status(), detalle).toBeLessThan(400);
 
     const fila = page.locator('tr', { hasText: marca }).first();
-    await expect(fila).toBeVisible({ timeout: 20_000 });
+    await expect(fila, `Se guardó pero la lista no lo enseña. ${detalle}`)
+      .toBeVisible({ timeout: 20_000 });
 
     /* LA FILA NO PUEDE TENER UN GUION DONDE VA LA FECHA. Ése era el síntoma
        exacto: «—» en la columna de programada. */

@@ -87,16 +87,41 @@ export default defineConfig({
   },
 
   projects: [
+    /* SE ENTRA UNA VEZ PARA TODA LA TANDA — bloque 89.
+       -----------------------------------------------------------------------
+       Antes cada prueba hacía login, y con 23 pruebas más reintentos el freno
+       antifuerza bruta cortaba: «Demasiados intentos, espera 10 minutos». El
+       freno está BIEN puesto y no se toca; lo que estaba mal era la prueba.
+       Una persona tampoco vuelve a escribir su contraseña en cada pantalla. */
+    { name: 'setup', testMatch: /sesion\.setup\.ts/ },
+
     {
       name: 'escritorio',
+      dependencies: ['setup'],
+      use: {
+        ...devices['Desktop Chrome'],
+        /* 1366×768 y no 1920: es la pantalla de los púlpitos. Probar en una
+           resolución que nadie usa deja pasar justo los desbordes que se ven
+           en planta (bloque 69: la barra se comía 240 px de 1366). */
+        viewport: { width: 1366, height: 768 },
+        storageState: './e2e/.auth/jefe.json',
+      },
+      /* El recorrido 1 se excluye: ahí lo que se prueba ES el login, y con la
+         sesión ya puesta no probaría nada. Corre en su propio proyecto. */
+      testIgnore: /01-entrar\.spec\.ts|sesion\.setup\.ts/,
+    },
+    {
+      /* EL LOGIN, SIN SESIÓN PREVIA. Es el único que entra a mano, y tiene
+         que hacerlo: comprueba el login bueno, el malo y la ruta privada sin
+         sesión. Van tres intentos, muy por debajo del freno. */
+      name: 'login',
       use: { ...devices['Desktop Chrome'], viewport: { width: 1366, height: 768 } },
-      /* 1366×768 y no 1920: es la pantalla de los púlpitos. Probar en una
-         resolución que nadie usa deja pasar justo los desbordes que se ven
-         en planta (bloque 69: la barra se comía 240 px de 1366). */
+      testMatch: /01-entrar\.spec\.ts/,
     },
     {
       name: 'movil',
-      use: { ...devices['iPhone 13'] },
+      dependencies: ['setup'],
+      use: { ...devices['iPhone 13'], storageState: './e2e/.auth/jefe.json' },
       /* El técnico usa SU teléfono (BYOD). La mitad de los fallos visuales
          de este proyecto sólo se ven aquí: las fechas que se salían de su
          caja (bloque 70) se veían bien en escritorio. */

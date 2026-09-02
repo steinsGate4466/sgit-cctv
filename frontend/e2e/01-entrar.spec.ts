@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { entrar, vigilarConsola } from './apoyo';
+import { entrarConCredenciales as entrar, vigilarConsola } from './apoyo';
 
 /* =============================================================================
    RECORRIDO 1 · ENTRAR

@@ -37,7 +37,40 @@ function credencial(nombre: string): string {
  * todavía está montándose y fallar de forma intermitente — el peor tipo de
  * fallo, el que no se reproduce.
  */
+/**
+ * ESTAR DENTRO — lo que usan casi todos los recorridos.
+ *
+ * NO HACE LOGIN. La sesión ya viene puesta por `sesion.setup.ts`, que entra
+ * UNA vez para toda la tanda. Hacer login en cada prueba disparaba el freno
+ * antifuerza bruta —«Demasiados intentos, espera 10 minutos»— y el freno está
+ * bien puesto: lo que estaba mal era la prueba.
+ *
+ * Sólo comprueba que la sesión sirve. Si no, lo dice claro en vez de dejar que
+ * la prueba falle veinte líneas más abajo buscando un botón que no existe
+ * porque no hay menú.
+ */
 export async function entrar(page: Page, quien: 'JEFE' | 'TECNICO' = 'JEFE') {
+  if (quien === 'TECNICO') {
+    /* El técnico no tiene sesión guardada: su perfil es opcional y se usa en
+       un solo recorrido. Ahí sí se entra a mano — es UN login más, no veinte. */
+    await entrarConCredenciales(page, 'TECNICO');
+    await expect(page.locator('nav, .sidebar').first()).toBeVisible({ timeout: 20_000 });
+    return;
+  }
+
+  await page.goto('/');
+  const menu = page.locator('nav, .sidebar').first();
+  if (!(await menu.isVisible({ timeout: 20_000 }).catch(() => false))) {
+    throw new Error(
+      '\n\n  La sesión guardada no sirve: no hay menú.\n'
+      + '  Mira el trabajo «entrar una vez y guardar la sesión» — si ése falló,\n'
+      + '  todo lo demás falla en cascada y el motivo está allí.\n\n',
+    );
+  }
+}
+
+/** Entra escribiendo usuario y contraseña. Sólo lo usan el recorrido 1 y el setup. */
+export async function entrarConCredenciales(page: Page, quien: 'JEFE' | 'TECNICO' = 'JEFE') {
   const email = credencial(quien === 'JEFE' ? 'E2E_JEFE_EMAIL' : 'E2E_TECNICO_EMAIL');
   const pass = credencial(quien === 'JEFE' ? 'E2E_JEFE_PASSWORD' : 'E2E_TECNICO_PASSWORD');
 

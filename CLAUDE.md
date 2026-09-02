@@ -2940,3 +2940,64 @@ backend no está» de «la contraseña está mal» de «es el límite de peticio
 > software llevaba cuatro bloques escondido.** Una herramienta nueva empieza
 > dando más ruido que señal; el error sería apagarla en la segunda vuelta,
 > porque la señal que trae —cuando llega— es la que no trae ninguna otra.
+
+---
+
+## 33. Bloque 89 — de doce rojos a dos, y el freno que NO se toca
+
+Segunda ejecución: **17 en verde, 2 rojos, 4 saltadas.** Y el bug real del
+bloque anterior —la OM naciendo sin fecha— **ya pasa**.
+
+Los dos que quedaban eran míos otra vez, y uno enseña algo.
+
+### El 429, y por qué el arreglo NO es bajar el límite
+
+```
+El login devolvió 429.
+{"message":"Demasiados intentos. Espera 10 minuto(s) y vuelve a probar."}
+```
+
+Mi primera versión hacía login **en cada prueba**. Con 23 pruebas más los
+reintentos son más de treinta intentos desde la misma IP en dos minutos, y el
+`FrenoGuard` los corta.
+
+> **El freno está BIEN y no se toca.** Es la defensa contra fuerza bruta del
+> bloque 67 y protege el login de la planta. Bajarlo, o excluir la IP de la CI,
+> sería apagar un control real para que pase una prueba — que es exactamente lo
+> que este proyecto lleva 89 bloques sin hacer.
+
+Lo que estaba mal era la prueba. **Una persona tampoco vuelve a escribir su
+contraseña en cada pantalla.** Ahora se entra UNA vez en un proyecto `setup`,
+se guarda la sesión y las demás la reutilizan: de 25 logins a 4.
+
+**Y el recorrido 1 sigue entrando a mano**, en su propio proyecto sin sesión
+previa: ahí lo que se prueba ES el login.
+
+### La orden que «no aparecía en la lista»
+
+El formulario exige **«Zona a levantar»** y yo sólo rellenaba la actividad. El
+`required` del navegador bloqueaba el envío: **la petición no salía**, y la
+prueba fallaba veinte segundos después con «no aparece en la lista» — un
+mensaje que apunta a la lista cuando el problema estaba en el formulario.
+
+Un recorrido tiene que rellenar lo que rellena una persona. Y ahora escucha la
+respuesta: si falta otro campo, lo dice.
+
+### `__dirname` no existe en un módulo ES
+
+Al escribir el `setup` puse `path.join(__dirname, ...)`. Playwright carga estos
+archivos como ESM y revienta **al cargar**, así que no falla una prueba: **no
+se lista ninguna**. `Total: 0 tests in 0 files`, que es un error mucho más
+confuso que el que lo causa.
+
+### Lo que llevamos aprendido de los recorridos
+
+| Ejecución | Verde | Rojo | De quién eran los fallos |
+|---|---|---|---|
+| 1ª | 9 | 12 | 11 del andamio, **1 del software** |
+| 2ª | 17 | 2 | 2 del andamio |
+
+**El único bug del software que salió llevaba cuatro bloques escondido** y no
+lo vio ninguna de las 1.165 pruebas ni ninguno de los 29 verificadores. Ésa es
+la señal que no trae ninguna otra herramienta, y por eso el ruido de las dos
+primeras vueltas valía la pena.
