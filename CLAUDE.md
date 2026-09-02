@@ -2997,6 +2997,7 @@ confuso que el que lo causa.
 | 1ª | 9 | 12 | 11 del andamio, **1 del software** |
 | 2ª | 17 | 2 | 2 del andamio |
 | 3ª | 16 | 2 | 1 del andamio, **1 visual de móvil sin diagnosticar** |
+| 4ª | 17 | 2 | los 2 del andamio — y el informe de desborde MENTÍA |
 
 **El único bug del software que salió llevaba cuatro bloques escondido** y no
 lo vio ninguna de las 1.165 pruebas ni ninguno de los 29 verificadores. Ésa es
@@ -3047,3 +3048,58 @@ se desplazan a propósito (las tablas viven dentro de `.card`).
 un arreglo de maquetación sin medir es adivinar. La siguiente vuelta de la CI
 dirá el elemento exacto. Es la regla del bloque 70: *un fallo que no se puede
 reproducir no se arregla; lo primero es hacer que hable.*
+
+### Cuarta vuelta — el nombre de un `<select>` no es su etiqueta
+
+`getByLabel('Activo', { exact: true })` **no encuentra nada**, y el motivo hay
+que dejarlo escrito porque volverá a pasar:
+
+```html
+<label>Activo <select>…</select></label>
+```
+
+El control va DENTRO de su etiqueta, y **el nombre accesible de un `<select>`
+incluye el texto de la opción elegida**. Ese campo no se llama «Activo»: se
+llama «Activo — selecciona —». Con `exact` no casa nunca; sin `exact` casaría
+con cualquier etiqueta que contenga la palabra.
+
+Lo que no se equivoca: apuntar al `<label>` que EMPIEZA por «Activo» y bajar al
+`<select>` de dentro. Con un `<input>` no pasa —no aporta texto—, y por eso
+`getByLabel(/Actividad/)` sí funcionaba dos líneas más abajo.
+
+**Y el error ahora distingue 0 de 1:** cero opciones es que la prueba no
+encontró el campo; una sola es el «— selecciona —» y significa que NO HAY
+EQUIPOS, que sí sería un fallo del software. Antes los dos casos daban el
+mismo mensaje y me mandaron a buscar al sitio equivocado.
+
+### El informe de desborde acusaba al menú, y eran seis falsos
+
+La CI devolvió esto:
+
+    Se sale 56px en movil. Culpables:
+        - <a> se sale 54px    - <a> se sale 182px    - <a> se sale 331px …
+
+**Ninguno lo era.** El menú del teléfono es una tira con `overflow-x: auto`: se
+desplaza sola y no empuja la página. Mi comprobación de «el padre ya desborda»
+miraba **un solo nivel**, y el padre de esos enlaces —`.nav-group`— lleva
+`display: contents`, que **no tiene caja**: su rectángulo mide cero, así que la
+comprobación no saltaba jamás.
+
+Y como el informe se cortaba en seis, **esos seis falsos ocuparon todas las
+plazas y el culpable de verdad no llegó a salir**. Un informe que llena sus
+renglones con ruido es un informe apagado — la misma regla que vale para los
+verificadores desde el bloque 9.
+
+Ahora se recorre **toda la línea de padres** buscando un contenedor que se
+desplace a propósito. El 56 px sigue ahí y sigue en rojo: es un fallo visual
+real del teléfono, y la próxima vuelta dirá de quién es.
+
+### Entrar tiene MÁS de un salto
+
+`Navigation to "/assets" is interrupted by another navigation to "/dashboard"`
+
+Esperar a que la URL dejara de ser `/` no bastó. Al entrar, la pantalla pide el
+perfil y los permisos, y **cuando esas respuestas vuelven la aplicación se
+recoloca otra vez**. Ahora se espera además a que la red se calle
+(`networkidle`), que es lo único que cubre los saltos que dependen de una
+respuesta.

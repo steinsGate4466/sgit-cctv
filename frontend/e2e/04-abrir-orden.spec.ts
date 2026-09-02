@@ -81,13 +81,31 @@ test.describe('4 · Abrir una orden de mantenimiento', () => {
          · si fuera MAPEO                     → exigiría «Zona a levantar»
        La prueba deja el tipo como nace y rellena el equipo, que es lo que
        hace una persona. */
-    const activo = modal.getByLabel('Activo', { exact: true });
+    /* SE APUNTA AL <label> Y SE BAJA AL <select>, y no con `getByLabel`.
+       -----------------------------------------------------------------------
+       `getByLabel('Activo', { exact: true })` NO ENCUENTRA NADA, y el motivo
+       merece quedar escrito porque volverá a pasar: aquí el control va DENTRO
+       de su etiqueta —`<label>Activo <select>…</select></label>`— y el nombre
+       accesible de un `<select>` incluye el texto de su opción elegida. O sea
+       que ese campo no se llama «Activo» sino «Activo — selecciona —».
+
+       Con `exact` no casa nunca; sin `exact` casaría también con cualquier
+       otra etiqueta que contenga la palabra. Lo que no se equivoca es apuntar
+       al `<label>` que EMPIEZA por «Activo» y bajar al desplegable de dentro.
+       `/^\s*Activo\b/` no casa con «Actividad / descripción», que es la
+       trampa evidente. */
+    const activo = modal
+      .locator('label')
+      .filter({ hasText: /^\s*Activo\b/ })
+      .locator('select');
     const opciones = await activo.locator('option').count();
     if (opciones <= 1) {
       throw new Error(
-        '\n\n  El desplegable de activo no tiene ninguna opción.\n'
-        + '  Sin equipos cargados no se puede abrir una orden — y eso, si pasa\n'
-        + '  en planta, es un fallo del software, no de la prueba.\n\n',
+        `\n\n  El desplegable de activo trae ${opciones} opción(es).\n`
+        + '  Si es 0, la prueba no encontró el campo: mira la etiqueta.\n'
+        + '  Si es 1, es sólo el «— selecciona —» y NO HAY EQUIPOS cargados:\n'
+        + '  eso, si pasa en planta, es un fallo del software (mira que\n'
+        + '  GET /assets/options responda 200 y traiga filas).\n\n',
       );
     }
     await activo.selectOption({ index: 1 });

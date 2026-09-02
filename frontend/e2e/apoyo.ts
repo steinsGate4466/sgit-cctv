@@ -85,6 +85,19 @@ export async function entrar(page: Page, quien: 'JEFE' | 'TECNICO' = 'JEFE') {
   await page
     .waitForURL((u) => new URL(u).pathname !== '/', { timeout: 20_000 })
     .catch(() => { /* si ya está en su sitio, no hay nada que esperar */ });
+
+  /* Y ADEMÁS SE ESPERA A QUE LA RED SE CALLE.
+     -------------------------------------------------------------------------
+     Con sólo esperar la URL seguía cayéndose en móvil: hay MÁS de un salto.
+     Al entrar, la pantalla pide el perfil y los permisos, y cuando esas dos
+     llamadas vuelven la aplicación se recoloca otra vez. Si la prueba pide su
+     pantalla en ese hueco, Playwright aborta el `goto` con «interrupted by
+     another navigation» — un mensaje que culpa a la pantalla de destino
+     cuando el problema estaba en no haber terminado de entrar.
+
+     `networkidle` espera a que no queden llamadas en vuelo, así que todos los
+     saltos que dependen de una respuesta ya han ocurrido. */
+  await page.waitForLoadState('networkidle').catch(() => { /* red lenta: sigue */ });
 }
 
 /** Entra escribiendo usuario y contraseña. Sólo lo usan el recorrido 1 y el setup. */

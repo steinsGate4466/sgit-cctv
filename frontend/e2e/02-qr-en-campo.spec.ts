@@ -115,10 +115,31 @@ test.describe('2 · El QR delante del equipo', () => {
            salen el bloque, su hijo y su nieto por un solo fallo, y el
            informe entierra la línea útil. Es el mismo criterio que hace
            útiles a los verificadores. */
-        const p = el.parentElement;
-        if (p && p.getBoundingClientRect().right > ancho + 2) return;
-        /* Un contenedor que se desplaza a propósito no es un fallo: las
-           tablas viven dentro de `.card { overflow-x: auto }`. */
+        /* SE MIRA TODA LA LÍNEA DE PADRES, NO SÓLO EL PADRE DIRECTO.
+           Mi primera versión miraba un nivel, y la CI devolvió seis enlaces
+           del MENÚ como culpables. No lo eran: el menú del teléfono es una
+           tira con `overflow-x: auto`, así que se desplaza sola y no empuja
+           la página. Lo que pasaba es que su padre —`.nav-group`— lleva
+           `display: contents`, que NO TIENE CAJA: su rectángulo mide cero y
+           mi comprobación de «el padre ya desborda» no saltaba nunca.
+
+           Y como el informe se cortaba en seis, esos seis falsos ocupaban
+           TODAS las plazas y el culpable de verdad no llegaba a salir. Un
+           informe que llena sus renglones con ruido es un informe apagado. */
+        let ancestro: HTMLElement | null = el.parentElement;
+        let dentroDeUnScroll = false;
+        let padreYaDesborda = false;
+        while (ancestro && ancestro !== document.body) {
+          const ov = getComputedStyle(ancestro).overflowX;
+          if (ov === 'auto' || ov === 'scroll' || ov === 'hidden') dentroDeUnScroll = true;
+          const rp = ancestro.getBoundingClientRect();
+          if (rp.width > 0 && rp.right > ancho + 2) padreYaDesborda = true;
+          ancestro = ancestro.parentElement;
+        }
+        if (dentroDeUnScroll || padreYaDesborda) return;
+
+        /* Y el propio elemento, si se desplaza a propósito, tampoco es un
+           fallo: las tablas viven dentro de `.card { overflow-x: auto }`. */
         const ov = getComputedStyle(el).overflowX;
         if (ov === 'auto' || ov === 'scroll') return;
         lista.push(
@@ -126,7 +147,7 @@ test.describe('2 · El QR delante del equipo', () => {
           + ` se sale ${Math.round(r.right - ancho)}px`,
         );
       });
-      return { sobra: raiz.scrollWidth - ancho, culpables: lista.slice(0, 6) };
+      return { sobra: raiz.scrollWidth - ancho, culpables: lista.slice(0, 8) };
     });
 
     const detalle = culpables.length
