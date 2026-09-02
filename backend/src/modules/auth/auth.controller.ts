@@ -8,6 +8,7 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { LogoutDto } from './dto/logout.dto';
 
 @ApiTags('auth')
 @UseGuards(FrenoGuard)
@@ -40,7 +41,7 @@ export class AuthController {
    */
   @ApiBearerAuth()
   @Post('logout')
-  logout(@Body() dto: any, @CurrentUser() user: any, @Ip() ip: string) {
+  logout(@Body() dto: LogoutDto, @CurrentUser() user: any, @Ip() ip: string) {
     return this.auth.logout(dto?.refreshToken, user?.userId, ip);
   }
 

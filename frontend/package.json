@@ -27,7 +27,11 @@
     "verificar:tablas": "node scripts/verificar-tablas.cjs",
     "verificar:botones": "node scripts/verificar-botones.cjs",
     "verificar:menu": "node scripts/verificar-menu.cjs",
-    "verificar:botones-alto": "node scripts/verificar-botones-alto.cjs"
+    "verificar:botones-alto": "node scripts/verificar-botones-alto.cjs",
+    "e2e": "dotenv -e .env.e2e -- playwright test",
+    "e2e:ui": "dotenv -e .env.e2e -- playwright test --ui",
+    "e2e:instalar": "playwright install chromium",
+    "verificar:catch": "node scripts/verificar-catch.cjs"
   },
   "dependencies": {
     "axios": "^1.7.7",
@@ -38,10 +42,13 @@
     "recharts": "^3.10.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^26.4.1",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
     "@typescript-eslint/parser": "^8.67.0",
     "@vitejs/plugin-react": "^6.1.0",
+    "dotenv-cli": "^11.0.0",
     "eslint": "^10.9.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.11.0",
@@ -51,6 +58,7 @@
   "overrides": {
     "js-yaml": "^4.3.1",
     "nanoid": "^3.3.18",
-    "postcss": "^8.5.23"
+    "postcss": "^8.5.23",
+    "browserslist": "^4.28.8"
   }
 }

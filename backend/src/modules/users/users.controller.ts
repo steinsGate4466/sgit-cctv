@@ -10,6 +10,7 @@ import { SetPinDto, VerifyPinDto } from './dto/pin.dto';
 import { RequireAlguno, RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { SinAmbito } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { MotivoDto } from './dto/motivo.dto';
 
 @ApiTags('users')
 @ApiBearerAuth()
@@ -97,7 +98,7 @@ export class UsersController {
   @SinAmbito()
   @Delete('sesiones/:sesionId')
   @RequirePermissions('user.manage')
-  cerrarSesion(@Param('sesionId') sesionId: string, @Body() dto: any) {
+  cerrarSesion(@Param('sesionId') sesionId: string, @Body() dto: MotivoDto) {
     return this.users.cerrarSesion(sesionId, dto?.motivo);
   }
 
@@ -106,7 +107,7 @@ export class UsersController {
   @SinAmbito()
   @Post(':id/cortar-acceso')
   @RequirePermissions('user.manage')
-  cortarAcceso(@Param('id') id: string, @Body() dto: any) {
+  cortarAcceso(@Param('id') id: string, @Body() dto: MotivoDto) {
     return this.users.cortarAcceso(id, dto?.motivo);
   }
 

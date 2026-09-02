@@ -6,6 +6,7 @@ import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { SinAmbito } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { ActualizarRolDto, AmbitoDeTrenesDto, CrearRolDto } from './dto/rol.dto';
 
 @ApiTags('roles')
 @ApiBearerAuth()
@@ -30,14 +31,14 @@ export class RolesController {
 
   @Post()
   @RequirePermissions('role.manage')
-  crear(@Body() dto: any) {
+  crear(@Body() dto: CrearRolDto) {
     return this.roles.crear(dto);
   }
 
   @SinAmbito()  // roles: configuración del sistema
   @Patch(':id')
   @RequirePermissions('role.manage')
-  actualizar(@Param('id') id: string, @Body() dto: any, @CurrentUser() user: any) {
+  actualizar(@Param('id') id: string, @Body() dto: ActualizarRolDto, @CurrentUser() user: any) {
     // Se pasa el ID de USUARIO y el servicio busca su rol en la base: así se
     // impide que se quede fuera de la administración a sí mismo, aunque su
     // sesión venga de antes de un cambio de rol.
@@ -54,7 +55,7 @@ export class RolesController {
   @SinAmbito()  // roles: configuración del sistema
   @Patch('usuario/:userId/ambito')
   @RequirePermissions('user.manage')
-  ambito(@Param('userId') userId: string, @Body() dto: any) {
+  ambito(@Param('userId') userId: string, @Body() dto: AmbitoDeTrenesDto) {
     return this.roles.fijarAmbito(userId, dto?.trenes);
   }
 }

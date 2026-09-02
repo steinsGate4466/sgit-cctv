@@ -13,3 +13,12 @@ vite.config.ts.timestamp-*
 # cada persona lo modifica en cada typecheck y ensucia todos los diffs.
 # Apareci­o al correr `tsc -b --noEmit` en el bloque 62.
 *.tsbuildinfo
+
+# Playwright (bloque 85)
+# ---------------------------------------------------------------------------
+# `.env.e2e` lleva credenciales: NO SE SUBE NUNCA. El ejemplo sí, sin valores.
+.env.e2e
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

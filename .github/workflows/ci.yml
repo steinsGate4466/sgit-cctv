@@ -84,16 +84,31 @@ jobs:
       # `prisma migrate diff`, pero tarda minutos porque levanta un Postgres.
       # Esta version lee los .sql y falla en medio segundo, asi que el aviso
       # llega al principio del CI y no al final.
-      # 12.4 - REVISION DE DEPENDENCIAS. INFORMA, NO ROMPE.
-      # `continue-on-error: true` es deliberado: un aviso nuevo en una libreria
-      # transitiva no puede bloquear un despliegue de planta un martes por la
-      # tarde. Queda en el registro para revisarlo cuando toque.
+      # REVISION DE DEPENDENCIAS - AHORA SI ROMPE (bloque 85)
+      # ---------------------------------------------------------------------
+      # Antes ponia `continue-on-error: true` Y `|| true`: DOS formas de
+      # callarse en la misma linea. La CI miraba las 10 vulnerabilidades y
+      # pasaba en verde SIEMPRE. Un control que nunca puede fallar no es un
+      # control - es la misma regla que ya vale para los verificadores: uno
+      # que no se puede poner en rojo se desactiva.
+      #
+      # Se pudo cerrar sin subir NI UNA version mayor de las directas. La
+      # herramienta proponia BAJAR prisma 7 -> 6, exceljs 4 -> 3 y minio a un
+      # major anterior; eso no se hace. En su lugar, `overrides` en el
+      # package.json fija la version PARCHEADA de la libreria transitiva y
+      # deja la directa donde estaba. Resultado: 0 vulnerabilidades, 0
+      # dependencias directas tocadas.
+      #
       # NUNCA se ejecuta `npm audit fix --force` aqui: eso sube versiones
       # mayores solo y es exactamente lo que este proyecto tiene prohibido.
-      - name: Revisar dependencias (informativo)
+      #
+      # Si algun dia entra una vulnerabilidad ALTA que no se pueda cerrar con
+      # un override, la decision se escribe en docs/DEPENDENCIAS.md y se sube
+      # el umbral A PROPOSITO en esta linea. Lo que no se hace es volver a
+      # poner un `|| true`, que esconde el problema sin que nadie lo decida.
+      - name: Vulnerabilidades altas en el backend
         working-directory: backend
-        continue-on-error: true
-        run: npm audit --audit-level=high || true
+        run: npm audit --audit-level=high
 
       # El foco que saltaba al primer campo con cada tecla. Un fallo de
       # teclado no lo caza el typecheck ni un test de unidad: lo encontro el
@@ -102,10 +117,12 @@ jobs:
         working-directory: frontend
         run: npm run verificar:foco
 
-      - name: Revisar dependencias del frontend (informativo)
+      # Misma decision que en el backend (bloque 85). El frontend tenia UNA
+      # alta, `browserslist`, transitiva de eslint-plugin-react-hooks. Cerrada
+      # con un override a la version parcheada, sin tocar ninguna directa.
+      - name: Vulnerabilidades altas en el frontend
         working-directory: frontend
-        continue-on-error: true
-        run: npm audit --audit-level=high || true
+        run: npm audit --audit-level=high
 
       - name: Campos de Prisma que no existen
         working-directory: backend
@@ -322,6 +339,15 @@ jobs:
       - name: Los botones se alinean entre si
         working-directory: frontend
         run: npm run verificar:botones-alto
+
+      # Un `.catch(() => {})` sobre una LECTURA es deuda: el bloque sale vacio.
+      # Sobre una ESCRITURA es una MENTIRA: la pantalla dice que algo paso y no
+      # paso. Asi se perdio una contrasena de equipo en silencio y asi un
+      # borrado de credenciales decia haber ido bien sin borrar nada (b. 77).
+      # Se arreglaron los tres y NADA impedia que volvieran.
+      - name: Ninguna escritura se traga el error
+        working-directory: frontend
+        run: npm run verificar:catch
 
       # Una pantalla sin entrada en el menu NO EXISTE para el usuario: la ruta
       # funciona y no hay forma de llegar. Al reagrupar 44 entradas por oficio
@@ -617,3 +643,142 @@ jobs:
           fi
           echo "Autochequeo limpio sobre base recien sembrada."
           grep -E "Autochequeo" arranque.log || true
+
+  # ===========================================================================
+  #  RECORRIDOS QUE ABREN EL SOFTWARE  (bloque 85)
+  # ===========================================================================
+  #
+  #  POR QUE EXISTE ESTE TRABAJO, escrito tres veces en CLAUDE.md:
+  #
+  #    > Las 1.152 pruebas de este proyecto NO ABREN EL SOFTWARE. Comprueban
+  #    > que el codigo esta bien escrito. Ninguna comprueba que funcione.
+  #
+  #  Costo dos veces lo mismo: cuatro bugs de bulto delante del ingeniero
+  #  (bloque 64) y lo que encontro una desarrolladora en veinte minutos
+  #  (bloque 67). Los ocho se veian ABRIENDO la pantalla, y ninguno rompia
+  #  nada: por eso pasaban el typecheck, el lint y los 28 verificadores.
+  #
+  #  Levanta LA PILA ENTERA -Postgres, backend, frontend- y la usa como la
+  #  usaria una persona. Es el unico trabajo del CI que hace eso.
+  # ---------------------------------------------------------------------------
+  recorridos:
+    name: Recorridos - alguien usa el software de verdad
+    runs-on: ubuntu-latest
+    # Depende del arranque: si el backend ni levanta, estos recorridos solo
+    # anadirian ruido rojo sobre un fallo que ya se ha reportado mas arriba.
+    needs: arranque
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci_e2e
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_e2e?schema=public
+      NODE_ENV: production
+      # De USAR Y TIRAR, solo para este contenedor efimero. La base se destruye
+      # al terminar. Los de Pisco viven en Railway y no estan en el repositorio.
+      CREDENTIAL_ENC_KEY: clave-de-recorridos-no-usar-en-planta-000000000001
+      JWT_SECRET: jwt-de-recorridos-no-usar-en-planta-0000000000000002
+      JWT_REFRESH_SECRET: refresh-de-recorridos-no-usar-en-planta-000000003
+      PORT: '3000'
+      # La semilla crea el administrador con estos valores; los recorridos
+      # entran con ellos. Solo existen dentro de este contenedor.
+      ADMIN_EMAIL: admin@ci.local
+      ADMIN_PASSWORD: Recorridos.CI.2026
+      E2E_JEFE_EMAIL: admin@ci.local
+      E2E_JEFE_PASSWORD: Recorridos.CI.2026
+      E2E_URL: http://127.0.0.1:4173
+
+    steps:
+      - name: Descargar el codigo
+        uses: actions/checkout@v4
+
+      - name: Preparar Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      # `--include=dev` por lo mismo que en el trabajo de arranque: con
+      # NODE_ENV=production, npm se salta las devDependencies SIN AVISAR y el
+      # fallo aparece tres pasos mas abajo, disfrazado de otra cosa.
+      - name: Instalar backend
+        working-directory: backend
+        run: npm ci --include=dev
+
+      - name: Preparar la base
+        working-directory: backend
+        run: |
+          npx prisma generate
+          npx prisma migrate deploy
+          npm run build
+          npx prisma db seed
+
+      - name: Instalar frontend
+        working-directory: frontend
+        run: npm ci --include=dev
+
+      - name: Descargar el navegador
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      # Se compila y se SIRVE el build, no el servidor de desarrollo. Es lo que
+      # de verdad se despliega: el modo desarrollo no trocea los archivos por
+      # ruta ni aplica el `lazy-con-reintento`, asi que probar ahi dejaria
+      # fuera justo la clase de fallo que se ve tras un despliegue.
+      - name: Compilar el frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Levantar la pila y correr los recorridos
+        run: |
+          node backend/dist/main.js > backend.log 2>&1 &
+          API=$!
+          # `vite preview` se lanza DESDE frontend/ y en una subshell: si se
+          # hiciera un `cd` suelto, el `cd frontend` de mas abajo fallaria y el
+          # error diria «no such directory», que no explica nada.
+          (cd frontend && npx vite preview --port 4173 --host 127.0.0.1) > web.log 2>&1 &
+          WEB=$!
+
+          for i in $(seq 1 60); do
+            if ! kill -0 $API 2>/dev/null; then
+              echo "::error::El backend MURIO durante el arranque."; cat backend.log; exit 1
+            fi
+            curl -fsS http://127.0.0.1:3000/health > /dev/null 2>&1 && break
+            sleep 1
+          done
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:4173 > /dev/null 2>&1 && break
+            sleep 1
+          done
+
+          # `playwright test` a secas: las credenciales vienen del entorno del
+          # trabajo, no de un `.env.e2e` (que ni existe aqui, ni se sube).
+          cd frontend && npx playwright test
+          CODIGO=$?
+          kill $API $WEB 2>/dev/null || true
+          exit $CODIGO
+
+      # El informe SOLO si algo fallo. Guardarlo siempre llena el almacen de
+      # artefactos con carpetas que nadie abre.
+      - name: Guardar el informe si fallo
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: recorridos-informe
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+            backend.log
+            web.log
+          retention-days: 7

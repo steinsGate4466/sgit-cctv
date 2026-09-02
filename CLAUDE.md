@@ -2583,3 +2583,136 @@ desaparecen los prefijos.
 frase «los números que se llevan a un comité», que es una declaración de
 intenciones; se quedó la regla del «sin datos», que explica algo que se ve en
 pantalla. **Subir la línea base no se hizo.**
+
+---
+
+## 29. Bloque 85 — lo que faltaba en la arquitectura
+
+Cuatro huecos estructurales, no funciones. El usuario los eligió después de
+una auditoría medida, no supuesta.
+
+### 1 · Playwright — las pruebas que ABREN el software
+
+Está escrito **tres veces** en este archivo y las tres después de una
+exposición que salió mal:
+
+> Las 1.152 pruebas de este proyecto NO ABREN EL SOFTWARE. Comprueban que el
+> código está bien escrito. Ninguna comprueba que funcione.
+
+**23 recorridos en 6 archivos**, en 1366×768 —la pantalla de los púlpitos— y
+el QR además en móvil, porque el técnico usa su propio teléfono y la mitad de
+los fallos visuales de este proyecto sólo se ven ahí.
+
+Cada uno caza un bug que YA PASÓ: el aviso que vivía dentro del formulario que
+se cerraba (b. 64), las OM que nacían sin fecha (b. 64), el QR cerrado para el
+Jefe de Tren (b. 68), los botones apagados que no decían qué faltaba (b. 67).
+
+**NO CORREN CONTRA PRODUCCIÓN, y hay una guarda que lo impide.** Estos
+recorridos escriben: crean incidencias y órdenes, y esas órdenes entran en el
+nivel de servicio y en el reparto correctivo/preventivo. *Una prueba que falsea
+el indicador que se lleva al comité es peor que no tener prueba.* Probado con
+las dos URL reales: se bloquean.
+
+**El recorrido 5 es el importante.** Recorre TODAS las entradas del menú que un
+usuario ve y comprueba que cada una se abre. Es el único que caza el fallo que
+ha aparecido tres veces —bloques 68, 77 y 83—: entrada de menú abierta con su
+endpoint cerrado. **Con el Jefe no se detecta, porque el Jefe lo ve todo.**
+
+**No se han podido ejecutar aquí**: el entorno del agente no puede descargar el
+navegador. Lo que sí se comprobó: compilan, Playwright lista las 23, y la
+guarda funciona. Se dice tal cual.
+
+### 2 · La CI ya puede fallar por vulnerabilidades
+
+Había `continue-on-error: true` **Y** `|| true` en la misma línea, en dos
+sitios. **Dos formas de callarse.** La CI miraba las 10 vulnerabilidades y
+pasaba en verde siempre.
+
+> Un control que nunca puede fallar no es un control. Es la misma regla que ya
+> vale aquí para los verificadores: uno que no se puede poner en rojo se
+> desactiva.
+
+**Se cerraron las 5 altas sin subir NI UNA versión mayor de las directas.** La
+herramienta proponía BAJAR prisma 7→6, exceljs 4→3 y minio a un major
+anterior; eso no se hace. `overrides` fija la versión PARCHEADA de la
+transitiva y deja la directa donde estaba. **0 vulnerabilidades, 0
+dependencias directas tocadas.**
+
+#### El override que hubo que retirar, y por qué es la lección
+
+`decode-uri-component@0.5.0` es la única versión que cierra su advertencia. **Y
+es sólo ESM.** `query-string@7` —dentro de `minio`— es CommonJS y lo carga con
+`require()`:
+
+    require('minio')  →  ERR_PACKAGE_PATH_NOT_EXPORTED
+
+**Habría tumbado el arranque en producción**, porque MinIO es lo que guarda las
+fotos y los informes. No lo cazó el typecheck: lo cazó una prueba al fallar
+cargando el módulo.
+
+> **Un `override` es un cambio de dependencia como otro cualquiera y se prueba
+> como tal.** Correr las pruebas y el `require()` real antes de darlo por
+> bueno. Cerrar una advertencia rompiendo el arranque no es un arreglo.
+
+Queda como deuda declarada en `docs/DEPENDENCIAS.md`, con su motivo y su
+condición de revisión. **Lo que no se hace es volver a poner un `|| true`.**
+
+### 3 · Los `catch` que silencian — el número mentía
+
+Se contaban 114. Medidos por tipo:
+
+| | |
+|---|---|
+| **ESCRITURAS silenciadas** | **1**, y es el `logout`: fuego y olvido a propósito |
+| LECTURAS silenciadas | 103 |
+
+**Las escrituras ya se habían arreglado en el bloque 77.** Y las lecturas están
+cubiertas por el aviso central de `api/client.ts`, que anuncia el fallo de red,
+el 500 y el 403 — los tres casos en los que una lista vacía miente.
+
+> Reescribir 103 sitios de lectura habría sido mucho ruido y riesgo de
+> regresión para un beneficio que **ya estaba entregado en otro sitio**.
+
+Lo que faltaba era impedir la regresión: `verificar:catch` (verificador 17)
+prohíbe que una ESCRITURA se trague el error. Probado reintroduciendo dos de
+los tres bugs reales del bloque 77.
+
+**Falso positivo mío, cazado al probarlo contra el código real:** marcaba
+`const ok = await api.post(...).catch(() => false)` en Assets, que está BIEN —
+ese `false` se usa para juntar las fotos fallidas y avisar al final. La señal
+que separa los dos casos: **si el valor se asigna o se devuelve, alguien lo va
+a mirar.** Quinta vez que un patrón más flojo de lo necesario acaba leyendo
+otra cosa.
+
+### 4 · Los `@Body() dto: any` — congelados y drenando
+
+Con `@Body() dto: any` el `ValidationPipe` **no valida nada**: corre con
+`whitelist` y `forbidNonWhitelisted`, que es lo correcto, pero esas opciones
+actúan sobre los metadatos de una clase DTO. Sin clase no hay metadatos.
+
+**Escribir 54 clases de golpe es la clase de cambio que rompe producción sin
+que nadie lo vea**: con `forbidNonWhitelisted`, un DTO al que se le olvide un
+campo rechaza peticiones válidas con un 400 y el formulario deja de guardar sin
+decir por qué.
+
+Así que: **cerrados los de seguridad** —auth, users y roles: reparten poder y
+cortan accesos— y el resto congelado en `verificar:dto` (verificador 13 del
+backend), con una lista que **sólo puede encoger**.
+
+La segunda mitad del verificador es la que importa: **si la lista declara más
+de los que quedan, también falla**. Sin eso, la deuda se «arregla» en el papel
+y nadie se entera.
+
+#### El verificador me corrigió la medición
+
+Yo había contado 53 con un `grep`. Él encontró **54**: mi patrón usaba
+`[a-zA-Z]*` para el nombre del parámetro y no casaba `_b`, con guion bajo.
+
+> **Una medición a ojo se equivoca; un verificador no.** Van 45.
+
+### Decisión de arquitectura que NO se tomó
+
+**El monolito no se parte.** 353 endpoints y 78 modelos en una app NestJS es
+normal a esta escala, y microservicios aquí sólo añadirían latencia y
+despliegues que se caen a medias. La separación ya existe donde importa: por
+módulos, con el árbol de planta como única fuente de verdad.
