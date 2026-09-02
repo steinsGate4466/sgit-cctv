@@ -182,15 +182,28 @@ export class UsersService {
     /* Desactivar SÍ sube el contador y cierra sus sesiones: si no, la persona
        seguiría dentro hasta quince minutos después de darla de baja. Ése era
        el agujero. */
-    const r = await this.prisma.user.update({
-      where: { id },
-      data: { active: false, permisosVersion: { increment: 1 } } as any,
-      select: userSelect,
-    });
-    await this.prisma.sesion.updateMany({
-      where: { userId: id, revocadaEn: null },
-      data: { revocadaEn: new Date(), motivoRevocacion: 'usuario desactivado' },
-    });
+    /* LAS DOS, EN UNA TRANSACCIÓN — bloque 87.
+       -----------------------------------------------------------------------
+       Dar de baja a alguien es UN solo hecho, y aquí se escribía en dos
+       tablas sueltas. Si la segunda fallaba, el usuario quedaba desactivado
+       con sus sesiones vivas.
+
+       Hoy no se cuela por defensa en profundidad —el contador ya subió, y la
+       renovación comprueba `active`—, pero eso es tener el corte sujeto por
+       una sola capa sin saberlo. Cuando la seguridad depende de que la otra
+       mitad falle de la forma correcta, deja de ser una decisión y pasa a ser
+       suerte. */
+    const [r] = await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id },
+        data: { active: false, permisosVersion: { increment: 1 } } as any,
+        select: userSelect,
+      }),
+      this.prisma.sesion.updateMany({
+        where: { userId: id, revocadaEn: null },
+        data: { revocadaEn: new Date(), motivoRevocacion: 'usuario desactivado' },
+      }),
+    ]);
     AccesoVigenteGuard.olvidar(id);
     return r;
   }

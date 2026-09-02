@@ -153,27 +153,57 @@ export default function Instalaciones() {
     } finally { setGuardando(false); }
   }
 
+  /* SE BLOQUEA MIENTRAS DECIDE — bloque 87.
+     -------------------------------------------------------------------------
+     Faltaba la guarda, y `cerrarInstalacion`, treinta líneas más abajo, SÍ la
+     tiene. Cuando dos funciones hermanas del mismo archivo se comportan
+     distinto, una de las dos está mal (regla del bloque 77).
+
+     Aprobar dos veces no rompe nada en la base, pero manda dos avisos y deja
+     dos líneas en la auditoría para una sola decisión — y la auditoría es
+     justo lo que no puede mentir. */
   async function decidir(i: any, aprobar: boolean) {
+    if (guardando) return;
     let motivo: string | undefined;
     if (!aprobar) {
       motivo = await pedirTexto('¿Por qué se rechaza? Quien la pidió tiene que poder corregirla.') || '';
       if (!motivo.trim()) return;
     }
+    setGuardando(true); setError('');
     try {
       await api.patch(`/instalaciones/${i.id}/decidir`, { aprobar, motivo });
       setMsg(aprobar ? `${i.codigo} aprobada.` : `${i.codigo} rechazada.`);
       setDetalle(null);
       await cargar(fEstado, fSitio, texto);
     } catch (e: any) { setError(mensajeDeError(e, 'decidir')); }
+    finally { setGuardando(false); }
   }
 
+  /* EL PEOR DE LOS TRES, Y POR ESO VA CON DOS FRENOS — bloque 87.
+     -------------------------------------------------------------------------
+     Este botón CREA UNA ORDEN DE TRABAJO. Sin guarda, dos clics seguidos
+     —que en una tablet con la wifi de la nave es lo normal cuando la primera
+     pulsación parece no responder— generan DOS ÓRDENES para la misma
+     instalación.
+
+     Y eso no es un registro duplicado que se borra: es una cuadrilla que sube
+     dos veces al mismo poste, y dos órdenes contando en el reparto
+     correctivo/preventivo y en el nivel de servicio. El indicador que se lleva
+     al comité queda inflado por un doble clic.
+
+     `if (guardando) return` corta la segunda llamada aunque React todavía no
+     haya repintado el botón: el estado se lee al instante, el `disabled` tarda
+     un ciclo. Los dos frenos, no uno. */
   async function generarOrden(i: any) {
+    if (guardando) return;
+    setGuardando(true); setError('');
     try {
       const r = await api.post(`/instalaciones/${i.id}/orden`, {});
       setMsg(`Orden ${r.data.orden.code} generada.`);
       setDetalle(null);
       await cargar(fEstado, fSitio, texto);
     } catch (e: any) { setError(mensajeDeError(e, 'generar la orden')); }
+    finally { setGuardando(false); }
   }
 
   async function cerrarInstalacion() {
@@ -430,11 +460,11 @@ export default function Instalaciones() {
               </button>
             )}
             {puedeDecidir && detalle.estado === 'EVALUADA' && <>
-              <button className="btn-mini btn-danger" onClick={() => decidir(detalle, false)}>Rechazar</button>
-              <button className="btn-primary" onClick={() => decidir(detalle, true)}>Aprobar</button>
+              <button className="btn-mini btn-danger" onClick={() => decidir(detalle, false)} disabled={guardando}>Rechazar</button>
+              <button className="btn-primary" onClick={() => decidir(detalle, true)} disabled={guardando}>Aprobar</button>
             </>}
             {detalle.estado === 'APROBADA' && can('wo.create') && !detalle.workOrderId && (
-              <button className="btn-primary" onClick={() => generarOrden(detalle)}>Generar orden de trabajo</button>
+              <button className="btn-primary" onClick={() => generarOrden(detalle)} disabled={guardando}>Generar orden de trabajo</button>
             )}
             {puedeCerrar && ['APROBADA', 'EN_EJECUCION'].includes(detalle.estado) && (
               <button className="btn-primary" onClick={() => {

@@ -2801,3 +2801,74 @@ aplicación** por el primer activo: no se inventa un código de planta.
 **Dos fallos de configuración de la CI, también míos:** faltaba `CORS_ORIGIN`
 —el guard de `main.ts` aborta a propósito sin él— y `cache-dependency-path`,
 porque `setup-node` busca el lock en la raíz y aquí hay dos.
+
+---
+
+## 31. Bloque 87 — ni a medias ni dos veces
+
+Tres barridos nuevos, y los tres buscan la misma familia de fallo: **el que no
+rompe nada**. No hay error, no hay pantalla en rojo, y el dato queda mal para
+siempre.
+
+### A · Una escritura que se parte por la mitad
+
+Barrido: métodos de servicio que escriben en **dos o más tablas sin
+`$transaction`**. Salieron cinco. Tres son deliberados y están documentados
+—el `failureEvent` que se crea con `.catch(() => null)` a propósito, porque
+perder el aviso por no poder escribir un indicador sería cambiar lo urgente por
+lo importante—. **Dos eran bugs:**
+
+**`assets.remove`** — daba de baja el activo y luego apagaba su plan
+preventivo, en dos llamadas sueltas. Si la segunda fallaba, el activo quedaba
+DE BAJA y **su plan seguía generando órdenes para un equipo que ya no existe**.
+Esas órdenes vencen, entran en el backlog y hunden el cumplimiento del
+preventivo.
+
+> Nadie relaciona jamás «el cumplimiento bajó» con «hace tres meses una baja
+> falló a medias». Es la definición de un dato que se corrompe en silencio.
+
+**`users.deactivate`** — desactivaba y luego revocaba sesiones. Hoy no se
+colaría por defensa en profundidad —el contador de permisos ya subió, y la
+renovación comprueba `active`—, pero eso es tener el corte sujeto por una sola
+capa **sin saberlo**. Cuando la seguridad depende de que la otra mitad falle de
+la forma correcta, deja de ser una decisión y pasa a ser suerte.
+
+### B · Una escritura que se dispara dos veces
+
+Barrido: botones **sin `disabled`** cuyo manejador escribe. El peor:
+
+**`generarOrden` en Instalaciones CREA UNA ORDEN DE TRABAJO** y no tenía
+ninguna guarda. Dos clics seguidos —que en una tablet con la wifi de la nave es
+lo normal cuando la primera pulsación parece no responder— son **dos órdenes
+para la misma instalación**. Y eso no es un registro duplicado que se borra: es
+una cuadrilla que sube dos veces al mismo poste, y dos órdenes contando en el
+nivel de servicio y en el reparto correctivo/preventivo.
+
+Lo delató que **`cerrarInstalacion`, treinta líneas más abajo, SÍ tenía la
+guarda**. Es la regla del bloque 77: *cuando dos funciones hermanas del mismo
+archivo se comportan distinto, una de las dos está mal.*
+
+**Dos frenos, no uno:** `if (guardando) return` **y** `disabled`. El estado se
+lee al instante; el `disabled` tarda un ciclo de repintado, y en ese hueco cabe
+el segundo clic.
+
+### C · Trazabilidad: limpia
+
+El interceptor de auditoría es **global** y registra por método HTTP. Lo único
+que se excluye son cinco rutas que «ya registran su propia auditoría firmada»
+—y ahí está el riesgo: si una dejara de hacerlo, esa escritura no dejaría
+rastro EN ABSOLUTO—. Se comprobaron las cinco: `createSigned`, `closeSigned`,
+`resolveSigned`, la edición firmada y la de red. **Las cinco auditan.**
+
+### Y dos falsos positivos míos, cazados antes de entregar
+
+- **`Riesgo.tsx` con 12 columnas** era mentira: tiene **dos `<tr>`
+  alternativos** dentro del mismo `<thead>`, de 6 columnas cada uno. Mi barrido
+  sumó los dos y sólo se pinta uno.
+- El barrido de doble envío dio **65 hallazgos** con una ventana de 5 líneas,
+  porque cogía el manejador del botón de al lado. Acotado **a la etiqueta del
+  botón**, quedan 34, y de ésos los que duelen son tres.
+
+> **Séptima vez que un patrón más flojo de lo necesario acaba leyendo otra
+> cosa.** Ya es la firma del proyecto: cuando un barrido da muchos resultados,
+> lo primero que hay que dudar es del barrido.

@@ -724,12 +724,32 @@ export class AssetsService {
       );
     }
 
-    const updated = await this.prisma.asset.update({
-      where: { id },
-      data: { deletedAt: new Date(), status: 'BAJA' },
-    });
-    // Se desactiva su plan preventivo para que no siga generando OM.
-    await this.prisma.preventivePlan.updateMany({ where: { assetId: id }, data: { active: false } });
+    /* LAS DOS ESCRITURAS VAN JUNTAS O NO VA NINGUNA — bloque 87.
+       -----------------------------------------------------------------------
+       ANTES eran dos llamadas sueltas. Si la segunda fallaba —un corte de red
+       con la base, un tiempo agotado—, el activo quedaba DE BAJA y su plan
+       preventivo seguía ACTIVO.
+
+       Y eso no se nota: no hay error, no hay pantalla en rojo. Lo que pasa es
+       que el generador de preventivo sigue abriendo órdenes para un equipo que
+       ya no existe. Esas órdenes vencen, entran en el backlog, hunden el
+       cumplimiento del preventivo y ensucian el reparto
+       correctivo/preventivo — los números que van al comité.
+
+       Nadie relaciona jamás «el cumplimiento bajó» con «hace tres meses falló
+       una baja a medias». Es la definición de un dato que se corrompe en
+       silencio.
+
+       Es la misma regla del almacén (bloque 37-C) y del rol (bloque 86): si
+       dos escrituras describen UN solo hecho, van en una transacción. */
+    const [updated] = await this.prisma.$transaction([
+      this.prisma.asset.update({
+        where: { id },
+        data: { deletedAt: new Date(), status: 'BAJA' },
+      }),
+      // Sin esto el plan seguiría generando OM de un equipo dado de baja.
+      this.prisma.preventivePlan.updateMany({ where: { assetId: id }, data: { active: false } }),
+    ]);
 
     await this.audit.record({
       userId: userId || null, action: 'DELETE_ASSET', entity: 'assets', entityId: id, ip,
