@@ -730,6 +730,18 @@ jobs:
         with:
           node-version: '24'
           cache: npm
+          # SIN ESTO FALLA ANTES DE EMPEZAR.
+          # -------------------------------------------------------------------
+          # `cache: npm` busca el lock en la RAIZ del repositorio, y aqui no
+          # hay ninguno: este proyecto tiene dos, uno por aplicacion. El error
+          # —«Dependencies lock file is not found»— no menciona la cache por
+          # ningun lado y parece un problema de checkout.
+          #
+          # Los otros trabajos ya lo declaraban; este es el unico que toca las
+          # DOS aplicaciones, asi que van las dos rutas.
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
 
       # `--include=dev` por lo mismo que en el trabajo de arranque: con
       # NODE_ENV=production, npm se salta las devDependencies SIN AVISAR y el
