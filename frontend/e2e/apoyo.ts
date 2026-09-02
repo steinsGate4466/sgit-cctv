@@ -60,12 +60,50 @@ export async function entrar(page: Page, quien: 'JEFE' | 'TECNICO' = 'JEFE') {
 /**
  * El código del activo con el que se trabaja.
  *
- * Sale de una variable porque los códigos son DATO DE PLANTA y este proyecto
- * no inventa datos de planta. Si no está, la prueba lo dice en vez de
- * inventarse `AA-CAM-T1-001` y fallar con «no encontrado».
+ * DOS CAMINOS, Y EL ORDEN IMPORTA:
+ *
+ *  1. `E2E_ACTIVO` si está puesta. Es lo que se usa en LOCAL, porque ahí
+ *     interesa apuntar a un equipo concreto —mejor si su zona tiene declarada
+ *     la intervención, para que el recorrido 2 compruebe además el aviso de
+ *     seguridad.
+ *
+ *  2. Si no está, se le PREGUNTA A LA APLICACIÓN por el primero que haya.
+ *     Es lo que pasa en la CI, donde la base se acaba de sembrar y nadie sabe
+ *     qué códigos salieron.
+ *
+ * NO SE INVENTA UN CÓDIGO. Escribir `AA-CAM-T1-001` como valor por defecto
+ * sería inventar un dato de planta, y la prueba fallaría con «no encontrado»
+ * — un error que no dice nada sobre el software y hace perder media hora.
+ * Preguntarle a la aplicación no es inventar: es descubrir.
  */
-export function activoDePrueba(): string {
-  return credencial('E2E_ACTIVO');
+export async function activoDePrueba(page: Page): Promise<string> {
+  const fijado = process.env.E2E_ACTIVO;
+  if (fijado) return fijado;
+
+  /* Se pide DESDE LA PÁGINA para que viaje el token de la sesión: una llamada
+     suelta iría sin autenticar y devolvería 401. */
+  const codigo = await page.evaluate(async () => {
+    const base = (window as any).__API__
+      || document.querySelector('meta[name="api"]')?.getAttribute('content')
+      || 'http://127.0.0.1:3000/api/v1';
+    const t = localStorage.getItem('sgit_token');
+    const r = await fetch(`${base}/assets?pageSize=1`, {
+      headers: t ? { Authorization: `Bearer ${t}` } : {},
+    });
+    if (!r.ok) return null;
+    const d = await r.json();
+    const fila = (d.data || d)[0];
+    return fila?.assetCode ?? null;
+  });
+
+  if (!codigo) {
+    throw new Error(
+      '\n\n  No hay ningún activo en la base y `E2E_ACTIVO` no está puesta.\n'
+      + '  En local: pon un código real en .env.e2e (sácalo de «Estructura de activos»).\n'
+      + '  En la CI: la semilla debería crear al menos uno; si no, es un fallo de la semilla.\n\n',
+    );
+  }
+  return codigo;
 }
 
 /**

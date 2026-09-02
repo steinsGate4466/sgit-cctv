@@ -389,7 +389,21 @@ export default function Layout() {
         can('asset.read') && <NavLink key="cmp" to="/campanas"><Icono n="ok" /> Campañas de mapeo</NavLink>,
         can('asset.read') && <NavLink key="mp" to="/mapeo"><Icono n="mapeo" /> Avance del mapeo</NavLink>,
         can('access.read') && <NavLink key="ac" to="/access"><Icono n="acceso" /> Accesibilidad</NavLink>,
-        can('asset.read') && <NavLink key="eq" to="/equipos"><Icono n="pc" /> Equipos conocidos</NavLink>,
+        /* EQUIPOS CONOCIDOS — el menú decía `asset.read` y el endpoint exige
+           `user.manage`. DIEZ roles veían la entrada y la pantalla salía
+           vacía: es el mismo fallo de los bloques 68, 77 y 83, encontrado
+           esta vez cruzando cada entrada del menú contra el permiso real de
+           los endpoints que carga.
+
+           SE CIERRA EL MENÚ, no se abre el endpoint. Cerrar no le quita nada
+           a nadie —la pantalla ya salía vacía para esos diez—; abrirlo sería
+           una decisión sobre datos de auditoría (desde qué PC entra cada
+           persona), y ésa es del usuario, no mía.
+
+           PENDIENTE DE DECISIÓN: el Supervisor TI / Redes tiene `asset.read`
+           y `red.read` pero NO `user.manage`, así que hoy no puede gestionar
+           el registro de equipos conocidos — que es justo lo suyo. */
+        can('user.manage') && <NavLink key="eq" to="/equipos"><Icono n="pc" /> Equipos conocidos</NavLink>,
         can('infra.read') && <NavLink key="rt" to="/rotulado"><Icono n="etiqueta" /> Rotulado</NavLink>,
         // Fichas incompletas: sin IP, sin ubicación, sin foto. Cierra la
         // sección porque habla de la CALIDAD de todo lo de arriba.

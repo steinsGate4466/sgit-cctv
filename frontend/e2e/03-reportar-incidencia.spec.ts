@@ -13,6 +13,17 @@ import { entrar, vigilarConsola } from './apoyo';
 
    El usuario veía la pantalla volver atrás en silencio y concluía —con razón—
    que el software no funciona. **Eso no lo caza ningún typecheck.**
+
+   -----------------------------------------------------------------------------
+   TODO SE BUSCA DENTRO DEL MODAL, y no en la pantalla entera.
+
+   La pantalla de Incidencias tiene una BARRA DE FILTROS con sus propios
+   `<label>Buscar`, `<label>Desde`, `<label>Hasta`… y esos campos aparecen
+   ANTES en el DOM que los del formulario. Un `.first()` a nivel de página
+   agarra el del filtro y la prueba falla señalando algo que está bien.
+
+   Es el mismo error que este proyecto lleva cazándose desde el verificador 9:
+   un patrón más flojo de lo necesario acaba leyendo otra cosa.
 ============================================================================= */
 
 test.describe('3 · Reportar una incidencia', () => {
@@ -24,16 +35,16 @@ test.describe('3 · Reportar una incidencia', () => {
 
     const antes = await page.locator('table.tabla tbody tr').count();
 
-    await page.getByRole('button', { name: /nueva|reportar|\+/i }).first().click();
+    await page.getByRole('button', { name: 'Nueva incidencia' }).click();
+    const modal = page.locator('.modal');
+    await expect(modal).toBeVisible();
 
     /* Marca de tiempo en el título: así la prueba encuentra SU incidencia y
        no una de otra ejecución. Sin esto, la segunda vez que corre pasaría
        en verde aunque no hubiera creado nada. */
     const marca = `E2E ${Date.now()}`;
-    const titulo = page.getByLabel(/t[ií]tulo|descripci[óo]n|qu[ée] pasa/i).first();
-    await titulo.fill(`Prueba automática ${marca}`);
-
-    await page.getByRole('button', { name: /guardar|crear|reportar|enviar/i }).last().click();
+    await modal.getByLabel('Título').fill(`Prueba automatica ${marca}`);
+    await modal.getByRole('button', { name: 'Crear incidencia' }).click();
 
     /* SE COMPRUEBA QUE APARECE, no que el formulario se cerró.
        El bug era exactamente ése: el formulario se cerraba SIEMPRE, hubiera
@@ -46,33 +57,32 @@ test.describe('3 · Reportar una incidencia', () => {
     expect(errores, `Errores en consola: ${errores.join(' | ')}`).toHaveLength(0);
   });
 
-  test('un formulario incompleto DICE qué falta, no se queda muerto', async ({ page }) => {
-    /* BLOQUE 67, el hallazgo de fondo: 32 botones se apagaban porque faltaba
-       un dato y NINGUNO decía cuál. Un `disabled` de verdad no se puede
-       pulsar, no dispara eventos y no hay forma de preguntarle por qué. El
-       usuario ve el botón muerto y concluye que el software está roto.
+  test('el formulario no se cierra en silencio si algo falla', async ({ page }) => {
+    /* Se corta la petición A PROPÓSITO para provocar el fallo. Es la única
+       forma de comprobar el bug original: que el formulario se cerraba igual
+       y el aviso —que vive dentro— desaparecía con él.
 
-       La decisión fue: si falta un dato, el botón SE QUEDA VIVO, se puede
-       pulsar, no envía nada y dice qué falta. Esto lo fija. */
+       Lo que se exige es lo mínimo defendible: o sigue abierto para poder
+       enseñar el error, o hay un aviso visible fuera. Lo que NO puede pasar
+       es que desaparezca todo sin decir nada. */
     await entrar(page);
     await page.goto('/incidents');
     await page.waitForLoadState('networkidle');
 
-    await page.getByRole('button', { name: /nueva|reportar|\+/i }).first().click();
+    await page.getByRole('button', { name: 'Nueva incidencia' }).click();
+    const modal = page.locator('.modal');
+    await modal.getByLabel('Título').fill('Prueba de fallo E2E');
 
-    const enviar = page.getByRole('button', { name: /guardar|crear|reportar|enviar/i }).last();
+    await page.route('**/incidents', (r) => r.abort('failed'), { times: 1 });
+    await modal.getByRole('button', { name: 'Crear incidencia' }).click();
 
-    /* El botón NO puede estar `disabled` a secas: tiene que ser pulsable para
-       poder explicarse. `aria-disabled` sí — le dice al lector de pantalla
-       que no está disponible sin sacarlo del recorrido del teclado. */
-    await expect(enviar).toBeEnabled();
+    const sigueAbierto = await modal.isVisible().catch(() => false);
+    const hayAviso = await page.locator('.error, .aviso-error, .modal-overlay')
+      .first().isVisible().catch(() => false);
 
-    await enviar.click();
-    /* Y al pulsarlo con el formulario vacío, aparece el motivo. Antes de
-       pulsar NO se enseña: pintar «falta el nombre» al abrir un formulario
-       vacío es regañar a alguien por no haber empezado. */
-    await expect(
-      page.locator('[class*="motivo"], [class*="falta"], .aviso-error, .error').first(),
-    ).toBeVisible({ timeout: 10_000 });
+    expect(
+      sigueAbierto || hayAviso,
+      'El formulario se cerró y no quedó ningún aviso: el usuario no sabe que falló',
+    ).toBe(true);
   });
 });

@@ -24,7 +24,7 @@ test.describe('2 · El QR delante del equipo', () => {
     const errores = vigilarConsola(page);
     await entrar(page);
 
-    const codigo = activoDePrueba();
+    const codigo = await activoDePrueba(page);
     /* Se llega por la lista y se pulsa el enlace del QR, en vez de escribir
        la URL a mano. Así se prueba también que el enlace EXISTE: una ficha a
        la que sólo se llega tecleando la ruta no existe para el usuario. */
@@ -44,7 +44,7 @@ test.describe('2 · El QR delante del equipo', () => {
        el dato estaba calculado y no se pintaba, y el siguiente que puede
        aparecer es que se pinte al final, donde no lo lee nadie. */
     await entrar(page);
-    await page.goto(`/assets?search=${encodeURIComponent(activoDePrueba())}`);
+    await page.goto(`/assets?search=${encodeURIComponent(await activoDePrueba(page))}`);
 
     const aviso = page.locator('[class*="intervencion"], [class*="aviso-bloqueo"]').first();
     if (await aviso.count() === 0) {
