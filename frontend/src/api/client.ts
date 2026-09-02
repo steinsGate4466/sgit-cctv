@@ -171,6 +171,29 @@ api.interceptors.response.use(
           const { data } = await axios.post(`${baseURL}/auth/refresh`, { refreshToken: refresh });
           localStorage.setItem('sgit_token', data.accessToken);
           if (data.refreshToken) localStorage.setItem('sgit_refresh', data.refreshToken);
+
+          /* LOS PERMISOS NUEVOS TAMBIÉN SE GUARDAN — bloque 86.
+             -----------------------------------------------------------------
+             AQUÍ ESTABA LA MITAD DEL BUG QUE REPORTÓ EL USUARIO:
+
+               «Cuando actualizamos los roles, el rol Jefe de línea o cosas
+                así NO SE ACTUALIZAN para usuarios ya creados.»
+
+             La renovación SÍ traía los permisos frescos —el servidor los
+             relee de la base al construir el token— y aquí se guardaba sólo
+             el token, tirando el `user` que venía con él.
+
+             `can()` lee de `sgit_user`, así que el MENÚ y los BOTONES se
+             quedaban con la lista del día que la persona inició sesión. El
+             servidor ya aplicaba lo nuevo y la pantalla enseñaba lo viejo:
+             opciones que al pulsarlas daban 403, y opciones nuevas que no
+             aparecían nunca. Las dos caras confunden igual.
+
+             Si la respuesta no trae `user` no se toca nada: vaciarlo dejaría
+             a la persona con el menú en blanco por un cambio de formato del
+             servidor, que es peor que el problema. */
+          if (data.user) localStorage.setItem('sgit_user', JSON.stringify(data.user));
+
           original.headers = original.headers || {};
           original.headers.Authorization = `Bearer ${data.accessToken}`;
           return api(original); // reintenta la petición original con el token nuevo

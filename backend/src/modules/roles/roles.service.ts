@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../../prisma/prisma.service';
 import { CATALOGO_PERMISOS, CODIGOS_VALIDOS, PLANTILLAS_DE_ROL, soloMira } from './catalogo-permisos';
 import { motivoParaNoBorrar, motivoParaNoGuardar, normalizarAmbito } from './roles.guardas';
+import { AccesoVigenteGuard } from '../../common/guards/acceso-vigente.guard';
 
 /**
  * ROLES QUE CREA EL INGENIERO.
@@ -132,7 +133,55 @@ export class RolesService {
         where: { id },
         data: { description: dto.descripcion?.trim() || null },
       }),
+
+      /* =====================================================================
+         EL CAMBIO LLEGA A QUIEN YA ESTABA DENTRO — bloque 86
+         ---------------------------------------------------------------------
+         ESTO FALTABA, Y LO ENCONTRÓ EL USUARIO:
+
+           «Cuando actualizamos los roles, el rol Jefe de línea o cosas así
+            NO SE ACTUALIZAN para usuarios ya creados.»
+
+         Y tenía razón. Los permisos viajan DENTRO del token de sesión, y
+         `PermissionsGuard` los lee de ahí — no de la base. El bloque 82 puso
+         el contador `permisosVersion` para poder matar los tokens de golpe,
+         pero se cableó SÓLO a los cambios del USUARIO (rol, baja,
+         contraseña). **Editar el ROL no lo tocaba.**
+
+         Consecuencia: se le quitaba un permiso a «Jefe de línea» y las cinco
+         personas con ese rol seguían teniéndolo. El sistema se corregía solo
+         cuando su token caducaba —hasta quince minutos, y sólo si seguían
+         usando la aplicación—, y el menú no cambiaba hasta recargar.
+
+         Es el peor modo de fallar de un control de acceso: **falla ABIERTO**,
+         en silencio, y quien hizo el cambio se queda creyendo que se aplicó.
+
+         SUBE EL CONTADOR DE TODOS LOS USUARIOS DE ESTE ROL. En la siguiente
+         petición sus tokens dejan de valer, el navegador renueva, y la
+         renovación relee los permisos de la base (`buildTokens`). El cambio
+         se aplica en segundos, no en quince minutos.
+
+         VA DENTRO DE LA MISMA TRANSACCIÓN, y no después: si se guardaran los
+         permisos y fallara el contador, el rol quedaría cambiado y la gente
+         seguiría con los de antes — exactamente el bug que esto cierra, sólo
+         que además invisible.
+
+         NO SE LES CIERRA LA SESIÓN. Cambiar un permiso no es dar de baja a
+         nadie: el token de refresco sigue valiendo y la renovación es
+         transparente. Revocar las sesiones echaría a cinco personas de la
+         aplicación por haber tocado una casilla. */
+      this.prisma.user.updateMany({
+        where: { roleId: id },
+        data: { permisosVersion: { increment: 1 } } as any,
+      }),
     ]);
+
+    /* La caché del guard vive en memoria y dura quince segundos. Se vacía
+       entera —y no usuario por usuario— porque un cambio de rol afecta a
+       todos los suyos y aquí no se sabe cuántos son sin otra consulta.
+       Vaciarla de más sólo cuesta una consulta a la base por persona. */
+    AccesoVigenteGuard.olvidarTodo();
+
     return { ok: true, permisos: codigos.length };
   }
 

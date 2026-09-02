@@ -2716,3 +2716,88 @@ Yo había contado 53 con un `grep`. Él encontró **54**: mi patrón usaba
 normal a esta escala, y microservicios aquí sólo añadirían latencia y
 despliegues que se caen a medias. La separación ya existe donde importa: por
 módulos, con el árbol de planta como única fuente de verdad.
+
+---
+
+## 30. Bloque 86 — cambiar un rol no llegaba a quien ya estaba dentro
+
+### Lo encontró el usuario, y era grave
+
+> «Cuando actualizamos los roles, el rol Jefe de línea o cosas así **no se
+> actualizan para usuarios ya creados**. Eso me preocupa bastante.»
+
+Tenía razón. Los permisos viajan DENTRO del token de sesión y
+`PermissionsGuard` los lee de ahí, no de la base. El bloque 82 creó el contador
+`permisosVersion` justo para poder matar los tokens de golpe... pero se cableó
+**sólo a los cambios del USUARIO** —rol, baja, contraseña—. **Editar el ROL no
+lo tocaba.** `roles.service.ts` no mencionaba `permisosVersion` ni una vez.
+
+**Y fallaba ABIERTO.** Se le quitaba un permiso a «Jefe de línea» y las cinco
+personas con ese rol seguían teniéndolo — el backend lo aceptaba, porque el
+token decía que sí. El ingeniero se quedaba creyendo que el cambio estaba
+aplicado.
+
+> Es el peor modo de fallar de un control de acceso: en silencio, y con quien
+> hizo el cambio convencido de que funcionó.
+
+### Eran TRES piezas, y las tres hacen falta
+
+| | Qué faltaba | Qué arregla |
+|---|---|---|
+| **1** | Al guardar el rol, subir `permisosVersion` de todos sus usuarios | Invalida los tokens en la siguiente petición |
+| **2** | `/auth/me` devolvía `...delToken`: los permisos del día que entró | El menú al RECARGAR la página |
+| **3** | La renovación guardaba `sgit_token` y tiraba el `user` que venía con él | El menú SIN recargar |
+
+Con una sola no basta. La 1 sin la 3 deja al servidor aplicando lo nuevo y a la
+pantalla enseñando lo viejo: opciones que dan 403 al pulsarlas, y opciones
+nuevas que no aparecen nunca. **Las dos caras confunden igual.**
+
+### Decisiones del arreglo
+
+- **El contador va DENTRO de la misma transacción** que los permisos. Si se
+  guardaran los permisos y fallara el contador, el rol quedaría cambiado y la
+  gente seguiría con los de antes — el bug original, sólo que además invisible.
+- **NO se les cierra la sesión.** Cambiar un permiso no es dar de baja a nadie:
+  el token de refresco sigue valiendo y la renovación es transparente. Revocar
+  las sesiones echaría a cinco personas de la aplicación por haber tocado una
+  casilla.
+- **Se vacía la caché del guard entera**, no usuario por usuario: un cambio de
+  rol afecta a todos los suyos y aquí no se sabe cuántos son sin otra consulta.
+- **Si `/auth/me` no puede leer el rol, deja los permisos del token.** Un menú
+  en blanco por un fallo de lectura es peor que uno algo desfasado — el
+  servidor sigue decidiendo de verdad en cada petición.
+
+Probado reintroduciendo los dos bugs por separado: los caza.
+
+### De la auditoría de este bloque
+
+**29 verificadores en verde y cero código muerto.** Los barridos que no cubren:
+
+- **Menú contra el permiso real de cada endpoint.** Salieron 21; separando GET
+  de PATCH —juntarlos daba 36 falsos— y filtrando por qué ROL cae de verdad,
+  quedó **uno**: «Equipos conocidos» pedía `asset.read` en el menú y
+  `user.manage` en el endpoint. **Diez roles** la veían vacía. Se cerró el
+  menú, no se abrió el endpoint: cerrar no le quita nada a nadie, y abrir datos
+  de auditoría es decisión del usuario.
+- **13 escrituras sin confirmar nada** (acotando a la función, no a una
+  ventana: de 46 aparentes quedan 13).
+- **`Riesgo.tsx` con 12 columnas** — el tope del proyecto es 8.
+
+### Y cuatro fallos míos en los recorridos de Playwright
+
+Escribí los selectores **de memoria en vez de mirar la pantalla**:
+
+| Lo que escribí | Lo que dice la pantalla |
+|---|---|
+| «Nueva orden / Crear / Generar» | **«Alta completa»** y **«Crear OM»** |
+| «Guardar / Crear» | **«Crear incidencia»** |
+| `input[type=date]` de la página | Agarraba el del **filtro «Desde»** |
+| `E2E_ACTIVO` obligatoria | En la CI no existe: reventaba antes de empezar |
+
+Ahora todo va acotado al `.modal` y los ocho textos están contrastados uno por
+uno contra el código. Y si `E2E_ACTIVO` no está, **se le pregunta a la
+aplicación** por el primer activo: no se inventa un código de planta.
+
+**Dos fallos de configuración de la CI, también míos:** faltaba `CORS_ORIGIN`
+—el guard de `main.ts` aborta a propósito sin él— y `cache-dependency-path`,
+porque `setup-node` busca el lock en la raíz y aquí hay dos.

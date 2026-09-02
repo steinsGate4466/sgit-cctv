@@ -283,7 +283,32 @@ export class AuthService {
     if (!delToken?.userId) return delToken;
     const u = await this.prisma.user.findUnique({
       where: { id: delToken.userId },
-      select: { fullName: true, active: true, ambitoTrenes: true, role: { select: { name: true } } },
+      select: {
+        fullName: true,
+        active: true,
+        ambitoTrenes: true,
+        role: {
+          select: {
+            name: true,
+            /* LOS PERMISOS, DE LA BASE — bloque 86.
+               -------------------------------------------------------------
+               ESTO FALTABA. Antes esta función devolvía `...delToken` con el
+               nombre y el ámbito frescos, pero los PERMISOS seguían siendo
+               los del token, que es de cuando la persona inició sesión.
+
+               Consecuencia, y es lo que reportó el usuario: se le quita un
+               permiso al rol «Jefe de línea», la persona recarga la página
+               —que es lo que uno hace para «refrescar»— y el menú sigue
+               igual. Parece que el cambio no se guardó.
+
+               El comentario de esta función ya decía que el ámbito «tiene
+               que enterarse ya, no cuando el usuario vuelva a entrar
+               mañana». Los permisos son exactamente el mismo caso y se
+               habían quedado fuera. */
+            permissions: { select: { permission: { select: { code: true } } } },
+          },
+        },
+      },
     });
     return {
       ...delToken,
@@ -291,6 +316,13 @@ export class AuthService {
       role: u?.role?.name ?? delToken.role,
       activo: u?.active ?? true,
       ambitoTrenes: u?.ambitoTrenes ?? [],
+      /* Si la consulta no trajo rol, se dejan los del token: es mejor que
+         vaciarlos, que dejaría a la persona con un menú en blanco por un
+         fallo de lectura. El servidor sigue decidiendo de verdad en cada
+         petición — esto es sólo para que la pantalla no mienta. */
+      permissions: u?.role
+        ? u.role.permissions.map((rp) => rp.permission.code)
+        : delToken.permissions,
     };
   }
 }
