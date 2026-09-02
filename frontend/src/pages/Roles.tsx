@@ -71,9 +71,30 @@ export default function Roles() {
     setError('');
     setGuardando(true);
     try {
-      const cuerpo = { nombre, descripcion, permisos: [...marcados] };
-      if (edita?.nuevo) await api.post('/roles-admin', cuerpo);
-      else await api.patch('/roles-admin/' + edita.id, cuerpo);
+      /* CADA ENDPOINT RECIBE LO SUYO — bloque 90.
+         ---------------------------------------------------------------------
+         AQUÍ HABÍA UN CUERPO COMPARTIDO para el alta y la edición, y eso
+         rompió la pantalla entera con un mensaje que no lo explicaba:
+
+             property nombre should not exist
+
+         El alta SÍ lleva nombre; la edición NO. Y el formulario ya lo sabía
+         —el campo del nombre sólo se pinta con `edita.nuevo`—: quien edita no
+         puede renombrar nada. Lo que se enviaba era el nombre que ya tenía.
+
+         Antes del bloque 85 ese campo de más se ignoraba en silencio: el
+         servicio sólo lee `descripcion` y `permisos`. Al escribir el DTO, el
+         `ValidationPipe` corre con `forbidNonWhitelisted` —que es lo
+         correcto— y ese campo pasó de sobrar a **rechazar la petición
+         entera**. El DTO no creó el desajuste: lo destapó. Pero dejó sin
+         guardar la pantalla que reparte el poder de la planta.
+
+         ES EL RIESGO QUE YO MISMO ESCRIBÍ en el bloque 85 —«un DTO al que se
+         le olvide un campo rechaza peticiones válidas con un 400 y el
+         formulario deja de guardar sin decir por qué»— y me pasó igual. */
+      const permisos = [...marcados];
+      if (edita?.nuevo) await api.post('/roles-admin', { nombre, descripcion, permisos });
+      else await api.patch('/roles-admin/' + edita.id, { descripcion, permisos });
       setEdita(null);
       await cargar();
     } catch (e: any) {

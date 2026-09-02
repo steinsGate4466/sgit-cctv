@@ -62,8 +62,40 @@ function delServidor(e: any): string {
  *                 «guardar la zona», «cerrar la orden». Se usa para que el
  *                 mensaje diga qué acción falló y no un genérico inútil.
  */
+/* «property nombre should not exist» — bloque 90.
+   ---------------------------------------------------------------------------
+   Ese texto lo escribe el `ValidationPipe` de Nest cuando el formulario manda
+   un campo que el DTO no declara, y con `forbidNonWhitelisted` **rechaza la
+   petición entera**. Es lo correcto del lado del servidor.
+
+   Pero para quien está delante de la pantalla ese mensaje es ruido: está en
+   inglés, habla de «propiedades» y no dice qué hacer. El usuario lo leyó tal
+   cual al editar un rol y lo llamó, con razón, «esta huevonada».
+
+   Y lo importante: **NUNCA es culpa suya.** No hay nada que pueda corregir en
+   el formulario, porque el campo que sobra ni siquiera se le pide. Es un
+   desajuste entre el formulario y el endpoint —un fallo del software—, así
+   que se dice así y se le quita de encima la sospecha de haberlo hecho mal.
+
+   Se conserva el nombre del campo: es lo único que sirve para arreglarlo. */
+const CAMPO_DE_MAS = /property\s+([A-Za-z0-9_]+)\s+should not exist/i;
+
+function desajusteDeFormulario(texto: string): string {
+  const m = texto.match(CAMPO_DE_MAS);
+  if (!m) return '';
+  return `Fallo del software: el formulario envió un dato que el servidor no espera («${m[1]}»). `
+    + 'No es culpa tuya y no lo puedes corregir desde aquí; avisa a quien mantiene el sistema.';
+}
+
 export function mensajeDeError(e: any, accion = 'completar la acción'): string {
   const delSrv = delServidor(e);
+  /* El desajuste va ANTES del mensaje del servidor: aquí el servidor sí
+     respondió, pero lo que dijo no le sirve a nadie. Es la única excepción a
+     la regla de «lo que dijo el servidor manda» (bloque 67), y se justifica
+     porque este mensaje no lo escribió nadie pensando en el usuario: lo
+     genera la librería de validación. */
+  const desajuste = desajusteDeFormulario(delSrv);
+  if (desajuste) return desajuste;
   if (delSrv) return delSrv;
 
   if (!e?.response) {

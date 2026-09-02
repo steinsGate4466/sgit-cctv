@@ -3168,3 +3168,114 @@ nada** — mismo patrón que `ADMIN_EMAIL`, que lleva ahí desde el principio.
 Se usa **`Jefe de Tren`** y no `Técnico`: es el cargo al que le pasaron los tres
 fallos —no podía abrir el QR (68), ni imprimir la etiqueta (77), ni ver la orden
 que él mismo había abierto (83)—.
+
+---
+
+## 34. Bloque 90 — la pantalla de Roles no guardaba
+
+### `property nombre should not exist`
+
+Palabras del usuario: *«cuando cambio sale esta huevonada»*. Y tenía razón en
+las dos cosas: el mensaje es ruido, y detrás había un fallo real.
+
+`Roles.tsx` mandaba **el mismo cuerpo** al alta y a la edición:
+
+```ts
+const cuerpo = { nombre, descripcion, permisos };
+if (nuevo) await api.post('/roles-admin', cuerpo);
+else       await api.patch('/roles-admin/' + id, cuerpo);
+```
+
+El alta sí lleva nombre; la edición no. Y **el formulario ya lo sabía**: el
+campo del nombre sólo se pinta con `edita.nuevo`. Lo que se enviaba era el
+nombre que el rol ya tenía.
+
+**Antes del bloque 85 ese campo de más se ignoraba en silencio** —`actualizar()`
+sólo lee `descripcion` y `permisos`—. Al escribir el DTO, el `ValidationPipe`
+corre con `forbidNonWhitelisted` —que es lo correcto— y ese campo pasó de
+sobrar a **rechazar la petición entera**.
+
+> **El DTO no creó el desajuste: lo destapó.** Pero dejó sin guardar la
+> pantalla que reparte el poder de la planta, que es lo peor que podía tocar.
+
+Y es **exactamente el riesgo que yo mismo escribí en el bloque 85**: *«con
+`forbidNonWhitelisted`, un DTO al que se le olvide un campo rechaza peticiones
+válidas con un 400 y el formulario deja de guardar sin decir por qué»*. Lo
+escribí, lo cerré en tres módulos, y me pasó igual en el cuarto.
+
+### El mensaje: nunca es culpa del usuario
+
+Ese texto lo genera la librería de validación. Está en inglés, habla de
+«propiedades», y **no hay nada que el usuario pueda corregir**: el campo que
+sobra ni siquiera se le pide.
+
+`avisos.ts` lo traduce ahora, y **va por delante del mensaje del servidor** —la
+única excepción a la regla del bloque 67, porque este mensaje no lo escribió
+nadie pensando en quien lo lee—:
+
+> Fallo del software: el formulario envió un dato que el servidor no espera
+> («nombre»). No es culpa tuya y no lo puedes corregir desde aquí; avisa a
+> quien mantiene el sistema.
+
+Se conserva el nombre del campo: es lo único que sirve para arreglarlo.
+
+### Recorrido 7 — la pantalla de Roles guarda de verdad
+
+No lo vio **nada**: ni el typecheck (los dos lados compilan), ni el lint, ni
+los 30 verificadores, ni las 797 pruebas. El DTO es correcto, el servicio es
+correcto y el formulario es correcto. Lo que estaba mal era **el ENCAJE entre
+dos piezas que nadie prueba juntas**.
+
+Es la tercera vez que un recorrido de Playwright caza algo que sólo se ve
+abriendo la pantalla —la OM sin fecha (b88) y el desborde del teléfono (b89)
+fueron las otras dos—.
+
+**Se guarda sin cambiar nada, a propósito.** Lo que se prueba es que el cuerpo
+que manda el formulario lo ACEPTA el endpoint. Tocar permisos aquí metería las
+guardas de negocio —«no te quites a ti mismo `user.manage`»— y entonces un
+fallo legítimo del guard parecería un fallo del encaje: dos cosas distintas con
+el mismo rojo.
+
+### Y el rol desfasado, que es de dónde salió todo
+
+El usuario entró como Jefe de línea (Producción) y **no le salía el botón de
+abrir una OM**. Medido: su rol lleva `wo.read` —el permiso ancho— y no
+`om.mirar`, así que la migración del bloque 68, que reparte `wo.create` a quien
+tenga `om.mirar`, **no lo alcanzó**. Falló CERRANDO: veía todas las pantallas
+de mantenimiento y no podía abrir ni una orden.
+
+Y al revés: con `wo.read` estaba viendo el Dashboard del ingeniero,
+Indicadores, Exportar, Hojas de ruta, Preventivo y Correctivo — justo lo que el
+bloque 80-C le quitó a Producción.
+
+> **Las plantillas sólo se aplican AL CREAR un rol.** A los ya creados no les
+> llega nada, así que un rol viejo deriva de su plantilla en silencio: no lo ve
+> el compilador, ni las pruebas, ni los verificadores. Igual que el selector de
+> CSS del bloque 89.
+
+Se corrige desde la interfaz —es un dato de planta— y no con una migración:
+`wo.read` lo tienen también Supervisor TI, Técnico, Técnico de Red y Consultor
+Externo, y repartir `wo.create` por esa capacidad le daría al **Consultor
+Externo** la facultad de abrir órdenes. La regla del bloque 68 está bien; lo
+que estaba mal era el rol.
+
+### Idea anotada, NO implementada
+
+Petición del usuario, con su matiz: *«sería más fácil si desde aquí [Usuarios]
+se puede editar eso y no desde Roles y permisos, porque afectas en general...
+pero creo que eso está mal ya que se podría quitar, todo debe estar mega
+auditado»*. Y él mismo cerró: *«no me hagas caso, no toques eso, tenlo como
+idea»*.
+
+Queda escrito con lo medido, para cuando se retome:
+
+- **Editar permisos por PERSONA rompe el modelo entero.** Todo el reparto va
+  por capacidad de rol (`@RequirePermissions`, `@RequireAlguno`, las
+  migraciones sin nombres de rol). Con excepciones por usuario, la pregunta
+  «¿quién puede cerrar una orden?» deja de tener respuesta corta.
+- **Auditado ya está:** el interceptor de auditoría es global por método HTTP y
+  Roles no está en las cinco rutas exentas. Cada `PATCH /roles-admin/:id` deja
+  su registro con quién, cuándo y desde dónde.
+- **Lo que sí falta es AVISAR DEL ALCANCE.** El modal no dice a cuántas
+  personas afecta el cambio. «12 permisos marcados» no es lo mismo que «12
+  permisos · afecta a 5 personas de este rol».
