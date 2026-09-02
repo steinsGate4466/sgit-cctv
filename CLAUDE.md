@@ -2996,8 +2996,54 @@ confuso que el que lo causa.
 |---|---|---|---|
 | 1ª | 9 | 12 | 11 del andamio, **1 del software** |
 | 2ª | 17 | 2 | 2 del andamio |
+| 3ª | 16 | 2 | 1 del andamio, **1 visual de móvil sin diagnosticar** |
 
 **El único bug del software que salió llevaba cuatro bloques escondido** y no
 lo vio ninguna de las 1.165 pruebas ni ninguno de los 29 verificadores. Ésa es
 la señal que no trae ninguna otra herramienta, y por eso el ruido de las dos
 primeras vueltas valía la pena.
+
+### Tercera vuelta — el `select` que no era, y el desborde que no hablaba
+
+**`modal.locator('select').first()` NO es la zona: es el TIPO.** Arreglé el
+fallo anterior escribiendo un selector todavía más flojo, y encima parecía
+correcto porque el formulario se rellenaba. Lo que hacía era **cambiar el tipo
+de la orden** y seguir sin rellenar el obligatorio.
+
+Y el obligatorio **depende del tipo**: con `PREVENTIVO` —el que trae por
+defecto— es **Activo**; sólo con `MAPEO` es «Zona a levantar». Ahora se apunta
+**por etiqueta**, que es lo que ve la persona, y no se toca el tipo.
+
+> **Octava vez que un patrón más flojo de lo necesario acaba leyendo otra
+> cosa.** Y la primera en que el patrón flojo era el arreglo del anterior.
+
+### La carrera del `/` al `/dashboard`
+
+Tres pruebas de móvil se caían con:
+
+    Navigation to "/assets" is interrupted by another navigation to "/dashboard"
+
+`entrar()` hacía `goto('/')` y volvía en cuanto veía el menú; la redirección de
+React Router llegaba **después**, y pisaba el `goto` siguiente. En escritorio no
+pasaba y en el teléfono sí, porque todo va un poco más lento: una carrera, o
+sea el fallo que a veces sale y a veces no. Ahora se espera a que la URL deje
+de ser `/`.
+
+### El desborde de 56 px: la prueba ahora dice QUIÉN
+
+En el teléfono, `/assets` se sale 56 px a lo ancho —en escritorio, cero—. Mi
+prueba decía sólo *«la pantalla se sale 56px»*, y con eso no se arregla nada:
+hay que ir a buscar a mano cuál de los cuarenta bloques es.
+
+**Es el mismo defecto que este proyecto persigue en su propio software** —un
+aviso que no dice qué hacer— y lo tenía yo en la herramienta de diagnóstico.
+
+Ahora nombra los elementos culpables, con su etiqueta y sus clases, saltándose
+dos casos que no son fallo: el hijo de un padre que ya desborda —si no, salen
+tres líneas por un solo fallo— y los contenedores con `overflow-x: auto`, que
+se desplazan a propósito (las tablas viven dentro de `.card`).
+
+**No lo he arreglado a ciegas.** No puedo abrir un navegador en este entorno, y
+un arreglo de maquetación sin medir es adivinar. La siguiente vuelta de la CI
+dirá el elemento exacto. Es la regla del bloque 70: *un fallo que no se puede
+reproducir no se arregla; lo primero es hacer que hable.*

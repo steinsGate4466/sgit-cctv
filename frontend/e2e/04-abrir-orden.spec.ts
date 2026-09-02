@@ -64,23 +64,33 @@ test.describe('4 · Abrir una orden de mantenimiento', () => {
     /* SE RELLENAN LOS OBLIGATORIOS, no sólo la actividad.
        -----------------------------------------------------------------------
        MI PRIMERA VERSIÓN sólo escribía la actividad y pulsaba «Crear OM». El
-       formulario exige además **«Zona a levantar»**, así que el `required` del
-       navegador bloqueaba el envío: la petición NO SALÍA y la prueba fallaba
-       veinte segundos después con «no aparece en la lista» — un mensaje que
-       apunta a la lista cuando el problema estaba en el formulario.
+       formulario exige además el equipo, así que el `required` del navegador
+       bloqueaba el envío: la petición NO SALÍA y la prueba fallaba veinte
+       segundos después con «no aparece en la lista» — un mensaje que apunta a
+       la lista cuando el problema estaba en el formulario.
 
-       Y esto es lo que un recorrido tiene que hacer: rellenar lo que rellena
-       una persona. Si el formulario pide un dato, la prueba lo da. */
-    const zona = modal.locator('select').filter({ hasNotText: '@@@' }).first();
-    const opciones = await zona.locator('option').count();
+       Y MI SEGUNDA VERSIÓN FUE PEOR, porque parecía arreglada: cogí
+       `modal.locator('select').first()` creyendo que era la zona. El primer
+       desplegable del formulario es **Tipo**, así que la prueba CAMBIABA EL
+       TIPO DE ORDEN y seguía sin rellenar el obligatorio. Es, van ocho, la
+       firma de este proyecto: *un patrón más flojo de lo necesario acaba
+       leyendo otra cosa.* Se apunta por ETIQUETA, que es lo que el usuario ve.
+
+       CUÁL ES EL OBLIGATORIO DEPENDE DEL TIPO, y por eso no se toca:
+         · el tipo por defecto es PREVENTIVO  → exige **Activo**
+         · si fuera MAPEO                     → exigiría «Zona a levantar»
+       La prueba deja el tipo como nace y rellena el equipo, que es lo que
+       hace una persona. */
+    const activo = modal.getByLabel('Activo', { exact: true });
+    const opciones = await activo.locator('option').count();
     if (opciones <= 1) {
       throw new Error(
-        '\n\n  El desplegable de zona no tiene ninguna opción.\n'
-        + '  Sin ubicaciones cargadas no se puede abrir una orden — y eso, si\n'
-        + '  pasa en planta, es un fallo del software, no de la prueba.\n\n',
+        '\n\n  El desplegable de activo no tiene ninguna opción.\n'
+        + '  Sin equipos cargados no se puede abrir una orden — y eso, si pasa\n'
+        + '  en planta, es un fallo del software, no de la prueba.\n\n',
       );
     }
-    await zona.selectOption({ index: 1 });
+    await activo.selectOption({ index: 1 });
     await modal.getByLabel(/Actividad/i).fill(`Prueba automatica ${marca}`);
 
     /* Se escucha la respuesta: si falta otro campo, el mensaje lo dirá en vez

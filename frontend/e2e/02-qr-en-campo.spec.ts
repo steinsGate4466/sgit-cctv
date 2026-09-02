@@ -83,17 +83,56 @@ test.describe('2 · El QR delante del equipo', () => {
     }
   });
 
-  test('no hay scroll horizontal en la pantalla del púlpito', async ({ page }) => {
-    /* 1366 px es la pantalla de los púlpitos (bloque 69). Un scroll lateral
-       en una tabla de planta significa que la mitad de las columnas no se
-       leen, y nadie desplaza: se deja de mirar la pantalla. */
+  test('no hay scroll horizontal', async ({ page }, info) => {
+    /* 1366 px es la pantalla de los púlpitos (bloque 69) y 390 la del
+       teléfono del técnico. Un scroll lateral significa que media tabla no se
+       lee, y nadie desplaza: se deja de mirar la pantalla.
+
+       -----------------------------------------------------------------------
+       LA PRUEBA DICE QUÉ SE SALE, NO SÓLO QUE SE SALE.
+
+       Mi primera versión decía «la pantalla se sale 56px» y ahí se acababa.
+       Con eso no se arregla nada: hay que ir a buscar a mano cuál de los
+       cuarenta bloques de la pantalla es. Es el fallo que este proyecto
+       persigue en su propio software —un aviso que no dice qué hacer— y lo
+       tenía yo en la prueba.
+
+       Ahora nombra los elementos culpables, con su etiqueta y sus clases.
+       Un fallo que no se puede reproducir no se arregla: lo primero es
+       hacer que hable (bloque 70). */
     await entrar(page);
     await page.goto('/assets');
     await page.waitForLoadState('networkidle');
 
-    const sobra = await page.evaluate(
-      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-    );
-    expect(sobra, `La pantalla se sale ${sobra}px a lo ancho`).toBeLessThanOrEqual(2);
+    const { sobra, culpables } = await page.evaluate(() => {
+      const raiz = document.documentElement;
+      const ancho = raiz.clientWidth;
+      const lista: string[] = [];
+      document.querySelectorAll<HTMLElement>('body *').forEach((el) => {
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 || r.right <= ancho + 2) return;
+        /* Sólo se acusa al que NO tiene un padre que ya desborde: si no,
+           salen el bloque, su hijo y su nieto por un solo fallo, y el
+           informe entierra la línea útil. Es el mismo criterio que hace
+           útiles a los verificadores. */
+        const p = el.parentElement;
+        if (p && p.getBoundingClientRect().right > ancho + 2) return;
+        /* Un contenedor que se desplaza a propósito no es un fallo: las
+           tablas viven dentro de `.card { overflow-x: auto }`. */
+        const ov = getComputedStyle(el).overflowX;
+        if (ov === 'auto' || ov === 'scroll') return;
+        lista.push(
+          `<${el.tagName.toLowerCase()}${el.className ? ' class="' + String(el.className).slice(0, 60) + '"' : ''}>`
+          + ` se sale ${Math.round(r.right - ancho)}px`,
+        );
+      });
+      return { sobra: raiz.scrollWidth - ancho, culpables: lista.slice(0, 6) };
+    });
+
+    const detalle = culpables.length
+      ? `Se sale ${sobra}px en ${info.project.name}. Culpables:\n    - ${culpables.join('\n    - ')}`
+      : `Se sale ${sobra}px en ${info.project.name}, y ningún elemento suelto lo explica:`
+        + ' mira los márgenes o un `width` en porcentaje sobre un padre con relleno.';
+    expect(sobra, detalle).toBeLessThanOrEqual(2);
   });
 });

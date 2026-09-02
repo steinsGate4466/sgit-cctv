@@ -67,6 +67,24 @@ export async function entrar(page: Page, quien: 'JEFE' | 'TECNICO' = 'JEFE') {
       + '  todo lo demás falla en cascada y el motivo está allí.\n\n',
     );
   }
+
+  /* SE ESPERA A QUE LA REDIRECCIÓN TERMINE, y esto no es un adorno.
+     -------------------------------------------------------------------------
+     `/` manda a `/dashboard` desde React Router, o sea DESPUÉS de que la
+     página haya cargado. Si la prueba hace su `goto('/assets')` en ese hueco,
+     Playwright aborta con:
+
+         Navigation to "/assets" is interrupted by another navigation
+         to "/dashboard"
+
+     Eso tumbó tres pruebas en móvil, donde todo tarda un poco más — y el
+     mensaje no menciona el login por ningún lado, así que parece un fallo de
+     la pantalla de destino cuando el problema estaba aquí.
+
+     Es una carrera, y por eso salía intermitente: el peor tipo de fallo. */
+  await page
+    .waitForURL((u) => new URL(u).pathname !== '/', { timeout: 20_000 })
+    .catch(() => { /* si ya está en su sitio, no hay nada que esperar */ });
 }
 
 /** Entra escribiendo usuario y contraseña. Sólo lo usan el recorrido 1 y el setup. */
