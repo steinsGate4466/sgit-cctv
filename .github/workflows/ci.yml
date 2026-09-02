@@ -703,8 +703,14 @@ jobs:
       # entran con ellos. Solo existen dentro de este contenedor.
       ADMIN_EMAIL: admin@ci.local
       ADMIN_PASSWORD: Recorridos.CI.2026
+      # Perfil estrecho: sin esto el recorrido 5 —el que caza el menú abierto
+      # con el endpoint cerrado— se salta siempre. Sólo existe en la CI.
+      SEED_ESTRECHO_EMAIL: tren@ci.local
+      SEED_ESTRECHO_PASSWORD: Recorridos.CI.2026
       E2E_JEFE_EMAIL: admin@ci.local
       E2E_JEFE_PASSWORD: Recorridos.CI.2026
+      E2E_TECNICO_EMAIL: tren@ci.local
+      E2E_TECNICO_PASSWORD: Recorridos.CI.2026
       E2E_URL: http://127.0.0.1:4173
 
       # LAS DOS PIEZAS QUE HACEN QUE EL NAVEGADOR PUEDA HABLAR CON LA API.

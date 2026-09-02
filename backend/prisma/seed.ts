@@ -382,6 +382,41 @@ async function main() {
     },
   });
 
+  /* 3-bis) UN PERFIL ESTRECHO PARA LOS RECORRIDOS — bloque 89
+     -------------------------------------------------------------------------
+     SÓLO SE CREA SI LAS DOS VARIABLES ESTÁN PUESTAS. En Railway no lo están,
+     así que en producción esta parte NO HACE NADA. Es el mismo patrón que
+     `ADMIN_EMAIL`, que ya lleva aquí desde el principio.
+
+     POR QUÉ HACE FALTA, y no es un capricho de la CI: el recorrido 5 es el
+     único que caza el fallo que este proyecto ha tenido TRES veces —bloques
+     68, 77 y 83—: **una entrada de menú abierta con su endpoint cerrado**.
+     El usuario la ve, la pulsa, sale 403 y la pantalla queda vacía. No rompe
+     nada, y por eso tarda meses en verse.
+
+     **Con el Jefe no se detecta**, porque el Jefe lo ve todo. Hace falta un
+     perfil estrecho de verdad, y sin él ese recorrido se saltaba SIEMPRE: la
+     prueba más valiosa de las veinticuatro no llegaba a correr nunca.
+
+     Se usa `Jefe de Tren` y no `Técnico`: es el cargo al que le pasaron los
+     tres fallos —no podía abrir el QR, ni imprimir la etiqueta, ni ver la
+     orden que él mismo había abierto—. */
+  const estrechoEmail = process.env.SEED_ESTRECHO_EMAIL;
+  const estrechoPass = process.env.SEED_ESTRECHO_PASSWORD;
+  if (estrechoEmail && estrechoPass) {
+    await prisma.user.upsert({
+      where: { email: estrechoEmail },
+      update: {},
+      create: {
+        email: estrechoEmail,
+        fullName: 'Perfil estrecho (recorridos)',
+        passwordHash: await argon2.hash(estrechoPass),
+        roleId: roleIds['Jefe de Tren'],
+      },
+    });
+    console.log(`  Perfil estrecho para recorridos: ${estrechoEmail} (Jefe de Tren)`);
+  }
+
   // 4) VLANs (arquitectura por Tren)
   const vlans = [
     { number: 10, name: 'Laminación Tren 1', role: 'tren', subnet: '172.16.10.0/24' },

@@ -3143,3 +3143,28 @@ componente correcto, el selector sintácticamente impecable. Sólo se ve
 
 Es el segundo bug real que sacan los recorridos —el primero fue la OM naciendo
 sin fecha— y los dos llevaban meses escondidos.
+
+### Y el recorrido 5 llevaba desde el bloque 85 sin correr NUNCA
+
+    - [escritorio] 5 · El perfil estrecho ve lo suyo, y lo ve ENTERO   SKIPPED
+
+`test.skip(!process.env.E2E_TECNICO_EMAIL, …)`, y la CI **sólo sembraba al
+admin**. O sea: la prueba más valiosa de las veinticuatro —la única que caza el
+fallo que este proyecto ha tenido TRES veces, *entrada de menú abierta con su
+endpoint cerrado* (bloques 68, 77 y 83)— se saltaba en todas las ejecuciones.
+
+> **Una prueba que siempre se salta no es una prueba: es una línea gris que da
+> tranquilidad sin comprobar nada.** Es la misma familia que el `|| true` del
+> `npm audit` (bloque 85) y que los verificadores que no se pueden poner en
+> rojo. Un control que nunca puede fallar no es un control.
+
+**Con el Jefe no se detecta**, porque el Jefe lo ve todo. Hacía falta un perfil
+estrecho de verdad.
+
+La semilla crea ahora uno **sólo si `SEED_ESTRECHO_EMAIL` y su contraseña están
+puestas**. En Railway no lo están, así que **en producción esta parte no hace
+nada** — mismo patrón que `ADMIN_EMAIL`, que lleva ahí desde el principio.
+
+Se usa **`Jefe de Tren`** y no `Técnico`: es el cargo al que le pasaron los tres
+fallos —no podía abrir el QR (68), ni imprimir la etiqueta (77), ni ver la orden
+que él mismo había abierto (83)—.
