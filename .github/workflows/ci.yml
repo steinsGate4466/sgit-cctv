@@ -546,6 +546,14 @@ jobs:
       JWT_SECRET: jwt-de-integracion-continua-no-usar-en-planta-0002
       JWT_REFRESH_SECRET: refresh-de-integracion-continua-no-usar-en-planta-03
       PORT: '3000'
+      # SIN ESTO EL BACKEND NO ARRANCA, Y ES CORRECTO QUE NO ARRANQUE.
+      # `main.ts` aborta en produccion si falta CORS_ORIGIN: un servidor que no
+      # levanta se arregla en dos minutos; uno que levanta con el CORS abierto
+      # no se nota nunca. La que faltaba era esta linea, no el guard.
+      #
+      # Este trabajo solo comprueba que la aplicacion levanta y responde a
+      # /health, asi que el valor da igual mientras exista.
+      CORS_ORIGIN: http://127.0.0.1:4173
 
     steps:
       - name: Descargar el codigo
@@ -698,6 +706,20 @@ jobs:
       E2E_JEFE_EMAIL: admin@ci.local
       E2E_JEFE_PASSWORD: Recorridos.CI.2026
       E2E_URL: http://127.0.0.1:4173
+
+      # LAS DOS PIEZAS QUE HACEN QUE EL NAVEGADOR PUEDA HABLAR CON LA API.
+      # -----------------------------------------------------------------------
+      # Y `127.0.0.1` en las dos, NO `localhost`: para el navegador son ORIGENES
+      # DISTINTOS. Mezclarlos da un fallo de CORS que en la consola se lee como
+      # «Network Error», y desde la prueba parece que el backend esta caido.
+      #
+      # CORS_ORIGIN debe ser EXACTAMENTE de donde se sirve el frontend.
+      CORS_ORIGIN: http://127.0.0.1:4173
+      # VITE_API_URL se cocina DENTRO del build (`import.meta.env`), asi que
+      # tiene que estar puesta ANTES de `npm run build`, no al arrancar. Por
+      # defecto el frontend apunta a `localhost:3000` y, servido desde
+      # `127.0.0.1`, eso es justo la mezcla de origenes de arriba.
+      VITE_API_URL: http://127.0.0.1:3000/api/v1
 
     steps:
       - name: Descargar el codigo
