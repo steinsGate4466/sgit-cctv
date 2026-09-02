@@ -44,14 +44,48 @@ export async function entrar(page: Page, quien: 'JEFE' | 'TECNICO' = 'JEFE') {
   await page.goto('/login');
   await page.getByLabel(/correo/i).fill(email);
   await page.getByLabel('Contraseña', { exact: true }).fill(pass);
-  await page.getByRole('button', { name: /ingresar|entrar/i }).click();
 
-  /* Si las credenciales están mal, el mensaje del servidor sale en pantalla.
-     Se comprueba antes de seguir para que el fallo diga QUÉ pasó y no
-     «timeout esperando el menú», que no ayuda a nadie. */
-  const error = page.locator('.aviso-error, .error').first();
-  if (await error.isVisible({ timeout: 2000 }).catch(() => false)) {
-    throw new Error(`No se pudo entrar: ${await error.innerText()}`);
+  /* SE ESCUCHA LA RESPUESTA DEL SERVIDOR, NO EL TEXTO DE LA PANTALLA.
+     -------------------------------------------------------------------------
+     MI PRIMERA VERSIÓN leía el aviso rojo del formulario y lo daba por bueno.
+     En la CI eso dijo **«Credenciales incorrectas. Te quedan 4 intento(s)»**
+     con las credenciales correctas, y me hizo perder un rato buscando un
+     problema de contraseñas que no existía.
+
+     Lo que había pasado es otra cosa: **el backend se había caído**. Ese texto
+     lo compone el FRONTEND cuando la llamada no sale bien, sin distinguir un
+     401 de un servidor que no está. Es exactamente el fallo que este proyecto
+     persigue en su propio software —un aviso que miente enseña a desconfiar
+     de todos los avisos— y lo tenía yo en la prueba.
+
+     Ahora se mira el CÓDIGO de la respuesta:
+       · sin respuesta → el backend no está, y se dice así;
+       · 401          → las credenciales de verdad están mal;
+       · 429          → el límite de peticiones, que en una tanda es plausible. */
+  const [respuesta] = await Promise.all([
+    page.waitForResponse(
+      (r) => r.url().includes('/auth/login') && r.request().method() === 'POST',
+      { timeout: 20_000 },
+    ).catch(() => null),
+    page.getByRole('button', { name: /ingresar|entrar/i }).click(),
+  ]);
+
+  if (!respuesta) {
+    throw new Error(
+      '\n\n  El backend NO respondió al login en 20 segundos.\n'
+      + '  No es un problema de credenciales: el servidor no está o se cayó.\n'
+      + '  Mira `backend.log` en el informe de la ejecución.\n\n',
+    );
+  }
+  if (respuesta.status() >= 400) {
+    const cuerpo = (await respuesta.text().catch(() => '')).slice(0, 200);
+    throw new Error(
+      `\n\n  El login devolvió ${respuesta.status()}.\n`
+      + (respuesta.status() === 429
+        ? '  Es el límite de peticiones, no las credenciales.\n'
+        : '  Revisa E2E_JEFE_EMAIL / E2E_JEFE_PASSWORD.\n')
+      + `  Respuesta: ${cuerpo}\n\n`,
+    );
   }
 
   await expect(page.locator('nav, .sidebar').first()).toBeVisible({ timeout: 20_000 });
@@ -95,7 +129,7 @@ export async function activoDePrueba(page: Page): Promise<string> {
   await page.goto('/assets');
   await page.waitForLoadState('networkidle');
 
-  const primera = page.locator('table.tabla tbody tr').first();
+  const primera = page.locator('table tbody tr').first();
   if (!(await primera.isVisible().catch(() => false))) {
     throw new Error(
       '\n\n  La tabla de Activos salió VACÍA y `E2E_ACTIVO` no está puesta.\n'

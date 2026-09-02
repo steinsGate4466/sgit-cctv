@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import Modal from './Modal';
 import { WO_TYPES, WO_TYPE_ES } from '../pages/omCatalogos';
 import { useDialogos } from './Dialogos';
+import { hoyParaInput } from '../fechas';
 
 /**
  * ASIGNAR UNA ORDEN — lo que hace el ingeniero. Cuatro campos.
@@ -26,7 +27,7 @@ export default function AsignarOm({ incidente, onHecho, onClose }: {
   const { avisar } = useDialogos();
   const [form, setForm] = useState<any>({
     type: incidente ? 'CORRECTIVO' : 'PREVENTIVO',
-    activity: '', assetId: incidente?.assetId || '', technicianId: '', scheduledDate: '',
+    activity: '', assetId: incidente?.assetId || '', technicianId: '', scheduledDate: hoyParaInput(),
   });
   const [activos, setActivos] = useState<any[]>([]);
   const [tecnicos, setTecnicos] = useState<any[]>([]);

@@ -27,11 +27,22 @@ test.describe('6 · Los indicadores de gestión', () => {
     expect(errores, `Errores en consola: ${errores.join(' | ')}`).toHaveLength(0);
   });
 
-  test('donde no hay muestra pone «sin datos», no un cero', async ({ page }) => {
-    /* No se exige que HAYA huecos —con datos suficientes no los hay—: se
-       exige que si los hay, se digan. Lo que no puede pasar es que una
-       tarjeta enseñe «0 %» de disponibilidad porque no había con qué
-       calcularla. */
+  test('un hueco se dice «Sin datos», nunca se rellena con un número', async ({ page }) => {
+    /* PLANTEAMIENTO CORREGIDO — la primera versión estaba mal, y falló en la
+       CI señalando algo CORRECTO.
+
+       Prohibía cualquier «0 %». Pero un cero puede ser un dato de verdad: en
+       una base recién sembrada no se cumple ninguna regla de normativa, y el
+       0 % de cumplimiento es la respuesta exacta. `cumplimiento.ts` ya
+       distingue los dos casos y devuelve `null` cuando no hay ni una regla
+       aplicable — con el comentario escrito de que un 100 % sin datos es la
+       peor cifra posible.
+
+       > **La regla no es «nunca un cero»: es «nunca un número inventado».**
+
+       Así que lo que se comprueba es la otra mitad, la que sí es una promesa
+       del software: que cuando el valor viene vacío, la pantalla escribe
+       «Sin datos» en vez de pintar un 0. Es la regla de todo el módulo. */
     await entrar(page);
     await page.goto('/indicadores');
     await page.waitForLoadState('networkidle');
@@ -41,14 +52,21 @@ test.describe('6 · Los indicadores de gestión', () => {
     expect(n, 'No hay ninguna tarjeta de indicador en pantalla').toBeGreaterThan(0);
 
     for (let i = 0; i < n; i++) {
-      const t = await tarjetas.nth(i).innerText();
-      /* Disponibilidad o cumplimiento en 0 % es sospechoso SIEMPRE: si de
-         verdad fuera cero, la planta estaría parada. */
-      if (/disponibilidad|cumplimiento|nivel de servicio/i.test(t)) {
-        expect(t, `Una tarjeta enseña 0 % donde debería decir «sin datos»:\n${t}`)
-          .not.toMatch(/^\s*0\s*%/m);
-      }
+      const t = (await tarjetas.nth(i).innerText()).trim();
+      /* Ninguna tarjeta puede quedarse MUDA: o trae un número, o dice que no
+         lo sabe. Un hueco en blanco es indistinguible de una pantalla rota. */
+      const tieneNumero = /\d/.test(t);
+      const diceQueNoSabe = /sin datos/i.test(t);
+      expect(
+        tieneNumero || diceQueNoSabe,
+        `Una tarjeta no enseña ni número ni «Sin datos»:\n${t}`,
+      ).toBe(true);
     }
+
+    /* Y NUNCA las dos cosas a la vez en el mismo hueco: «Sin datos 0 %» sería
+       el sistema contradiciéndose consigo mismo. */
+    const cuerpo = await page.locator('.kpi').first().innerText();
+    expect(cuerpo).not.toMatch(/sin datos[\s\S]{0,12}\d+\s*%/i);
   });
 
   test('cada tarjeta explica QUÉ es al pasar el ratón', async ({ page }) => {

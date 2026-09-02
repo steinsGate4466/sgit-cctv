@@ -33,7 +33,7 @@ test.describe('3 · Reportar una incidencia', () => {
     await page.goto('/incidents');
     await page.waitForLoadState('networkidle');
 
-    const antes = await page.locator('table.tabla tbody tr').count();
+    const antes = await page.locator('table tbody tr').count();
 
     await page.getByRole('button', { name: 'Nueva incidencia' }).click();
     const modal = page.locator('.modal');
@@ -76,7 +76,7 @@ test.describe('3 · Reportar una incidencia', () => {
       `Se guardó bien pero la lista no lo enseña. ${detalle}`,
     ).toBeVisible({ timeout: 20_000 });
 
-    const despues = await page.locator('table.tabla tbody tr').count();
+    const despues = await page.locator('table tbody tr').count();
     expect(despues, 'La lista no creció: se guardó de mentira').toBeGreaterThan(antes);
 
     expect(errores, `Errores en consola: ${errores.join(' | ')}`).toHaveLength(0);

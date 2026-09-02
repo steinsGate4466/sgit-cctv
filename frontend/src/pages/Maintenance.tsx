@@ -10,6 +10,7 @@ import HistorialActivo from '../components/HistorialActivo';
 import AsignarOm from '../components/AsignarOm';
 import DetallarOm from '../components/DetallarOm';
 import OmMateriales from '../components/OmMateriales';
+import { hoyParaInput } from '../fechas';
 import { WO_TYPES, WO_TYPE_ES, CANALES, CANAL_ES, CAUSA_ES } from './omCatalogos';
 import Icono from '../components/Iconos';
 import { useDialogos } from '../components/Dialogos';
@@ -75,7 +76,7 @@ export default function Maintenance() {
   const [saving, setSaving] = useState(false);
   const FORM_VACIO = {
     code: '', type: 'PREVENTIVO', assetId: '', locationId: '', activity: '', responsible: '',
-    materials: '', zone: '', incidentId: '', scheduledDate: '',
+    materials: '', zone: '', incidentId: '', scheduledDate: hoyParaInput(),
     requestedBy: '', requestChannel: '', externalRef: '',
     plannedStopAt: '', plannedDurationMin: '',
   };

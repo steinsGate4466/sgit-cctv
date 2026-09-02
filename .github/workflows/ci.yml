@@ -762,9 +762,19 @@ jobs:
         working-directory: frontend
         run: npm ci --include=dev
 
-      - name: Descargar el navegador
+      # CHROMIUM **Y WEBKIT**, no solo chromium.
+      # ---------------------------------------------------------------------
+      # El perfil `movil` usa `devices['iPhone 13']`, y ese perfil corre sobre
+      # WEBKIT — el motor de Safari. Instalando solo chromium, las cuatro
+      # pruebas de movil fallaban con «Executable doesn't exist», que parece
+      # un fallo de la prueba y es un fallo de esta linea.
+      #
+      # Y webkit es justo el que hace falta: la mitad de los fallos visuales
+      # de este proyecto solo se ven ahi. Las fechas que se salian de su caja
+      # (bloque 70) se veian bien en Chrome.
+      - name: Descargar los navegadores
         working-directory: frontend
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium webkit
 
       # Se compila y se SIRVE el build, no el servidor de desarrollo. Es lo que
       # de verdad se despliega: el modo desarrollo no trocea los archivos por

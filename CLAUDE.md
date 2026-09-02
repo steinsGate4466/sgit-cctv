@@ -2872,3 +2872,71 @@ rastro EN ABSOLUTO—. Se comprobaron las cinco: `createSigned`, `closeSigned`,
 > **Séptima vez que un patrón más flojo de lo necesario acaba leyendo otra
 > cosa.** Ya es la firma del proyecto: cuando un barrido da muchos resultados,
 > lo primero que hay que dudar es del barrido.
+
+---
+
+## 32. Bloque 88 — los recorridos encontraron su primer bug de verdad
+
+Primera ejecución completa en la CI: **23 pruebas, 9 en verde, 12 rojas.** Y el
+reparto de culpas es lo interesante.
+
+### EL BUG REAL: la OM sigue naciendo sin fecha
+
+`<input value="" type="date" aria-label="Fecha programada"/>`
+
+**Es el bug del bloque 64, que seguía vivo.** Allí se arregló el formulario del
+QR y **los otros dos se quedaron fuera**: «Alta completa» en Órdenes y
+`AsignarOm`. La cadena está escrita en este archivo desde entonces:
+
+    OM sin fecha → sale «—» → nunca vence → no entra en el backlog
+                 → el % de cumplimiento del preventivo miente
+                 → y con él el reparto correctivo/preventivo
+
+Nadie lo había visto en cuatro bloques de auditorías, verificadores y barridos.
+**Lo cazó abrir la pantalla**, que es exactamente para lo que se escribieron los
+recorridos. Sin ellos seguiría ahí.
+
+`hoyParaInput()` ya existía —lo puso el propio bloque 64—; sólo había que
+llamarlo.
+
+### Los otros once eran míos, y en cuatro sabores
+
+**1 · `table.tabla` no existe.** Las tablas del proyecto son `<table>` a secas.
+Mi selector no encontraba nada NUNCA, y eso disfrazaba tres cosas de bugs del
+software: «la tabla de Activos salió vacía» y «la lista no creció». No estaban
+vacías: yo miraba donde no había nada.
+
+**2 · Webkit sin instalar.** El perfil `movil` usa `devices['iPhone 13']`, que
+corre sobre WEBKIT, y la CI sólo instalaba chromium. Cuatro pruebas fallando con
+«Executable doesn't exist» — que parece un fallo de la prueba y es un fallo del
+`playwright install`. Y webkit es justo el que hace falta: **las fechas que se
+salían de su caja (bloque 70) se veían bien en Chrome.**
+
+**3 · Mi prueba prohibía un dato correcto.** Exigía que no hubiera ningún
+«0 %». Pero en una base recién sembrada no se cumple ninguna regla de
+normativa, y ese 0 % **es la respuesta exacta**. `cumplimiento.ts` ya distingue
+los dos casos y devuelve `null` cuando no hay reglas aplicables.
+
+> **La regla no es «nunca un cero»: es «nunca un número inventado».**
+
+Reescrita para comprobar la promesa de verdad: que un hueco se dice «Sin datos»
+y que ninguna tarjeta se queda muda.
+
+**4 · Y una prueba mía que MENTÍA.** Al caerse el backend a mitad de la tanda,
+mi `entrar()` leía el aviso rojo del formulario y reportaba **«Credenciales
+incorrectas. Te quedan 4 intento(s)»** — con las credenciales correctas. Ese
+texto lo compone el frontend cuando la llamada no sale bien, sin distinguir un
+401 de un servidor que no está.
+
+Me hizo perder un rato buscando un problema de contraseñas inexistente. Es
+exactamente el fallo que este proyecto persigue en su propio software —*un
+aviso que miente enseña a desconfiar de todos los avisos*— y lo tenía yo en la
+herramienta de diagnóstico. Ahora mira el CÓDIGO de la respuesta y separa «el
+backend no está» de «la contraseña está mal» de «es el límite de peticiones».
+
+### La lección, y es la del proyecto entero
+
+> **Nueve de doce fallos eran del andamio, no del software. Y el que sí era del
+> software llevaba cuatro bloques escondido.** Una herramienta nueva empieza
+> dando más ruido que señal; el error sería apagarla en la segunda vuelta,
+> porque la señal que trae —cuando llega— es la que no trae ninguna otra.

@@ -30,7 +30,7 @@
     "verificar:botones-alto": "node scripts/verificar-botones-alto.cjs",
     "e2e": "dotenv -e .env.e2e -- playwright test",
     "e2e:ui": "dotenv -e .env.e2e -- playwright test --ui",
-    "e2e:instalar": "playwright install chromium",
+    "e2e:instalar": "playwright install chromium webkit",
     "verificar:catch": "node scripts/verificar-catch.cjs"
   },
   "dependencies": {
