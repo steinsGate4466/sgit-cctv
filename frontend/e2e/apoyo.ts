@@ -80,28 +80,40 @@ export async function activoDePrueba(page: Page): Promise<string> {
   const fijado = process.env.E2E_ACTIVO;
   if (fijado) return fijado;
 
-  /* Se pide DESDE LA PÁGINA para que viaje el token de la sesión: una llamada
-     suelta iría sin autenticar y devolvería 401. */
-  const codigo = await page.evaluate(async () => {
-    const base = (window as any).__API__
-      || document.querySelector('meta[name="api"]')?.getAttribute('content')
-      || 'http://127.0.0.1:3000/api/v1';
-    const t = localStorage.getItem('sgit_token');
-    const r = await fetch(`${base}/assets?pageSize=1`, {
-      headers: t ? { Authorization: `Bearer ${t}` } : {},
-    });
-    if (!r.ok) return null;
-    const d = await r.json();
-    const fila = (d.data || d)[0];
-    return fila?.assetCode ?? null;
-  });
+  /* SE LEE DE LA PANTALLA, NO DE LA API.
+     -------------------------------------------------------------------------
+     MI PRIMERA VERSIÓN llamaba a `/assets` con `fetch` desde dentro de la
+     página. Falló en la CI en medio segundo, y con razón: metía tres
+     suposiciones que un recorrido no tiene por qué hacer —la URL base de la
+     API, la forma de la respuesta y que el CORS del `fetch` manual pasara—.
+     Cuando una de las tres falla, el error no dice cuál.
+
+     Un recorrido debe usar la aplicación COMO LA USA UNA PERSONA. Si el
+     código no se puede leer de la tabla de Activos, eso YA ES un fallo del
+     software y la prueba debe caerse por ese motivo, no por una llamada
+     paralela que nadie hace en la vida real. */
+  await page.goto('/assets');
+  await page.waitForLoadState('networkidle');
+
+  const primera = page.locator('table.tabla tbody tr').first();
+  if (!(await primera.isVisible().catch(() => false))) {
+    throw new Error(
+      '\n\n  La tabla de Activos salió VACÍA y `E2E_ACTIVO` no está puesta.\n'
+      + '  Puede ser una de dos cosas, y las dos importan:\n'
+      + '    · la semilla no creó ningún activo, o\n'
+      + '    · este usuario no puede verlos (mira el aviso de la pantalla).\n\n'
+      + '  En local: pon un código real en .env.e2e, de «Estructura de activos».\n\n',
+    );
+  }
+
+  /* La primera celda lleva el código en negrita y el tipo debajo, así que se
+     coge la PRIMERA LÍNEA. Partir por el salto es más estable que apuntar al
+     `<div>` de dentro, que es maquetación y cambia. */
+  const celda = (await primera.locator('td').first().innerText()).trim();
+  const codigo = celda.split('\n')[0].trim();
 
   if (!codigo) {
-    throw new Error(
-      '\n\n  No hay ningún activo en la base y `E2E_ACTIVO` no está puesta.\n'
-      + '  En local: pon un código real en .env.e2e (sácalo de «Estructura de activos»).\n'
-      + '  En la CI: la semilla debería crear al menos uno; si no, es un fallo de la semilla.\n\n',
-    );
+    throw new Error(`\n\n  No pude leer el código del activo. La celda decía: "${celda}"\n\n`);
   }
   return codigo;
 }

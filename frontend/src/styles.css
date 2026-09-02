@@ -4160,3 +4160,23 @@ input::-webkit-datetime-edit { padding: 0; }
    Sin esto queda pegado arriba, porque los `select` llevan su `<label>` encima
    y el botón no. */
 .filtro-accion { display: flex; align-items: flex-end; }
+
+/* ===========================================================================
+   «ACTUALIZAR MIS PERMISOS» — bloque 86
+   ---------------------------------------------------------------------------
+   Petición del usuario: que exista un botón para refrescar los permisos.
+
+   El botón y su explicación van EN LA MISMA FILA y la nota en gris pequeño:
+   es una salida de emergencia, no una acción del día a día. Con el mismo peso
+   visual que el resto competiría con lo que sí se usa siempre.
+=========================================================================== */
+.mc-refrescar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.mc-nota { font-size: 12px; color: var(--muted); line-height: 1.4; }

@@ -24,12 +24,13 @@ import { mensajeDeError } from '../avisos';
  */
 export default function MiCuenta() {
   const { confirmar } = useDialogos();
-  const { user, logout } = useAuth();
+  const { user, logout, refrescarPerfil } = useAuth();
   const [sesiones, setSesiones] = useState<any[]>([]);
   const [cargando, setCargando] = useState(true);
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
   const [ocupado, setOcupado] = useState(false);
+  const [refrescando, setRefrescando] = useState(false);
 
   const cargar = useCallback(async () => {
     try {
@@ -69,6 +70,46 @@ export default function MiCuenta() {
           <div><b style={{ fontSize: 12 }}>Nombre</b><div>{user?.fullName}</div></div>
           <div><b style={{ fontSize: 12 }}>Correo</b><div>{user?.email}</div></div>
           <div><b style={{ fontSize: 12 }}>Rol</b><div>{user?.role}</div></div>
+        </div>
+
+        {/* ACTUALIZAR MIS PERMISOS — bloque 86.
+            ---------------------------------------------------------------
+            Petición del usuario, textual: «en caso de que se deban actualizar
+            ciertos permisos que exista un botón actualizar».
+
+            El cambio de rol YA se aplica solo desde este bloque. El botón
+            sigue haciendo falta por dos motivos que no son teóricos:
+
+              · si hay un corte de red justo cuando el ingeniero guarda el
+                rol, la recarga automática falla EN SILENCIO —y así está
+                escrito a propósito: dejar tirado a alguien en planta por un
+                corte sería peor que el desfase—;
+
+              · y porque cuando algo no se ve, **poder pulsar algo es la
+                diferencia entre esperar y resolver**. Sin el botón, la única
+                salida era cerrar sesión y volver a entrar.
+
+            DICE SIEMPRE QUÉ PASÓ, y ésa es la mitad que importa: un botón que
+            refresca sin confirmar nada es indistinguible de uno roto (es el
+            bug 3 del bloque 64, y las 13 escrituras mudas de la auditoría). */}
+        <div className="mc-refrescar">
+          <button
+            className="btn-mini"
+            disabled={refrescando}
+            onClick={async () => {
+              setRefrescando(true);
+              setMsg(''); setError('');
+              const ok = await refrescarPerfil();
+              setRefrescando(false);
+              if (ok) setMsg('Permisos actualizados. Si algo cambió, ya está en tu menú.');
+              else setError('No se pudo contactar con el servidor. Vuelve a intentarlo.');
+            }}
+          >
+            {refrescando ? 'Actualizando…' : 'Actualizar mis permisos'}
+          </button>
+          <span className="mc-nota">
+            Si el ingeniero acaba de cambiar tu rol y no lo ves reflejado, pulsa aquí.
+          </span>
         </div>
       </div>
 

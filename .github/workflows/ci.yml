@@ -803,10 +803,18 @@ jobs:
           kill $API $WEB 2>/dev/null || true
           exit $CODIGO
 
-      # El informe SOLO si algo fallo. Guardarlo siempre llena el almacen de
-      # artefactos con carpetas que nadie abre.
-      - name: Guardar el informe si fallo
-        if: failure()
+      # EL INFORME SE GUARDA SI FALLA **O SI SE CANCELA**.
+      # ---------------------------------------------------------------------
+      # Con `if: failure()` a secas no se guardaba nada cuando el trabajo se
+      # CANCELA — y se cancela solo: el `concurrency` de arriba mata la
+      # ejecucion anterior en cuanto entra otro push. Paso exactamente eso, y
+      # me quede sin poder diagnosticar tres recorridos rojos.
+      #
+      # Un informe que no esta el dia que hace falta es como si no existiera.
+      # En verde sigue sin guardarse: eso si llenaria el almacen de carpetas
+      # que nadie abre.
+      - name: Guardar el informe si fallo o se cancelo
+        if: failure() || cancelled()
         uses: actions/upload-artifact@v4
         with:
           name: recorridos-informe

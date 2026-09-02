@@ -44,12 +44,37 @@ test.describe('3 · Reportar una incidencia', () => {
        en verde aunque no hubiera creado nada. */
     const marca = `E2E ${Date.now()}`;
     await modal.getByLabel('Título').fill(`Prueba automatica ${marca}`);
-    await modal.getByRole('button', { name: 'Crear incidencia' }).click();
+
+    /* SE ESCUCHA LA RESPUESTA DEL SERVIDOR.
+       -----------------------------------------------------------------------
+       La primera versión sólo esperaba a ver el texto en la lista, y cuando
+       falló en la CI el mensaje era «no apareció en 20 segundos» — que no
+       dice NADA: ¿no se guardó?, ¿se guardó y la lista no recargó?, ¿faltaba
+       un campo obligatorio?
+
+       Es la misma regla que este proyecto aplica a los avisos de pantalla:
+       **un error que no dice qué pasó obliga a adivinar.** Aquí se captura el
+       código y el cuerpo, y si algo falla el mensaje lo lleva dentro. */
+    const [respuesta] = await Promise.all([
+      page.waitForResponse(
+        (r) => r.url().includes('/incidents') && r.request().method() === 'POST',
+        { timeout: 20_000 },
+      ).catch(() => null),
+      modal.getByRole('button', { name: 'Crear incidencia' }).click(),
+    ]);
+
+    const detalle = respuesta
+      ? `El servidor respondió ${respuesta.status()}: ${(await respuesta.text().catch(() => '')).slice(0, 300)}`
+      : 'El navegador NO llegó a enviar la petición de alta.';
+    expect(respuesta?.status(), detalle).toBeLessThan(400);
 
     /* SE COMPRUEBA QUE APARECE, no que el formulario se cerró.
        El bug era exactamente ése: el formulario se cerraba SIEMPRE, hubiera
        ido bien o mal. Que se cierre no demuestra nada. */
-    await expect(page.getByText(marca).first()).toBeVisible({ timeout: 20_000 });
+    await expect(
+      page.getByText(marca).first(),
+      `Se guardó bien pero la lista no lo enseña. ${detalle}`,
+    ).toBeVisible({ timeout: 20_000 });
 
     const despues = await page.locator('table.tabla tbody tr').count();
     expect(despues, 'La lista no creció: se guardó de mentira').toBeGreaterThan(antes);

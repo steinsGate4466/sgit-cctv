@@ -17,6 +17,8 @@ interface AuthCtx {
   login: (email: string, password: string) => Promise<void>;
   logout: (motivo?: string) => void;
   can: (permission: string) => boolean;
+  /** Vuelve a pedir el perfil al servidor. `false` si no se pudo. */
+  refrescarPerfil: () => Promise<boolean>;
 }
 
 const Ctx = createContext<AuthCtx>({} as AuthCtx);
@@ -75,6 +77,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   //
   // Si la llamada falla no se cierra la sesión: puede ser un corte de red y
   // dejar tirado a alguien en planta por eso sería peor que el problema.
+  /* LA MISMA RECARGA, PERO TAMBIÉN A MANO — bloque 86.
+     -------------------------------------------------------------------------
+     Petición del usuario: «en caso de que se deban actualizar ciertos permisos
+     que exista un botón actualizar».
+
+     Ahora el cambio de rol se aplica solo, pero el botón sigue haciendo falta
+     por dos motivos que no son teóricos: si hay un corte de red justo en ese
+     momento, la recarga automática falla en silencio —y así está escrito,
+     porque dejar tirado a alguien en planta sería peor—; y porque cuando algo
+     no se ve, **poder pulsar algo es la diferencia entre esperar y resolver**.
+
+     Devuelve si pudo o no, para que la pantalla lo DIGA. Un botón que refresca
+     sin confirmar nada es indistinguible de uno roto. */
+  const refrescarPerfil = useCallback(async (): Promise<boolean> => {
+    try {
+      const { data } = await api.get('/auth/me');
+      if (!data) return false;
+      /* `data` primero NO: el orden es `...user, ...data` para que lo que trae
+         el servidor pise a lo guardado. Al revés, lo viejo ganaría y el botón
+         no serviría para nada. */
+      const fresco = { ...(user as any), ...data };
+      localStorage.setItem('sgit_user', JSON.stringify(fresco));
+      setUser(fresco);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [user]);
+
   useEffect(() => {
     if (!user) return;
     let vigente = true;
@@ -99,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const can = (permission: string) => (user?.permissions || []).includes(permission);
 
   return (
-    <Ctx.Provider value={{ user, login, logout, can }}>
+    <Ctx.Provider value={{ user, login, logout, can, refrescarPerfil }}>
       {children}
       {restante !== null && (
         <div style={{
