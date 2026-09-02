@@ -619,7 +619,27 @@ select optgroup { font-weight: 700; color: var(--navy); }
   .nav a { margin: 0; padding: 9px 13px; font-size: 13px; white-space: nowrap; border-radius: 20px; }
   .topbar { height: auto; padding: 10px 16px; }
   .topbar .title { font-size: 15px; }
-  .topbar .user > div:first-child { display: none; }  /* nombre completo: ocupa demasiado */
+  /* EL NOMBRE Y EL CARGO SE OCULTAN; EL BOTÓN SE QUEDA — bloque 89.
+     -----------------------------------------------------------------------
+     Aquí ponía `.topbar .user > div:first-child`, y esa regla llevaba desde
+     el bloque 67 SIN HACER NADA: allí el nombre dejó de ser un `<div>` y
+     pasó a ser un `<button class="user-boton">` para que se pudiera pulsar,
+     y NADIE ACTUALIZÓ EL SELECTOR. Un selector que deja de casar no avisa:
+     no rompe, no sale en consola, no lo ve el compilador. Simplemente la
+     regla deja de aplicarse.
+
+     Consecuencia real, y la cazó un recorrido de Playwright en el teléfono:
+     el nombre completo más el cargo más «Mi PIN» más «Salir» no caben en
+     390 px, y **la pantalla ENTERA se desplazaba 56 px de lado**. En el PC
+     no se ve. El técnico usa su teléfono.
+
+     SE OCULTA EL TEXTO, NO EL BOTÓN. El avatar sigue ahí y sigue llevando a
+     «Mi cuenta»: esconder el botón entero devolvería el problema del bloque
+     67 —la gente pulsa su nombre esperando ir a su cuenta— sólo que ahora en
+     el sitio donde más se usa. */
+  .topbar .user-boton > span:first-child { display: none; }
+  .topbar .user-boton { padding: 4px; }
+  .topbar .user { gap: 8px; min-width: 0; }
   .content { padding: 14px 12px calc(24px + env(safe-area-inset-bottom)); }
   .page-sub { font-size: 12px; }
 

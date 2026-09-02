@@ -2998,6 +2998,7 @@ confuso que el que lo causa.
 | 2ª | 17 | 2 | 2 del andamio |
 | 3ª | 16 | 2 | 1 del andamio, **1 visual de móvil sin diagnosticar** |
 | 4ª | 17 | 2 | los 2 del andamio — y el informe de desborde MENTÍA |
+| 5ª | 19 | 1 | **el único rojo era un bug REAL del teléfono** |
 
 **El único bug del software que salió llevaba cuatro bloques escondido** y no
 lo vio ninguna de las 1.165 pruebas ni ninguno de los 29 verificadores. Ésa es
@@ -3103,3 +3104,42 @@ perfil y los permisos, y **cuando esas respuestas vuelven la aplicación se
 recoloca otra vez**. Ahora se espera además a que la red se calle
 (`networkidle`), que es lo único que cubre los saltos que dependen de una
 respuesta.
+
+### Quinta vuelta — el selector que llevaba veintidós bloques sin hacer nada
+
+Con el informe ya limpio, la CI dijo el culpable en una línea:
+
+    Se sale 56px en movil. Culpables:
+        - <div class="user"> se sale 56px
+
+Y en `styles.css`, dentro del bloque de móvil:
+
+```css
+.topbar .user > div:first-child { display: none; }  /* nombre: ocupa demasiado */
+```
+
+**Esa regla no hacía nada desde el bloque 67.** Allí el nombre dejó de ser un
+`<div>` y pasó a ser un `<button class="user-boton">` —para que se pudiera
+pulsar e ir a «Mi cuenta»— y **nadie actualizó el selector**.
+
+> **Un selector de CSS que deja de casar no avisa.** No rompe, no sale en
+> consola, no lo ve el compilador ni el lint. La regla simplemente deja de
+> aplicarse, y lo que se ve es una pantalla algo peor que nadie sabe explicar.
+
+Consecuencia: el nombre completo más el cargo más «Mi PIN» más «Salir» no caben
+en 390 px, y **la pantalla ENTERA se desplazaba 56 px de lado** en el teléfono.
+En el PC no se ve. El técnico usa su teléfono.
+
+**Se oculta el TEXTO, no el botón.** El avatar sigue llevando a «Mi cuenta»:
+esconder el botón entero devolvería el problema del bloque 67 —la gente pulsa
+su nombre esperando ir a su cuenta— justo donde más se usa.
+
+#### Lo que esto demuestra sobre los recorridos
+
+Este bug sobrevivió a **1.165 pruebas, 29 verificadores y cuatro auditorías**.
+Ninguna herramienta que lee código podía verlo: el CSS era válido, el
+componente correcto, el selector sintácticamente impecable. Sólo se ve
+**abriendo la pantalla en un teléfono**.
+
+Es el segundo bug real que sacan los recorridos —el primero fue la OM naciendo
+sin fecha— y los dos llevaban meses escondidos.
