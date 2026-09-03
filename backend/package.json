@@ -91,6 +91,7 @@
     "browserslist": "^4.28.8",
     "deepmerge-ts": "^8.0.2",
     "mysql2": "^3.24.2",
-    "uuid": "^11.1.1"
+    "uuid": "^11.1.1",
+    "fast-uri": "^3.1.7"
   }
 }
