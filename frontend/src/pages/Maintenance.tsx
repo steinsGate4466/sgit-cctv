@@ -4,7 +4,6 @@ import { api } from '../api/client';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, AvisoAmbito } from '../components/FiltroAmbito';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
-import BorrarDefinitivo from '../components/BorrarDefinitivo';
 import OmCampo from '../components/OmCampo';
 import HistorialActivo from '../components/HistorialActivo';
 import AsignarOm from '../components/AsignarOm';
@@ -15,7 +14,7 @@ import { WO_TYPES, WO_TYPE_ES, CANALES, CANAL_ES, CAUSA_ES } from './omCatalogos
 import Icono from '../components/Iconos';
 import { useDialogos } from '../components/Dialogos';
 import { useVolverALaPantalla } from '../useVolverALaPantalla';
-import { fecha, fechaHora, plural } from '../formato';
+import { fecha, fechaHora } from '../formato';
 import { useBusquedaEnVivo } from '../useBusquedaEnVivo';
 
 const TYPES = WO_TYPES; // incluye MAPEO: el levantamiento también es una OM
@@ -50,7 +49,6 @@ export default function Maintenance() {
   // Borrado DEFINITIVO de una orden. No es cancelar: cancelar deja constancia
   // de que se pidió y no se hizo; esto es para el papel que nunca debió
   // existir. El servidor rechaza las CERRADAS y las que sacaron material.
-  const [omAPurgar, setOmAPurgar] = useState<any>(null);
   const [assets, setAssets] = useState<any[]>([]);
   const [incidents, setIncidents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -278,16 +276,41 @@ export default function Maintenance() {
           <h1 className="page-title">Órdenes de Mantenimiento</h1>
           <p className="page-sub">{rows.length} órdenes · preventivo, correctivo y mejora</p>
         </div>
-        {/* ASIGNAR es lo que hará el ingeniero el 95 % de las veces: cuatro
-            campos. El alta completa se queda para los casos en que de verdad
-            se conoce todo de antemano. */}
+        {/* LOS DOS BOTONES VAN EN UN SOLO BLOQUE — bloque 91.
+            -------------------------------------------------------------------
+            AQUÍ HABÍA UN FALLO DE UNA LÍNEA que el usuario vio en pantalla:
+            esta cabecera es `space-between` y tenía TRES hijos —el título y
+            los dos botones—, así que el del medio se iba al CENTRO de la
+            pantalla. «+ Asignar trabajo» quedaba flotando en mitad de la nada,
+            sin relación con nada de lo que tiene al lado.
+
+            Con `space-between` sólo puede haber DOS bloques: lo de la
+            izquierda y lo de la derecha. Es la misma trampa que aparecerá otra
+            vez el día que alguien añada un tercer botón aquí.
+
+            Y SE DICE PARA QUÉ ES CADA UNO. El usuario lo dijo tal cual: «no
+            entiendo». Dos botones que crean lo mismo y se llaman distinto
+            obligan a adivinar, y quien adivina elige el equivocado la mitad de
+            las veces. La diferencia va en el `title`, no en la pantalla:
+            `verificar:densidad` mide las palabras de la pantalla y esto es
+            ayuda, no contenido. */}
         {can('wo.create') && (
-          <button className="btn-primary" onClick={() => setAsignando(true)}>+ Asignar trabajo</button>
-        )}
-        {can('wo.create') && (
-          <button className="btn-mini" style={{ marginLeft: 8 }} onClick={() => setShowForm(true)}>
-            Alta completa
-          </button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button
+              className="btn-primary"
+              title="Lo normal: cuatro campos. Se abre la orden y el técnico la detalla después en campo."
+              onClick={() => setAsignando(true)}
+            >
+              + Asignar trabajo
+            </button>
+            <button
+              className="btn-mini"
+              title="Cuando ya sabes todo de antemano: materiales, responsable, fechas y actividad."
+              onClick={() => setShowForm(true)}
+            >
+              Alta completa
+            </button>
+          </div>
         )}
       </div>
 
@@ -312,20 +335,38 @@ export default function Maintenance() {
       <div className="card">
         <table>
           <thead>
-            <tr><th>Código</th><th>Tipo</th><th>Zona</th><th>Actividad</th><th>Estado</th><th>Avance</th><th>Activo / Ubicación</th><th>Programada</th><th></th></tr>
+            {/* SIETE COLUMNAS, NO NUEVE — bloque 91.
+                ---------------------------------------------------------------
+                Con nueve, en la pantalla del púlpito (1366 px) el tipo salía
+                partido —«Preventi/vo»— y el código también. Una tabla que
+                parte las palabras se lee mal aunque tenga todos los datos.
+
+                No se ha quitado NADA: se ha AGRUPADO lo que va junto, igual
+                que el bloque 81 hizo con Activos.
+                  · el tipo baja debajo del código
+                  · la zona baja debajo de la actividad, que es su contexto
+                Y deja sitio para el solicitante, que va en el mismo hueco. */}
+            <tr>
+              <th>Código</th><th>Actividad</th><th>Estado</th><th>Avance</th>
+              <th>Activo / Ubicación</th><th>Programada</th><th></th>
+            </tr>
           </thead>
           <tbody>
             {rows
               .filter((w: any) => !soloSinDetallar || !w.detailedAt)
               .map((w: any) => (
               <tr key={w.id}>
-                <td style={{ fontWeight: 600 }}>
+                <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
                   {w.code}
+                  <div className="muted" style={{ fontSize: 11, fontWeight: 400 }}>
+                    {WO_TYPE_ES[w.type] || w.type}
+                  </div>
                   {w.incident && <div className="muted" style={{ fontSize: 10 }}>◦ {w.incident.code}</div>}
                 </td>
-                <td className="muted" style={{ fontSize: 11 }}>{WO_TYPE_ES[w.type] || w.type}</td>
-                <td className="muted" style={{ fontSize: 12 }}>{w.zone || '—'}</td>
-                <td style={{ fontSize: 12 }}>{w.activity || '—'}</td>
+                <td style={{ fontSize: 12 }}>
+                  {w.activity || '—'}
+                  {w.zone && <div className="muted" style={{ fontSize: 11 }}>{w.zone}</div>}
+                </td>
                 <td>
                   <span className={'badge ' + woBadge(w.status)}>{w.status}</span>
                   {w.isRecurrent && <div className="muted" style={{ fontSize: 10 }}>reincidente</div>}
@@ -373,7 +414,14 @@ export default function Maintenance() {
                   {w.scheduledDate ? fecha(w.scheduledDate) : '—'}
                   {isOverdue(w) && <span className="badge FUERA_SERVICIO" style={{ marginLeft: 6 }}>Vencida</span>}
                 </td>
-                <td style={{ whiteSpace: 'nowrap' }}>
+                {/* LAS ACCIONES SE ENVUELVEN, NO SE SALEN.
+                    `nowrap` con ocho botones empujaba la tabla a lo ancho y
+                    obligaba a desplazarse de lado para llegar al último. Con
+                    `flex-wrap` caen a una segunda línea dentro de su celda, y
+                    el `gap` sustituye a los ocho `marginLeft: 4` escritos a
+                    mano — que además no separaban el primero del segundo. */}
+                <td>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
                   {/* SIN DETALLAR: es lo primero que hay que hacer con esta
                       orden, así que su botón va delante de todo lo demás.
                       Va FUERA del condicional de abajo, no dentro: meterlo
@@ -382,7 +430,7 @@ export default function Maintenance() {
                   {!w.detailedAt && w.status !== 'CERRADA' && w.status !== 'CANCELADA'
                     && can('wo.update') && (
                     <button className="btn-mini"
-                      style={{ borderColor: 'var(--warn)', color: '#b45309', fontWeight: 600, marginRight: 4 }}
+                      style={{ borderColor: 'var(--warn)', color: '#b45309', fontWeight: 600 }}
                       onClick={() => setDetallando(w)}>
                       Detallar
                     </button>
@@ -391,14 +439,14 @@ export default function Maintenance() {
                     <button className="btn-mini" onClick={() => openIntervention(w)}>Registrar</button>
                   )}
                   {w.status !== 'CERRADA' && w.status !== 'CANCELADA' && can('wo.update') && (
-                    <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => openPhotos(w.id)}>Fotos</button>
+                    <button className="btn-mini" onClick={() => openPhotos(w.id)}>Fotos</button>
                   )}
                   {w.status !== 'CERRADA' && w.status !== 'CANCELADA' && can('wo.update') && !w.startedAt && (
-                    <button className="btn-mini" style={{ marginLeft: 4 }}
+                    <button className="btn-mini"
                       onClick={() => setCampo({ wo: w, accion: 'abrir' })}>Abrir</button>
                   )}
                   {w.status !== 'CERRADA' && w.status !== 'CANCELADA' && can('wo.update') && w.startedAt && (
-                    <button className="btn-mini" style={{ marginLeft: 4 }}
+                    <button className="btn-mini"
                       onClick={() => setCampo({ wo: w, accion: 'avance' })}>Avance</button>
                   )}
                   {/* En una orden de MAPEO ya abierta, el técnico entra a
@@ -407,54 +455,47 @@ export default function Maintenance() {
                       registre quedan ligados a esta orden. */}
                   {w.type === 'MAPEO' && w.startedAt && w.status !== 'CERRADA'
                     && w.status !== 'CANCELADA' && can('asset.create') && (
-                    <button className="btn-mini" style={{ marginLeft: 4, fontWeight: 600 }}
+                    <button className="btn-mini" style={{ fontWeight: 600 }}
                       title="Registrar un activo dentro de esta orden de mapeo"
                       onClick={() => navegar(`/assets?om=${w.id}&codigo=${encodeURIComponent(w.code)}`)}>
                       + Registrar activo
                     </button>
                   )}
                   {w.status !== 'CERRADA' && w.status !== 'CANCELADA' && can('wo.approve') && (
-                    <button className="btn-mini" style={{ marginLeft: 4 }}
+                    <button className="btn-mini"
                       onClick={() => setCampo({ wo: w, accion: 'cerrar' })}>Cerrar</button>
                   )}
-                  <button className="btn-mini" style={{ marginLeft: 4 }}
+                  <button className="btn-mini"
                     title="Materiales previstos/usados y reemplazo de equipo"
                     onClick={() => setMatsFor(w)}><Icono n="inventario" size={14} /> Materiales</button>
-                  <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => downloadReport(w)}>Informe</button>
-                  {/* Sólo el Jefe. También en las CERRADAS: antes del estreno,
-                      las cerradas de prueba son justo las que estorban. El
-                      diálogo pide una segunda confirmación y lo marca como
-                      forzado en la auditoría. */}
-                  {can('wo.approve') && can('purga.definitiva') && (
-                    <button className="btn-mini btn-peligro" style={{ marginLeft: 4 }}
-                      title={w.status === 'CERRADA'
-                        ? 'Borrar definitivamente (está cerrada: pedirá segunda confirmación)'
-                        : 'Borrar definitivamente: para órdenes de prueba o duplicadas'}
-                      onClick={() => setOmAPurgar(w)}><Icono n="papelera" size={14} /> Eliminar</button>
-                  )}
+                  <button className="btn-mini" onClick={() => downloadReport(w)}>Informe</button>
+                  {/* «ELIMINAR» YA NO VIVE EN LA FILA — bloque 91.
+                      -----------------------------------------------------------
+                      Es la misma decisión del bloque 80-D, que sacó «Dar de
+                      baja» de la cabecera del activo: **lo irreversible no va
+                      donde se pulsa por inercia**. Con ocho botones en la
+                      fila, el rojo estaba a cuatro píxeles de «Informe», y el
+                      error real no es pulsar el botón equivocado: es pulsarlo
+                      en la FILA de al lado.
+
+                      No se pierde nada: la purga de órdenes vive en
+                      **Limpieza de datos** desde el bloque 15.1, que es la
+                      pantalla hecha para esto —con su lista de candidatos, su
+                      frase escrita a mano y el freno del almacén—. */}
+                  </div>
                 </td>
               </tr>
             ))}
-            {!rows.length && <tr><td colSpan={9} className="muted" style={{ textAlign: 'center', padding: 30 }}>Sin órdenes de mantenimiento</td></tr>}
+            {!rows.length && <tr><td colSpan={7} className="muted" style={{ textAlign: 'center', padding: 30 }}>Sin órdenes de mantenimiento</td></tr>}
           </tbody>
         </table>
       </div>
 
-      {omAPurgar && (
-        <BorrarDefinitivo
-          tipo="om"
-          id={omAPurgar.id}
-          onCerrar={() => setOmAPurgar(null)}
-          onBorrado={async (r) => {
-            setOmAPurgar(null);
-            await avisar(
-              `Borrada ${r.code} y ${plural(r.arrastrado, 'registro')} asociados.` +
-              (r.conservado ? `\n\nSe conservaron ${plural(r.conservado, 'registro')} que no dependen de la orden (equipos levantados, inspecciones).` : ''),
-            );
-            load();
-          }}
-        />
-      )}
+      {/* El diálogo de borrado definitivo se fue con su botón (bloque 91).
+          Dejarlo aquí sin nada que lo abriera sería código muerto, que es
+          justo lo que este proyecto persigue con el barrido A: un archivo o
+          un bloque que nadie llama compila, pasa el lint y no existe.
+          La purga de órdenes vive en «Limpieza de datos». */}
 
       {showForm && (
         <Modal title="Nueva orden de mantenimiento" onClose={() => setShowForm(false)}>

@@ -3279,3 +3279,76 @@ Queda escrito con lo medido, para cuando se retome:
 - **Lo que sí falta es AVISAR DEL ALCANCE.** El modal no dice a cuántas
   personas afecta el cambio. «12 permisos marcados» no es lo mismo que «12
   permisos · afecta a 5 personas de este rol».
+
+---
+
+## 35. Bloque 91 — la pantalla de Órdenes, ordenada
+
+### El botón que flotaba en mitad de la pantalla
+
+Palabras del usuario: *«mira ese botón de asignar trabajo qué hace ahí»*. Y era
+un fallo de una línea:
+
+```
+justify-content: space-between   con TRES hijos
+   [ título ]        [ + Asignar trabajo ]        [ Alta completa ]
+                       ↑ el del medio se va al CENTRO
+```
+
+Con `space-between` sólo puede haber **DOS** bloques: lo de la izquierda y lo
+de la derecha. Los dos botones van dentro de un `<div>`. Es la misma trampa que
+volverá el día que alguien añada un tercer elemento a una cabecera.
+
+### «No entiendo» — dos botones que no se explican
+
+Son dos actos distintos y el módulo entero depende de ello (bloque 4A):
+
+    + Asignar trabajo  →  cuatro campos. El técnico la DETALLA después.
+                          Por eso existen el filtro «Solo sin detallar»
+                          y el botón «Detallar».
+    Alta completa      →  el formulario entero, cuando ya se sabe todo.
+
+Se conservan los dos —quitar el rápido obligaría al ingeniero a rellenar quince
+campos para pedir un trabajo que aún no sabe cómo se hace— pero **ahora cada
+uno dice para qué es** al pasar el ratón. Dos botones que crean lo mismo y se
+llaman distinto obligan a adivinar, y quien adivina elige mal la mitad de las
+veces.
+
+La ayuda va en el `title` y no en la pantalla, a propósito: `verificar:densidad`
+mide las palabras de la pantalla, y esto es ayuda, no contenido.
+
+### Nueve columnas partían las palabras
+
+En la pantalla del púlpito (1366 px) el tipo salía como **«Preventi/vo»** y el
+código también. Una tabla que parte las palabras se lee mal aunque tenga todos
+los datos.
+
+**No se quitó nada: se agrupó**, igual que el bloque 81 con Activos.
+
+    CÓDIGO          ACTIVIDAD          ESTADO · AVANCE · ACTIVO · PROGRAMADA
+    OM-2026-0002    Corrección de…
+    Correctivo      Tren 1 — Púlpito
+    ◦ INC-2026-0002
+
+De nueve columnas a **siete**, y queda hueco para el solicitante en ese mismo
+sitio.
+
+### Ocho botones en una fila
+
+Eso era lo que de verdad descuadraba la tabla. Dos cambios:
+
+- **Las acciones se envuelven** (`flex-wrap` + `gap`) en vez de `nowrap` con
+  ocho `marginLeft: 4` escritos a mano — que además no separaban el primero
+  del segundo.
+- **«Eliminar» sale de la fila.** Es la decisión del bloque 80-D otra vez: *lo
+  irreversible no va donde se pulsa por inercia*. Con ocho botones, el rojo
+  estaba a cuatro píxeles de «Informe», y el error real no es pulsar el botón
+  equivocado: **es pulsarlo en la FILA de al lado.**
+
+No se pierde nada: la purga de órdenes vive en **Limpieza de datos** desde el
+bloque 15.1, que es la pantalla hecha para esto, con su lista de candidatos, su
+frase escrita a mano y el freno del almacén.
+
+**Y el diálogo se fue con su botón.** Dejarlo puesto sin nada que lo abriera
+sería código muerto — justo lo que persigue el barrido A: un bloque que nadie
+llama compila, pasa el lint y no existe.
