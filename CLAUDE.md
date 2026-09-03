@@ -3420,3 +3420,64 @@ ejecución — **no tapados con un `|| true`**.
 dejaría permanentemente roja por algo que no se puede arreglar desde aquí, y un
 control que siempre está en rojo se aprende a ignorar en una semana. Es la
 misma regla de los verificadores desde el bloque 9.
+
+---
+
+## 37. Bloque 93 — los seis avisos amarillos de GitHub
+
+El usuario los vio en la pestaña «Annotations» y preguntó qué eran. Eran **dos
+cosas distintas** metidas en la misma lista, y conviene separarlas porque se
+tratan al revés.
+
+### Cuatro eran de GitHub, no del código
+
+    Node.js 20 is deprecated. The following actions target Node.js 20 but are
+    being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4
+
+**No es código nuestro.** Son las acciones oficiales de GitHub —las que bajan
+el repositorio e instalan Node en el runner— en su versión v4, escrita para
+Node 20. GitHub va a retirar Node 20 de sus máquinas, así que avisa.
+
+No rompía nada: GitHub YA las estaba corriendo sobre Node 24 y funcionaban. Se
+suben a **v5**, que es la primera que declara Node 24. Comprobado contra el
+repositorio real —`git ls-remote --tags`—: `checkout`, `setup-node` y
+`upload-artifact` tienen v5, v6 y v7.
+
+**Se elige v5 y no v7 a propósito:** es el mínimo que quita el aviso. La v6 y
+la v7 traen además un cambio ROMPEDOR sobre el checkout de PR de forks
+(`allow-unsafe-pr-checkout`), que aquí no hace falta para nada. Subir de más es
+asumir un riesgo a cambio de nada.
+
+### Dos eran del código, y los dos eran DELIBERADOS
+
+    Inventory.tsx#L94        useEffect has a missing dependency: 'load'
+    useInactivity.ts#L145    useEffect has a missing dependency: 'limites'
+
+Los dos son **falsas alarmas del linter**, y ponerle lo que pide sería
+introducir un bug:
+
+- **`load`** obligaría a un `useCallback` y volvería a consultar el servidor en
+  cada tecla del buscador.
+- **`limites`** se rehace en cada repintado, así que el temporizador se
+  reiniciaría CONTINUAMENTE y el aviso de sesión no llegaría nunca. Es
+  exactamente el fallo del bloque 67 —el buscador que no buscaba— con otra
+  cara. Se depende de `limites.aviso` y `limites.cierre`, que son NÚMEROS: si
+  cambian de verdad, el efecto se relanza.
+
+**Se silencian en la línea exacta y con el motivo escrito**, no apagando la
+regla del linter.
+
+> Un aviso que sale en cada ejecución y que nadie va a arreglar **enseña a
+> ignorar todos los avisos**, y entonces no sirve el día que aparece uno de
+> verdad.
+
+Es la misma regla que este proyecto aplica a sus verificadores desde el bloque
+9, y al `|| true` del `npm audit` desde el 85.
+
+### Y ahora el lint corta en CERO
+
+`eslint --max-warnings 50` con 2 avisos reales es un control que **no puede
+fallar**: caben 48 más antes de que alguien se entere. Con la casa limpia, el
+tope pasa a **0**: el aviso número uno rompe la CI.
+
+Un umbral holgado no es tolerancia, es una alarma apagada con retardo.

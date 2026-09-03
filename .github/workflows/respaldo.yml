@@ -88,7 +88,7 @@ jobs:
 
       - name: Guardar el respaldo
         if: steps.chequeo.outputs.listo == 'si'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: respaldo-bd
           path: respaldo/*.sql

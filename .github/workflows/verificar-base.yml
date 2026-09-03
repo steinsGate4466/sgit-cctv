@@ -50,10 +50,10 @@ jobs:
             echo "listo=si" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: steps.chequeo.outputs.listo == 'si'
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         if: steps.chequeo.outputs.listo == 'si'
         with:
           node-version: '24'

@@ -91,11 +91,18 @@ export default function Inventory() {
   // Ese sigue disparándose con Enter, que es lo que ya hacía.
    
   useEffect(() => { setPagina(1); }, [fCat, onlyLow]);
+  // `load` NO va en las dependencias a propósito: obligaría a envolverla en
+  // `useCallback` y volvería a consultar el servidor en cada tecla del
+  // buscador, que es justo lo que no queremos (bloque 67).
+  //
+  // SE SILENCIA EN LA LÍNEA EXACTA Y CON EL MOTIVO — bloque 93.
+  // Antes el aviso salía en cada `npm run lint` y en cada ejecución de la CI.
+  // Un aviso que siempre está ahí y que nadie va a arreglar enseña a ignorar
+  // TODOS los avisos, y entonces no sirve el día que aparece uno de verdad.
+  // Es la misma regla que este proyecto aplica a sus verificadores desde el
+  // bloque 9. Lo que no se hace es apagar la regla entera del linter.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [fCat, onlyLow, pagina]);
-
-  // (Nota histórica: `load` no se declara como dependencia a propósito.
-  // Obligaría a envolverla en useCallback y volvería a consultar el servidor
-  // en cada tecla del buscador, que es justo lo que no queremos.)
 
   const categories = Array.from(new Set(rows.map((r) => r.category).filter(Boolean)));
 

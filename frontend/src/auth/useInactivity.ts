@@ -142,6 +142,20 @@ export function useInactivity(activo: boolean, alCerrar: () => void) {
       SENALES.forEach((e) => window.removeEventListener(e, registrar));
       clearInterval(reloj);
     };
+    /* SE DEPENDE DE LOS VALORES, NO DEL OBJETO — y el linter pide el objeto.
+       -------------------------------------------------------------------------
+       `limites` se rehace en cada repintado, así que ponerlo entero aquí
+       reiniciaría el temporizador CONTINUAMENTE: el aviso de sesión no
+       llegaría nunca y nadie sabría por qué. Es exactamente el fallo del
+       bloque 67 —el buscador que no buscaba porque `load` se recreaba en cada
+       repintado y el temporizador no llegaba a cumplirse—.
+
+       `limites.aviso` y `limites.cierre` son números: si cambian de verdad,
+       el efecto se relanza; si no, no. Que es lo correcto.
+
+       Se silencia AQUÍ, con el motivo escrito (bloque 93). Un aviso que sale
+       en cada ejecución y que nadie va a arreglar enseña a ignorarlos todos. */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activo, limites.aviso, limites.cierre, alCerrar]);
 
   /** El usuario confirma que sigue ahí. */
