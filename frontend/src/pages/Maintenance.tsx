@@ -288,27 +288,39 @@ export default function Maintenance() {
             izquierda y lo de la derecha. Es la misma trampa que aparecerá otra
             vez el día que alguien añada un tercer botón aquí.
 
-            Y SE DICE PARA QUÉ ES CADA UNO. El usuario lo dijo tal cual: «no
-            entiendo». Dos botones que crean lo mismo y se llaman distinto
-            obligan a adivinar, y quien adivina elige el equivocado la mitad de
-            las veces. La diferencia va en el `title`, no en la pantalla:
+            LOS DOS SE LLAMAN IGUAL Y SE DIFERENCIAN EN EL ADJETIVO — b92.
+            El usuario lo dijo tal cual: «asignar trabajo no entiendo su
+            objetivo». Y tenía razón: **«Asignar trabajo» no dice que CREA una
+            orden**, suena a repartir algo que ya existe. Peor aún, le hizo
+            pensar que era para que el técnico se creara sus propias OM — y no
+            lo es: ningún técnico tiene `wo.create`. Los dos botones son del
+            Jefe.
+
+            > Dos botones que hacen lo mismo se llaman igual y se diferencian
+            > SÓLO en el matiz.
+
+            «Nueva OM · rápida» y «Nueva OM · completa»: los dos dicen que
+            nace una orden, y el adjetivo dice cuánto vas a escribir. Nadie
+            tiene que adivinar.
+
+            La diferencia larga va en el `title`, no en la pantalla:
             `verificar:densidad` mide las palabras de la pantalla y esto es
             ayuda, no contenido. */}
         {can('wo.create') && (
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <button
               className="btn-primary"
-              title="Lo normal: cuatro campos. Se abre la orden y el técnico la detalla después en campo."
+              title="Cinco campos: qué hay que hacer y a quién se lo encargas. La orden nace SIN DETALLAR y el técnico la completa en campo."
               onClick={() => setAsignando(true)}
             >
-              + Asignar trabajo
+              + Nueva OM · rápida
             </button>
             <button
               className="btn-mini"
-              title="Cuando ya sabes todo de antemano: materiales, responsable, fechas y actividad."
+              title="El formulario entero, cuando ya sabes materiales, responsable, fechas y actividad. Nace YA DETALLADA."
               onClick={() => setShowForm(true)}
             >
-              Alta completa
+              Nueva OM · completa
             </button>
           </div>
         )}

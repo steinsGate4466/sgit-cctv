@@ -21,9 +21,14 @@ import { entrar, vigilarConsola } from './apoyo';
    DOS COSAS QUE ME EQUIVOQUÉ AL ESCRIBIRLO Y SE CORRIGEN AQUÍ
 
    1. El botón NO se llama «Nueva orden»: son DOS botones distintos.
-      «+ Asignar trabajo» abre el alta corta y **«Alta completa»** abre el
-      formulario entero. Son actos distintos (bloque 4A) y hay que pulsar el
-      que se quiere probar.
+      «+ Nueva OM · rápida» abre el alta corta y **«Nueva OM · completa»**
+      abre el formulario entero. Son actos distintos (bloque 4A) y hay que
+      pulsar el que se quiere probar.
+
+      SE APUNTA POR /completa/, no por el nombre entero: los dos botones
+      empiezan igual —a propósito, para que se entienda que los dos crean una
+      orden (bloque 92)— y el adjetivo es lo único que los separa. Y el `·`
+      del medio es un carácter que se copia mal: fuera del patrón.
 
    2. `input[type="date"]` a nivel de PÁGINA agarraba el de la BARRA DE
       FILTROS —«Desde»/«Hasta»—, que va antes en el DOM. La prueba habría
@@ -38,7 +43,7 @@ test.describe('4 · Abrir una orden de mantenimiento', () => {
     await page.goto('/maintenance');
     await page.waitForLoadState('networkidle');
 
-    await page.getByRole('button', { name: 'Alta completa' }).click();
+    await page.getByRole('button', { name: /Nueva OM.*completa/i }).click();
     const modal = page.locator('.modal');
     await expect(modal).toBeVisible();
 
@@ -57,7 +62,7 @@ test.describe('4 · Abrir una orden de mantenimiento', () => {
     await page.waitForLoadState('networkidle');
 
     const marca = `E2E ${Date.now()}`;
-    await page.getByRole('button', { name: 'Alta completa' }).click();
+    await page.getByRole('button', { name: /Nueva OM.*completa/i }).click();
     const modal = page.locator('.modal');
     await expect(modal).toBeVisible();
 

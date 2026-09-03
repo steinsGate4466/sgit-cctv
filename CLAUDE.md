@@ -3352,3 +3352,71 @@ frase escrita a mano y el freno del almacén.
 **Y el diálogo se fue con su botón.** Dejarlo puesto sin nada que lo abriera
 sería código muerto — justo lo que persigue el barrido A: un bloque que nadie
 llama compila, pasa el lint y no existe.
+
+---
+
+## 36. Bloque 92 — los nombres de los dos botones, y el aviso ALTO
+
+### «Asignar trabajo» no decía que CREA una orden
+
+Palabras del usuario: *«asignar trabajo no entiendo su objetivo, ahí si los
+técnicos no generan OM más que sólo el jefe de mantenimiento»*.
+
+Lo segundo es correcto **y el software ya lo cumple**: ningún técnico tiene
+`wo.create`. Medido:
+
+| Rol | Crear | Detallar / avanzar | Cerrar |
+|---|---|---|---|
+| Jefe de Mantenimiento | ✅ | ✅ | ✅ |
+| Técnico · Técnico de Red · Supervisor TI | ❌ | ✅ | ❌ |
+| Jefe de Tren · Jefe de línea | ✅ | ❌ | ❌ |
+
+Pero el nombre le hizo pensar lo contrario, y ahí estaba el fallo: **«Asignar
+trabajo» suena a repartir algo que ya existe**, no a crearlo.
+
+> **Dos botones que hacen lo mismo se llaman igual y se diferencian SÓLO en el
+> matiz.**
+
+    + Nueva OM · rápida     5 campos; nace SIN DETALLAR y el técnico la completa
+      Nueva OM · completa   el formulario entero; nace YA DETALLADA
+
+Los dos dicen que nace una orden, y el adjetivo dice cuánto vas a escribir.
+
+**Y el recorrido 4 se actualizó con el renombrado**, apuntando por `/completa/`
+y no por el nombre entero: el `·` del medio es un carácter que se copia mal, y
+los dos botones empiezan igual a propósito.
+
+### El aviso ALTO de `fast-uri`, y por qué «actualizar todo» DEGRADA
+
+La CI se puso roja con una vulnerabilidad **ALTA** en `fast-uri` —tres formas
+de confundir al servidor sobre a qué host está llamando—. Viene de
+`@nestjs/cli → @angular-devkit/core → ajv`.
+
+Cerrada con un `override` a la **3.1.7**: `ajv` pide `^3.0.1`, así que la 4.x
+se sale de su rango. Probado de verdad —instalación real, `require()` de `ajv`,
+`minio` y `express`, typecheck y las 797 pruebas—, que es la lección del
+`decode-uri-component` del bloque 85.
+
+**Lo que hay que dejar escrito, porque se va a volver a preguntar:**
+
+    npm audit fix --force  NO ACTUALIZA. DEGRADA.
+
+        minio                     tienes 8.0.7   →  te pondría 7.0.26
+        @nestjs/platform-express  tienes 11.2.1  →  te pondría 11.1.9
+
+npm busca **cualquier** versión sin el aviso, aunque sea de hace tres años y de
+otra generación de la API. MinIO 7 es la que guarda las fotos y los informes:
+las subidas dejarían de funcionar. Por eso la regla del proyecto —*nunca
+`npm audit fix --force`*— no es manía: es que la herramienta resuelve el aviso
+rompiendo el software.
+
+**Los 7 moderados que quedan no dependen de nosotros.** `qs` y `body-parser`
+viven dentro de Express; `decode-uri-component` dentro de MinIO. Se cierran
+cuando Express y MinIO actualicen ELLOS su copia. Mientras tanto quedan como
+deuda declarada en `docs/DEPENDENCIAS.md`, saliendo en el informe de cada
+ejecución — **no tapados con un `|| true`**.
+
+**Y por eso la CI corta en ALTO y no en moderado:** cortar en moderado la
+dejaría permanentemente roja por algo que no se puede arreglar desde aquí, y un
+control que siempre está en rojo se aprende a ignorar en una semana. Es la
+misma regla de los verificadores desde el bloque 9.
