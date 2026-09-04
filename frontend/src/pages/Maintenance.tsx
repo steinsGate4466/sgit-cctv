@@ -421,8 +421,10 @@ export default function Maintenance() {
                       «—» se leería como «no lo pidió nadie», que es falso.
                       Cuando no se sabe, no se dice nada. */}
                   {w.createdBy && (
-                    <div className="muted" style={{ fontSize: 11 }}>
+                    <div className="muted" style={{ fontSize: 11 }}
+                      title="Quién pidió esta orden">
                       <b>{w.createdBy.fullName}</b>
+                      {w.createdBy.role?.name ? ` · ${w.createdBy.role.name}` : ''}
                     </div>
                   )}
                 </td>

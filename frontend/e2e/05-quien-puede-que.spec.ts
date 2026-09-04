@@ -58,11 +58,24 @@ async function todoElMenuSeAbre(page: any) {
 
   const vacias: string[] = [];
   for (const ruta of rutas) {
-    await page.goto(ruta);
-    await page.waitForLoadState('networkidle');
+    /* NO SE ESPERA A `networkidle`, y esto costó una ejecución roja.
+       -----------------------------------------------------------------------
+       `networkidle` espera 500 ms SIN NINGUNA petición. Con el Jefe el barrido
+       son ~30 pantallas y varias siguen pidiendo datos después de pintar
+       —Sesiones se refresca sola cada 30 s (bloque 82)—, así que cada ruta
+       pagaba una espera que no aporta nada. El barrido tardaba 44,4 s contra
+       un tope de prueba de 45: el reintento se quedó SIN TIEMPO y el corte
+       abortó las peticiones en vuelo, que el navegador escribe en consola
+       como «blocked by CORS policy» + `net::ERR_FAILED`.
 
-    const cuerpo = await page.locator('main, .page, .contenido').first()
-      .innerText().catch(() => '');
+       Eso hizo que un problema de MI andamio se leyera como un fallo de CORS
+       del servidor. Lo que interesa aquí es que la pantalla PINTE, así que se
+       espera a que aparezca su contenedor y ya. */
+    await page.goto(ruta, { waitUntil: 'domcontentloaded' });
+    const contenedor = page.locator('main, .page, .contenido').first();
+    await contenedor.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
+
+    const cuerpo = await contenedor.innerText().catch(() => '');
 
     /* «No tienes permiso» EN UNA PANTALLA QUE EL MENÚ ENSEÑA es el fallo
        exacto. Y una pantalla con menos de 20 caracteres útiles es una
@@ -74,8 +87,35 @@ async function todoElMenuSeAbre(page: any) {
   return { rutas, vacias };
 }
 
+/* UN FALLO DE RED NO ES UN FALLO DE LA PANTALLA, y mezclarlos manda a buscar
+   al sitio equivocado.
+   ---------------------------------------------------------------------------
+   Cuando una petición no llega a contestar —el servidor se cayó, se saturó, o
+   la prueba se quedó sin tiempo y abortó lo que había en vuelo— el navegador
+   NO dice «no hubo respuesta»: dice «blocked by CORS policy: no
+   Access-Control-Allow-Origin», seguido de `net::ERR_FAILED`. Los dos van
+   siempre en pareja, y leídos de golpe parecen un CORS mal configurado.
+
+   Pasó: 46 líneas de consola señalando a CORS cuando CORS estaba perfecto.
+   Se separan los dos montones y cada uno dice DÓNDE mirar. Ninguno se
+   silencia: los dos siguen tumbando la prueba. */
+function repartirErrores(errores: string[]) {
+  const esDeRed = (t: string) =>
+    /net::ERR_|Failed to load resource|blocked by CORS policy/i.test(t);
+  return {
+    red: errores.filter(esDeRed),
+    pantalla: errores.filter((t) => !esDeRed(t)),
+  };
+}
+
 test.describe('5b · El Jefe de Mantenimiento abre TODO su menú', () => {
   test('las pantallas de gestión se abren, ninguna vacía ni con error', async ({ page }) => {
+    /* El tope por defecto son 45 s y ESTO NO ES UNA PRUEBA: es un barrido de
+       treinta pantallas. Medido, tardaba 44,4 s — o sea que iba a ponerse roja
+       por tiempo el día que el runner fuera un poco más lento, diciendo algo
+       que no tiene nada que ver con lo que comprueba. */
+    test.setTimeout(180_000);
+
     const errores = vigilarConsola(page);
     await entrar(page);
     const { rutas, vacias } = await todoElMenuSeAbre(page);
@@ -91,8 +131,19 @@ test.describe('5b · El Jefe de Mantenimiento abre TODO su menú', () => {
     expect(rutas.length, `Sólo se recorrieron ${rutas.length} entradas: el menú no cargó entero`)
       .toBeGreaterThan(20);
 
-    expect(errores, `Errores en consola durante el recorrido: ${errores.join(' | ')}`)
-      .toHaveLength(0);
+    const { red, pantalla } = repartirErrores(errores);
+
+    expect(
+      pantalla,
+      `Fallos DE LA PANTALLA durante el recorrido:\n  ${pantalla.join('\n  ')}`,
+    ).toHaveLength(0);
+
+    expect(
+      red,
+      'El servidor DEJÓ DE CONTESTAR durante el barrido — no es un fallo de la '
+      + 'pantalla ni de CORS.\nMira `backend.log` en el informe que sube la CI: '
+      + `ahí está lo que dijo el backend.\n  ${red.slice(0, 6).join('\n  ')}`,
+    ).toHaveLength(0);
   });
 });
 
@@ -100,6 +151,7 @@ test.describe('5 · El perfil estrecho ve lo suyo, y lo ve ENTERO', () => {
   test.skip(!process.env.E2E_TECNICO_EMAIL, 'Sin E2E_TECNICO_EMAIL no se puede probar el reparto de permisos.');
 
   test('todo lo que sale en su menú SE ABRE — ninguna pantalla vacía por 403', async ({ page }) => {
+    test.setTimeout(180_000);   // barrido, no prueba suelta (ver 5b)
     /* ÉSTA ES LA PRUEBA QUE HABRÍA CAZADO EL BLOQUE 68 Y EL 83.
        Recorre las entradas que el usuario ve y comprueba que cada una carga.
        Si el menú la enseña y el endpoint la cierra, aquí se cae. */

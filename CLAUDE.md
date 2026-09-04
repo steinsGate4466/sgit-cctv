@@ -3619,3 +3619,97 @@ El formulario de la meta subió Indicadores a 176 palabras y Maintenance a 228.
 Tenía razón las dos veces. Se recortó donde sobraba sabor —etiquetas más
 cortas, la ayuda que el marcador de posición ya daba— **y no se subió la línea
 base ni una vez.**
+
+### Repaso del 94 antes de la presentación — tres cosas, ninguna rompía
+
+Revisión archivo por archivo de lo que tocó el bloque, buscando lo que **no
+falla pero se ve mal**. Salieron tres, y las tres son de la misma familia: un
+dato correcto presentado de forma que se malinterpreta.
+
+**1 · El solicitante salía sin decir qué era.** En Incidencias el reportante va
+con su cargo —«Carlos Tito · Jefe de línea»— y en Órdenes yo había dejado sólo
+el nombre en negrita, porque al recortar por `verificar:densidad` se fue la
+etiqueta. Un nombre suelto bajo la actividad se lee igual de bien como
+«solicitante» que como «técnico asignado». Ahora lleva el cargo y un `title`.
+**Los atributos no cuentan en la densidad** —el verificador mide el texto entre
+etiquetas—, así que la aclaración es gratis. Es la salida correcta cuando hace
+falta contexto y no caben palabras.
+
+**2 · El «{suma} de 100» no avisaba de nada.** El contador estaba, pero en gris,
+igual sumando 100 que sumando 90. Ahora se pone **ámbar** cuando se desvía. No
+salta al abrir —el formulario nace con una meta válida—, así que no regaña a
+nadie por no haber empezado (bloque 67). Sin esto la única señal era un 400 del
+servidor después de pulsar, que es enterarse tarde y en el peor sitio.
+
+**3 · Un título del informe podía quedarse solo al pie de la hoja.** `heading()`
+no comprobaba si quedaba sitio. **No es un fallo que introdujera el 94**, pero
+sí uno que el 94 hace mucho más probable: el informe creció con
+«Responsabilidad» y «Avances registrados». En un papel que se firma, un título
+al final de una página con su contenido en la siguiente se lee como una sección
+vacía.
+
+**Se arregló en `heading()` y no sección por sección.** Ponerlo en cada una
+garantiza que la próxima que se añada se olvide — es la misma decisión que el
+componente `<Campo>` del bloque 77: se arregla donde está el defecto, no en cada
+sitio donde se nota.
+
+### El recorrido 5b en rojo: 46 líneas culpando a CORS, y CORS estaba bien
+
+Primera ejecución del barrido con el Jefe: **23 en verde, 5b en rojo** con 46
+errores de consola, todos del mismo par:
+
+    blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present
+    Failed to load resource: net::ERR_FAILED
+
+**CORS estaba perfecto**, y se midió antes de tocar nada: `CORS_ORIGIN` vale
+exactamente `http://127.0.0.1:4173`, que es de donde sirve `vite preview`, y
+las otras 23 pruebas hablaron con la API sin problema.
+
+> **Cuando una petición NO LLEGA A CONTESTAR, el navegador no dice «no hubo
+> respuesta»: dice que falta la cabecera de CORS.** No hay respuesta, así que
+> tampoco hay cabecera. El mensaje es cierto y señala al sitio equivocado.
+
+**La causa era mía y era el reloj.** El barrido son ~30 pantallas y tardaba
+**44,4 s** contra un tope de prueba de **45 s**. El reintento se quedó sin
+tiempo, Playwright cortó la página, y las peticiones que había en vuelo
+murieron a medias — que es lo que llenó la consola.
+
+Tres arreglos, y ninguno afloja lo que la prueba comprueba:
+
+1. **Un barrido no es una prueba.** `test.setTimeout(180_000)` en los dos
+   (5 y 5b). Un tope pensado para una prueba suelta aplicado a un recorrido de
+   treinta pantallas se pone rojo por tiempo diciendo algo que no tiene que ver
+   con lo que mide.
+2. **Fuera `networkidle`.** Espera 500 ms sin ninguna petición, y varias
+   pantallas siguen pidiendo datos después de pintar —Sesiones se refresca sola
+   cada 30 s—. Lo que importa aquí es que la pantalla PINTE: se espera a su
+   contenedor.
+3. **Los dos montones de errores se separan.** Fallo DE LA PANTALLA y «el
+   servidor dejó de contestar» son dos problemas con dos sitios distintos donde
+   mirar. **Ninguno se silencia** —los dos siguen tumbando la prueba—, pero el
+   segundo ahora dice que mire `backend.log` en vez de mandar a revisar CORS.
+
+**Y la CI ahora IMPRIME `backend.log` cuando los recorridos fallan.** Se subía
+como adjunto y nadie lo abría: hay que bajar un zip de 35 MB para leer veinte
+líneas. *Un diagnóstico que exige tres clics no se consulta.*
+
+### El cliente de Prisma del usuario se corrompió
+
+`npm run build` en su máquina, 31 errores, y el primero:
+
+    src/generated/prisma/models/WorkOrder.ts:10471 - error TS1109: Expression expected
+
+**Prisma no genera un error de sintaxis.** Ese archivo estaba roto, y de ahí
+salían los otros treinta: con el cliente inválido, TypeScript deja de reconocer
+`createdById`, `failureEvent` y `parametrosCriticidad`, y señala media docena de
+sitios que están bien. Es el mismo efecto del `name` del bloque 6.
+
+`src/generated/` está en el `.gitignore`: es salida generada, no código. **La
+cura es tirarla y rehacerla**, y no necesita base de datos:
+
+    Remove-Item -Recurse -Force src\generated
+    npx.cmd prisma generate
+
+**Regla:** ante errores de tipo que apuntan a MUCHOS sitios correctos a la vez,
+lo primero es dudar del cliente generado, no del código. Un cliente roto miente
+en cadena.

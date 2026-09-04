@@ -209,7 +209,16 @@ function MetaDelReparto({ meta, editando, onEditar, onCerrar, onGuardada }: any)
             onChange={(e) => setPorMes(e.target.value)} />
         </label>
       </div>
-      <p className="muted" style={{ fontSize: 11.5 }}>{suma} de 100</p>
+      {/* ÁMBAR, NO ROJO, y sólo cuando se desvía. El formulario abre con una
+          meta válida, así que este aviso no salta nunca al abrirlo: no regaña
+          a nadie por no haber empezado (bloque 67). Un reparto que no suma 100
+          deja un trozo sin dueño, y verlo aquí cuesta un segundo; verlo tras
+          pulsar y recibir un 400 del servidor cuesta la confianza. */}
+      <p className="muted" style={{
+        fontSize: 11.5,
+        color: suma === 100 ? undefined : 'var(--warn)',
+        fontWeight: suma === 100 ? undefined : 600,
+      }}>{suma} de 100</p>
       {error && <div className="error">{error}</div>}
       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
         <button className="btn-primary" onClick={guardar} disabled={guardando}>

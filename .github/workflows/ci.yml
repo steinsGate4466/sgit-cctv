@@ -816,6 +816,22 @@ jobs:
           # trabajo, no de un `.env.e2e` (que ni existe aqui, ni se sube).
           cd frontend && npx playwright test
           CODIGO=$?
+          cd ..
+
+          # SI FALLA, EL BACKEND TIENE QUE HABLAR.
+          # ---------------------------------------------------------------
+          # `backend.log` se subia como adjunto y nadie lo abria: hay que
+          # bajar un zip de 35 MB para leer veinte lineas. Mientras tanto, un
+          # recorrido rojo por «CORS» mando a revisar la configuracion de CORS
+          # —que estaba bien— en vez de mirar lo que habia dicho el servidor.
+          #
+          # Un diagnostico que exige tres clics no se consulta. Se imprime.
+          if [ $CODIGO -ne 0 ]; then
+            echo "::group::backend.log (ultimas 120 lineas)"
+            tail -n 120 backend.log || echo "(sin backend.log)"
+            echo "::endgroup::"
+          fi
+
           kill $API $WEB 2>/dev/null || true
           exit $CODIGO
 

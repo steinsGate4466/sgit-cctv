@@ -859,6 +859,14 @@ export class MaintenanceService {
 
     let y = 116;
     const heading = (t: string) => {
+      /* UN TÍTULO NO SE QUEDA SOLO AL PIE DE LA HOJA — bloque 94.
+         El informe creció con «Responsabilidad» y «Avances registrados», así
+         que ahora hay más ocasiones de que un título caiga en los últimos
+         milímetros y su contenido empiece en la página siguiente. En un papel
+         que se firma y se archiva eso se lee como una sección vacía.
+         Se arregla AQUÍ y no en cada sección: hacerlo sección por sección
+         garantiza que la próxima que se añada se olvide. */
+      if (y > doc.page.height - 110) { doc.addPage(); y = 60; }
       doc.fontSize(13).fillColor(NAVY).text(t, 50, y);
       y = doc.y + 6;
       doc.moveTo(50, y).lineTo(pageW - 50, y).strokeColor('#dddddd').stroke();
