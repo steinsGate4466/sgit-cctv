@@ -234,3 +234,39 @@ export function vigilarConsola(page: Page): string[] {
   page.on('pageerror', (e) => errores.push(String(e)));
   return errores;
 }
+
+/**
+ * TRADUCE EL MONTÓN DE CONSOLA A UNA FRASE QUE DIGA DÓNDE MIRAR.
+ * ---------------------------------------------------------------------------
+ * Costó dos ejecuciones rojas entender lo mismo dos veces, porque el navegador
+ * describe TRES situaciones distintas con textos que se parecen:
+ *
+ *   · 429            el limitador cortó. El recorrido está pidiendo como un
+ *                    bucle, no como una persona. El freno está BIEN; lo que
+ *                    hay que arreglar es la prueba.
+ *   · ERR_FAILED     la petición no llegó a contestar. WebKit lo dice como
+ *                    «no allowed by Access-Control-Allow-Origin» aunque CORS
+ *                    esté perfecto: no hay respuesta, así que tampoco hay
+ *                    cabecera. Mira `backend.log`.
+ *   · lo demás       fallo de la pantalla. Eso sí es del software.
+ *
+ * Un informe que no dice qué hacer manda a buscar al sitio equivocado, que es
+ * exactamente lo que este proyecto persigue en su propio software.
+ */
+export function explicarConsola(errores: string[]): string {
+  if (!errores.length) return '';
+  const hay429 = errores.some((t) => /429/.test(t));
+  const hayRed = errores.some((t) => /net::ERR_|Failed to load resource|Access-Control-Allow-Origin/i.test(t));
+
+  const cabecera = hay429
+    ? 'EL LIMITADOR DE PETICIONES CORTÓ (429). No es un fallo de la pantalla ni '
+      + 'de CORS: el recorrido está pidiendo como un bucle. El freno NO se toca — '
+      + 'se arregla la prueba (navegar dentro de la aplicación, no recargar).'
+    : hayRed
+      ? 'EL SERVIDOR DEJÓ DE CONTESTAR. No es CORS: sin respuesta tampoco hay '
+        + 'cabecera. Mira `backend.log` en el informe que sube la CI.'
+      : 'FALLO DE LA PANTALLA:';
+
+  return `${cabecera}\n  ${errores.slice(0, 6).join('\n  ')}`
+    + (errores.length > 6 ? `\n  … y ${errores.length - 6} más (todas del mismo tipo)` : '');
+}

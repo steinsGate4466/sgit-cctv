@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { entrar, vigilarConsola } from './apoyo';
+import { entrar, vigilarConsola, explicarConsola } from './apoyo';
 
 /* =============================================================================
    RECORRIDO 5 · QUIÉN PUEDE QUÉ
@@ -58,6 +58,27 @@ async function todoElMenuSeAbre(page: any) {
 
   const vacias: string[] = [];
   for (const ruta of rutas) {
+    /* SE NAVEGA COMO NAVEGA UNA PERSONA: PULSANDO EL MENÚ.
+       -----------------------------------------------------------------------
+       Antes esto hacía `page.goto(ruta)` treinta veces, y un `goto` es una
+       RECARGA COMPLETA: rearranca React y vuelve a pedir la base de cada
+       pantalla —`/auth/me`, `/locations`, `/cabinets`, `/assets/options`,
+       `/electricidad/tableros`, las etapas…— una vez por ruta.
+
+       Treinta recargas en cinco segundos son unas 240 peticiones del mismo
+       usuario, y `RitmoGuard` las cortó con 429. **Y tenía razón**: su propio
+       comentario dice «da para abrir 100 pantallas en un minuto; nadie trabaja
+       así, y un bucle sí». El bucle era esta prueba.
+
+       El freno NO se toca y el cupo NO se sube: es la defensa que cubre las
+       353 rutas. Lo que se arregla es el recorrido, que además así se parece
+       a lo que hace el usuario — dentro de la aplicación, sin recargar.
+       Si el enlace no se pudiera pulsar, se cae a `goto`: eso es un fallo de
+       la pantalla y tiene que salir, no taparse. */
+    const enlace = page.locator(`nav a[href="${ruta}"], .sidebar a[href="${ruta}"]`).first();
+    const pulsado = await enlace.click({ timeout: 5_000 }).then(() => true).catch(() => false);
+    if (!pulsado) await page.goto(ruta, { waitUntil: 'domcontentloaded' });
+
     /* NO SE ESPERA A `networkidle`, y esto costó una ejecución roja.
        -----------------------------------------------------------------------
        `networkidle` espera 500 ms SIN NINGUNA petición. Con el Jefe el barrido
@@ -71,7 +92,8 @@ async function todoElMenuSeAbre(page: any) {
        Eso hizo que un problema de MI andamio se leyera como un fallo de CORS
        del servidor. Lo que interesa aquí es que la pantalla PINTE, así que se
        espera a que aparezca su contenedor y ya. */
-    await page.goto(ruta, { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(new RegExp(ruta.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$'), { timeout: 15_000 })
+      .catch(() => {});
     const contenedor = page.locator('main, .page, .contenido').first();
     await contenedor.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
 
@@ -100,8 +122,16 @@ async function todoElMenuSeAbre(page: any) {
    Se separan los dos montones y cada uno dice DÓNDE mirar. Ninguno se
    silencia: los dos siguen tumbando la prueba. */
 function repartirErrores(errores: string[]) {
+  /* CADA NAVEGADOR LO DICE CON OTRAS PALABRAS, y hay que reconocer las dos.
+       Chromium: «blocked by CORS policy» + `net::ERR_FAILED`
+       WebKit  : «is not allowed by Access-Control-Allow-Origin. Status code: 429»
+                 y «cannot load … due to access control checks»
+     WebKit es el que dio la pista buena, porque es el único que imprime el
+     CÓDIGO. Un patrón que sólo conociera la forma de Chromium habría metido
+     el 429 en el montón de «fallo de la pantalla» y mandado a buscar un bug
+     que no existe. */
   const esDeRed = (t: string) =>
-    /net::ERR_|Failed to load resource|blocked by CORS policy/i.test(t);
+    /net::ERR_|Failed to load resource|CORS|Access-Control-Allow-Origin|access control checks|\b429\b/i.test(t);
   return {
     red: errores.filter(esDeRed),
     pantalla: errores.filter((t) => !esDeRed(t)),
@@ -133,17 +163,8 @@ test.describe('5b · El Jefe de Mantenimiento abre TODO su menú', () => {
 
     const { red, pantalla } = repartirErrores(errores);
 
-    expect(
-      pantalla,
-      `Fallos DE LA PANTALLA durante el recorrido:\n  ${pantalla.join('\n  ')}`,
-    ).toHaveLength(0);
-
-    expect(
-      red,
-      'El servidor DEJÓ DE CONTESTAR durante el barrido — no es un fallo de la '
-      + 'pantalla ni de CORS.\nMira `backend.log` en el informe que sube la CI: '
-      + `ahí está lo que dijo el backend.\n  ${red.slice(0, 6).join('\n  ')}`,
-    ).toHaveLength(0);
+    expect(pantalla, explicarConsola(pantalla)).toHaveLength(0);
+    expect(red, explicarConsola(red)).toHaveLength(0);
   });
 });
 

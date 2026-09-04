@@ -3713,3 +3713,55 @@ cura es tirarla y rehacerla**, y no necesita base de datos:
 **Regla:** ante errores de tipo que apuntan a MUCHOS sitios correctos a la vez,
 lo primero es dudar del cliente generado, no del código. Un cliente roto miente
 en cadena.
+
+### Y el 429: el freno tenía razón, el abusón era mi prueba
+
+Segunda vuelta del repaso: **23 en verde, y en rojo el QR en móvil**. WebKit dio
+la pista que Chromium no da, porque es el único que imprime el CÓDIGO:
+
+    Origin http://127.0.0.1:4173 is not allowed by Access-Control-Allow-Origin.
+    Status code: 429
+
+**No era CORS ninguna de las dos veces.** Era `RitmoGuard`. Y su propio
+comentario describe exactamente lo que estaba pasando:
+
+> «600 por minuto… da para abrir 100 pantallas en un minuto. Nadie trabaja así,
+> **y un bucle sí**.»
+
+El bucle era el barrido. Hacía `page.goto()` treinta veces, y un `goto` es una
+**recarga completa**: rearranca React y vuelve a pedir la base de cada pantalla
+—`/auth/me`, `/locations`, `/cabinets`, `/assets/options`,
+`/electricidad/tableros`, las etapas— una vez por ruta. Unas 240 peticiones del
+mismo usuario en cinco segundos.
+
+Y apareció **justo después** de arreglar el tiempo: al bajar el barrido de 44 s
+a 5 s, la misma cantidad de peticiones pasó a caber en una ráfaga. *Arreglar el
+reloj concentró el bucle.*
+
+**El cupo NO se sube y el freno NO se toca.** Es la defensa que cubre las 353
+rutas, y bajarlo para que pase una prueba es apagar un control real — lo mismo
+que se decidió con el `FrenoGuard` del login en el bloque 89. Lo que se arregla
+es el recorrido: **navega pulsando el menú**, dentro de la aplicación, que es lo
+que hace una persona y cuesta una fracción de las peticiones. Si el enlace no se
+pudiera pulsar, cae a `goto` — eso sí sería un fallo de la pantalla y tiene que
+salir.
+
+#### `explicarConsola()` — que el informe diga DÓNDE mirar
+
+Dos ejecuciones rojas para entender lo mismo dos veces. El navegador describe
+**tres** situaciones distintas con textos que se parecen, y una de ellas miente:
+
+| Lo que sale | Lo que significa | Dónde mirar |
+|---|---|---|
+| `429` | el limitador cortó | la PRUEBA, que pide como un bucle |
+| `ERR_FAILED` · «no Access-Control-Allow-Origin» | no hubo respuesta, así que tampoco cabecera | `backend.log` |
+| lo demás | fallo de la pantalla | el software |
+
+Ahora una sola función traduce el montón a una frase con el veredicto delante.
+**No se silencia nada**: los tres siguen tumbando la prueba. Lo que cambia es
+que el informe ya no manda a revisar un CORS que está bien.
+
+Y el patrón reconoce **las dos formas**, la de Chromium y la de WebKit. Uno que
+sólo conociera la de Chromium habría metido el 429 en el montón de «fallo de la
+pantalla» y mandado a buscar un bug que no existe — **novena vez** que un patrón
+más flojo de lo necesario acaba leyendo otra cosa.

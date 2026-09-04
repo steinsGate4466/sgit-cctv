@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { entrar, activoDePrueba, vigilarConsola } from './apoyo';
+import { entrar, activoDePrueba, vigilarConsola, explicarConsola } from './apoyo';
 
 /* =============================================================================
    RECORRIDO 2 · EL QR EN CAMPO
@@ -31,7 +31,7 @@ test.describe('2 · El QR delante del equipo', () => {
     await page.goto(`/assets?search=${encodeURIComponent(codigo)}`);
     await expect(page.getByText(codigo).first()).toBeVisible({ timeout: 20_000 });
 
-    expect(errores, `Errores en consola: ${errores.join(' | ')}`).toHaveLength(0);
+    expect(errores, explicarConsola(errores)).toHaveLength(0);
   });
 
   test('el aviso de cómo se interviene la zona va ARRIBA DEL TODO', async ({ page }) => {
