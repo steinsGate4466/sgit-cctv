@@ -211,7 +211,7 @@ Causas conocidas de falso positivo, ya resueltas:
 |---|---|---|
 | **S-01** | **`JWT_SECRET` filtrado sin rotar.** Con él se puede FIRMAR un token con permisos de administrador. No hace falta usuario ni contraseña | 🔴 **Abierto** |
 | **S-02** | Ámbito no aplicado en rutas por identificador (OWASP A01) | 🟠 Abierto |
-| **S-03** | Sin límite de peticiones fuera de login/usuarios/monitoreo. `/exportacion/todo` genera el libro en memoria | 🟠 Abierto |
+| **S-03** | Sin límite de peticiones fuera de login/usuarios/monitoreo. `/exportacion/todo` genera el libro en memoria | ✅ **CERRADO en 12.2** — `RitmoGuard` es GLOBAL (`APP_GUARD`, el primero de la cadena) y cubre las 353 rutas, cero exentas. 600/min por usuario en general; 5/min en las 9 rutas que arman un Excel en memoria. Queda anotado que el contador vive en memoria del proceso: con dos instancias en Railway el tope efectivo se duplica |
 | **S-04** | Al desactivar un usuario, su token vive hasta 15 min. La estrategia JWT no consulta la base | 🟡 Conocido |
 | **S-05** | 26 `@Body() dto: any` | 🟡 Abierto |
 | **S-06** | CI no revisa dependencias. `exceljs` arrastró `glob@7`, `rimraf@2`, `fstream` | 🟡 Abierto |
@@ -3481,3 +3481,141 @@ fallar**: caben 48 más antes de que alguien se entere. Con la casa limpia, el
 tope pasa a **0**: el aviso número uno rompe la CI.
 
 Un umbral holgado no es tolerancia, es una alarma apagada con retardo.
+
+---
+
+## 38. Bloque 94 — quién pidió la orden, la meta editable, y un verificador que mentía
+
+### Lo que cierra
+
+Tres cosas que llevaban bloques anotadas como pendientes y una cuarta que salió
+sola por el camino.
+
+### 1 · QUIÉN PIDIÓ LA ORDEN
+
+`WorkOrder` no lo guardaba. Había otras tres cosas y ninguna servía:
+
+    requestedBy   TEXTO libre, para quien no es usuario («me lo pidió Zúñiga»)
+    openedById    quien la ARRANCÓ en campo, al firmar
+    technicianId  a quién se le asignó
+
+Faltaba la del principio. Y sin ella, **quien abre una orden no puede seguirla
+después**: pedir un trabajo y no poder comprobar jamás si alguien lo cogió es
+exactamente cómo se deja de usar un sistema y se vuelve a la radio.
+
+- **Se toma de la SESIÓN, nunca del cuerpo.** Si viniera en el `dto`, cualquiera
+  podría abrir una orden a nombre de otro y el dato dejaría de servir para lo
+  que se creó. Del token no se puede mentir.
+- **El histórico queda en `NULL` y la migración no lo rellena.** Reconstruirlo
+  desde la auditoría diría que se sabe cuando no se sabe, y sólo funcionaría
+  dentro de los 90 días que ésta guarda.
+- **El filtro «sólo las mías» se resuelve en el SERVIDOR.** Filtrarlo en la
+  pantalla dejaría al paginador contando las de todos: «120 órdenes» enseñando
+  tres. Una cifra así no se puede creer, y con ella deja de creerse el resto.
+- **El defecto del interruptor va por CAPACIDAD:** `wo.create` sin `wo.update`
+  = pide trabajo y no lo ejecuta. Ni un nombre de rol.
+- **Pero el interruptor se queda.** Si un compañero ya pidió la orden de esa
+  misma cámara y él no la ve, abre una duplicada: dos cuadrillas al mismo
+  poste. Es la decisión del bloque 72 con otra cara — se ORDENA por persona, no
+  se esconde lo demás.
+- **En la lista se AGRUPA, no se añade columna.** La tabla está en siete y el
+  tope es ocho; una novena partiría las palabras en la pantalla del púlpito,
+  que es el fallo que el bloque 91 acababa de arreglar.
+
+Y en Incidencias el dato **ya estaba guardado desde el bloque 51-B, con índice
+y todo** — sólo faltaba pedirlo en el `select` de la lista. El patrón de
+siempre, con la variante de que aquí la pantalla también existía.
+
+### 2 · EL INFORME PDF CONTABA MEDIA HISTORIA
+
+Traía el diagnóstico FINAL y nada de cómo se llegó ahí: ni quién pidió la
+orden, ni quién la arrancó, ni quién la cerró, ni los avances intermedios. Tres
+avances, tres técnicos y tres fechas se quedaban dentro del sistema.
+
+Para un papel que se firma y se archiva eso es media historia, y es justo la
+mitad que pide una auditoría. Ahora lleva las cuatro personas y la traza
+completa, con el motivo de cada avance **traducido desde el catálogo vivo**: el
+código se guarda para poder contar, el nombre se resuelve al imprimir.
+
+Cuando no hay solicitante **se dice**, en vez de pintar un guion: «—» se lee
+como «no lo pidió nadie», que es falso.
+
+### 3 · LA META, FUERA DEL CÓDIGO
+
+La hoja del ingeniero traía `40 correctivo · 30 preventivo · 30 predictivo`. El
+predictivo se retiró en el bloque 80 con su visto bueno, pero **ese tercio se
+quedó sin repartir y la meta siguió escrita en el frontend**.
+
+> Una meta que exige un despliegue para cambiarse no se cambia: se ignora.
+
+Ahora es una tabla, editable desde la pantalla de Indicadores.
+
+- **DOS metas, no una.** El REPARTO dice en qué se trabaja; el VOLUMEN
+  (`OM/mes`, opcional) dice cuántas. Mezclarlas en un número permite cumplir el
+  volumen empeorando el reparto, y entonces el indicador diría que se va bien.
+- **La migración NO inserta fila.** Mientras esté vacía se usa la propuesta del
+  código y la pantalla lo dice con esas palabras. Insertarla convertiría una
+  propuesta en una decisión que nadie tomó (b76).
+- **La fija `wo.approve`, sólo el Jefe.** No lo decide la dificultad —marcar
+  dos números es trivial— sino lo que la acción AFIRMA: la meta es el criterio
+  con el que se juzga el trabajo de todo el año.
+- **Sumar 100 se valida.** Un reparto que suma 90 deja un 10 % sin dueño y el
+  gráfico lo repartiría solo: enseñaría una meta que nadie escribió.
+
+### 4 · EL BARRIDO DEL MENÚ, TAMBIÉN CON EL JEFE
+
+Cubría 7 pantallas de 52 porque corría sólo con el perfil estrecho. **Las ~30
+que sólo ve el Jefe no las abría nadie** — y ahí estuvieron escondidos los tres
+bugs que salieron en los bloques 88, 89 y 90.
+
+Son dos recorridos y no uno porque comprueban cosas distintas: con el estrecho,
+que no haya una entrada que vea y no pueda abrir; con el Jefe, que ninguna
+pantalla de gestión reviente al cargar. Con el Jefe no se detecta un permiso
+mal repartido —lo ve todo—, pero sí un fallo de la propia pantalla.
+
+### Y UN VERIFICADOR QUE LLEVABA TIEMPO MINTIENDO
+
+`verificar:ambito` marcaba **seis rutas sin ámbito que lo tenían declarado
+perfectamente**. Sólo miraba HACIA ARRIBA desde el decorador de ruta, y el
+orden habitual en este repositorio es el contrario:
+
+```
+@Put('zona/:id')          <- la ruta
+@RequirePermissions(...)
+@AmbitoDe('location')     <- el ámbito, DEBAJO
+```
+
+**Es la misma familia de error que arrastro desde el verificador 9:** un patrón
+que supone más de lo que el código garantiza acaba leyendo otra cosa. Ahora
+recorre el bloque contiguo de decoradores en las dos direcciones.
+
+**Y peor que el falso positivo: yo había dicho «30 verificadores en verde» sin
+correr éste.** El agregado `npm run verificar` sólo lanza doce; los otros tres
+son scripts sueltos y hay que llamarlos a mano. Un control que no se ejecuta no
+es un control, y decir que está verde sin mirarlo es exactamente lo que este
+archivo lleva noventa bloques persiguiendo.
+
+**Una vez corregido, cazó un hallazgo real:** `GET /hojas-de-ruta/:id` y su
+Excel no declaraban ámbito desde el bloque 75. No era un agujero —una hoja de
+ruta es por TIPO de equipo y no pertenece a ningún tren— pero faltaba decirlo.
+Ahora llevan `@SinAmbito()` con el motivo escrito.
+
+Probado en los dos sentidos: quitando un `@AmbitoDe` a propósito sale en rojo y
+señala la línea; con todo puesto, verde.
+
+### Detalle del método que costó un intento
+
+El parche del cliente de Prisma necesitaba **la RELACIÓN y la clave**, y en ese
+orden. `aplicar()` se salta una entrada si el archivo ya contiene el nombre
+nuevo, y `createdById` **contiene** `createdBy`: puestas al revés, la relación
+no se añadía nunca y el typecheck fallaba con «'createdBy' does not exist in
+type WorkOrderInclude» — que además invalida el tipo del resultado ENTERO y
+hace que TypeScript señale media docena de sitios correctos (el `name` del
+bloque 6, otra vez).
+
+### Y `verificar:densidad` me cazó, como siempre
+
+El formulario de la meta subió Indicadores a 176 palabras y Maintenance a 228.
+Tenía razón las dos veces. Se recortó donde sobraba sabor —etiquetas más
+cortas, la ayuda que el marcador de posición ya daba— **y no se subió la línea
+base ni una vez.**

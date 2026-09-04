@@ -24,7 +24,18 @@ import {
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PDFDocument = require('pdfkit');
 
-const assetSel = { asset: { select: { id: true, assetCode: true, type: true, status: true } } };
+/* QUIÉN REPORTÓ, EN LA LISTA — bloque 94.
+   -----------------------------------------------------------------------------
+   El dato lleva desde el bloque 51-B guardado y con índice, y la bandeja ya lo
+   enseñaba. La LISTA principal no: se veía la incidencia y no a quién
+   preguntar, así que el ingeniero acababa llamando por radio para averiguar
+   quién puso el parte. Es el patrón de siempre en este proyecto —*el dato está
+   y no hay pantalla*— con la particularidad de que aquí la pantalla existía y
+   sólo faltaba pedirlo. */
+const assetSel = {
+  asset: { select: { id: true, assetCode: true, type: true, status: true } },
+  reportedBy: { select: { id: true, fullName: true, role: { select: { name: true } } } },
+};
 
 @Injectable()
 export class IncidentsService {

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { entrar } from './apoyo';
+import { entrar, vigilarConsola } from './apoyo';
 
 /* =============================================================================
    RECORRIDO 5 · QUIÉN PUEDE QUÉ
@@ -21,6 +21,81 @@ import { entrar } from './apoyo';
    no sirve para detectar esto.
 ============================================================================= */
 
+/**
+ * EL BARRIDO DEL MENÚ — se corre con LOS DOS perfiles (bloque 94).
+ *
+ * =============================================================================
+ *  POR QUÉ NO BASTABA CON EL PERFIL ESTRECHO
+ * =============================================================================
+ *  Este barrido nació para cazar el fallo que este proyecto ha tenido TRES
+ *  veces —bloques 68, 77 y 83—: una entrada de menú abierta con su endpoint
+ *  cerrado. El usuario la ve, la pulsa, sale 403 y la pantalla queda vacía.
+ *  No rompe nada, y por eso tarda meses en verse.
+ *
+ *  Corría SÓLO con el perfil estrecho, y eso deja fuera **las treinta pantallas
+ *  que sólo ve el Jefe de Mantenimiento**: Indicadores, Dashboard, Exportar,
+ *  Hojas de ruta, Criticidad, Limpieza, Auditoría, Roles… Ninguna se abría
+ *  nunca en la CI. Ahí estuvieron escondidos los tres bugs reales que salieron
+ *  en los bloques 88, 89 y 90.
+ *
+ *  Con los dos perfiles se cubren las 52 entradas del menú.
+ *
+ * =============================================================================
+ *  LO QUE COMPRUEBA CADA UNO ES DISTINTO, y por eso son dos y no uno
+ * =============================================================================
+ *  · Con el ESTRECHO: que no haya ninguna entrada que él vea y no pueda abrir.
+ *  · Con el JEFE: que ninguna de las pantallas de gestión reviente al cargar.
+ *    El Jefe lo ve todo, así que con él no se detecta un permiso mal repartido
+ *    — pero sí un fallo de la propia pantalla, que es lo otro que se busca.
+ */
+async function todoElMenuSeAbre(page: any) {
+  const enlaces = page.locator('nav a[href^="/"], .sidebar a[href^="/"]');
+  const rutas = [...new Set(await enlaces.evaluateAll(
+    (as: any[]) => as.map((a) => a.getAttribute('href') || ''),
+  ))].filter((r) => r && r !== '/login') as string[];
+
+  expect(rutas.length, 'Este usuario no ve ninguna entrada de menú').toBeGreaterThan(0);
+
+  const vacias: string[] = [];
+  for (const ruta of rutas) {
+    await page.goto(ruta);
+    await page.waitForLoadState('networkidle');
+
+    const cuerpo = await page.locator('main, .page, .contenido').first()
+      .innerText().catch(() => '');
+
+    /* «No tienes permiso» EN UNA PANTALLA QUE EL MENÚ ENSEÑA es el fallo
+       exacto. Y una pantalla con menos de 20 caracteres útiles es una
+       pantalla en blanco, aunque no diga nada. */
+    if (/no tienes permiso|403|forbidden/i.test(cuerpo) || cuerpo.trim().length < 20) {
+      vacias.push(`${ruta} → "${cuerpo.trim().slice(0, 60)}"`);
+    }
+  }
+  return { rutas, vacias };
+}
+
+test.describe('5b · El Jefe de Mantenimiento abre TODO su menú', () => {
+  test('las pantallas de gestión se abren, ninguna vacía ni con error', async ({ page }) => {
+    const errores = vigilarConsola(page);
+    await entrar(page);
+    const { rutas, vacias } = await todoElMenuSeAbre(page);
+
+    expect(
+      vacias,
+      `Estas pantallas salen en el menú del Jefe y NO se abren:\n  ${vacias.join('\n  ')}`,
+    ).toHaveLength(0);
+
+    /* El Jefe lo ve todo: si el recorrido cubriera cuatro entradas sería que
+       el menú no cargó, no que el reparto sea estrecho. Se dice aquí para que
+       un fallo de carga no pase por un resultado bueno. */
+    expect(rutas.length, `Sólo se recorrieron ${rutas.length} entradas: el menú no cargó entero`)
+      .toBeGreaterThan(20);
+
+    expect(errores, `Errores en consola durante el recorrido: ${errores.join(' | ')}`)
+      .toHaveLength(0);
+  });
+});
+
 test.describe('5 · El perfil estrecho ve lo suyo, y lo ve ENTERO', () => {
   test.skip(!process.env.E2E_TECNICO_EMAIL, 'Sin E2E_TECNICO_EMAIL no se puede probar el reparto de permisos.');
 
@@ -29,29 +104,7 @@ test.describe('5 · El perfil estrecho ve lo suyo, y lo ve ENTERO', () => {
        Recorre las entradas que el usuario ve y comprueba que cada una carga.
        Si el menú la enseña y el endpoint la cierra, aquí se cae. */
     await entrar(page, 'TECNICO');
-
-    const enlaces = page.locator('nav a[href^="/"], .sidebar a[href^="/"]');
-    const rutas = [...new Set(await enlaces.evaluateAll(
-      (as) => as.map((a) => (a as HTMLAnchorElement).getAttribute('href') || ''),
-    ))].filter((r) => r && r !== '/login');
-
-    expect(rutas.length, 'Este usuario no ve ninguna entrada de menú').toBeGreaterThan(0);
-
-    const vacias: string[] = [];
-    for (const ruta of rutas) {
-      await page.goto(ruta);
-      await page.waitForLoadState('networkidle');
-
-      const cuerpo = await page.locator('main, .page, .contenido').first()
-        .innerText().catch(() => '');
-
-      /* «No tienes permiso» EN UNA PANTALLA QUE EL MENÚ ENSEÑA es el fallo
-         exacto. Y una pantalla con menos de 20 caracteres útiles es una
-         pantalla en blanco, aunque no diga nada. */
-      if (/no tienes permiso|403|forbidden/i.test(cuerpo) || cuerpo.trim().length < 20) {
-        vacias.push(`${ruta} → "${cuerpo.trim().slice(0, 60)}"`);
-      }
-    }
+    const { vacias } = await todoElMenuSeAbre(page);
 
     expect(
       vacias,

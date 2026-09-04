@@ -56,15 +56,44 @@ for (const archivo of controladores(raiz)) {
     const m = l.match(/^@(Get|Post|Patch|Put|Delete)\('([^']*:[a-zA-Z]+[^']*)'\)/);
     if (!m) continue;
 
-    // Se miran las líneas de decoradores justo por encima, hasta encontrar
-    // algo que no sea un decorador ni un comentario.
+    /* SE MIRA EL BLOQUE ENTERO DE DECORADORES, ARRIBA Y ABAJO — bloque 94.
+       -------------------------------------------------------------------------
+       FALSO POSITIVO QUE ESTE VERIFICADOR TUVO, y que costó una tarde:
+
+       Sólo miraba HACIA ARRIBA desde el decorador de ruta. Pero el orden de los
+       decoradores de un método no está garantizado por nada, y en este
+       repositorio el habitual es justo el contrario:
+
+           @Put('zona/:id')            <- la ruta
+           @RequirePermissions(...)
+           @AmbitoDe('location')       <- el ámbito, DEBAJO
+           declararZona(...)
+
+       Con eso marcaba como «sin ámbito» seis rutas que lo tenían perfectamente
+       declarado —las de criticidad y hojas de ruta—, y un verificador que
+       grita cuando no pasa nada se ignora a la semana. Es la misma familia de
+       error que llevo arrastrando desde el verificador 9: **un patrón que
+       supone más de lo que el código garantiza acaba leyendo otra cosa.**
+
+       Lo correcto es recorrer el BLOQUE CONTIGUO de decoradores que contiene a
+       la ruta, en las dos direcciones, parando en cuanto aparece algo que no
+       es un decorador ni un comentario. Ese bloque es, por definición, el de
+       este método y de ningún otro. */
     let declarado = null;
-    for (let j = i - 1; j >= 0; j--) {
-      const t = lineas[j].trim();
-      if (t === '' || t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) continue;
-      if (!t.startsWith('@')) break;
-      if (t.startsWith('@AmbitoDe')) { declarado = 'con'; break; }
-      if (t.startsWith('@SinAmbito')) { declarado = 'sin'; break; }
+    const mira = (t) => {
+      if (t.startsWith('@AmbitoDe')) return 'con';
+      if (t.startsWith('@SinAmbito')) return 'sin';
+      return null;
+    };
+    for (const paso of [-1, 1]) {
+      for (let j = i + paso; j >= 0 && j < lineas.length; j += paso) {
+        const t = lineas[j].trim();
+        if (t === '' || t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) continue;
+        if (!t.startsWith('@')) break;
+        const r = mira(t);
+        if (r) { declarado = r; break; }
+      }
+      if (declarado) break;
     }
 
     if (declarado === 'con') conAmbito++;

@@ -8,6 +8,8 @@ import { EsqueletoTablero } from '../components/Esqueleto';
 import Icono from '../components/Iconos';
 import { useDialogos } from '../components/Dialogos';
 import { mensajeDeError } from '../avisos';
+import { useAuth } from '../auth/AuthContext';
+import { fechaTabla } from '../fechas';
 
 /**
  * INDICADORES DE GESTIÓN
@@ -98,17 +100,126 @@ function Indicador({ valor, unidad, titulo, explica, aviso, color, comp }: {
 
 /* LA META DEL REPARTO — la segunda rueda de la hoja del ingeniero.
    -----------------------------------------------------------------------------
-   Es UNA PROPUESTA DE ARRANQUE, no un objetivo que nadie haya firmado. Está
-   aquí y no repartida por el código para que se cambie en un sitio, y el día
-   que el ingeniero fije la suya se edita esta línea (o se sube a la tabla de
-   parámetros, como se hizo con los cortes de la criticidad).
+   YA NO ESTÁ ESCRITA AQUÍ (bloque 94). Se lee de la base y se edita desde esta
+   misma pantalla, porque es un dato de PLANTA: quien la fija es el Jefe de
+   Mantenimiento, no quien despliega.
 
-   El sentido es el que él dibujó: menos correctivo, más planificado. Apagar
-   menos incendios y adelantarse más.
+   > Una meta que exige un despliegue para cambiarse no se cambia: se ignora.
+
+   Mientras nadie la haya fijado, el servidor devuelve la PROPUESTA y la marca
+   como tal — y la pantalla lo dice con esas palabras. Presentar una propuesta
+   como si estuviera firmada hace que en la reunión se discuta el número en vez
+   del trabajo (misma regla que los cortes de la criticidad, bloque 76).
 
    SIN PREDICTIVO (bloque 80): en CCTV no hay nada que predecir. Una cámara da
-   imagen o no la da; no avisa como avisa un rodamiento. */
-const META = { correctivo: 20, preventivo: 80 };
+   imagen o no la da; no avisa como avisa un rodamiento. El 30 % que la hoja
+   original le daba pasa al lado planificado, que es donde ese trabajo iba. */
+
+/**
+ * LA META, Y QUIÉN LA FIJÓ — bloque 94.
+ *
+ * =============================================================================
+ *  TRES DECISIONES QUE NO SON DE ADORNO
+ * =============================================================================
+ *  1. SE DICE SI ESTÁ CONFIRMADA O ES UNA PROPUESTA. Mientras nadie la haya
+ *     fijado, el gráfico enseña la propuesta del sistema y aquí se lee tal
+ *     cual. Presentar una propuesta como decisión hace que en la reunión se
+ *     discuta el número en lugar del trabajo.
+ *
+ *  2. SÓLO VE EL BOTÓN QUIEN PUEDE FIJARLA (`wo.approve`). Enseñar un botón
+ *     que va a devolver 403 es peor que no enseñarlo: el usuario lo pulsa,
+ *     falla, y deja de fiarse del resto de la pantalla (bloque 68).
+ *
+ *  3. EL AVISO DE ERROR NO VIVE DENTRO DE LO QUE SE CIERRA. El formulario sólo
+ *     se cierra cuando el servidor confirma. Si falla, se queda abierto CON el
+ *     mensaje — que es el bug 3 del bloque 64: cerrar en silencio y que el
+ *     usuario concluya, con razón, que el software no guarda.
+ */
+function MetaDelReparto({ meta, editando, onEditar, onCerrar, onGuardada }: any) {
+  const { can } = useAuth();
+  const puedeFijar = can('wo.approve');
+  const [corr, setCorr] = useState('');
+  const [prev, setPrev] = useState('');
+  const [porMes, setPorMes] = useState('');
+  const [error, setError] = useState('');
+  const [guardando, setGuardando] = useState(false);
+
+  useEffect(() => {
+    if (!editando || !meta) return;
+    setCorr(String(meta.valores.correctivoPct));
+    setPrev(String(meta.valores.preventivoPct));
+    setPorMes(meta.valores.omPorMes == null ? '' : String(meta.valores.omPorMes));
+    setError('');
+  }, [editando, meta]);
+
+  async function guardar() {
+    if (guardando) return;          // dos pulsaciones = dos peticiones (b87)
+    setGuardando(true); setError('');
+    try {
+      /* Se manda EXACTAMENTE lo que el DTO declara. Un campo de más no se
+         ignora: el `ValidationPipe` rechaza la petición entera, y ése fue el
+         fallo que dejó sin guardar la pantalla de Roles en el bloque 90. */
+      const { data } = await api.put('/indicadores/meta', {
+        correctivoPct: Number(corr),
+        preventivoPct: Number(prev),
+        omPorMes: porMes.trim() === '' ? null : Number(porMes),
+      });
+      if (!data) { setError('El servidor respondió pero no confirmó. Comprueba antes de repetir.'); return; }
+      onGuardada(data);
+    } catch (e: any) {
+      setError(mensajeDeError(e, 'guardar la meta'));
+    } finally { setGuardando(false); }
+  }
+
+  if (!meta) return null;
+  const v = meta.valores;
+  const suma = Number(corr || 0) + Number(prev || 0);
+
+  if (!editando) {
+    return (
+      <p className="muted" style={{ fontSize: 12.5 }}>
+        Meta: <b>{v.correctivoPct} / {v.preventivoPct}</b>
+        {v.omPorMes != null && <> · <b>{v.omPorMes} OM/mes</b></>}
+        {meta.confirmada
+          ? <> · {meta.fijadaPor || '—'}, {fechaTabla(meta.fijadaEn)}</>
+          : <> · <b>propuesta</b>, sin fijar</>}
+        {puedeFijar && (
+          <button className="btn-mini" style={{ marginLeft: 8 }} onClick={onEditar}
+            title="Fijar la meta del reparto y, si se quiere, la de volumen mensual">
+            Fijar meta
+          </button>
+        )}
+      </p>
+    );
+  }
+
+  return (
+    <div className="card" style={{ padding: 14, marginTop: 8 }}>
+      <div className="form-grid">
+        <label>Correctivo %
+          <input type="number" min={0} max={100} value={corr}
+            onChange={(e) => setCorr(e.target.value)} />
+        </label>
+        <label>Preventivo %
+          <input type="number" min={0} max={100} value={prev}
+            onChange={(e) => setPrev(e.target.value)} />
+        </label>
+        <label>OM/mes
+          <input type="number" min={0} value={porMes} placeholder="opcional"
+            onChange={(e) => setPorMes(e.target.value)} />
+        </label>
+      </div>
+      <p className="muted" style={{ fontSize: 11.5 }}>{suma} de 100</p>
+      {error && <div className="error">{error}</div>}
+      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+        <button className="btn-primary" onClick={guardar} disabled={guardando}>
+          {guardando ? 'Guardando…' : 'Guardar'}
+        </button>
+        <button className="btn-mini" onClick={onCerrar} disabled={guardando}>Cancelar</button>
+      </div>
+    </div>
+  );
+}
 
 export default function Indicadores() {
   const nav = useNavigate();
@@ -116,15 +227,20 @@ export default function Indicadores() {
   const [dias, setDias] = useState(90);
   const [tren, setTren] = useState('');
   const [t, setT] = useState<any>(null);
+  /* La meta y su procedencia. `confirmada: false` significa que nadie la ha
+     fijado todavía y que lo que se pinta es la propuesta del sistema. */
+  const [meta, setMeta] = useState<any>(null);
+  const [editaMeta, setEditaMeta] = useState(false);
   const [tend, setTend] = useState<any[]>([]);
   const [cargando, setCargando] = useState(true);
 
   const cargar = useCallback(async (d: number, tr: string) => {
-    const [a, b] = await Promise.all([
+    const [a, b, m] = await Promise.all([
       api.get('/indicadores', { params: { dias: d, tren: tr || undefined } }).then((r) => r.data).catch(() => null),
       api.get('/indicadores/tendencia', { params: { meses: 6 } }).then((r) => r.data).catch(() => []),
+      api.get('/indicadores/meta').then((r) => r.data).catch(() => null),
     ]);
-    setT(a); setTend(b || []);
+    setT(a); setTend(b || []); setMeta(m);
   }, []);
 
   useEffect(() => { setCargando(true); cargar(dias, tren).finally(() => setCargando(false)); }, [dias, tren, cargar]);
@@ -578,8 +694,8 @@ El MTTR de mantenimiento es <b>Reparar</b>.
                   <PieChart>
                     <Pie
                       data={[
-                        { name: 'Correctivo', value: META.correctivo },
-                        { name: 'Preventivo', value: META.preventivo },
+                        { name: 'Correctivo', value: meta?.valores?.correctivoPct ?? 30 },
+                        { name: 'Preventivo', value: meta?.valores?.preventivoPct ?? 70 },
                       ]}
                       dataKey="value" nameKey="name" outerRadius={62} label
                     >
@@ -593,9 +709,13 @@ El MTTR de mantenimiento es <b>Reparar</b>.
               </div>
             </div>
 
-            <p className="muted" style={{ fontSize: 12 }}>
-              Meta: menos correctivo, más preventivo.
-            </p>
+            <MetaDelReparto
+              meta={meta}
+              editando={editaMeta}
+              onEditar={() => setEditaMeta(true)}
+              onCerrar={() => setEditaMeta(false)}
+              onGuardada={(m: any) => { setMeta(m); setEditaMeta(false); }}
+            />
 
             <p className="muted" style={{ fontSize: 12.5, marginTop: 10 }}>
               {t.reparto.lectura}

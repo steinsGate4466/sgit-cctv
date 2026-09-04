@@ -352,6 +352,18 @@ export default function Incidents() {
                   </div>
                   <div style={{ fontSize: 11 }}>{fechaTabla(i.reportedAt, '—')}</div>
 
+                  {/* QUIÉN LA REPORTÓ — bloque 94.
+                      Se agrupa en esta misma celda, que ya apila la hora y el
+                      estado: la tabla se queda en siete columnas y no hay que
+                      tocar el ancho. Sin el nombre, la lista dice que hay un
+                      problema pero no a quién preguntar. */}
+                  {i.reportedBy && (
+                    <div style={{ fontSize: 11, color: 'var(--text)' }}>
+                      <b>{i.reportedBy.fullName}</b>
+                      {i.reportedBy.role?.name ? ` · ${i.reportedBy.role.name}` : ''}
+                    </div>
+                  )}
+
                   {i.resolvedAt
                     ? (
                       <div style={{ fontSize: 11, color: 'var(--ok)' }}>

@@ -23,10 +23,16 @@ export class MaintenanceController {
   constructor(private readonly wo: MaintenanceService) {}
 
   // Generar OM: SOLO Jefe de Mantenimiento (permiso wo.create).
+  /* QUIÉN PIDIÓ LA ORDEN SE TOMA DE LA SESIÓN, NO DEL CUERPO — bloque 94.
+     -------------------------------------------------------------------------
+     Si viniera en el `dto`, cualquiera podría abrir una orden a nombre de otro
+     y el dato dejaría de servir para lo que se creó: para que quien la pide
+     pueda seguirla, y para saber a quién preguntar. Del token no se puede
+     mentir. */
   @Post()
   @RequirePermissions('wo.create')
-  create(@Body() dto: CreateWorkOrderDto) {
-    return this.wo.create(dto);
+  create(@Body() dto: CreateWorkOrderDto, @CurrentUser() user: any) {
+    return this.wo.create(dto, user?.userId ?? null);
   }
 
   /* ===========================================================================

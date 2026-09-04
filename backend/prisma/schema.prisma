@@ -150,6 +150,10 @@ model User {
   accessReviewed  AccessRequest[] @relation("AccessReviewer")
   woOpened        WorkOrder[]     @relation("WoOpenedBy")
   woClosed        WorkOrder[]     @relation("WoClosedBy")
+  /// Órdenes que esta persona PIDIÓ (bloque 94). Lado inverso obligatorio.
+  woSolicitadas   WorkOrder[]     @relation("WoCreatedBy")
+  /// Metas de mantenimiento que esta persona fijó por última vez (bloque 94).
+  metasFijadas    MetaMantenimiento[] @relation("MetaFijadaPor")
   /// Zonas cuya criticidad productiva declaró esta persona (bloque 26).
   /// Prisma EXIGE el lado inverso aunque sólo Location guarde la clave.
   zonasDeclaradas Location[]      @relation("ZonaDeclaradaPor")
@@ -1388,6 +1392,18 @@ model WorkOrder {
   /// radio con Producción a qué hora se detiene de verdad.
   startedAt     DateTime?
   endedAt       DateTime?
+  /// QUIÉN PIDIÓ LA ORDEN — bloque 94.
+  /// -------------------------------------------------------------------------
+  /// NO es `openedById` ni `requestedBy`, y confundirlos borra un dato:
+  ///   · `requestedBy` es TEXTO libre, para quien no es usuario del sistema
+  ///     («me lo pidió Zúñiga por radio»). Se conserva y no lo sustituye.
+  ///   · `openedById` es quien la ARRANCÓ en campo, al firmar el arranque.
+  ///     Una orden que se pide y nunca se arranca quedaría sin dueño — y es
+  ///     justo la que hay que reclamar.
+  /// Es OPCIONAL porque el histórico anterior a este bloque no lo tiene, y
+  /// `NULL` dice la verdad: no se sabe. Rellenarlo diría que sí se sabe.
+  createdById   String?
+  createdBy     User?            @relation("WoCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   /// Quién abrió y quién cerró la orden (firma electrónica verificada).
   openedById    String?
   openedBy      User?            @relation("WoOpenedBy", fields: [openedById], references: [id])
@@ -1490,6 +1506,7 @@ model WorkOrder {
   @@index([detailedAt])
   @@index([rootCauseCode])
   @@index([paradaId])
+  @@index([createdById])
   @@map("work_orders")
 }
 
@@ -3490,6 +3507,41 @@ model ParametrosCriticidad {
 
   @@index([actualizadoPorId])
   @@map("parametros_criticidad")
+}
+
+/// =============================================================================
+/// META DE MANTENIMIENTO — bloque 94
+/// =============================================================================
+///
+/// LA HOJA DEL INGENIERO TRAÍA «40 CORRECTIVO · 30 PREVENTIVO · 30 PREDICTIVO».
+/// El predictivo se retiró con su visto bueno en el bloque 80 —una cámara da
+/// imagen o no la da; no hay desgaste que medir—, así que ese tercio había que
+/// repartirlo y nadie lo había hecho: la meta seguía escrita en el código.
+///
+/// TODO LO DE PLANTA SE EDITA DESDE LA INTERFAZ. Una meta escrita en el código
+/// obliga a un despliegue para cambiar una decisión de gestión, y entonces no
+/// se cambia: se ignora.
+///
+/// LA MIGRACIÓN NO INSERTA NINGUNA FILA, a propósito. Mientras no exista, se
+/// usa el valor PROPUESTO del código y la pantalla lo dice con esas palabras.
+/// Insertarlo lo convertiría en una decisión que nadie tomó (bloque 76).
+model MetaMantenimiento {
+  id String @id @default("unico")
+  /// Reparto objetivo, en porcentaje. Los dos tienen que sumar 100.
+  correctivoPct Int
+  preventivoPct Int
+  /// Meta de VOLUMEN, opcional y aparte del reparto. Es otra pregunta:
+  /// el reparto dice en qué se trabaja, esto dice cuánto. `null` significa
+  /// que no se ha fijado, y entonces no se pinta — no se inventa un cero.
+  omPorMes Int?
+  /// Quién la fijó por última vez. Cambiar la meta cambia el criterio con el
+  /// que se juzga el trabajo de todo el año: queda con nombre y fecha.
+  fijadaPorId String?
+  fijadaPor   User?    @relation("MetaFijadaPor", fields: [fijadaPorId], references: [id], onDelete: SetNull)
+  fijadaEn    DateTime @updatedAt
+
+  @@index([fijadaPorId])
+  @@map("meta_mantenimiento")
 }
 
 /// =============================================================================

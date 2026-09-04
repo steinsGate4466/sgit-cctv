@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   HORA, OrdenParaCalculo, backlog, comparar, cumplimientoPreventivo, disponibilidad, mtbf, mttr,
@@ -11,6 +11,9 @@ import {
 } from '../../common/fiabilidad';
 import { cumplimientoNormativo } from '../../common/cumplimiento';
 import { CriticidadService } from '../criticidad/criticidad.service';
+import {
+  META_PROPUESTA, motivoParaNoGuardarMeta, type MetaReparto,
+} from '../../common/meta-mantenimiento';
 
 /**
  * INDICADORES DE GESTIÓN DEL MANTENIMIENTO
@@ -485,5 +488,63 @@ export class IndicadoresService {
           disponibilidadPct: disponibilidad(r.horas, tEntre),
         };
       });
+  }
+
+  /* ===========================================================================
+     LA META DE MANTENIMIENTO — bloque 94
+     ---------------------------------------------------------------------------
+     Se lee SIEMPRE de la base. Si no hay fila, se devuelve la PROPUESTA y se
+     marca `confirmada: false`, para que la pantalla pueda decirlo con esas
+     palabras en vez de presentar un número inventado como si fuera una
+     decisión de planta (misma regla que los cortes de la criticidad, b76).
+     =========================================================================== */
+  async meta(): Promise<{
+    valores: MetaReparto;
+    confirmada: boolean;
+    fijadaPor: string | null;
+    fijadaEn: Date | null;
+  }> {
+    const fila = await (this.prisma as any).metaMantenimiento.findFirst({
+      include: { fijadaPor: { select: { fullName: true } } },
+    });
+    if (!fila) {
+      return {
+        valores: META_PROPUESTA, confirmada: false, fijadaPor: null, fijadaEn: null,
+      };
+    }
+    return {
+      valores: {
+        correctivoPct: fila.correctivoPct,
+        preventivoPct: fila.preventivoPct,
+        omPorMes: fila.omPorMes ?? null,
+      },
+      confirmada: true,
+      fijadaPor: fila.fijadaPor?.fullName ?? null,
+      fijadaEn: fila.fijadaEn,
+    };
+  }
+
+  /* La validación vive en `common/meta-mantenimiento.ts` y no aquí, para que
+     la prueba pueda ejercerla sin base de datos y para que el mensaje que ve
+     el usuario y el que fija la prueba sean literalmente el mismo texto. */
+  async guardarMeta(dto: Partial<MetaReparto>, fijadaPorId?: string) {
+    const motivo = motivoParaNoGuardarMeta(dto);
+    if (motivo) throw new BadRequestException(motivo);
+
+    const datos = {
+      correctivoPct: dto.correctivoPct as number,
+      preventivoPct: dto.preventivoPct as number,
+      omPorMes: dto.omPorMes ?? null,
+      fijadaPorId: fijadaPorId ?? null,
+    };
+    /* `upsert` sobre la fila única: la tabla nace vacía a propósito, así que
+       el primer guardado la crea y los siguientes la pisan. Sin esto haría
+       falta un `if (existe)` que es la misma decisión escrita dos veces. */
+    await (this.prisma as any).metaMantenimiento.upsert({
+      where: { id: 'unico' },
+      update: datos,
+      create: { id: 'unico', ...datos },
+    });
+    return this.meta();
   }
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Put, Query, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { IndicadoresService } from './indicadores.service';
@@ -6,8 +6,10 @@ import { libroDeIndicadores } from './excel-indicadores';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Ritmo } from '../../common/guards/ritmo.guard';
 import { RITMO_PESADO } from '../../common/ritmo';
+import { MetaDto } from './dto/meta.dto';
 
 @ApiTags('indicadores')
 @ApiBearerAuth()
@@ -68,5 +70,34 @@ export class IndicadoresController {
       'Content-Length': String(buffer.length),
     });
     res.end(buffer);
+  }
+
+  /* ===========================================================================
+     LA META DE MANTENIMIENTO — bloque 94
+     ---------------------------------------------------------------------------
+     RUTA LITERAL, y este controlador no tiene ningún `:id`, así que no hay
+     riesgo de que Nest lea «meta» como un identificador. Se deja dicho porque
+     el día que se añada un `@Get(\':id\')` habrá que ponerlo DESPUÉS.
+
+     QUIÉN LA LEE  ·  `dashboard.read` — el mismo que ve los indicadores. Sin
+     la meta, el gráfico del reparto no significa nada: hay que saber contra
+     qué se compara.
+
+     QUIÉN LA FIJA  ·  `wo.approve`, SÓLO el Jefe de Mantenimiento. No lo
+     decide la dificultad de la acción —marcar dos números es trivial— sino lo
+     que la acción AFIRMA: la meta es el criterio con el que se juzga el
+     trabajo de todo el año. Es la misma regla que hace que cerrar una orden
+     sea `wo.approve` y no `wo.update` (bloque 78).
+     =========================================================================== */
+  @Get('meta')
+  @RequirePermissions('dashboard.read')
+  meta() {
+    return this.ind.meta();
+  }
+
+  @Put('meta')
+  @RequirePermissions('wo.approve')
+  guardarMeta(@Body() dto: MetaDto, @CurrentUser() user: any) {
+    return this.ind.guardarMeta(dto, user?.userId);
   }
 }

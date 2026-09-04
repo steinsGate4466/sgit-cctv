@@ -6,6 +6,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { SinAmbito } from '../../common/ambito.decorator';
 
 /* =============================================================================
    HOJAS DE RUTA — bloque 75
@@ -54,8 +55,14 @@ export class HojasRutaController {
   }
 
   /** El Excel de UNA. También antes de `:id` a secas. */
+  /* SIN ÁMBITO: una hoja de ruta es POR TIPO DE EQUIPO, no por tren. La misma
+     hoja de «Cámara» sirve para las cuatrocientas cámaras de la planta, así
+     que no pertenece a ningún tren y no hay nada que acotar. Faltaba desde el
+     bloque 75 y lo cazó `verificar:ambito` una vez corregido su propio falso
+     positivo (bloque 94). */
   @Get(':id/excel')
   @RequirePermissions('wo.read')
+  @SinAmbito()
   async excelUna(@Param('id') id: string, @Res() res: Response) {
     const { buffer, filename } = await this.hojas.excel(id);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -65,6 +72,8 @@ export class HojasRutaController {
 
   @Get(':id')
   @RequirePermissions('wo.read')
+  /* SIN ÁMBITO, por el mismo motivo: la hoja es del TIPO de equipo. */
+  @SinAmbito()
   unaSola(@Param('id') id: string) {
     return this.hojas.unaSola(id);
   }

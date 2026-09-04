@@ -54,6 +54,17 @@ const CAMPOS = [
   ['Location.ts', 'riesgoPersonasMotivo', 'porQueEsVital', []],
   // Bloque 82: el contador que corta el acceso.
   ['User.ts', 'permisosVersion', 'active', [['Bool', 'Int'], ['boolean', 'number']]],
+  /* Bloque 94: quién SOLICITÓ la orden. Hacen falta LOS DOS —la RELACIÓN y la
+     clave— y en ESTE orden, no al revés:
+
+     `aplicar()` se salta una entrada si el archivo ya contiene el nombre
+     nuevo, y `createdById` CONTIENE `createdBy`. Puestas al revés, la segunda
+     saldría como «[YA ESTÁ]» y la relación no se añadiría nunca — el typecheck
+     fallaría con «'createdBy' does not exist in type WorkOrderInclude», que es
+     el error que un include inválido produce, y que además invalida el tipo
+     del resultado ENTERO (la lección del `name` del bloque 6). */
+  ['WorkOrder.ts', 'createdBy', 'openedBy', []],
+  ['WorkOrder.ts', 'createdById', 'openedById', []],
 ];
 
 /**
@@ -86,7 +97,7 @@ const CAMPOS = [
 const NOMBRES = [...new Set(CAMPOS.map((c) => c[1]))];
 
 /** Nombres que el parche escribe ÚNICAMENTE en `class.ts`. */
-const NOMBRES_CLASS = ['parametrosCriticidad', 'failureEvent'];
+const NOMBRES_CLASS = ['parametrosCriticidad', 'failureEvent', 'metaMantenimiento'];
 
 function deshacer() {
   let tocados = 0;
@@ -169,11 +180,12 @@ function aplicar() {
     }
     fs.writeFileSync(cls, src.replace(
       ancla,
-      `${ancla}\n\n  /** Bloques 76 y 78 — parche del agente, se pisa al regenerar. */`
+      `${ancla}\n\n  /** Bloques 76, 78 y 94 — parche del agente, se pisa al regenerar. */`
       + `\n  get parametrosCriticidad(): any;`
-      + `\n  get failureEvent(): any;`,
+      + `\n  get failureEvent(): any;`
+      + `\n  get metaMantenimiento(): any;`,
     ));
-    console.log('  [OK] class.ts · parametrosCriticidad · failureEvent');
+    console.log('  [OK] class.ts · parametrosCriticidad · failureEvent · metaMantenimiento');
   }
 }
 

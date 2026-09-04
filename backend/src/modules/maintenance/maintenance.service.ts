@@ -32,6 +32,7 @@ const inc = {
   location: { select: { id: true, code: true, name: true } },
   technician: { select: { id: true, fullName: true } },
   incident: { select: { id: true, code: true, title: true } },
+  createdBy: { select: { id: true, fullName: true, role: { select: { name: true } } } },
   openedBy: { select: { id: true, fullName: true } },
   closedBy: { select: { id: true, fullName: true } },
   companion: { select: { id: true, fullName: true } },
@@ -87,7 +88,7 @@ export class MaintenanceService {
     return siguienteCorrelativo(ultima?.code, prefijo);
   }
 
-  async create(dto: CreateWorkOrderDto) {
+  async create(dto: CreateWorkOrderDto, creadaPorId?: string | null) {
     // Una orden tiene que decir SOBRE QUÉ es: un equipo concreto o una zona.
     // Sin ninguno de los dos, el técnico no sabe a dónde ir.
     if (!dto.assetId && !dto.locationId) {
@@ -135,6 +136,11 @@ export class MaintenanceService {
            su fecha explícita, así que este valor por defecto no les afecta. */
         scheduledDate: dto.scheduledDate ? new Date(dto.scheduledDate) : new Date(),
         technicianId: dto.technicianId,
+        /* QUIÉN LA PIDIÓ, COMO USUARIO — bloque 94. Convive con `requestedBy`
+           y no lo sustituye: aquél es texto libre para quien NO es usuario del
+           sistema («me lo pidió Zúñiga por radio»). Son dos hechos distintos:
+           quién la tecleó y a quién se la pidieron. */
+        createdById: creadaPorId || undefined,
         // Recepción del pedido de Producción
         requestedBy: dto.requestedBy,
         requestChannel: dto.requestChannel,
@@ -242,6 +248,17 @@ export class MaintenanceService {
     // nombre de un campo o se anida un filtro dentro de otro, lo dice al
     // compilar en lugar de devolver un 400 en producción.
     const where: Prisma.WorkOrderWhereInput = { status: q.status, type: q.type, assetId: q.assetId };
+
+    /* «SÓLO LAS QUE HE PEDIDO YO» — bloque 94.
+       -------------------------------------------------------------------------
+       EL FILTRO VA AQUÍ, EN EL SERVIDOR, Y NO EN LA PANTALLA. Si sólo filtrara
+       la pantalla, el paginador seguiría contando las de todos: diría «120
+       órdenes» enseñando tres, y a partir de ahí ninguna cifra de esa pantalla
+       se puede creer.
+
+       Se compara contra el usuario de la SESIÓN, nunca contra un identificador
+       que venga en la consulta: con eso cualquiera vería «las mías» de otro. */
+    if (q.mias && userId) where.createdById = userId;
 
     // Ámbito de planta. Una OM puede colgar de un ACTIVO o solo de una
     // UBICACIÓN (una campaña de barrido, por ejemplo), así que se aceptan las
@@ -773,9 +790,44 @@ export class MaintenanceService {
         technician: true,
         incident: true,
         evidences: { orderBy: { createdAt: 'asc' } },
+        /* LAS CUATRO PERSONAS Y LA TRAZA — bloque 94.
+           ---------------------------------------------------------------------
+           El informe traía el diagnóstico FINAL y nada de cómo se llegó ahí:
+           ni quién pidió la orden, ni quién la arrancó, ni quién la cerró, ni
+           los avances intermedios. Para un papel que se firma y se archiva eso
+           es media historia, y es justo la mitad que pide una auditoría.
+
+           Son cuatro personas DISTINTAS y no se pueden mezclar:
+             createdBy   quién la PIDIÓ
+             openedBy    quién la ARRANCÓ en campo, con firma
+             closedBy    quién la CERRÓ, con firma
+             technician  a quién se le asignó */
+        createdBy: { select: { fullName: true, role: { select: { name: true } } } },
+        openedBy: { select: { fullName: true } },
+        closedBy: { select: { fullName: true } },
+        companion: { select: { fullName: true } },
+        progress: {
+          orderBy: { reportedAt: 'asc' },
+          include: { reportedBy: { select: { fullName: true } } },
+        },
       },
     });
     if (!wo) throw new NotFoundException('Orden de mantenimiento no encontrada');
+
+    /* El motivo del avance se guarda como CÓDIGO, no como texto: así se puede
+       contar después. Para el informe hay que traducirlo, y se traduce con el
+       catálogo vivo — si mañana se corrige la redacción, los informes nuevos
+       salen con la buena y los códigos del histórico siguen valiendo. */
+    const codigos = [...new Set((wo as any).progress
+      .map((a: any) => a.reasonCode).filter(Boolean) as string[])];
+    const catalogo = new Map<string, string>();
+    if (codigos.length) {
+      const items = await this.prisma.catalogItem.findMany({
+        where: { code: { in: codigos } },
+        select: { code: true, name: true },
+      });
+      for (const it of items) catalogo.set(it.code, it.name);
+    }
 
     // Descarga las imágenes; si alguna falla, se omite sin romper el informe.
     const images: { buffer: Buffer; caption?: string | null }[] = [];
@@ -829,6 +881,20 @@ export class MaintenanceService {
     line('Fecha programada', fmt(wo.scheduledDate));
     line('Fecha de ejecución', fmt(wo.executedDate));
 
+    /* QUIÉN PIDIÓ, QUIÉN ARRANCÓ Y QUIÉN CERRÓ — bloque 94.
+       El histórico anterior no tiene solicitante, y se dice así en vez de
+       dejar un guion: «—» se lee como «no lo pidió nadie», que es falso. */
+    y += 6;
+    heading('Responsabilidad');
+    const solicitante = (wo as any).createdBy;
+    line('Solicitada por', solicitante
+      ? `${solicitante.fullName}${solicitante.role?.name ? ` — ${solicitante.role.name}` : ''}`
+      : 'Sin solicitante registrado (orden anterior al registro de solicitante)');
+    line('Quién la solicitó fuera del sistema', wo.requestedBy || '—');
+    line('Arrancada en campo por', (wo as any).openedBy?.fullName || '—');
+    line('Acompañante en campo', (wo as any).companion?.fullName || '—');
+    line('Cerrada y firmada por', (wo as any).closedBy?.fullName || '—');
+
     y += 6;
     heading('Actividad realizada');
     doc.fontSize(11).fillColor('#000000').text(wo.activity || '—', 50, y, { width: pageW - 100 });
@@ -837,6 +903,38 @@ export class MaintenanceService {
     y = doc.y + 4;
     doc.fontSize(11).fillColor('#000000').text(wo.diagnosis || '—', 50, y, { width: pageW - 100 });
     y = doc.y + 12;
+
+    /* LA TRAZA DE AVANCES — bloque 94.
+       -------------------------------------------------------------------------
+       Sin esto el informe afirmaba un resultado sin enseñar el camino: tres
+       avances, tres técnicos y tres fechas se quedaban dentro del sistema.
+       Cada línea lleva su autor y su fecha porque un avance sin firmante no
+       sirve para preguntar ni para responder. */
+    const avances: any[] = (wo as any).progress || [];
+    heading('Avances registrados');
+    if (avances.length) {
+      for (const a of avances) {
+        if (y > doc.page.height - 120) { doc.addPage(); y = 60; }
+        const cab = `${fmt(a.reportedAt)}   ·   ${a.pct}%`
+          + (a.reportedBy?.fullName ? `   ·   ${a.reportedBy.fullName}` : '');
+        doc.fontSize(10).fillColor(NAVY).text(cab, 60, y, { width: pageW - 110 });
+        y = doc.y + 2;
+        const motivo = a.reasonCode ? (catalogo.get(a.reasonCode) || a.reasonCode) : null;
+        if (motivo) {
+          doc.fontSize(10).fillColor(GREY).text(`Motivo: ${motivo}`, 60, y, { width: pageW - 110 });
+          y = doc.y + 2;
+        }
+        if (a.note) {
+          doc.fontSize(10.5).fillColor('#000000').text(a.note, 60, y, { width: pageW - 110 });
+          y = doc.y + 2;
+        }
+        y += 6;
+      }
+    } else {
+      doc.fontSize(11).fillColor(GREY).text('Sin avances registrados', 60, y);
+      y = doc.y + 10;
+    }
+    y += 4;
 
     // Materiales utilizados / a utilizar
     heading('Materiales');

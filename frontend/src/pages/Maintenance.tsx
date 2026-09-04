@@ -68,6 +68,23 @@ export default function Maintenance() {
   const [asignando, setAsignando] = useState(false);
   const [detallando, setDetallando] = useState<any>(null);
   const [soloSinDetallar, setSoloSinDetallar] = useState(false);
+  /* «SÓLO LAS QUE HE PEDIDO YO» — bloque 94.
+     ---------------------------------------------------------------------------
+     EL DEFECTO VA POR CAPACIDAD, NO POR NOMBRE DE ROL:
+
+         puede crear órdenes (wo.create) pero no ejecutarlas (wo.update)
+         = pide trabajo y no lo hace  ->  le interesa lo suyo
+
+     Con eso, el Jefe de Tren y el Jefe de línea abren la lista filtrada a sus
+     solicitudes, y el Jefe de Mantenimiento y los técnicos la abren entera.
+     Ni un literal de rol (regla del bloque 62-A).
+
+     PERO EL INTERRUPTOR SE QUEDA, y no es una concesión: si un compañero ya
+     pidió la orden de esa misma cámara y él no la ve, abre una duplicada — y
+     eso son dos cuadrillas al mismo poste. Es la decisión del bloque 72 con
+     otra cara: se ORDENA por persona, no se esconde lo demás. */
+  const soloMiasPorDefecto = can('wo.create') && !can('wo.update');
+  const [soloMias, setSoloMias] = useState(soloMiasPorDefecto);
 
   // Alta de OM (solo Jefe). El código es MANUAL (número que genera SAP).
   const [showForm, setShowForm] = useState(false);
@@ -111,6 +128,11 @@ export default function Maintenance() {
     // Ámbito de planta: lo resuelve el servidor contra el árbol de ubicaciones.
     if (ambito.tren) params.set('tren', ambito.tren);
     if (ambito.etapa) params.set('etapa', ambito.etapa);
+    /* Va al SERVIDOR y no se filtra en la pantalla: si se filtrara aquí, el
+       paginador seguiría contando las de todos y diría «120 órdenes»
+       enseñando tres. Una cifra así no se puede creer, y con ella deja de
+       creerse el resto de la pantalla. */
+    if (soloMias) params.set('mias', '1');
     const [wo, ast, inc, loc] = await Promise.all([
       api.get('/work-orders?' + params.toString()).then((r) => r.data).catch(() => ({ data: [] })),
       api.get('/assets/options').then((r) => r.data).catch(() => []),
@@ -130,8 +152,11 @@ export default function Maintenance() {
   // El ámbito SÍ va en las dependencias: al cambiar de tren hay que volver a
   // preguntar al servidor. Los demás filtros no, porque se aplican al pulsar
   // Buscar; si estuvieran aquí, se consultaría en cada tecla escrita.
+  /* `soloMias` SÍ va en las dependencias, como el ámbito: es un filtro que
+     resuelve el SERVIDOR, así que cambiarlo obliga a volver a preguntar. Los
+     que se aplican al pulsar «Buscar» no van aquí. */
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [ambito]);
+  useEffect(() => { load(); }, [ambito, soloMias]);
 
   /* Se busca MIENTRAS SE ESCRIBE, con 350 ms de espera. El botón «Buscar»
      se queda: quien teclea un código completo lo pulsa por costumbre y
@@ -339,8 +364,15 @@ export default function Maintenance() {
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, alignSelf: 'flex-end', paddingBottom: 6 }}>
           <input type="checkbox" checked={soloSinDetallar} style={{ width: 'auto' }}
             onChange={(e) => setSoloSinDetallar(e.target.checked)} />
-          Solo sin detallar
+          Sin detallar
         </label>
+        {can('wo.create') && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, alignSelf: 'flex-end', paddingBottom: 6 }}>
+            <input type="checkbox" checked={soloMias} style={{ width: 'auto' }}
+              onChange={(e) => setSoloMias(e.target.checked)} />
+            Las mías
+          </label>
+        )}
         <button className="btn-mini" onClick={clearFilters}>Limpiar</button>
       </div>
 
@@ -378,6 +410,21 @@ export default function Maintenance() {
                 <td style={{ fontSize: 12 }}>
                   {w.activity || '—'}
                   {w.zone && <div className="muted" style={{ fontSize: 11 }}>{w.zone}</div>}
+                  {/* QUIÉN LA PIDIÓ — bloque 94.
+                      SE AGRUPA, NO SE AÑADE COLUMNA. La tabla ya está en siete
+                      y el tope del proyecto es ocho; una novena partiría las
+                      palabras en la pantalla del púlpito, que es el fallo que
+                      el bloque 91 acaba de arreglar. Va bajo la actividad
+                      porque es su contexto: qué se pidió y quién lo pidió.
+
+                      El histórico anterior no lo tiene y NO se pinta un guion:
+                      «—» se leería como «no lo pidió nadie», que es falso.
+                      Cuando no se sabe, no se dice nada. */}
+                  {w.createdBy && (
+                    <div className="muted" style={{ fontSize: 11 }}>
+                      <b>{w.createdBy.fullName}</b>
+                    </div>
+                  )}
                 </td>
                 <td>
                   <span className={'badge ' + woBadge(w.status)}>{w.status}</span>
