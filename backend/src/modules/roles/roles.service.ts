@@ -1,6 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CATALOGO_PERMISOS, CODIGOS_VALIDOS, PLANTILLAS_DE_ROL, soloMira } from './catalogo-permisos';
+import {
+  estaDesfasado, informeDeDesfase, motivoParaNoPonerAlDia,
+} from '../../common/desfase-de-roles';
 import { motivoParaNoBorrar, motivoParaNoGuardar, normalizarAmbito } from './roles.guardas';
 import { AccesoVigenteGuard } from '../../common/guards/acceso-vigente.guard';
 
@@ -183,6 +186,75 @@ export class RolesService {
     AccesoVigenteGuard.olvidarTodo();
 
     return { ok: true, permisos: codigos.length };
+  }
+
+  /* ===========================================================================
+     BLOQUE 96 · PONER LOS ROLES AL DÍA CON SU PLANTILLA
+     ---------------------------------------------------------------------------
+     Lo pidió el usuario después de que su «Jefe de línea (Producción)» llevara
+     bloques desviado sin que nadie se enterase. La causa está escrita en el
+     bloque 90: las plantillas SÓLO se aplican al crear un rol.
+  =========================================================================== */
+
+  /**
+   * Qué roles se han desviado de su plantilla, y en qué exactamente.
+   *
+   * NO cambia nada: sólo lo enseña. La aplicación es un segundo paso y con un
+   * botón aparte, porque **un cambio invisible es un cambio que nadie decidió**
+   * — y aquí lo que se reparte es el poder de la planta.
+   */
+  async desfase() {
+    const roles = await this.listar();
+    const informe = informeDeDesfase(
+      roles.map((r) => ({
+        id: r.id, nombre: r.nombre, permisos: r.permisos,
+        usuarios: r.usuarios, sistema: r.sistema,
+      })),
+      PLANTILLAS_DE_ROL.map((p) => ({ nombre: p.nombre, permisos: [...p.permisos] })),
+    );
+    return {
+      desviados: informe.filter((d) => estaDesfasado(d)),
+      alDia: informe.filter((d) => d.plantilla !== null && !estaDesfasado(d)),
+      /* LOS «SIN PLANTILLA» SE ENSEÑAN, no se esconden. Puede ser un rol hecho
+         a medida —y entonces está bien— o uno renombrado que se ha quedado
+         huérfano. Esconderlos haría que el informe dijera «todo en orden»
+         sobre roles que nadie ha mirado nunca. */
+      sinPlantilla: informe.filter((d) => d.plantilla === null),
+      /* El nombre de cada permiso en castellano, para que la pantalla no tenga
+         que traducir códigos por su cuenta y acabe enseñando otra cosa. */
+      nombres: Object.fromEntries(
+        CATALOGO_PERMISOS.flatMap((g) => g.permisos.map((x) => [x.code, x.nombre])),
+      ),
+    };
+  }
+
+  /**
+   * Deja este rol EXACTAMENTE como dice su plantilla.
+   *
+   * PASA POR `actualizar()` A PROPÓSITO, y esto es lo importante del método:
+   * así hereda TODAS sus guardas sin reescribir ninguna —no dejar la planta
+   * sin nadie que administre usuarios, no quitarte a ti mismo `user.manage`,
+   * la transacción, el `permisosVersion` del bloque 86 y la auditoría—.
+   *
+   * Una función de «sincronizar» que escribiera por su cuenta sería una
+   * segunda puerta a la tabla de permisos, y el día que se añada una guarda
+   * alguien se olvidaría de ponerla en las dos. Es la misma decisión que
+   * arreglar `<Campo>` en el componente y no en cada formulario (bloque 77).
+   */
+  async ponerAlDia(id: string, editorUserId: string) {
+    const info = await this.desfase();
+    const d = [...info.desviados, ...info.alDia, ...info.sinPlantilla]
+      .find((x) => x.rolId === id);
+    if (!d) throw new NotFoundException('Ese rol ya no existe.');
+
+    const motivo = motivoParaNoPonerAlDia(d);
+    if (motivo) throw new BadRequestException(motivo);
+
+    const plantilla = PLANTILLAS_DE_ROL.find((p) => p.nombre === d.plantilla);
+    if (!plantilla) throw new BadRequestException('La plantilla ya no existe.');
+
+    await this.actualizar(id, { permisos: [...plantilla.permisos] }, editorUserId);
+    return { ok: true, nombre: d.nombre, anadidos: d.faltan, quitados: d.sobran };
   }
 
   async borrar(id: string) {

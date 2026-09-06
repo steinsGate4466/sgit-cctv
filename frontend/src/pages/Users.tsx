@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
 import { EsqueletoTabla } from '../components/Esqueleto';
+import { mensajeDeError } from '../avisos';
 
 export default function Users() {
   const [rows, setRows] = useState<any[]>([]);
@@ -14,6 +15,12 @@ export default function Users() {
   const [form, setForm] = useState<any>({ email: '', fullName: '', password: '', roleId: '' });
   // Ámbito: a qué trenes mira ese usuario.
   const [ambitoDe, setAmbitoDe] = useState<any>(null);
+  /* BLOQUE 96 · editar a una persona ya creada: su nombre, su rol y si sigue
+     activa. Hasta aquí sólo se podía cambiar el ámbito de trenes: para mover
+     a alguien de puesto había que crearle otro usuario, y entonces quedan dos
+     personas con el mismo nombre y la firma de las órdenes deja de decir quién
+     hizo qué. */
+  const [editaUsuario, setEditaUsuario] = useState<any>(null);
   const [trenes, setTrenes] = useState<string[]>([]);
   /* LOS TRENES SE LEEN DEL ÁRBOL, NO ESTÁN ESCRITOS AQUÍ.
      -------------------------------------------------------------------------
@@ -41,6 +48,25 @@ export default function Users() {
         .then((r) => setTrenesDeLaPlanta(r.data?.trenes || []))
         .catch(() => setTrenesDeLaPlanta([]));
     }
+  }
+
+  async function guardarUsuario() {
+    if (saving) return;                    // dos pulsaciones = dos peticiones
+    setSaving(true); setError('');
+    try {
+      /* Se manda SÓLO lo que cambia. El endpoint ya sube `permisosVersion`
+         cuando toca el rol o el estado (bloque 82), así que el cambio llega a
+         quien ya está dentro sin tener que cerrarle la sesión. */
+      await api.patch(`/users/${editaUsuario.id}`, {
+        fullName: editaUsuario.fullName,
+        roleId: editaUsuario.roleId,
+        active: editaUsuario.active,
+      });
+      setEditaUsuario(null);
+      await load();
+    } catch (e: any) {
+      setError(mensajeDeError(e, 'guardar los cambios de este usuario'));
+    } finally { setSaving(false); }
   }
 
   async function guardarAmbito() {
@@ -128,12 +154,63 @@ export default function Users() {
                       onClick={() => abrirAmbito(u)}>Cambiar</button>
                   )}
                 </td>
-                <td><span className={'badge ' + (u.active ? 'OPERATIVO' : 'FUERA_SERVICIO')}>{u.active ? 'Activo' : 'Inactivo'}</span></td>
+                <td>
+                  <span className={'badge ' + (u.active ? 'OPERATIVO' : 'FUERA_SERVICIO')}>{u.active ? 'Activo' : 'Inactivo'}</span>
+                  {can('user.manage') && (
+                    <button className="btn-mini" style={{ marginLeft: 8 }}
+                      onClick={() => setEditaUsuario({
+                        id: u.id, fullName: u.fullName, email: u.email,
+                        roleId: u.role?.id || '', rolActual: u.role?.name || '', active: u.active,
+                      })}
+                      title="Cambiar su nombre, su rol o darle de baja">Editar</button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {editaUsuario && (
+        <Modal title={`Editar a ${editaUsuario.email}`} onClose={() => setEditaUsuario(null)}>
+          {/* MOVER A ALGUIEN DE PUESTO ES CAMBIARLE EL ROL, NO CREARLE OTRO
+              USUARIO. Con dos usuarios para la misma persona, la firma de las
+              órdenes deja de decir quién hizo qué — y eso es justo lo que este
+              software existe para saber. */}
+          <div className="form-grid">
+            <label>Nombre y apellido
+              <input value={editaUsuario.fullName}
+                onChange={(e) => setEditaUsuario({ ...editaUsuario, fullName: e.target.value })} />
+            </label>
+            <label>Rol
+              <select value={editaUsuario.roleId}
+                onChange={(e) => setEditaUsuario({ ...editaUsuario, roleId: e.target.value })}>
+                {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
+            </label>
+          </div>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
+            <input type="checkbox" checked={editaUsuario.active} style={{ width: 'auto' }}
+              onChange={(e) => setEditaUsuario({ ...editaUsuario, active: e.target.checked })} />
+            Sigue trabajando aquí
+          </label>
+          {/* SE DESACTIVA, NO SE BORRA. Quien firmó una orden no se puede
+              borrar o quedan documentos firmados por nadie (bloque 15). */}
+          <p className="muted" style={{ fontSize: 11.5 }}>
+            Al desmarcarlo pierde el acceso en el acto. No se borra: su firma en las órdenes se conserva.
+          </p>
+
+          {error && <div className="error">{error}</div>}
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+            <button className="btn-primary" onClick={guardarUsuario} disabled={saving}>
+              {saving ? 'Guardando…' : 'Guardar'}
+            </button>
+            <button className="btn-mini" onClick={() => setEditaUsuario(null)} disabled={saving}>Cancelar</button>
+          </div>
+        </Modal>
+      )}
 
       {ambitoDe && (
         <Modal title={`Qué trenes ve ${ambitoDe.fullName}`} onClose={() => setAmbitoDe(null)}>

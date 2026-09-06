@@ -23,6 +23,29 @@ export class RolesController {
     return this.roles.catalogo();
   }
 
+  /* BLOQUE 96 · «desfase» va ANTES que ':id' por el mismo motivo que
+     'catalogo': si no, Nest lee la palabra como un identificador y devuelve un
+     404 que no explica nada. Es la regla del bloque 3 con `@Get('traducir')`. */
+  @Get('desfase')
+  @RequirePermissions('role.manage')
+  desfase() {
+    return this.roles.desfase();
+  }
+
+  /**
+   * Deja el rol exactamente como su plantilla.
+   *
+   * Es un POST y no un GET porque ESCRIBE. Y el editor sale de la SESIÓN, no
+   * del cuerpo: si viniera en la petición, cualquiera podría poner al día un
+   * rol a nombre de otro y la auditoría dejaría de servir para lo que existe.
+   */
+  @Post(':id/poner-al-dia')
+  @RequirePermissions('role.manage')
+  @SinAmbito()  // Un rol no pertenece a ningún tren: reparte permisos de planta.
+  ponerAlDia(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.roles.ponerAlDia(id, user?.userId);
+  }
+
   @Get()
   @RequirePermissions('role.manage')
   listar() {

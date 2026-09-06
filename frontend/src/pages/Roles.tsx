@@ -5,7 +5,7 @@ import Icono from '../components/Iconos';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useDialogos } from '../components/Dialogos';
 import BotonConMotivo from '../components/BotonConMotivo';
-import { queFalta } from '../avisos';
+import { queFalta, mensajeDeError } from '../avisos';
 
 /**
  * ROLES QUE CREA EL INGENIERO.
@@ -33,14 +33,19 @@ export default function Roles() {
   const [descripcion, setDescripcion] = useState('');
   const [error, setError] = useState('');
   const [guardando, setGuardando] = useState(false);
+  /* BLOQUE 96 · el informe de roles desviados de su plantilla. */
+  const [desfase, setDesfase] = useState<any>(null);
+  const [poniendo, setPoniendo] = useState('');
 
   const cargar = useCallback(async () => {
-    const [rs, cat] = await Promise.all([
+    const [rs, cat, des] = await Promise.all([
       api.get('/roles-admin').then((r) => r.data).catch(() => []),
       api.get('/roles-admin/catalogo').then((r) => r.data).catch(() => null),
+      api.get('/roles-admin/desfase').then((r) => r.data).catch(() => null),
     ]);
     setRoles(rs || []);
     setCatalogo(cat);
+    setDesfase(des);
   }, []);
 
   useEffect(() => { cargar().finally(() => setCargando(false)); }, [cargar]);
@@ -131,6 +136,37 @@ export default function Roles() {
         </div>
         <button className="btn-primary" onClick={() => abrir(null)}>+ Nuevo rol</button>
       </div>
+
+
+      {desfase && desfase.desviados?.length > 0 && (
+        <PanelDesfase
+          info={desfase}
+          poniendo={poniendo}
+          onPonerAlDia={async (rol: any) => {
+            /* SE ENSEÑA EL CAMBIO ANTES DE HACERLO. Aquí se reparte el poder
+               de la planta: un botón que reescribe permisos sin decir cuáles
+               es un cambio que nadie decidió. */
+            const ok = await confirmar({
+              titulo: `Poner al día «${rol.nombre}»`,
+              mensaje:
+                (rol.faltan.length ? `SE AÑADEN ${rol.faltan.length}: ${rol.faltan.map((c: string) => desfase.nombres[c] || c).join(', ')}. ` : '')
+                + (rol.sobran.length ? `SE QUITAN ${rol.sobran.length}: ${rol.sobran.map((c: string) => desfase.nombres[c] || c).join(', ')}. ` : '')
+                + `Afecta a ${rol.usuarios} persona(s) y se aplica en el acto.`,
+              aceptar: 'Poner al día',
+            });
+            if (!ok) return;
+            if (poniendo) return;                       // dos pulsaciones = dos peticiones
+            setPoniendo(rol.rolId);
+            try {
+              await api.post(`/roles-admin/${rol.rolId}/poner-al-dia`);
+              await cargar();
+              await avisar({ titulo: 'Rol al día', mensaje: `«${rol.nombre}» ya coincide con su plantilla.` });
+            } catch (e: any) {
+              await avisar({ titulo: 'No se pudo', mensaje: mensajeDeError(e, 'poner el rol al día') });
+            } finally { setPoniendo(''); }
+          }}
+        />
+      )}
 
       <div className="card">
         <table>
@@ -255,6 +291,83 @@ export default function Roles() {
             {guardando ? 'Guardando…' : edita.nuevo ? 'Crear rol' : 'Guardar cambios'}
           </BotonConMotivo>
         </Modal>
+      )}
+    </div>
+  );
+}
+
+/* =============================================================================
+   BLOQUE 96 · «ESTOS ROLES NO COINCIDEN CON SU PLANTILLA»
+   -----------------------------------------------------------------------------
+   POR QUÉ EXISTE. El usuario entró con «Jefe de línea (Producción)» y le salía
+   media gestión del mantenimiento — y a la vez NO podía abrir una orden. Su rol
+   llevaba bloques desviado de la plantilla y nadie se enteró, porque **las
+   plantillas sólo se aplican AL CREAR un rol** (bloque 90).
+
+   Nada se rompe, nada sale en rojo. Es la misma familia que el selector de CSS
+   muerto del bloque 89, sólo que aquí falla ABRIENDO: el rol se queda con
+   permisos de más.
+
+   -----------------------------------------------------------------------------
+   TRES DECISIONES, Y NINGUNA ES DE ADORNO
+
+   1. **SE ENSEÑA LO QUE VA A CAMBIAR, permiso por permiso, ANTES de tocar
+      nada.** Un botón «sincronizar» que reescribe en silencio es un cambio que
+      nadie decidió, y lo que se reparte aquí es el poder de la planta.
+
+   2. **NO HAY BOTÓN DE «PONER AL DÍA TODOS».** Cada rol se mira y se decide.
+      Un botón que reescribe once roles de golpe se pulsa sin leer, y el día
+      que una plantilla esté mal se lleva la planta entera por delante.
+
+   3. **Sólo aparece cuando hay desviados.** Un panel que dice «0 problemas»
+      todos los días se deja de leer, y entonces no sirve el día que hay uno.
+      Es la regla de los verificadores desde el bloque 9.
+============================================================================= */
+function PanelDesfase({ info, poniendo, onPonerAlDia }: any) {
+  const nombre = (c: string) => info.nombres[c] || c;
+  return (
+    <div className="card" style={{ borderLeft: '4px solid var(--warn)', marginBottom: 14 }}>
+      <h2 style={{ fontSize: 15, margin: '0 0 4px', color: 'var(--warn)' }}>
+        {info.desviados.length} rol(es) no coinciden con su plantilla
+      </h2>
+      <p className="muted" style={{ fontSize: 12, marginTop: 0 }}>
+        Las plantillas sólo se aplican al crear un rol. Un rol viejo se desvía sin avisar.
+      </p>
+
+      {info.desviados.map((d: any) => (
+        <div key={d.rolId} style={{ borderTop: '1px solid var(--linea)', padding: '10px 0' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <div>
+              <b>{d.nombre}</b>
+              <span className="muted" style={{ fontSize: 11.5 }}> · {d.usuarios} persona(s)</span>
+            </div>
+            <button className="btn-mini" disabled={!!poniendo}
+              onClick={() => onPonerAlDia(d)}
+              title="Deja este rol exactamente como dice su plantilla">
+              {poniendo === d.rolId ? 'Aplicando…' : 'Poner al día'}
+            </button>
+          </div>
+          {d.faltan.length > 0 && (
+            <div style={{ fontSize: 11.5, marginTop: 4, color: 'var(--ok)' }}>
+              <b>Le faltan:</b> {d.faltan.map(nombre).join(' · ')}
+            </div>
+          )}
+          {d.sobran.length > 0 && (
+            <div style={{ fontSize: 11.5, marginTop: 2, color: 'var(--warn)' }}>
+              <b>Le sobran:</b> {d.sobran.map(nombre).join(' · ')}
+            </div>
+          )}
+        </div>
+      ))}
+
+      {info.sinPlantilla?.length > 0 && (
+        /* SE DICEN, no se esconden. Puede ser un rol hecho a medida —y entonces
+           está bien— o uno renombrado que se quedó huérfano. Callarlos haría
+           que el panel dijera «todo en orden» sobre roles que nadie ha mirado. */
+        <p className="muted" style={{ fontSize: 11.5, marginTop: 10, marginBottom: 0 }}>
+          Sin plantilla con la que comparar, se revisan a mano:{' '}
+          {info.sinPlantilla.map((d: any) => d.nombre).join(' · ')}
+        </p>
       )}
     </div>
   );

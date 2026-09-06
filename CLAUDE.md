@@ -3974,3 +3974,95 @@ tira y se rehace, y no necesita base de datos.
 
     Remove-Item -Recurse -Force src\generated
     npx.cmd prisma generate
+
+---
+
+## 40. Bloque 96 — que los roles se pongan al día solos
+
+### El fallo lo vio el usuario en pantalla
+
+Entró con «Jefe de línea (Producción)» y le salía media gestión del
+mantenimiento —Hojas de ruta, Preventivo, Correctivo, Dashboard, Indicadores,
+Exportar— **y a la vez no podía abrir una orden**. Su rol tenía los permisos
+ANCHOS (`wo.read`, `asset.read`) en vez de los acotados (`om.mirar`,
+`activos.mirar`).
+
+La causa estaba escrita en el bloque 90 y nunca se cerró:
+
+> **Las plantillas sólo se aplican AL CREAR un rol.** A los ya creados no les
+> llega nada, así que un rol viejo deriva de su plantilla en silencio: no lo ve
+> el compilador, ni las pruebas, ni los verificadores.
+
+Es la misma familia que el selector de CSS muerto del bloque 89 —nada se rompe,
+nada sale en rojo— sólo que aquí **falla ABRIENDO**: el rol se queda con
+permisos de más.
+
+**Cómo se detectó sin adivinar:** no le salía «Inventario», que es lo único que
+abre `om.mirar`. Justo lo que sí debería ver.
+
+### Lo que se construye
+
+**Un panel en Roles que compara cada rol con su plantilla** y dice, permiso por
+permiso, qué le falta y qué le sobra. Y un botón **«Poner al día»** por rol.
+
+Tres decisiones, y ninguna es de adorno:
+
+1. **SE ENSEÑA LO QUE VA A CAMBIAR ANTES DE TOCAR NADA.** Un botón
+   «sincronizar» que reescribe en silencio es un cambio que nadie decidió, y lo
+   que se reparte aquí es el poder de la planta.
+2. **NO HAY BOTÓN DE «PONER AL DÍA TODOS».** Un botón que reescribe once roles
+   de golpe se pulsa sin leer, y el día que una plantilla esté mal se lleva la
+   planta por delante. El usuario pidió «que se actualice automáticamente»; lo
+   que resuelve su problema es que el desfase SE VEA, no que se aplique solo.
+3. **El panel sólo aparece cuando hay desviados.** Uno que diga «0 problemas»
+   todos los días se deja de leer — regla de los verificadores desde el 9.
+
+### `ponerAlDia()` PASA POR `actualizar()`, y eso es lo importante
+
+No escribe en la tabla de permisos por su cuenta. Así hereda **todas** las
+guardas sin reescribir ninguna: no dejar la planta sin nadie que administre
+usuarios, no quitarte a ti mismo `user.manage`, la transacción, el
+`permisosVersion` del bloque 86 y la auditoría.
+
+> Una función de «sincronizar» que escribiera aparte sería **una segunda puerta
+> a la tabla de permisos**, y el día que se añada una guarda alguien la pondría
+> sólo en una de las dos. Es la misma decisión que arreglar `<Campo>` en el
+> componente y no en cada formulario (bloque 77).
+
+Hay una prueba que lo fija leyendo el código: el método **no puede** contener
+`rolePermission.deleteMany` ni `$transaction`.
+
+### El emparejamiento va por NOMBRE, y aquí sí se puede
+
+El bloque 62 dejó escrito que **una migración nunca reparte permisos por nombre
+de rol**. Esto no es una migración: es una comparación que se le ENSEÑA a una
+persona para que decida. Si el nombre no coincide con ninguna plantilla, no se
+inventa nada — se marca «sin plantilla» y se dice en pantalla.
+
+**Fallar diciendo «no sé» es aceptable; fallar aplicando la plantilla
+equivocada, no.**
+
+Y los «sin plantilla» **se enseñan, no se esconden**: pueden ser roles hechos a
+medida —y entonces están bien— o renombrados que se quedaron huérfanos.
+Callarlos haría que el panel dijera «todo en orden» sobre roles que nadie ha
+mirado nunca.
+
+### Editar a un usuario ya creado
+
+El otro hueco que señaló: en Usuarios sólo se podía cambiar el ámbito de trenes.
+Para mover a alguien de puesto había que crearle OTRO usuario — y con dos
+usuarios para la misma persona, **la firma de las órdenes deja de decir quién
+hizo qué**, que es justo lo que este software existe para saber.
+
+**El servidor ya lo soportaba**: `PATCH /users/:id` acepta `roleId` y `active`
+con todas sus guardas y sube `permisosVersion`. Lo que faltaba era el botón. Es
+el patrón de siempre —*modelo + endpoint ≠ función; sin pantalla, no existe*—
+sólo que esta vez lo que faltaba era medio formulario.
+
+### Y el verificador de ámbito me cazó al instante
+
+`POST /roles-admin/:id/poner-al-dia` salió marcada en la primera ejecución: ruta
+con parámetro sin declarar ámbito. Lleva `@SinAmbito()` con su motivo escrito
+—un rol no pertenece a ningún tren—. **El decorador que hay que acordarse de
+poner es un agujero con fecha**, y por eso el olvido es un fallo de la entrega
+desde el bloque 12.3.
