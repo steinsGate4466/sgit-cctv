@@ -5,6 +5,7 @@ import { enviarConRespaldo, TEXTO_PENDIENTE } from '../envio-seguro';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, conAmbito, AvisoAmbito } from '../components/FiltroAmbito';
 import Modal from '../components/Modal';
 import AccessRequestForm, { MEANS_ES, STATUS_ES as ACC_STATUS_ES, STATUS_BADGE as ACC_BADGE } from '../components/AccessRequestForm';
+import { TIPOS_ACTIVO, TIPOS_DE_EQUIPO } from '../tipos-de-equipo';
 import { useAuth } from '../auth/AuthContext';
 import { useAutoOcultar } from '../auth/useInactivity';
 import AssetSpecFields, { FICHA_DE } from '../components/AssetSpecFields';
@@ -39,7 +40,25 @@ import { mensajeDeError } from '../avisos';
    comprobar que ninguna de las cinco tablas que la usan tenía un solo
    registro. Queda además un verificador que lo caza si alguien lo vuelve a
    poner. */
-const TYPES = ['CAMERA', 'NVR', 'SWITCH', 'WIRELESS', 'DECODER', 'PANTALLA', 'PC', 'ROUTER', 'FIREWALL', 'SERVER', 'UPS', 'CABINET', 'TABLERO_ELECTRICO', 'OTHER'];
+/* SÓLO ACTIVOS — bloque 95.
+   Aquí salían GABINETE y TABLERO ELÉCTRICO, y los dos son ESTRUCTURA: tienen
+   su propio modelo y su propia pantalla («Gabinetes» y «Electricidad»). Se
+   podía crear el mismo gabinete por dos caminos, y entonces hay dos verdades.
+
+   El valor del enum NO se borra —un enum de PostgreSQL sólo admite AÑADIR— y
+   `NOMBRE_DE_TIPO` sigue conociéndolos, para que los registros viejos se
+   pinten con su nombre y no con el código en crudo.
+
+   La estructura SÍ tiene hoja de ruta: eso vive en «Hojas de ruta», donde las
+   dos familias salen en grupos separados. */
+const TYPES = TIPOS_ACTIVO.map((t) => t.valor);
+
+/* EL FILTRO SÍ LOS OFRECE TODOS, y esto no contradice lo de arriba: crear un
+   gabinete como activo está mal, pero si hay registros viejos cargados así
+   TIENE que poder buscarlos. Un filtro que no ofrece un valor que existe en la
+   tabla deja registros invisibles, y un registro invisible no se puede
+   corregir. */
+const TYPES_FILTRO = TIPOS_DE_EQUIPO.map((t) => t.valor);
 const STATES = ['OPERATIVO', 'FUERA_SERVICIO', 'MANTENIMIENTO', 'BAJA', 'STOCK'];
 const CRITS = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
 // Tipos montados en rack: es obligatorio indicar en qué gabinete están.
@@ -718,7 +737,7 @@ export default function Assets() {
         <div><label>Tipo
             <select value={fType} onChange={(e) => setFType(e.target.value)}>
             <option value="">Todos</option>
-            {TYPES.map((t) => <option key={t} value={t}>{tEs(t)}</option>)}
+            {TYPES_FILTRO.map((t) => <option key={t} value={t}>{tEs(t)}</option>)}
           </select>
           </label>
         </div>

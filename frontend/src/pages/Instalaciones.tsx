@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { TIPOS_ACTIVO, NOMBRE_DE_TIPO } from '../tipos-de-equipo';
 import { api } from '../api/client';
 import Modal from '../components/Modal';
 import BotonPurgar from '../components/BotonPurgar';
@@ -33,12 +34,10 @@ const SITIO_ES: Record<string, string> = {
   PATIO: 'Patio / intemperie', ALMACEN: 'Almacén', CASETA: 'Caseta',
   SUBESTACION: 'Subestación', LABORATORIO: 'Laboratorio', OTRO: 'Otro',
 };
-const EQUIPO_ES: Record<string, string> = {
-  CAMERA: 'Cámara', NVR: 'Grabador (NVR)', SWITCH: 'Switch', WIRELESS: 'Antena / radioenlace',
-  ROUTER: 'Router', FIREWALL: 'Firewall', SERVER: 'Servidor', UPS: 'UPS', 
-  CABINET: 'Gabinete', DECODER: 'Decodificador', PC: 'PC de visualización',
-  PANTALLA: 'Pantalla', OTHER: 'Otro',
-};
+/* PARA PINTAR se conocen TODOS los tipos, incluida la estructura: hay
+   solicitudes viejas cargadas como CABINET y, sin su nombre, la tabla las
+   enseñaría con el código en crudo — que parece un error del software. */
+const EQUIPO_ES: Record<string, string> = NOMBRE_DE_TIPO;
 const ESTADO_ES: Record<string, string> = {
   SOLICITADA: 'Solicitada', EN_EVALUACION: 'En evaluación', EVALUADA: 'Evaluada',
   APROBADA: 'Aprobada', RECHAZADA: 'Rechazada', EN_EJECUCION: 'En ejecución',
@@ -395,7 +394,11 @@ export default function Instalaciones() {
             <label className="campo">
               <span>¿Qué se instala? <b className="campo-req">*</b></span>
               <select value={nueva.tipoEquipo} onChange={(e) => setNueva({ ...nueva, tipoEquipo: e.target.value })}>
-                {Object.entries(EQUIPO_ES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                {/* SÓLO ACTIVOS — bloque 95. Una instalación se pide para un
+                    EQUIPO que se va a montar. Un gabinete es estructura y se
+                    da de alta en «Gabinetes»: ofrecerlo aquí permitía pedir la
+                    instalación de algo que después no nace como activo. */}
+                {TIPOS_ACTIVO.map((t) => <option key={t.valor} value={t.valor}>{t.nombre}</option>)}
               </select>
             </label>
             <label className="campo">

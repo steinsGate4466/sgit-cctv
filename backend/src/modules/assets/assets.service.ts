@@ -27,6 +27,7 @@ import { SignedUpdateAssetDto } from './dto/update-asset-signed.dto';
 import { UpdateAssetStatusDto } from './dto/update-asset-status.dto';
 import { UpdateNetworkDto } from './dto/update-network.dto';
 import { QueryAssetDto } from './dto/query-asset.dto';
+import { motivoParaNoCrearComoActivo } from '../../common/tipos-de-equipo';
 
 @Injectable()
 export class AssetsService {
@@ -68,6 +69,19 @@ export class AssetsService {
    * porque contiene información sensible (IP, red, accesos).
    */
   async createSigned(dto: SignedCreateAssetDto, ip?: string | null) {
+    /* UN GABINETE NO ES UN ACTIVO — bloque 95.
+       -----------------------------------------------------------------------
+       Se comprueba EN EL SERVIDOR y no sólo en el desplegable, por la misma
+       razón del bloque 16 con `requisitos-sitio`: si sólo lo supiera el
+       formulario, cualquier petición hecha a mano —o una pantalla vieja
+       cacheada en un teléfono— seguiría creando gabinetes como activos, y el
+       día que aparecieran nadie sabría por dónde entraron.
+
+       El mensaje dice A DÓNDE ir. Un «no se puede» a secas parece una función
+       rota, y quien lo lee concluye que el software no deja dar de alta. */
+    const noVale = motivoParaNoCrearComoActivo(dto.type as string);
+    if (noVale) throw new BadRequestException(noVale);
+
     const signer = await this.prisma.user.findUnique({ where: { email: dto.email } });
     const valid = signer && signer.active
       ? await argon2.verify(signer.passwordHash, dto.password).catch(() => false)

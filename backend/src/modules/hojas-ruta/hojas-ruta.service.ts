@@ -5,6 +5,10 @@ import {
   MAX_CARACTERES_DESCRIPCION,
   PASOS_POR_DEFECTO,
 } from './hojas-de-arranque';
+import {
+  FilaHojaRuta, hojaDeListas, hojaFormatoSap, validaciones,
+} from './formato-sap';
+import { NOMBRE_DE_TIPO } from '../../common/tipos-de-equipo';
 
 /* exceljs entra con `require`, NO con `import * as`: con `esModuleInterop`
    eso devuelve un espacio de nombres y no una clase, así que `new` compila y
@@ -263,66 +267,55 @@ export class HojasRutaService {
     wb.creator = 'SGIT-CCTV · Aceros Arequipa Pisco';
     wb.created = new Date();
 
-    const CABECERAS = [
-      'Ubicación en SAP', 'Equipo', 'Descripción Principal de la H.R.', 'G.P.',
-      'Frecuencia', 'Ope.', 'SubOpe.', 'Puesto Trabajo', 'Cent.', 'Clave Cont.',
-      'Descripción de Operación', 'Total Trabajo', 'U.N. Trab.', 'N° Perso.',
-      'Dura.', 'U.N. Dura.', 'Calculo Clave', 'Cant. Caract.',
-    ];
+    /* LA HOJA DE LISTAS VA PRIMERO, y no es un capricho de orden: las
+       validaciones de las pestañas apuntan a `Hoja1`, y si no existe todavía
+       cuando se escriben, Excel abre el archivo con los desplegables rotos. */
+    hojaDeListas(wb);
 
     for (const h of hojas as any[]) {
-      /* Un nombre de pestaña de Excel no admite más de 31 caracteres ni los
-         símbolos \ / ? * [ ]. Si se pasa, el archivo se abre corrupto. */
-      const nombre = h.descripcion.replace(/[\\/?*[\]:]/g, '').slice(0, 31);
-      const ws = wb.addWorksheet(nombre, { views: [{ state: 'frozen', ySplit: 1 }] });
-
-      ws.addRow(CABECERAS);
-      const fila1 = ws.getRow(1);
-      fila1.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
-      fila1.height = 28;
-      fila1.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-      fila1.eachCell((c: any) => {
-        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF16233B' } };
+      /* Las ubicaciones SAP de los equipos que USAN esta hoja, una por fila,
+         igual que en el archivo del ingeniero. No es lo mismo que el número de
+         pasos: si hay más equipos que pasos, la columna sigue bajando sola. */
+      const equipos = await this.prisma.asset.findMany({
+        where: { type: h.tipoEquipo, deletedAt: null, sapId: { not: null } },
+        select: { sapId: true, assetCode: true },
+        orderBy: { assetCode: 'asc' },
       });
 
-      for (const op of h.operaciones) {
-        const esPrincipal = op.subOperacion == null;
-        ws.addRow([
-          esPrincipal ? h.ubicacionSap : '',
-          '',
-          esPrincipal ? h.descripcion : '',
-          esPrincipal ? h.grupoPlanif : '',
-          esPrincipal ? h.frecuencia : '',
-          op.operacion,
-          op.subOperacion ?? '',
-          op.puestoTrabajo ?? h.puestoTrabajo ?? '',
-          op.centro ?? h.centro ?? '',
-          op.claveControl,
-          op.descripcion,
-          esPrincipal ? h.trabajoTotalH ?? '' : 0,
-          'H',
-          esPrincipal ? h.numPersonas ?? '' : '',
-          esPrincipal ? h.duracionH ?? '' : '',
-          'H',
-          2,
-          op.descripcion.length,
-        ]);
+      const ops = h.operaciones as any[];
+      const total = Math.max(ops.length, equipos.length);
+      const filas: FilaHojaRuta[] = [];
+
+      for (let i = 0; i < total; i++) {
+        const op = ops[i];
+        const eq = equipos[i];
+        const principal = op && op.subOperacion == null;
+        filas.push({
+          /* Si no hay ningún equipo con código SAP cargado, se pone el de la
+             cabecera de la hoja para que el archivo no salga con la columna
+             vacía — pero SÓLO en la primera fila. Rellenar las catorce con el
+             mismo código diría que las catorce ubicaciones son la misma. */
+          ubicacionSap: eq?.sapId ?? (i === 0 ? h.ubicacionSap : null),
+          equipo: eq?.assetCode ?? null,
+          descripcionHR: principal ? h.descripcion : null,
+          grupoPlanif: principal ? h.grupoPlanif : null,
+          frecuencia: principal ? h.frecuencia : null,
+          operacion: op ? op.operacion : (null as any),
+          subOperacion: op ? op.subOperacion : null,
+          puestoTrabajo: op ? (op.puestoTrabajo ?? h.puestoTrabajo) : null,
+          centro: op ? (op.centro ?? h.centro) : null,
+          claveControl: op ? op.claveControl : '',
+          descripcion: op ? op.descripcion : '',
+          numPersonas: principal ? h.numPersonas : null,
+          duracionH: principal ? h.duracionH : null,
+          materiales: op
+            ? (op.materiales ?? []).map((m: any) => ({ descripcion: m.descripcion, cantidad: m.cantidad }))
+            : [],
+        });
       }
 
-      ws.columns.forEach((c: any, i: number) => {
-        c.width = i === 10 ? 44 : i === 2 ? 38 : 13;
-      });
-
-      /* La columna del contador se pinta en rojo si alguna se pasa de 40. El
-         sistema no deja guardarlas así, pero un archivo viejo abierto a mano
-         sí puede tenerlas, y entonces se ve de un vistazo cuál es. */
-      ws.eachRow((row: any, n: number) => {
-        if (n === 1) return;
-        const celda = row.getCell(18);
-        if (Number(celda.value) > MAX_CARACTERES_DESCRIPCION) {
-          celda.font = { bold: true, color: { argb: 'FFC0121F' } };
-        }
-      });
+      const ws = hojaFormatoSap(wb, `FORMATO ${NOMBRE_DE_TIPO[h.tipoEquipo] ?? h.tipoEquipo}`.toUpperCase(), filas);
+      validaciones(ws);
     }
 
     const buffer: Buffer = await wb.xlsx.writeBuffer();

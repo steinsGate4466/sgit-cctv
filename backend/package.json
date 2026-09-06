@@ -21,7 +21,7 @@
     "verificar:node": "node scripts/verificar-node.js",
     "verificar:arranque": "node scripts/verificar-arranque.js",
     "verificar:despliegue": "node scripts/verificar-despliegue.js",
-    "verificar": "npm run verificar:inyeccion && npm run verificar:filtros && npm run verificar:campos && npm run verificar:migraciones && npm run verificar:constructores && npm run verificar:roles && npm run verificar:coherencia && npm run verificar:sql-roles && npm run verificar:cable && npm run verificar:node && npm run verificar:despliegue && npm run verificar:dto",
+    "verificar": "npm run verificar:inyeccion && npm run verificar:filtros && npm run verificar:campos && npm run verificar:migraciones && npm run verificar:constructores && npm run verificar:roles && npm run verificar:coherencia && npm run verificar:sql-roles && npm run verificar:cable && npm run verificar:estructura && npm run verificar:node && npm run verificar:despliegue && npm run verificar:dto",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main.js",
@@ -39,7 +39,8 @@
     "prueba:calor": "node scripts/prueba-de-calor.js",
     "verificar:bd": "node scripts/diagnostico-bd.js",
     "verificar:campos": "node scripts/verificar-campos-prisma.js",
-    "verificar:dto": "node scripts/verificar-dto.js"
+    "verificar:dto": "node scripts/verificar-dto.js",
+    "verificar:estructura": "node scripts/verificar-estructura-no-es-activo.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.2.1",

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { TIPOS_ACTIVO, TIPOS_ESTRUCTURA, NOMBRE_DE_TIPO } from '../tipos-de-equipo';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { EsqueletoTabla } from '../components/Esqueleto';
@@ -44,14 +45,15 @@ import { fechaTabla } from '../fechas';
  *  esperar al servidor para pintar el contador. */
 const MAX = 40;
 
-const TIPOS: [string, string][] = [
-  ['CAMERA', 'Cámara'], ['WIRELESS', 'Antena / enlace'], ['SWITCH', 'Switch PoE'],
-  ['NVR', 'Grabador (NVR)'], ['CABINET', 'Gabinete'], ['PC', 'PC / iVMS'],
-  ['UPS', 'UPS'], ['PANTALLA', 'Pantalla de púlpito'],
-  ['TABLERO_ELECTRICO', 'Tablero eléctrico'], ['ROUTER', 'Router'],
-  ['SERVER', 'Servidor'], ['DECODER', 'Decodificador'], ['OTHER', 'Otro'],
-];
-const nombreTipo = (v: string) => TIPOS.find((t) => t[0] === v)?.[1] || v;
+/* DOS FAMILIAS, EN GRUPOS SEPARADOS — bloque 95.
+   Un gabinete NO es un activo: es dónde vive el activo, y por eso ya no se
+   puede crear desde Activos. Pero SÍ lleva hoja de ruta, y no es cosa mía: el
+   Excel del ingeniero trae una hoja «FORMATO GABINETE» con quince pasos
+   —ordenamiento, rotulado, mapeo de dependencias, limpieza—.
+
+   Así que aquí salen las dos, pero en `<optgroup>` distintos. Mezclarlas en
+   una lista plana es lo que hacía pensar que un gabinete es un equipo más. */
+const nombreTipo = (v: string) => NOMBRE_DE_TIPO[v] || v;
 
 interface Paso {
   operacion: number;
@@ -328,7 +330,12 @@ export default function HojasDeRuta() {
                 disabled={!!edita.id || !can('wo.approve')}
                 onChange={(e) => setEdita({ ...edita, tipoEquipo: e.target.value })}
               >
-                {TIPOS.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+                <optgroup label="ACTIVOS — se averían y se reemplazan">
+                  {TIPOS_ACTIVO.map((t) => <option key={t.valor} value={t.valor}>{t.nombre}</option>)}
+                </optgroup>
+                <optgroup label="ESTRUCTURA — dónde vive el activo">
+                  {TIPOS_ESTRUCTURA.map((t) => <option key={t.valor} value={t.valor}>{t.nombre}</option>)}
+                </optgroup>
               </select>
               {/* No se puede cambiar después: la hoja está atada a su tipo por
                   un índice único, y moverla dejaría a los equipos del tipo

@@ -52,9 +52,18 @@ const RAIZ = path.join(__dirname, '..', '..');
    falso positivo. Lo que se prohíbe es OFRECERLO al dar de alta. */
 const DONDE_SE_CREA = [
   {
-    archivo: 'frontend/src/pages/Assets.tsx',
-    que: 'la lista de tipos del formulario de alta',
-    patron: /const TYPES\s*=\s*\[([^\]]*)\]/,
+    /* BLOQUE 95: la lista de tipos dejó de estar escrita a mano en Assets.tsx
+       y pasó a `tipos-de-equipo.ts`, que además los reparte en ACTIVO y
+       ESTRUCTURA. Este verificador lo detectó solo —dijo «no encuentro lo que
+       vigilo» en vez de dar verde—, que es justo para lo que se escribió así. */
+    archivo: 'frontend/src/tipos-de-equipo.ts',
+    que: 'la lista maestra de tipos de equipo (frontend)',
+    patron: /TIPOS_DE_EQUIPO:\s*TipoDeEquipo\[\]\s*=\s*\[([\s\S]*?)\n\];/,
+  },
+  {
+    archivo: 'backend/src/common/tipos-de-equipo.ts',
+    que: 'la lista maestra de tipos de equipo (backend)',
+    patron: /TIPOS_DE_EQUIPO:\s*TipoDeEquipo\[\]\s*=\s*\[([\s\S]*?)\n\];/,
   },
   {
     archivo: 'backend/src/modules/instalacion/dto/instalacion.dto.ts',

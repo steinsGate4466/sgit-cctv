@@ -96,30 +96,62 @@ const CAMPOS = [
  */
 const NOMBRES = [...new Set(CAMPOS.map((c) => c[1]))];
 
-/** Nombres que el parche escribe ÚNICAMENTE en `class.ts`. */
-const NOMBRES_CLASS = ['parametrosCriticidad', 'failureEvent', 'metaMantenimiento'];
+/**
+ * LA MARCA — bloque 95. Aquí está el arreglo de fondo.
+ * ---------------------------------------------------------------------------
+ * ESTO YA ROMPIÓ EL CLIENTE DOS VECES, y las dos por lo mismo: `deshacer()`
+ * borraba toda línea que CONTUVIERA uno de los nombres, y Prisma escribe esos
+ * mismos nombres en código legítimo suyo.
+ *
+ *   Bloque 82 · `parametrosCriticidad` es un MODELO, y `User.ts` tenía su
+ *               propio bloque `User$parametrosCriticidadArgs`. El deshacer se
+ *               lo llevó por delante.
+ *   Bloque 94 · yo añadí `createdBy`, que es una RELACIÓN. Prisma genera en
+ *               `WorkOrder.ts`:
+ *
+ *                   export type WorkOrder$createdByArgs<…> = {
+ *                     select?: Prisma.UserSelect<ExtArgs> | null
+ *                     …
+ *                   }
+ *
+ *               El deshacer borró la línea de apertura —contiene `createdBy`—
+ *               y dejó el cuerpo huérfano: cinco errores de sintaxis que NO
+ *               mencionan `createdBy` por ningún lado.
+ *
+ * Escribí la regla en el 82 —«sólo es seguro si los nombres que introduce NO
+ * EXISTÍAN ANTES»— y la rompí yo mismo en el 94. Una regla que hay que
+ * acordarse de cumplir es un agujero con fecha.
+ *
+ * **Así que ya no se deshace por NOMBRE: se deshace por MARCA.** Cada línea
+ * que este parche inserta lleva un comentario al final, y `deshacer()` borra
+ * ÚNICAMENTE las líneas que lo llevan. Ahora sí es reversible por
+ * construcción, diga lo que diga el nombre del campo.
+ */
+const MARCA = '// @parche-b76';
 
 function deshacer() {
   let tocados = 0;
+  let sinMarca = 0;
   const archivos = [
     ...new Set(CAMPOS.map((c) => path.join(GEN, 'models', c[0]))),
     path.join(GEN, 'internal', 'class.ts'),
   ];
-  const cls = path.join(GEN, 'internal', 'class.ts');
   for (const f of archivos) {
     if (!fs.existsSync(f)) continue;
-    /* En `class.ts` se borran también los accesores de MODELO; en los archivos
-       de modelo, NO — ahí esos nombres son de Prisma y borrarlos rompe el
-       archivo. Ver la nota larga de arriba. */
-    const aBorrar = f === cls ? [...NOMBRES, ...NOMBRES_CLASS] : NOMBRES;
     const antes = fs.readFileSync(f, 'utf8');
+    if (!antes.includes(MARCA)) { sinMarca++; continue; }
     const despues = antes
       .split('\n')
-      .filter((l) => !aBorrar.some((n) => l.includes(n)))
+      .filter((l) => !l.includes(MARCA))
       .join('\n');
     if (antes !== despues) { fs.writeFileSync(f, despues); tocados++; }
   }
   console.log(`Parche deshecho en ${tocados} archivo(s).`);
+  if (sinMarca) {
+    console.log(`  ${sinMarca} archivo(s) sin marcas del parche: NO se tocan.`);
+    console.log('  (Un cliente recién generado no lleva marcas. Deshacer sobre él');
+    console.log('   no debe borrar nada — eso fue lo que rompió el cliente antes.)');
+  }
 }
 
 function aplicar() {
@@ -130,7 +162,14 @@ function aplicar() {
       continue;
     }
     const original = fs.readFileSync(f, 'utf8');
-    if (original.includes(nuevo)) {
+    /* «YA ESTÁ» se decide por la MARCA, no por el nombre — la otra mitad del
+       fallo del bloque 94. Prisma genera `WorkOrder$createdByArgs` en este
+       mismo archivo, así que `original.includes('createdBy')` daba SIEMPRE
+       cierto y el parche se saltaba las líneas que sí tenía que añadir. El
+       typecheck fallaba con «'createdBy' does not exist in WorkOrderInclude»,
+       que no menciona el parche por ningún lado. */
+    const yaPuesto = original.split('\n').some((l) => l.includes(MARCA) && l.includes(nuevo));
+    if (yaPuesto) {
       console.log(`  [YA ESTÁ] ${archivo} · ${nuevo}`);
       continue;
     }
@@ -155,7 +194,8 @@ function aplicar() {
       if (re.test(l)) {
         let copia = l.split(copiaDe).join(nuevo);
         for (const [de, a] of subs) copia = copia.split(de).join(a);
-        salida.push(copia);
+        /* La marca es lo que hace el parche reversible por construcción. */
+        salida.push(`${copia}  ${MARCA}`);
         copiadas++;
       }
     }
@@ -170,7 +210,7 @@ function aplicar() {
      tampoco vale. */
   const cls = path.join(GEN, 'internal', 'class.ts');
   const src = fs.readFileSync(cls, 'utf8');
-  if (src.includes('parametrosCriticidad')) {
+  if (src.includes(MARCA)) {
     console.log('  [YA ESTÁ] class.ts · parametrosCriticidad');
   } else {
     const ancla = '  get hojaDeRuta(): Prisma.HojaDeRutaDelegate<ExtArgs, { omit: OmitOpts }>;';
@@ -180,10 +220,13 @@ function aplicar() {
     }
     fs.writeFileSync(cls, src.replace(
       ancla,
-      `${ancla}\n\n  /** Bloques 76, 78 y 94 — parche del agente, se pisa al regenerar. */`
-      + `\n  get parametrosCriticidad(): any;`
-      + `\n  get failureEvent(): any;`
-      + `\n  get metaMantenimiento(): any;`,
+      /* NI UNA LÍNEA EN BLANCO SIN MARCA: al deshacer se quedaba puesta y el
+         archivo ya no volvía EXACTO al original. Se ve con un `diff`, y por
+         eso la prueba compara byte a byte en vez de «parece igual». */
+      `${ancla}`
+      + `\n  get parametrosCriticidad(): any;  ${MARCA}`
+      + `\n  get failureEvent(): any;  ${MARCA}`
+      + `\n  get metaMantenimiento(): any;  ${MARCA}`,
     ));
     console.log('  [OK] class.ts · parametrosCriticidad · failureEvent · metaMantenimiento');
   }

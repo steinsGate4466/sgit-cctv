@@ -3765,3 +3765,212 @@ Y el patrón reconoce **las dos formas**, la de Chromium y la de WebKit. Uno que
 sólo conociera la de Chromium habría metido el 429 en el montón de «fallo de la
 pantalla» y mandado a buscar un bug que no existe — **novena vez** que un patrón
 más flojo de lo necesario acaba leyendo otra cosa.
+
+---
+
+## 39. Bloque 95 — un gabinete NO es un activo, y el Excel del ingeniero tal cual
+
+### 95-A · La estructura salía en el desplegable de activos
+
+Palabras del usuario: *«en el deslizable de los activos o para llenar hojas de
+ruta salen gabinetes y esas cosas, no son activos, son estructura»*. Y tenía
+razón contra el código, con una consecuencia que no se veía:
+
+> **`Cabinet` y `TableroElectrico` son MODELOS PROPIOS**, con su pantalla
+> («Gabinetes», «Electricidad»). Tenerlos ADEMÁS como tipo de activo permitía
+> crear el mismo gabinete por dos caminos. **Dos verdades, y la segunda se
+> queda vieja.**
+
+Es el error del bloque 74 con la fibra, con otra cara. Y por eso el arreglo
+tiene exactamente la misma forma.
+
+### PERO LA ESTRUCTURA SÍ LLEVA HOJA DE RUTA
+
+Esto no es una excepción mía: **el Excel que entregó el ingeniero trae una hoja
+`FORMATO GABINETE`** con quince pasos —ordenamiento, rotulado, mapeo de
+dependencias, limpieza—.
+
+Así que la solución no es prohibir, es SEPARAR — que es literalmente lo que
+pidió: *«activos con activos, estructura con gabinetes»*:
+
+| Dónde | Qué se ofrece |
+|---|---|
+| Alta de un ACTIVO | sólo familia ACTIVO |
+| Pedir una INSTALACIÓN | sólo familia ACTIVO |
+| HOJAS DE RUTA | las dos, en `<optgroup>` SEPARADOS |
+| El FILTRO de Activos | **todos**, incluida la estructura |
+
+El filtro es la excepción y tiene motivo: si hay registros viejos cargados como
+CABINET **tiene que poder buscarlos**. Un filtro que no ofrece un valor que
+existe en la tabla deja registros invisibles, y un registro invisible no se
+puede corregir.
+
+**Una lista de prohibidos habría dejado al gabinete sin rutina.** Por eso
+`tipos-de-equipo.ts` no dice «prohibido»: dice de qué FAMILIA es cada tipo.
+
+### El valor del enum NO se borra, y el nombre tampoco
+
+Un enum de PostgreSQL sólo admite AÑADIR. Y `NOMBRE_DE_TIPO` sigue conociendo
+la estructura: quitarla dejaría las tablas enseñando `CABINET` en crudo, que
+para quien mira es un error del software.
+
+### Se comprueba EN EL SERVIDOR, no sólo en el desplegable
+
+`motivoParaNoCrearComoActivo()` corre en `createSigned`. Si viviera sólo en el
+formulario, una petición hecha a mano —o una pantalla vieja cacheada en un
+teléfono— seguiría creando gabinetes como activos y nadie sabría por dónde
+entraron. Es la lección del bloque 16 con `requisitos-sitio`: **la fuente de
+verdad la usan LOS DOS lados.**
+
+Y el mensaje dice **a dónde ir**. Un «no se puede» a secas parece una función
+rota, y quien lo lee concluye que el software no deja dar de alta.
+
+### Verificador 14 del backend, y el del cable que se cazó solo
+
+`verificar:estructura` vigila tres cosas: que las dos listas maestras marquen
+la estructura como tal, que los desplegables de alta se DERIVEN de
+`TIPOS_ACTIVO` en vez de estar escritos a mano, y que el servicio siga llamando
+a la guarda. Probado reintroduciendo el fallo: sale código 1 con archivo y
+línea.
+
+**Y `verificar:cable` me cazó a mí, que es para lo que se escribió así.** Su
+primer objetivo era `const TYPES = [...]` en `Assets.tsx`, y esa lista se movió
+a `tipos-de-equipo.ts`. En vez de dar verde dijo *«no encuentro lo que vigilo,
+actualiza este verificador»* — exactamente lo que el bloque 74 dejó escrito:
+*un verificador que no encuentra lo que vigila es un verificador apagado.*
+Reapuntado a la lista maestra, vuelve a verde.
+
+---
+
+### 95-B · El Excel de hojas de ruta, con el formato EXACTO
+
+Hasta aquí el sistema exportaba **una tabla con las mismas columnas**, y eso no
+es el mismo archivo. Empezaba en la fila 1, sin la columna A de margen, sin las
+cabeceras de grupo combinadas, sin las columnas de materiales y —lo que de
+verdad importa— **SIN LAS FÓRMULAS**. Se podía leer; no se podía usar.
+
+    Fila 1   B1:C1 INICIO · D1:F1 CABECERA · G1:R1 OPERACIÓN Y SUBOPERACION
+             T1:V1 CANT. CARACTERES · X1:AU1 (franja amarilla de materiales)
+    Fila 2   las 19 cabeceras, con su texto literal y sus saltos de línea
+    Fila 3+  los datos · 12 pares MATERIAL/CANT. · anchos al centésimo
+
+**Las cuatro fórmulas van VIVAS**, no calculadas:
+
+    M{f} = P{f}*O{f}                    total = duración × personas
+    T{f} = LEN(D{f})                    caracteres de la descripción de la H.R.
+    U{f} = IF(E="M04","MECANICO", …)    el oficio, deducido del grupo planificador
+    V{f} = LEN(L{f})                    caracteres de la descripción de operación
+
+> **Es la diferencia entre entregar un archivo y una foto de un archivo.** Con
+> los números ya calculados, el ingeniero tendría que volver a escribir las
+> fórmulas — y entonces no le sirve de plantilla.
+
+**La hoja `Hoja1` se reproduce** con los puestos de trabajo, grupos
+planificadores, centros y claves de control, y las validaciones apuntan a ella.
+Sin esa hoja el archivo se abre con los desplegables rotos, y entonces los
+códigos se escriben a mano — que es como entra un puesto mal puesto.
+
+**La columna B lista las ubicaciones SAP de los equipos que USAN esa hoja**, una
+por fila, como en su archivo. No es lo mismo que el número de pasos: si hay más
+equipos que pasos, la columna sigue bajando sola.
+
+#### Un fallo del original que NO se copia
+
+En su archivo **`V9` dice `=LEN(L10)`** — apunta a la fila siguiente. Es un
+arrastre mal hecho: esa fila cuenta los caracteres de la de abajo. Se genera
+`=LEN(L9)`. **Copiar un fallo por fidelidad es entregar una hoja que miente en
+una fila**, y el límite de 40 es justo lo que no se puede tener mal.
+
+#### Probado ABRIENDO el archivo, no leyendo el código
+
+Doce pruebas que **arman el libro, lo escriben a un búfer y lo vuelven a
+abrir**. Es la lección del bloque 84 con el Excel de indicadores: un `addRow`
+con la clave equivocada escribe celdas vacías y pasa el typecheck tan contento.
+
+### 95-C · El parche del cliente de Prisma rompió el cliente. Otra vez.
+
+El usuario corrió `npm run typecheck` y salieron **cinco errores de sintaxis
+dentro de un archivo GENERADO**:
+
+    src/generated/prisma/models/WorkOrder.ts:10471 - error TS1109: Expression expected
+    10471   select?: Prisma.UserSelect<ExtArgs> | null
+
+**Prisma no genera errores de sintaxis.** Lo que hay ahí es un bloque que
+Prisma sí escribe:
+
+```ts
+export type WorkOrder$createdByArgs<...> = {     ← ESTA LÍNEA SE BORRÓ
+  select?: Prisma.UserSelect<ExtArgs> | null
+  omit?: Prisma.UserOmit<ExtArgs> | null
+  include?: Prisma.UserInclude<ExtArgs> | null
+  where?: Prisma.UserWhereInput
+}
+```
+
+`deshacer()` borraba **toda línea que contuviera** uno de los nombres del
+parche. En el bloque 94 yo añadí `createdBy`, que es una RELACIÓN, y Prisma la
+usa en el nombre de ese tipo. El deshacer se llevó la línea de apertura y dejó
+el cuerpo huérfano.
+
+#### Lo que de verdad duele: la regla ya estaba escrita, y la escribí yo
+
+Bloque 82, palabra por palabra:
+
+> **Un parche reversible por construcción sólo es seguro si los nombres que
+> introduce NO EXISTÍAN ANTES en los archivos que toca.**
+
+La escribí después de que `parametrosCriticidad` rompiera `User.ts`… y doce
+bloques después la rompí yo mismo. **Una regla que hay que acordarse de
+cumplir es un agujero con fecha.**
+
+#### El arreglo no es acordarse mejor: es cambiar el mecanismo
+
+Ya no se deshace por NOMBRE. **Se deshace por MARCA.** Cada línea que el parche
+inserta lleva `// @parche-b76` al final, y `deshacer()` borra únicamente las
+líneas que la llevan. Ahora es reversible por construcción **diga lo que diga
+el nombre del campo**, que es lo que la regla anterior no garantizaba.
+
+Y un archivo SIN marcas no se toca, con su aviso en pantalla: un cliente recién
+generado no lleva ninguna, y deshacer sobre él no debe borrar nada — que es
+exactamente lo que lo rompió las dos veces.
+
+**Probado en los dos sentidos, y byte a byte con `diff -r`:**
+
+1. `--deshacer` sobre un cliente limpio → no toca ni un archivo.
+2. aplicar y deshacer → vuelve **EXACTO** al original.
+
+La segunda prueba cazó un resto que «parecía igual»: una línea en blanco sin
+marca que se quedaba puesta. Comparar con `diff` en vez de mirar el archivo es
+lo que la encontró.
+
+#### La otra mitad del mismo fallo: `aplicar()` también miraba el nombre
+
+`aplicar()` decidía «esto ya está puesto» con `original.includes(nuevo)`. Con
+`createdBy` eso daba **siempre cierto** —Prisma genera `WorkOrder$createdByArgs`
+en ese mismo archivo—, así que el parche se saltaba las líneas que sí tenía que
+añadir y el typecheck fallaba con:
+
+    'createdBy' does not exist in type 'WorkOrderInclude'
+
+...que no menciona el parche por ningún lado. Ahora «ya está» se decide también
+por la MARCA: una línea que la lleve Y contenga el nombre.
+
+**Las dos mitades tenían la misma causa** —usar el nombre como si fuera
+exclusivo del parche— y por eso las dos se arreglan igual.
+
+#### Y una trampa del entorno que costó media hora
+
+Los procesos en segundo plano **no sobreviven entre llamadas** a la terminal del
+agente: cada llamada abre su propio espacio. Lanzar la tanda de pruebas con
+`nohup … &` y volver a mirar el registro después no funciona — el proceso muere
+al terminar la llamada, y el archivo de registro se queda a medias dando la
+impresión de que «sigue corriendo». La tanda se parte: `jest test/` y
+`jest src/` por separado, que caben de sobra en el tiempo de una llamada.
+
+#### La cura en la máquina del usuario
+
+`src/generated/` está en el `.gitignore`: es salida generada, no código. Se
+tira y se rehace, y no necesita base de datos.
+
+    Remove-Item -Recurse -Force src\generated
+    npx.cmd prisma generate
