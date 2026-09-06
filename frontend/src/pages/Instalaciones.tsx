@@ -269,18 +269,9 @@ export default function Instalaciones() {
 
   return (
     <div className="page">
-      <div className="card explica">
-        <b>Aquí se pide y se controla equipo NUEVO.</b> No es mantenimiento: mantenimiento
-        arregla lo que existe, esto pone lo que no existe todavía.
-        <div style={{ marginTop: 8 }}>
-          <b>El formulario cambia según el sitio.</b> Un púlpito pregunta por el falso techo
-          y quién autoriza entrar; una grúa pregunta si se puede detener y si hace falta
-          manlift. No son los mismos campos porque no es el mismo trabajo.
-        </div>
-        <div style={{ marginTop: 8 }}>
-          <b>Termina creando el activo.</b> Cuando se marca como instalada, el equipo
-          entra al inventario con su ubicación y su ficha.
-        </div>
+      <div className="card explica"
+        title="El formulario cambia según el sitio: un púlpito pregunta por el falso techo, una grúa por si se puede detener. Al marcarla como instalada, el equipo entra al inventario con su ficha.">
+        Equipo <b>NUEVO</b>: se pide, se mide en sitio y al instalarlo nace el activo.
       </div>
 
       {msg && <div role="status" className="aviso-ok aviso-cerrable" onClick={() => setMsg('')} title="Toca para cerrar este aviso">{msg}</div>}
@@ -320,7 +311,7 @@ export default function Instalaciones() {
         <div className="card vacio">
           <h3>No hay instalaciones registradas</h3>
           <p>
-            Solicitudes de cámaras, antenas o pantallas. Se mide en sitio y el Jefe decide con datos.
+            Solicitudes de equipo nuevo. Se mide en sitio y el Jefe decide.
           </p>
         </div>
       ) : (
@@ -373,10 +364,7 @@ export default function Instalaciones() {
           </>}>
           {error && <div role="alert" className="aviso-error">{error}</div>}
           <div className="card explica" style={{ marginTop: 0 }}>
-            Aquí sólo se dice <b>qué</b> y <b>para qué</b>. Los metros de cable, la altura
-            y si hace falta manlift <b>no te los pedimos</b>: eso se mide yendo al sitio.
-            Pedírtelo ahora sólo conseguiría un número inventado que después alguien
-            tomaría por bueno.
+            Sólo <b>qué</b> y <b>para qué</b>. Metros, altura y manlift se miden en la visita.
           </div>
           {perfilDe(nueva.tipoSitio)?.avisos?.length > 0 && (
             <div className="card peligro">
@@ -555,8 +543,7 @@ export default function Instalaciones() {
           </>}>
           {error && <div role="alert" className="aviso-error">{error}</div>}
           <div className="card explica" style={{ marginTop: 0 }}>
-            <b>Se puede guardar a medias.</b> Estás en el sitio, con guantes. Apunta lo
-            que lleves y sigue después: sólo al pulsar <b>Visita terminada</b> se exige
+            <b>Se puede guardar a medias.</b> Apunta lo que lleves y sigue después: sólo al pulsar <b>Visita terminada</b> se exige
             lo imprescindible.
           </div>
           {evaluando.falta?.length > 0 && (
@@ -596,8 +583,7 @@ export default function Instalaciones() {
             Este es el paso que mete el equipo <b>en el inventario</b>. Sin él, la cámara
             queda instalado fuera del sistema.
             <div style={{ marginTop: 6 }}>
-              La ficha nace <b>incompleta</b> a propósito, con lo que se sabe hoy. Se
-              termina de llenar desde Activos.
+              La ficha nace <b>incompleta</b> a propósito. Se termina de llenar desde Activos.
             </div>
           </div>
           <div className="form-grid">

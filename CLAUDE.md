@@ -4066,3 +4066,152 @@ con parámetro sin declarar ámbito. Lleva `@SinAmbito()` con su motivo escrito
 —un rol no pertenece a ningún tren—. **El decorador que hay que acordarse de
 poner es un agujero con fecha**, y por eso el olvido es un fallo de la entrega
 desde el bloque 12.3.
+
+---
+
+## 41. Bloques 97 y 98 — la incidencia sigue a su orden, el texto a dieta y el SLA
+
+### 97-A · El texto de pantalla, a dieta
+
+El tope del proyecto son **130 palabras** por pantalla y había **16 pantallas
+entre 177 y 419**, todas con exención heredada.
+
+> Un tope que la mitad de las pantallas se salta no es un tope: es una lista de
+> excepciones.
+
+Criterio único en las seis peores: **una línea de qué es la pantalla; el porqué
+se va al `title`** — sigue estando para quien lo necesite y deja de competir
+con el dato. Los atributos no cuentan en la densidad, así que la explicación es
+gratis.
+
+| | antes | ahora |
+|---|---|---|
+| Equipos | 419 | 305 |
+| Limpieza | 397 | 350 |
+| Electricidad | 395 | 304 |
+| Instalaciones | 304 | 227 |
+| Ipam | 278 | 187 |
+| Campañas | 257 | 180 |
+
+**2 050 → 1 537 palabras (−25 %)**, y las líneas base bajan con el recorte para
+que no pueda volver a crecer. Dashboard sale de la lista de excepciones: ya
+cumple el tope general.
+
+Quedan diez pantallas para la siguiente pasada. Se dice, no se esconde.
+
+### 97-B · La incidencia sigue a su orden
+
+**Lo vio el usuario en pantalla:** convertía una incidencia en OM y la
+incidencia seguía «Abierta» mientras el activo ya decía «En mantenimiento».
+Dos pantallas contando cosas distintas del mismo hecho.
+
+Medido: `desdeIncidencia()` creaba la orden con `incidentId` y **no tocaba la
+incidencia**. Al cerrar la orden, tampoco.
+
+#### Por qué NO se funden en una sola cosa
+
+    La INCIDENCIA responde:  ¿qué se rompió?
+    La ORDEN responde:       ¿qué hicimos?
+
+La prueba de que no son lo mismo: **una cámara que se cae y nadie atiende no
+genera ninguna orden**. Si sólo hubiera órdenes, esa falla no existiría — se
+contaría cuánto se trabaja, no cuánto se rompe la planta.
+
+    1 incidencia  →  0, 1 o VARIAS órdenes
+    1 orden       →  0 o 1 incidencia
+
+· Orden SIN incidencia → preventivo, mejora, mapeo.
+· Incidencia SIN orden → falsa alarma, o se resolvió en el momento.
+· Las dos juntas → el correctivo, y ahí el enlace NO es opcional: sin él no hay
+  MTTR, ni causa por equipo, ni reparto correctivo/preventivo.
+
+#### La dirección: la orden EMPUJA, la incidencia REFLEJA
+
+Nunca al revés. **Cerrar la incidencia a mano no cierra la orden**: la orden
+lleva materiales retirados y firma, y darla por terminada desde otra pantalla
+dejaría material descuadrado sin que nadie lo decidiera.
+
+    Se reporta          →  ABIERTA
+    Se convierte en OM  →  EN_PROCESO
+    Se cierra la OM     →  RESUELTA
+    El Jefe la revisa   →  CERRADA      (acto aparte y firmado, bloque 65)
+
+#### Cuatro reglas, cada una con su prueba
+
+1. **Con otra orden abierta NO se resuelve.** Una incidencia puede necesitar
+   dos órdenes —se cambia la fuente y luego el cable—. Resolverla al cerrar la
+   primera diría «arreglado» con trabajo en curso y **cortaría el MTTR antes de
+   tiempo**.
+2. **No pisa `EN_ESPERA`.** La puso el técnico y dice por qué está parada;
+   sobrescribirla borra el motivo.
+3. **No reabre una resuelta.** Si de verdad volvió a fallar es una incidencia
+   NUEVA, y el recuento del mes dice dos — que es la verdad.
+4. **`resolvedAt` sólo se escribe si estaba vacía.** Es la mitad del MTTR;
+   pisarla movería una fecha que ya se contó en el informe del mes.
+
+**Y el fallo del reflejo NO se silencia.** Va fuera de la transacción a
+propósito —perder la orden por no poder actualizar un estado sería cambiar lo
+urgente por lo cosmético— pero queda en auditoría con su motivo. Un `catch`
+vacío sobre una escritura es una mentira (bloque 77).
+
+### 98 · Satisfacción del servicio (SLA)
+
+Petición del usuario: *«un tablero con métrica de satisfacción de servicio, y
+que cuando se abra se vean los problemas resueltos»*. Correcto, con dos
+correcciones de método que vienen de norma.
+
+#### Satisfacción NO es una encuesta
+
+Preguntar «¿estás contento?» se contesta según el humor del día, sale con
+muestras de dos personas y no se puede auditar. La satisfacción de un servicio
+**se mide por promesas cumplidas**: es Service Level Management de ITIL y son
+los indicadores organizativos de la EN 15341.
+
+El proveedor es Mantenimiento; **el cliente es PRODUCCIÓN**.
+
+#### Sin promesa no hay incumplimiento
+
+El sistema medía el MTTR pero no lo comparaba contra nada. Un MTTR de 4 h no es
+bueno ni malo: depende de lo prometido. Por eso lo primero es DECLARAR el
+acuerdo, y mientras no esté el tablero dice **«plazos sin fijar»** — no inventa
+un plazo razonable. Misma decisión que la meta del reparto (b94) y los cortes
+de criticidad (b76). **La migración no inserta ninguna fila.**
+
+#### Dos relojes, no uno
+
+    reportedAt → primera atención  =  RESPUESTA    ¿alguien la cogió?
+    reportedAt → resolvedAt        =  RESTITUCIÓN  ¿volvió a verse?
+
+Tienen **dueños distintos**. Una avería que se atiende en diez minutos y tarda
+dos días porque falta el repuesto no es un problema de reacción: es de almacén.
+Con un solo número se confunden y se presiona a quien no puede arreglarlo.
+
+**La primera atención sale de la primera ORDEN**, no de un campo nuevo: un
+campo que alguien tenga que acordarse de marcar no se marca, y el indicador
+queda con huecos y con pinta de estar completo (lección del bloque 78).
+
+#### Lo resuelto va PRIMERO
+
+Es literalmente lo que pidió, y tiene nombre: en ITIL es *value demonstration*.
+
+> Un tablero que sólo enseña deuda se deja de mirar en dos semanas, y entonces
+> no sirve el día que la deuda importa.
+
+Se abre con «X de Y resueltas en plazo» y **debajo** lo accionable: las que
+siguen abiertas, ordenadas por lo que peor está —vencidas primero, luego sin
+atender, luego por antigüedad—. Ordenar por fecha dejaría una crítica de hoy
+debajo de una baja de hace un mes.
+
+#### Dos validaciones que no son burocracia
+
+- **Restituir no puede ser antes que responder.** El servicio no vuelve antes
+  de que alguien lo mire: un acuerdo así no se puede cumplir nunca, y un
+  objetivo imposible se deja de mirar.
+- **Lo más crítico no puede tener el plazo más largo.** Diría que lo crítico
+  corre menos prisa, y el reparto de prioridades dejaría de significar nada.
+
+#### Y `verificar:densidad` me cazó otra vez
+
+El panel nuevo subió Indicadores de 173 a 208 palabras. Tenía razón. Se recortó
+hasta 173 **sin subir la línea base ni una vez** — que es la única forma de que
+el tope siga significando algo.

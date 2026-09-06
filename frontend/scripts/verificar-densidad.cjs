@@ -81,18 +81,22 @@ const EXENTAS = {
    Un número en 0 significa «esta pantalla ya cumple el tope»: se quita de la
    lista y pasa a la regla general.
    ============================================================================= */
+/* BLOQUE 97 · las seis peores bajaron de 2 050 a 1 537 palabras (-25 %).
+   Un tope de 130 que la mitad de las pantallas se salta no es un tope: es una
+   lista de excepciones. Las líneas base bajan con cada recorte para que el
+   texto no pueda volver a crecer. */
 const LINEA_BASE = {
   // pantalla:            [palabras, columnas, indicadores]
-  'Electricidad.tsx':      [395, 6, 0],
-  'Equipos.tsx':           [419, 7, 0],
-  'Limpieza.tsx':          [413, 7, 0],
-  'Instalaciones.tsx':     [304, 7, 0],
-  'Assets.tsx':            [252, 11, 0],
+  'Electricidad.tsx':      [304, 6, 0],
+  'Equipos.tsx':           [305, 7, 0],
+  'Limpieza.tsx':          [350, 7, 0],
+  'Instalaciones.tsx':     [227, 7, 0],
+  'Assets.tsx':            [243, 11, 0],
   'Paradas.tsx':           [246, 10, 0],
-  'Ipam.tsx':              [278, 7, 0],
-  'Maintenance.tsx':       [223, 9, 0],
-  'Campanas.tsx':          [257, 7, 0],
-  'Incidents.tsx':         [180, 8, 0],
+  'Ipam.tsx':              [187, 7, 0],
+  'Maintenance.tsx':      [223, 7, 0],
+  'Campanas.tsx':          [180, 7, 0],
+  'Incidents.tsx':         [177, 8, 0],
   'Topologia.tsx':         [218, 6, 0],
   // Convertida a medias en el bloque 38: el titular y las acciones ya están
   // arriba, pero dentro lleva OCHO vistas con su propio texto. Bajar de aquí
@@ -100,17 +104,16 @@ const LINEA_BASE = {
   'TrainBoard.tsx':        [177, 4, 9],
   'Gruas.tsx':             [216, 8, 0],
   'Locations.tsx':         [196, 8, 0],
-  'Zonas.tsx':             [195, 8, 2],
+  'Zonas.tsx':             [179, 8, 2],
   'Monitoreo.tsx':         [196, 4, 5],
   'Conexiones.tsx':        [185, 6, 0],
-  'Indicadores.tsx':       [174, 6, 0],
+  'Indicadores.tsx':       [173, 6, 0],
   'Grabadores.tsx':        [137, 6, 0],
   'Avisos.tsx':            [152, 4, 5],
   // Recién hecha en el bloque 36 y ya pasa de columnas. Es la prueba de que
   // esto se degrada solo aunque quien escriba tenga la regla en la cabeza.
   'Riesgo.tsx':            [160, 12, 1],
   // Quince indicadores. Es EL tablero, y aun así quince no se leen.
-  'Dashboard.tsx':         [112, 0, 15],
 };
 
 function sinComentarios(txt) {

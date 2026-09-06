@@ -144,16 +144,9 @@ export default function Equipos() {
         />
       ) : (
       <>
-      <div className="card explica">
-        <b>Para qué sirve esta pantalla.</b> Traduce una IP en un sitio de la planta.
-        Sin ella, la auditoría dice <code>10.20.3.14</code>; con ella dice
-        <b> «PC del púlpito del Tren 2»</b>.
-        <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
-          <b>Por qué la MAC se escribe a mano.</b> Porque no se puede detectar: la
-          dirección MAC muere en el primer router. Se declara a mano desde
-          la <b>reserva DHCP</b>, de <code>show mac address-table</code> en el switch,
-          o de <code>ipconfig /all</code> en el propio equipo.
-        </div>
+      <div className="card explica"
+        title="La MAC no se puede detectar desde el servidor: muere en el primer router. Se saca de la reserva DHCP, de `show mac address-table` en el switch o de `ipconfig /all` en el equipo.">
+        Traduce una IP en un sitio de planta. <b>La MAC se declara a mano.</b>
       </div>
 
       {msg && <div role="status" className="aviso-ok aviso-cerrable" onClick={() => setMsg('')} title="Toca para cerrar este aviso">{msg}</div>}
@@ -174,8 +167,7 @@ export default function Equipos() {
             ))}
           </div>
           <div className="muted" style={{ marginTop: 8, fontSize: 12 }}>
-            Pulsa una para registrarla. Mientras no lo estén, la auditoría sólo
-            puede decir el número.
+            Pulsa una para registrarla.
           </div>
         </div>
       )}
@@ -194,8 +186,7 @@ export default function Equipos() {
         <div className="card vacio">
           <h3>Todavía no hay equipos registrados</h3>
           <p>
-            Empieza por los fijos: el PC del púlpito de cada tren, el de la sala
-            de control y el del taller. Son los que más aparecen en la auditoría.
+            Empieza por los fijos: púlpitos, sala de control y taller.
           </p>
         </div>
       ) : (
@@ -317,8 +308,7 @@ export default function Equipos() {
               <span style={{ margin: 0 }}>
                 En servicio
                 <small className="muted" style={{ display: 'block' }}>
-                  Un equipo retirado se deja aquí desmarcado en vez de borrarlo:
-                  así la auditoría vieja se sigue entendiendo.
+                  Un equipo retirado se desmarca, no se borra: la auditoría vieja se sigue entendiendo.
                 </small>
               </span>
             </label>
@@ -352,8 +342,7 @@ function DispositivosPanel({ disp, acceso, msg, error, setMsg, setError, decidir
       <div className="card explica">
         <b>Lo primero, porque si no habría que inventarlo:</b>
         <div style={{ marginTop: 6, lineHeight: 1.6 }}>
-          <b>Por MAC no se puede.</b> La dirección MAC no llega al servidor: muere en
-          el primer router. El filtrado por MAC existe, pero se hace <b>en el switch</b>
+          <b>Por MAC no se puede.</b> La MAC no llega al servidor. El filtrado por MAC se hace <b>en el switch</b>
           {' '}(802.1X o port-security), no en una web.
           <div style={{ marginTop: 6 }}>
             <b>Por IP, sólo a medias.</b> Sirve para la red de planta, que sale por una
@@ -361,8 +350,7 @@ function DispositivosPanel({ disp, acceso, msg, error, setMsg, setError, decidir
             cambia la IP todo el rato.
           </div>
           <div style={{ marginTop: 6 }}>
-            <b>Por APARATO, sí.</b> Cada navegador se presenta con un identificador
-            estable aunque cambie la red. Se aprueban una vez y los demás quedan fuera.
+            <b>Por APARATO, sí.</b> Cada navegador trae un identificador estable. Se aprueba una vez.
           </div>
         </div>
       </div>
@@ -382,8 +370,7 @@ function DispositivosPanel({ disp, acceso, msg, error, setMsg, setError, decidir
           <div style={{ fontSize: 13.5 }}>{MODO_TXT[acceso.modo]}</div>
 
           <div className="card peligro" style={{ marginTop: 12 }}>
-            <b>Empieza SIEMPRE por AVISAR.</b> Déjalo una semana, mira la lista de
-            abajo, aprueba los equipos conocidos y sólo entonces activa ESTRICTO.
+            <b>Empieza SIEMPRE por AVISAR.</b> Déjalo una semana, aprueba los conocidos y sólo entonces activa ESTRICTO.
             <div style={{ marginTop: 6, fontSize: 12.5 }}>
               Seguros que puse: sin ningún aparato aprobado el modo estricto <b>no
               bloquea</b>; el <b>login nunca</b> se bloquea; y la variable de entorno
@@ -414,8 +401,7 @@ function DispositivosPanel({ disp, acceso, msg, error, setMsg, setError, decidir
         <div className="card vacio">
           <h3>Todavía no se ha visto ningún aparato</h3>
           <p>
-            Pon el modo en <b>AVISAR</b> y entra desde los equipos de planta. Cada uno
-            aparecerá aquí y podrás autorizarlo.
+            Pon el modo en <b>AVISAR</b> y entra desde los equipos de planta para autorizarlos.
           </p>
         </div>
       ) : (

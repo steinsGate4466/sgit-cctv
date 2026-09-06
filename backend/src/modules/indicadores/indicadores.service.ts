@@ -14,6 +14,10 @@ import { CriticidadService } from '../criticidad/criticidad.service';
 import {
   META_PROPUESTA, motivoParaNoGuardarMeta, type MetaReparto,
 } from '../../common/meta-mantenimiento';
+import {
+  AcuerdoSla, IncidenciaMedible, SLA_PROPUESTO, cumplimientoPorPrioridad,
+  enRiesgo, motivoParaNoGuardarSla,
+} from '../../common/nivel-de-servicio-sla';
 
 /**
  * INDICADORES DE GESTIÓN DEL MANTENIMIENTO
@@ -527,6 +531,113 @@ export class IndicadoresService {
   /* La validación vive en `common/meta-mantenimiento.ts` y no aquí, para que
      la prueba pueda ejercerla sin base de datos y para que el mensaje que ve
      el usuario y el que fija la prueba sean literalmente el mismo texto. */
+  /* ===========================================================================
+     BLOQUE 98 · SATISFACCIÓN DEL SERVICIO
+     ---------------------------------------------------------------------------
+     El cliente de Mantenimiento es PRODUCCIÓN, y la satisfacción se mide por
+     PROMESAS CUMPLIDAS, no por una encuesta: una encuesta se contesta según el
+     humor del día y no se puede auditar. Es Service Level Management de ITIL y
+     son los indicadores organizativos de la EN 15341.
+
+     LO RESUELTO VA PRIMERO. Un tablero que sólo enseña deuda se deja de mirar
+     en dos semanas, y entonces no sirve el día que la deuda importa.
+  =========================================================================== */
+  async sla() {
+    const fila = await (this.prisma as any).acuerdoServicio.findFirst({
+      include: { fijadoPor: { select: { fullName: true } } },
+    });
+    if (!fila) {
+      return { valores: SLA_PROPUESTO, confirmado: false, fijadoPor: null, fijadoEn: null };
+    }
+    return {
+      valores: {
+        CRITICA: { respuestaH: fila.criticaRespuestaH, restitucionH: fila.criticaRestitucionH },
+        ALTA: { respuestaH: fila.altaRespuestaH, restitucionH: fila.altaRestitucionH },
+        MEDIA: { respuestaH: fila.mediaRespuestaH, restitucionH: fila.mediaRestitucionH },
+        BAJA: { respuestaH: fila.bajaRespuestaH, restitucionH: fila.bajaRestitucionH },
+      } as AcuerdoSla,
+      confirmado: true,
+      fijadoPor: fila.fijadoPor?.fullName ?? null,
+      fijadoEn: fila.fijadoEn,
+    };
+  }
+
+  async guardarSla(dto: any, fijadoPorId?: string) {
+    const a: AcuerdoSla = {
+      CRITICA: { respuestaH: dto?.criticaRespuestaH, restitucionH: dto?.criticaRestitucionH },
+      ALTA: { respuestaH: dto?.altaRespuestaH, restitucionH: dto?.altaRestitucionH },
+      MEDIA: { respuestaH: dto?.mediaRespuestaH, restitucionH: dto?.mediaRestitucionH },
+      BAJA: { respuestaH: dto?.bajaRespuestaH, restitucionH: dto?.bajaRestitucionH },
+    };
+    const motivo = motivoParaNoGuardarSla(a);
+    if (motivo) throw new BadRequestException(motivo);
+
+    const datos = {
+      criticaRespuestaH: a.CRITICA.respuestaH, criticaRestitucionH: a.CRITICA.restitucionH,
+      altaRespuestaH: a.ALTA.respuestaH, altaRestitucionH: a.ALTA.restitucionH,
+      mediaRespuestaH: a.MEDIA.respuestaH, mediaRestitucionH: a.MEDIA.restitucionH,
+      bajaRespuestaH: a.BAJA.respuestaH, bajaRestitucionH: a.BAJA.restitucionH,
+      fijadoPorId: fijadoPorId ?? null,
+    };
+    await (this.prisma as any).acuerdoServicio.upsert({
+      where: { id: 'unico' }, update: datos, create: { id: 'unico', ...datos },
+    });
+    return this.sla();
+  }
+
+  /**
+   * El tablero de satisfacción.
+   *
+   * `atendidaEn` sale de la PRIMERA orden abierta sobre esa incidencia. No hay
+   * un campo «primera atención» y no se inventa uno: la orden ES la señal de
+   * que alguien la cogió, y así el dato no depende de que nadie se acuerde de
+   * marcar nada (lección del evento de falla, bloque 78).
+   */
+  async satisfaccion(dias = 90) {
+    const desde = new Date(Date.now() - dias * 86_400_000);
+    const acuerdo = await this.sla();
+
+    const filas = await this.prisma.incident.findMany({
+      where: { OR: [{ reportedAt: { gte: desde } }, { resolvedAt: null }] },
+      select: {
+        id: true, code: true, priority: true, reportedAt: true, resolvedAt: true,
+        workOrders: { select: { createdAt: true }, orderBy: { createdAt: 'asc' }, take: 1 },
+      },
+    });
+
+    const medibles: IncidenciaMedible[] = filas.map((i: any) => ({
+      id: i.id, code: i.code, priority: i.priority,
+      reportedAt: i.reportedAt, resolvedAt: i.resolvedAt,
+      atendidaEn: i.workOrders[0]?.createdAt ?? null,
+    }));
+
+    const delPeriodo = medibles.filter((i) => i.reportedAt >= desde);
+    const vivas = medibles.filter((i) => !i.resolvedAt);
+    const cumpl = cumplimientoPorPrioridad(delPeriodo, acuerdo.valores);
+
+    const resueltas = cumpl.reduce((a, c) => a + c.resueltas, 0);
+    const enPlazo = cumpl.reduce((a, c) => a + c.enPlazo, 0);
+
+    return {
+      dias,
+      sla: acuerdo,
+      /* LO RESUELTO, ARRIBA. Es lo que contesta «¿vamos bien?» y es lo que
+         hace que el tablero se siga abriendo el mes que viene. */
+      resueltas: {
+        total: resueltas,
+        enPlazo,
+        /* `null` y no 0 cuando no se resolvió ninguna: un 0 % diría que se
+           falló en todas, y no se falló en ninguna porque no hubo. */
+        pct: resueltas ? Math.round((enPlazo / resueltas) * 100) : null,
+      },
+      porPrioridad: cumpl,
+      /* Y DEBAJO, LO ACCIONABLE: sobre lo resuelto no se puede hacer nada,
+         sobre esto sí. Ordenado por lo que peor está, no por fecha. */
+      enRiesgo: enRiesgo(vivas, acuerdo.valores).slice(0, 20),
+      vivasTotal: vivas.length,
+    };
+  }
+
   async guardarMeta(dto: Partial<MetaReparto>, fijadaPorId?: string) {
     const motivo = motivoParaNoGuardarMeta(dto);
     if (motivo) throw new BadRequestException(motivo);

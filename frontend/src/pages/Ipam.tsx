@@ -102,19 +102,9 @@ export default function Ipam() {
 
   return (
     <div className="page">
-      <div className="card explica">
-        <b>«Voy a instalar una cámara. ¿Qué IP le pongo?»</b>
-        <div style={{ marginTop: 8 }}>
-          Hoy eso se contesta con un Excel viejo o haciendo ping y usando la que no
-          responde. Funciona hasta el día que el equipo estaba <b>apagado por
-          mantenimiento</b> — y entonces hay dos con la misma IP, cayéndose a ratos.
-          Como no falla siempre, nadie lo reproduce y todos culpan a la cámara.
-        </div>
-        <div style={{ marginTop: 8 }}>
-          La ocupación <b>no sale de una sola tabla</b>: se cruza lo declarado aquí
-          con la IP que de verdad tiene cada activo. Las diferencias no se esconden,
-          se sacan como hallazgos.
-        </div>
+      <div className="card explica"
+        title="Elegir la IP haciendo ping falla el día que el equipo estaba apagado: quedan dos con la misma dirección, cayéndose a ratos. La ocupación se cruza con la IP real de cada activo y las diferencias salen como hallazgos.">
+        Qué IP está libre y cuál está ocupada, <b>contrastado con los activos</b>.
       </div>
 
       {msg && <div role="status" className="aviso-ok aviso-cerrable" onClick={() => setMsg('')} title="Toca para cerrar este aviso">{msg}</div>}
@@ -219,7 +209,7 @@ export default function Ipam() {
         <div className="card vacio">
           <h3>No hay subredes declaradas</h3>
           <p>
-            Empieza por la red CCTV de cada tren: CIDR, gateway y rango DHCP.
+            Empieza por la red CCTV de cada tren.
           </p>
         </div>
       ) : (
@@ -259,9 +249,7 @@ export default function Ipam() {
           ) : (
             <>
               <p style={{ fontSize: 13.5 }}>
-                Las primeras libres, <b>saltando el gateway, lo reservado, lo que ya está
-                en uso y el rango del DHCP</b>. Sugerir una del pool sería plantar la
-                bomba de tiempo que este módulo existe para evitar.
+                Las primeras libres, <b>saltando gateway, reservas, ocupadas y el rango DHCP</b>. Sugerir una del pool sería plantar el problema que esto evita.
               </p>
               <ul style={{ fontSize: 16, lineHeight: 1.9, fontFamily: 'monospace' }}>
                 {libres.libres.map((ip: string) => <li key={ip}><b>{ip}</b></li>)}

@@ -154,6 +154,7 @@ model User {
   woSolicitadas   WorkOrder[]     @relation("WoCreatedBy")
   /// Metas de mantenimiento que esta persona fijó por última vez (bloque 94).
   metasFijadas    MetaMantenimiento[] @relation("MetaFijadaPor")
+  slaFijados      AcuerdoServicio[]   @relation("SlaFijadoPor")
   /// Zonas cuya criticidad productiva declaró esta persona (bloque 26).
   /// Prisma EXIGE el lado inverso aunque sólo Location guarde la clave.
   zonasDeclaradas Location[]      @relation("ZonaDeclaradaPor")
@@ -3655,4 +3656,33 @@ model FailureEvent {
   @@index([registradoPorId])
   @@index([esFalsaAlarma])
   @@map("failure_events")
+}
+
+/// BLOQUE 98 · EL ACUERDO DE NIVEL DE SERVICIO con Producción.
+///
+/// Fila ÚNICA, igual que `MetaMantenimiento`: es un compromiso de planta, no
+/// un dato por registro. La migración NO inserta ninguna fila a propósito —
+/// mientras esté vacía se usa la propuesta del código y la pantalla lo dice
+/// con esas palabras. Insertarla convertiría una propuesta en un compromiso
+/// que nadie firmó, y contra este número se juzga al área entera.
+model AcuerdoServicio {
+  id String @id @default("unico")
+
+  /// Horas prometidas por prioridad. Responder = alguien la coge;
+  /// restituir = el servicio vuelve. Son dos relojes con dueños distintos.
+  criticaRespuestaH    Int
+  criticaRestitucionH  Int
+  altaRespuestaH       Int
+  altaRestitucionH     Int
+  mediaRespuestaH      Int
+  mediaRestitucionH    Int
+  bajaRespuestaH       Int
+  bajaRestitucionH     Int
+
+  fijadoPorId String?
+  fijadoPor   User?    @relation("SlaFijadoPor", fields: [fijadoPorId], references: [id], onDelete: SetNull)
+  fijadoEn    DateTime @updatedAt
+
+  @@index([fijadoPorId])
+  @@map("acuerdo_servicio")
 }

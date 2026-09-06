@@ -160,17 +160,9 @@ export default function Electricidad() {
 
   return (
     <div className="page">
-      <div className="card explica">
-        <b>La causa número uno de «se cayeron ocho cámaras de golpe» no es la red: es que saltó una llave.</b>
-        <div style={{ marginTop: 8 }}>
-          Aquí se declara qué tableros hay, qué circuitos tiene cada uno y —lo que
-          de verdad importa— <b>qué equipo cuelga de qué llave</b>. Con eso el sistema
-          Relaciona cada protección con las cámaras que alimenta, en los dos sentidos.
-        </div>
-        <div style={{ marginTop: 8 }}>
-          <b>Ojo con las cámaras PoE:</b> no cuelgan del breaker, cuelgan del switch,
-          que sí. Se marca aparte para no cortar la llave equivocada.
-        </div>
+      <div className="card explica"
+        title="Cuando caen varias cámaras de golpe, la causa habitual es una llave, no la red. Las cámaras alimentadas por el cable de red cuelgan del switch, no del breaker: se marcan aparte para no cortar la llave equivocada.">
+        Qué tableros hay, qué circuitos tiene cada uno y <b>qué equipo cuelga de qué llave</b>.
       </div>
 
       {msg && <div role="status" className="aviso-ok aviso-cerrable" onClick={() => setMsg('')} title="Toca para cerrar este aviso">{msg}</div>}
@@ -236,8 +228,7 @@ export default function Electricidad() {
         <div className="card vacio">
           <h3>No hay tableros registrados</h3>
           <p>
-            Empieza por los que alimentan CCTV: el MCC de cada tren y los tableros
-            de distribución de las salas eléctricas.
+            Empieza por los que alimentan CCTV: el MCC de cada tren.
           </p>
         </div>
       ) : (
@@ -331,7 +322,7 @@ export default function Electricidad() {
           <div className="section-title">Equipos montados dentro del tablero</div>
           {(!detalle.equiposMontados || detalle.equiposMontados.length === 0) ? (
             <p className="muted" style={{ fontSize: 13 }}>
-              Ninguno declarado. Registra el equipo en Activos y asígnalo a este tablero.
+              Ninguno declarado. Regístralo en Activos y asígnalo aquí.
             </p>
           ) : (
             <table className="tabla">
@@ -443,9 +434,7 @@ export default function Electricidad() {
         <Modal title={`Colgar un equipo del circuito ${colgando.numero}`} onClose={() => { setColgando(null); setCandidatos([]); }}>
           {error && <div role="alert" className="aviso-error">{error}</div>}
           <div className="card explica" style={{ marginTop: 0 }}>
-            Si es una <b>cámara PoE</b>, no marques que cuelga del breaker directamente:
-            cuelga del switch. Marca «por PoE» para que quede claro y nadie baje la
-            llave equivocada.
+            Si es una <b>cámara PoE</b>, marca «por PoE»: cuelga del switch, no del breaker.
           </div>
           <label className="campo">
             <span>Buscar equipo</span>

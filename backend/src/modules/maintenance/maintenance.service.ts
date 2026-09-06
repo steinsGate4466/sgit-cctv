@@ -23,6 +23,9 @@ import { OpenWorkOrderDto } from './dto/open-work-order.dto';
 import { ProgressWorkOrderDto } from './dto/progress-work-order.dto';
 import { computeEffectiveStatuses } from '../../common/asset-status';
 import { conReintentoDeCodigo, siguienteCorrelativo } from '../../common/correlativo';
+import {
+  EstadoIncidencia, alAbrirOrden, alCerrarOrden, porQueCambio,
+} from '../../common/incidencia-sigue-a-la-om';
 // PDF: se carga con require para no depender de @types en el build.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PDFDocument = require('pdfkit');
@@ -506,6 +509,12 @@ export class MaintenanceService {
       },
       'cerrar la orden',
     );
+
+    /* Y al cerrarla, la incidencia pasa a RESUELTA — pero sólo si no le queda
+       ninguna otra orden abierta (bloque 97). */
+    if (wo.incidentId) {
+      await this.reflejarEnIncidencia(wo.incidentId, wo.code, 'cerrar', signer!.id, ip);
+    }
 
     // Duración real del trabajo, en minutos. Sirve para comparar contra la
     // parada que estimó Producción y saber si estiman bien.
@@ -1020,6 +1029,80 @@ export class MaintenanceService {
    * indicador de vencidas deja de funcionar y las órdenes se quedan ahí para
    * siempre sin que nadie las eche de menos.
    */
+  /* ===========================================================================
+     BLOQUE 97 · EL REFLEJO DE LA ORDEN EN SU INCIDENCIA
+     ---------------------------------------------------------------------------
+     LA ORDEN EMPUJA, LA INCIDENCIA REFLEJA. Nunca al revés: cerrar la
+     incidencia a mano no cierra la orden, porque la orden lleva materiales
+     retirados y firma.
+
+     La regla de a qué estado pasa vive en `common/incidencia-sigue-a-la-om.ts`,
+     como cálculo puro. Aquí sólo se lee el estado, se pregunta y se escribe.
+  =========================================================================== */
+  private async reflejarEnIncidencia(
+    incidentId: string,
+    codigoOm: string,
+    momento: 'abrir' | 'cerrar',
+    userId?: string | null,
+    ip?: string | null,
+  ): Promise<void> {
+    try {
+      const inci = await this.prisma.incident.findUnique({
+        where: { id: incidentId },
+        select: { id: true, code: true, status: true, resolvedAt: true },
+      });
+      if (!inci) return;
+      const actual = inci.status as EstadoIncidencia;
+
+      let destino: EstadoIncidencia | null;
+      if (momento === 'abrir') {
+        destino = alAbrirOrden(actual);
+      } else {
+        /* Cuántas órdenes SUYAS siguen sin cerrar. Con dos abiertas no se
+           resuelve al cerrar la primera: diría «arreglado» con trabajo en
+           curso, y cortaría el MTTR antes de tiempo. */
+        const otrasAbiertas = await this.prisma.workOrder.count({
+          where: { incidentId, status: { notIn: ['CERRADA', 'CANCELADA'] } },
+        });
+        destino = alCerrarOrden(actual, otrasAbiertas);
+      }
+      if (!destino) return;
+
+      await this.prisma.incident.update({
+        where: { id: incidentId },
+        data: {
+          status: destino as any,
+          /* `resolvedAt` es la mitad del MTTR. Se escribe SÓLO si estaba
+             vacía: si la incidencia ya se había resuelto una vez, pisarla
+             movería una fecha que ya se contó en el informe del mes. */
+          ...(destino === 'RESUELTA' && !inci.resolvedAt ? { resolvedAt: new Date() } : {}),
+        },
+      });
+
+      await this.audit.record({
+        userId: userId || null,
+        action: 'INC_ESTADO_POR_OM',
+        entity: 'incidents',
+        entityId: incidentId,
+        ip,
+        after: { incidencia: inci.code, motivo: porQueCambio(actual, destino, codigoOm) },
+      });
+    } catch (e: any) {
+      /* NO se silencia. Un `catch` vacío sobre una escritura es una mentira
+         (bloque 77): la pantalla afirmaría que todo cuadró. Aquí no se tumba
+         la orden —ya está guardada— pero queda escrito que el reflejo falló,
+         que es lo que permite encontrarlo después. */
+      await this.audit.record({
+        userId: userId || null,
+        action: 'INC_ESTADO_POR_OM_FALLO',
+        entity: 'incidents',
+        entityId: incidentId,
+        ip,
+        after: { om: codigoOm, momento, error: String(e?.message || e) },
+      }).catch(() => undefined);
+    }
+  }
+
   async asignar(dto: any, userId?: string | null, ip?: string | null) {
     const actividad = (dto?.activity || '').trim();
     if (!actividad) throw new BadRequestException('Escribe qué hay que hacer.');
@@ -1083,6 +1166,17 @@ export class MaintenanceService {
       },
       include: inc,
     }));
+
+    /* LA INCIDENCIA SIGUE A SU ORDEN — bloque 97.
+       Antes se creaba la orden con `incidentId` y la incidencia se quedaba en
+       «Abierta» mientras el activo ya decía «En mantenimiento». Dos pantallas
+       contando cosas distintas del mismo hecho.
+
+       Va DESPUÉS de crear la orden y no dentro de la misma transacción a
+       propósito: si fallara este reflejo, lo importante —la orden— ya está
+       registrada. Perder el trabajo por no poder actualizar un estado sería
+       cambiar lo urgente por lo cosmético. Pero NO se silencia: se audita. */
+    if (wo.incidentId) await this.reflejarEnIncidencia(wo.incidentId, wo.code, 'abrir', userId, ip);
 
     await this.audit.record({
       userId: userId || null,

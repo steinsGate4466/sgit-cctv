@@ -226,7 +226,8 @@ function aplicar() {
       `${ancla}`
       + `\n  get parametrosCriticidad(): any;  ${MARCA}`
       + `\n  get failureEvent(): any;  ${MARCA}`
-      + `\n  get metaMantenimiento(): any;  ${MARCA}`,
+      + `\n  get metaMantenimiento(): any;  ${MARCA}`
+      + `\n  get acuerdoServicio(): any;  ${MARCA}`,
     ));
     console.log('  [OK] class.ts · parametrosCriticidad · failureEvent · metaMantenimiento');
   }

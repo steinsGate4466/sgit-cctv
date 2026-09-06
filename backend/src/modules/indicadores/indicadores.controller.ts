@@ -10,6 +10,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Ritmo } from '../../common/guards/ritmo.guard';
 import { RITMO_PESADO } from '../../common/ritmo';
 import { MetaDto } from './dto/meta.dto';
+import { SlaDto } from './dto/sla.dto';
 
 @ApiTags('indicadores')
 @ApiBearerAuth()
@@ -89,6 +90,29 @@ export class IndicadoresController {
      trabajo de todo el año. Es la misma regla que hace que cerrar una orden
      sea `wo.approve` y no `wo.update` (bloque 78).
      =========================================================================== */
+  /* BLOQUE 98 · SATISFACCIÓN DEL SERVICIO.
+     Lo MIRA quien mira los indicadores; lo FIJA sólo el Jefe: el plazo
+     prometido es el criterio contra el que se juzga al área entera. No lo
+     decide la dificultad de la acción —son ocho números— sino lo que la
+     acción AFIRMA (misma regla que la meta, bloque 94). */
+  @Get('satisfaccion')
+  @RequirePermissions('dashboard.read')
+  satisfaccion(@Query('dias') dias?: string) {
+    return this.ind.satisfaccion(Number(dias) || 90);
+  }
+
+  @Get('sla')
+  @RequirePermissions('dashboard.read')
+  sla() {
+    return this.ind.sla();
+  }
+
+  @Put('sla')
+  @RequirePermissions('wo.approve')
+  guardarSla(@Body() dto: SlaDto, @CurrentUser() user: any) {
+    return this.ind.guardarSla(dto, user?.userId);
+  }
+
   @Get('meta')
   @RequirePermissions('dashboard.read')
   meta() {

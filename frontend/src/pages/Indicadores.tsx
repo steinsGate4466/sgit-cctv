@@ -240,16 +240,20 @@ export default function Indicadores() {
      fijado todavía y que lo que se pinta es la propuesta del sistema. */
   const [meta, setMeta] = useState<any>(null);
   const [editaMeta, setEditaMeta] = useState(false);
+  /* BLOQUE 98 · satisfacción del servicio (SLA). */
+  const [satis, setSatis] = useState<any>(null);
   const [tend, setTend] = useState<any[]>([]);
   const [cargando, setCargando] = useState(true);
 
   const cargar = useCallback(async (d: number, tr: string) => {
-    const [a, b, m] = await Promise.all([
+    const [a, b, m, sat] = await Promise.all([
       api.get('/indicadores', { params: { dias: d, tren: tr || undefined } }).then((r) => r.data).catch(() => null),
       api.get('/indicadores/tendencia', { params: { meses: 6 } }).then((r) => r.data).catch(() => []),
       api.get('/indicadores/meta').then((r) => r.data).catch(() => null),
+      api.get('/indicadores/satisfaccion', { params: { dias: d } })
+        .then((r) => r.data).catch(() => null),
     ]);
-    setT(a); setTend(b || []); setMeta(m);
+    setT(a); setTend(b || []); setMeta(m); setSatis(sat);
   }, []);
 
   useEffect(() => { setCargando(true); cargar(dias, tren).finally(() => setCargando(false)); }, [dias, tren, cargar]);
@@ -295,7 +299,7 @@ export default function Indicadores() {
     : ns >= 90 ? '#15803d' : ns >= 75 ? '#b45309' : '#c0392b';
 
   if (cargando) return <EsqueletoTablero kpis={4} paneles={2} />;
-  if (!t) return <div className="card aviso-error">No se pudieron calcular los indicadores.</div>;
+  if (!t) return <div className="card aviso-error">No se pudieron calcular.</div>;
 
   const dispColor = t.disponibilidad.pct === null ? undefined
     : t.disponibilidad.pct >= 95 ? 'var(--ok)'
@@ -320,7 +324,7 @@ export default function Indicadores() {
           la regla del «sin datos», porque explica algo que se ve en pantalla
           y sin ella un hueco parece un fallo. */}
       <div className="card explica">
-        Donde no hay muestra suficiente dice <b>«sin datos»</b>, nunca cero.
+        Sin muestra dice <b>«sin datos»</b>, nunca cero.
       </div>
 
       <div className="filters">
@@ -374,7 +378,9 @@ export default function Indicadores() {
            cuatro números sueltos. Los de fiabilidad (MTTR, MTBF)
            siguen debajo: son el detalle de por qué salen así.
            ========================================================== */}
-      <div className="section-title">Ejecución · los cuatro indicadores</div>
+      {satis && <PanelSatisfaccion s={satis} />}
+
+      <div className="section-title">Ejecución</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12, marginBottom: 16 }}>
         <Indicador
           titulo="Backlog"
@@ -396,7 +402,7 @@ export default function Indicadores() {
           color={nsColor}
           comp={t.comparativa?.nivelDeServicio}
           explica="De las órdenes con plazo, cuántas se atendieron dentro de él."
-          aviso="Todavía no hay órdenes con fecha programada que juzgar."
+          aviso="Sin órdenes programadas que juzgar."
         />
         <Indicador
           titulo="Cumplimiento normativo"
@@ -458,14 +464,14 @@ export default function Indicadores() {
       {t.nivelDeServicio && (
         <div className="card">
           <div className="section-title" style={{ marginTop: 0 }}>
-            Nivel de servicio · órdenes atendidas
+            Nivel de servicio
           </div>
 
           {t.nivelDeServicio.pct === null ? (
             /* `null`, no 0 %. Un cero se leería como «no atendemos nada»
                cuando lo que pasa es que no hay órdenes con fecha. */
             <p className="nada-que-hacer">
-              Todavía no hay órdenes con fecha programada que juzgar.
+              Sin órdenes programadas que juzgar.
             </p>
           ) : (
             <div className="ns-fila">
@@ -519,7 +525,7 @@ export default function Indicadores() {
           )}
 
           <p className="muted" style={{ fontSize: 12, marginBottom: 0 }}>
-            Atendida = cerrada antes de su fecha.
+            Atendida = cerrada en fecha.
           </p>
         </div>
       )}
@@ -540,7 +546,7 @@ export default function Indicadores() {
       {t.fiabilidad && (
         <div className="card">
           <div className="section-title" style={{ marginTop: 0 }}>
-            Dónde se va el tiempo cuando algo falla
+            Dónde se va el tiempo
           </div>
 
           {/* La muestra va PRIMERO. Con cuatro averías registradas ningún
@@ -604,7 +610,7 @@ El MTTR de mantenimiento es <b>Reparar</b>.
       {t.cumplimiento?.hallazgos?.length > 0 && (
         <div className="card">
           <div className="section-title" style={{ marginTop: 0 }}>
-            Lo que no podríamos enseñar en una auditoría
+            Lo que no se puede enseñar en auditoría
           </div>
           <table className="tabla">
             <thead>
@@ -754,7 +760,7 @@ El MTTR de mantenimiento es <b>Reparar</b>.
           <div><b style={{ fontSize: 30 }}>{t.backlog.total}</b>
             <div className="muted" style={{ fontSize: 12 }}>órdenes abiertas</div></div>
           <div><b style={{ fontSize: 30 }}>{t.backlog.antiguedadMediaDias}</b>
-            <div className="muted" style={{ fontSize: 12 }}>días de antigüedad media</div></div>
+            <div className="muted" style={{ fontSize: 12 }}>días de media</div></div>
           <div><b style={{ fontSize: 30, color: t.backlog.masDe90 ? 'var(--crit)' : undefined }}>{t.backlog.masAntiguaDias}</b>
             <div className="muted" style={{ fontSize: 12 }}>días la más antigua</div></div>
         </div>
@@ -781,7 +787,7 @@ El MTTR de mantenimiento es <b>Reparar</b>.
           {/* Recortado en el bloque 79 para hacer sitio a los cuatro KPI de la
               hoja del ingeniero. La idea se mantiene entera: lo que importa es
               la antigüedad, no el total. */}
-          <b>Un backlog estable es normal</b>; uno que envejece dice que el
+          <b>Un backlog estable: normal</b>; uno que envejece dice que el
           equipo no da abasto.
           {t.backlog.masDe90 > 0 && (
             <> Hay <b>{t.backlog.masDe90}</b> de más de tres meses.
@@ -792,7 +798,7 @@ El MTTR de mantenimiento es <b>Reparar</b>.
           <div className="card peligro" style={{ marginTop: 12 }}>
             <b>{t.preventivo.pendientesVencidas} rutina(s) preventiva(s) vencida(s) y sin cerrar.</b>
             <div style={{ fontSize: 13, marginTop: 4 }}>
-              Se convierte en correctivo en dos meses.
+              Pasa a correctivo en dos meses.
             </div>
           </div>
         )}
@@ -803,7 +809,7 @@ El MTTR de mantenimiento es <b>Reparar</b>.
         <div className="section-title" style={{ marginTop: 0 }}>Los que más problemas dan</div>
         {t.peores.length === 0 ? (
           <p className="muted" style={{ fontSize: 13 }}>
-            Ningún equipo con averías registradas en el periodo.
+            Sin averías en el periodo.
           </p>
         ) : (
           <>
@@ -826,7 +832,7 @@ El MTTR de mantenimiento es <b>Reparar</b>.
               </tbody>
             </table>
             <div className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>
-              Tres periodos seguidos arriba justifica el reemplazo.
+              Tres periodos arriba justifica reemplazo.
             </div>
           </>
         )}
@@ -858,5 +864,109 @@ El MTTR de mantenimiento es <b>Reparar</b>.
         </div>
       )}
     </div>
+  );
+}
+
+/* =============================================================================
+   BLOQUE 98 · SATISFACCIÓN DEL SERVICIO
+   -----------------------------------------------------------------------------
+   Lo pidió el usuario: «un tablero con métrica de satisfacción de servicio, y
+   que cuando se abra se vean los problemas resueltos».
+
+   LO RESUELTO VA PRIMERO, y eso es exactamente lo que él dijo. Un tablero que
+   sólo enseña deuda se deja de mirar en dos semanas, y entonces no sirve el
+   día que la deuda importa. Se abre con lo que se cumplió; debajo, lo que
+   falta. En ITIL eso es *value demonstration*.
+
+   Y SATISFACCIÓN NO ES UNA ENCUESTA: es promesas cumplidas. El cliente de
+   Mantenimiento es Producción, y la promesa es el plazo por prioridad.
+   Mientras nadie lo haya fijado se dice «sin fijar» — no se inventa un plazo
+   razonable, igual que con la meta del reparto.
+============================================================================= */
+function PanelSatisfaccion({ s }: any) {
+  const pct = s.resueltas.pct;
+  const color = pct === null ? 'var(--gris)'
+    : pct >= 90 ? 'var(--ok)' : pct >= 70 ? 'var(--warn)' : 'var(--mal)';
+
+  return (
+    <>
+      <div className="section-title" style={{ marginTop: 0 }}>Satisfacción del servicio</div>
+
+      <div className="card" style={{ borderLeft: `4px solid ${color}` }}
+        title="Se mide contra el plazo prometido por prioridad, no con una encuesta. El cliente de Mantenimiento es Producción.">
+        <div style={{ display: 'flex', gap: 26, flexWrap: 'wrap', alignItems: 'baseline' }}>
+          <div>
+            <b style={{ fontSize: 30, color }}>
+              {pct === null ? 'Sin datos' : `${pct} %`}
+            </b>
+            <div className="muted" style={{ fontSize: 12 }}>
+              {s.resueltas.enPlazo} de {s.resueltas.total} en plazo
+            </div>
+          </div>
+          <div>
+            <b style={{ fontSize: 22 }}>{s.vivasTotal}</b>
+            <div className="muted" style={{ fontSize: 12 }}>abiertas</div>
+          </div>
+          {!s.sla.confirmado && (
+            /* Se DICE que el plazo es una propuesta. Presentarla como acuerdo
+               hace que en la reunión se discuta el número y no el trabajo. */
+            <div className="muted" style={{ fontSize: 12, color: 'var(--warn)' }}>
+              <b>Plazos sin fijar</b> (propuesta)
+            </div>
+          )}
+        </div>
+
+        <table style={{ marginTop: 12 }}>
+          <thead>
+            <tr>
+              <th>Prioridad</th><th>Plazo</th><th>Resueltas</th><th>En plazo</th><th>%</th>
+            </tr>
+          </thead>
+          <tbody>
+            {s.porPrioridad.map((p: any) => (
+              <tr key={p.prioridad}>
+                <td><span className={'badge ' + p.prioridad}>{p.prioridad}</span></td>
+                <td className="muted">{p.plazo.restitucionH} h</td>
+                <td>{p.resueltas}</td>
+                <td>{p.enPlazo}</td>
+                {/* `null` y no 0: un 0 % en una prioridad sin incidencias diría
+                    que se falló en todas, y no hubo ninguna. */}
+                <td>{p.pct === null
+                  ? <span className="muted">Sin datos</span>
+                  : <b style={{ color: p.pct >= 90 ? 'var(--ok)' : 'var(--warn)' }}>{p.pct} %</b>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Y DEBAJO, LO ACCIONABLE. Sobre lo resuelto no se puede hacer nada;
+          sobre esto sí. Ordenado por lo que peor está, no por fecha. */}
+      {s.enRiesgo.length > 0 && (
+        <div className="card" style={{ borderLeft: '4px solid var(--warn)' }}>
+          <div className="section-title" style={{ marginTop: 0 }}>Abiertas ahora</div>
+          <table>
+            <thead>
+              <tr><th>Incidencia</th><th>Prioridad</th><th>Abierta</th><th></th></tr>
+            </thead>
+            <tbody>
+              {s.enRiesgo.map((r: any) => (
+                <tr key={r.id}>
+                  <td><strong>{r.code}</strong></td>
+                  <td><span className={'badge ' + r.prioridad}>{r.prioridad}</span></td>
+                  <td>{r.horasAbierta} h</td>
+                  <td>
+                    {r.vencida && <span className="chip est-FUERA_SERVICIO">fuera de plazo</span>}
+                    {r.sinAtender && <span className="chip est-MANTENIMIENTO" style={{ marginLeft: 4 }}>sin atender</span>}
+                    {!r.vencida && !r.sinAtender && <span className="muted">en plazo</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </>
   );
 }

@@ -122,17 +122,9 @@ export default function Campanas() {
 
   return (
     <div className="page">
-      <div className="card explica">
-        <b>Aquí se controla que el mapeo entre bien.</b> Contra un dato mal cargado
-        ningún respaldo sirve: el respaldo devuelve fielmente el dato equivocado.
-        <div style={{ marginTop: 8 }}>
-          <b>Dos reglas que no se pueden saltar:</b> quien revisa <b>no puede ser</b> quien
-          cargó, y una zona con defectos que impiden usar los equipos <b>no se aprueba</b>.
-        </div>
-        <div style={{ marginTop: 8 }}>
-          El porcentaje cuenta <b>sólo las zonas aprobadas</b>. Contar las cargadas
-          diría 90 % con la mitad de las fichas mal.
-        </div>
+      <div className="card explica"
+        title="Quien revisa no puede ser quien cargó, y una zona con defectos que impiden usar los equipos no se aprueba. El avance cuenta sólo zonas aprobadas: contar las cargadas diría 90 % con la mitad de las fichas mal.">
+        Levantamiento por zonas, con <b>revisión de otra persona</b> antes de darlo por bueno.
       </div>
 
       {msg && <div role="status" className="aviso-ok aviso-cerrable" onClick={() => setMsg('')} title="Toca para cerrar este aviso">{msg}</div>}
@@ -151,8 +143,7 @@ export default function Campanas() {
         <div className="card vacio">
           <h3>No hay campañas de mapeo</h3>
           <p>
-            Una campaña es un levantamiento repartido por zonas: «estas 300 cámaras
-            del Tren 2 hay que darlas de alta». Se reparte, se carga en campo, y
+            Un levantamiento repartido por zonas. Se carga en campo y
             <b> otra persona revisa</b> antes de darla por buena.
           </p>
         </div>
@@ -265,7 +256,7 @@ export default function Campanas() {
 
           {revision.zona.cargadaPorId === user?.id && (
             <div className="card peligro">
-              <b>Esta zona la cargaste tú.</b> No la puedes revisar: quien acaba de
+              <b>Esta zona la cargaste tú.</b> No la revisa quien
               cargó ya las da por buenas. Que las revise otra persona.
             </div>
           )}
@@ -374,8 +365,8 @@ export default function Campanas() {
           </>}>
           {error && <div role="alert" className="aviso-error">{error}</div>}
           <div className="card explica" style={{ marginTop: 0 }}>
-            <b>«Cuántos esperas» puede quedar vacío.</b> Si no lo sabes, no pongas un
-            número: se daría por bueno y «faltan 3» sería una alarma falsa para siempre.
+            <b>«Cuántos esperas» puede quedar vacío</b> si no lo sabes. Un número inventado
+            deja una alarma falsa para siempre.
           </div>
           {/* Bloque 40: se usa la ubicación elegida como clave y el índice
               sólo mientras la fila está en blanco. Con el índice a secas,

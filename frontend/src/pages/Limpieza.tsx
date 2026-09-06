@@ -176,10 +176,8 @@ export default function Limpieza() {
         ) : (
           <>
             <div className="card explica">
-              Estos activos <b>no tienen ninguna orden ni incidencia</b>. Se ordenan por
-              señales de que podrían ser basura: sin ubicación, sin historial, o con un
-              código que no sigue el patrón <code>AA-XXX-…</code>. Es una <b>pista para
-              ordenar</b>, no un juicio: mira el código antes de borrar.
+              Activos <b>sin orden ni incidencia</b>, ordenados por señales de posible basura.
+              Es una pista, no un juicio: mira el código antes de borrar.
             </div>
             <table className="tabla">
               <thead>
@@ -221,10 +219,8 @@ export default function Limpieza() {
         ) : (
           <>
             <div className="card explica">
-              Aquí salen <b>todas</b> las órdenes, incluidas las cerradas. Las que
-              llevan firma o material retirado se pueden borrar igual, pero piden
-              una <b>segunda confirmación</b> y quedan marcadas como forzadas en
-              la auditoría.
+              Todas las órdenes, incluidas las cerradas. Las que llevan firma o material
+              piden <b>segunda confirmación</b> y quedan marcadas como forzadas.
             </div>
 
             {/* VACIAR TODO — antes del estreno, borrar de una en una son cien
@@ -243,8 +239,7 @@ export default function Limpieza() {
                   {resumenOm.lineasConRetiro > 0 && (
                     <div style={{ marginTop: 6 }}>
                       Hay <b>{resumenOm.lineasConRetiro}</b> línea(s) con material retirado.
-                      Los <b>movimientos de almacén se quedan</b>: esto no revierte el stock.
-                      Si el almacén también es de prueba, cuádralo desde Inventario.
+                      Los <b>movimientos de almacén se quedan</b>: no revierte el stock. Cuádralo desde Inventario.
                     </div>
                   )}
                 </div>
@@ -299,8 +294,7 @@ export default function Limpieza() {
         <>
           <div className="card explica">
             Una persona que <b>firmó algo</b> —cerró una orden, autorizó un trabajo en
-            altura— <b>no se puede borrar</b>: dejaría documentos firmados por nadie.
-            A esas se las desactiva desde Usuarios.
+            altura— <b>no se puede borrar</b>: dejaría documentos firmados por nadie. Se desactivan desde Usuarios.
           </div>
           <table className="tabla">
             <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th><th></th></tr></thead>
@@ -328,8 +322,7 @@ export default function Limpieza() {
             Dejar la base como el primer día
           </div>
           <p style={{ fontSize: 13, lineHeight: 1.6 }}>
-            Para el día del despliegue real. Borra lo operativo —activos,
-            incidencias, órdenes, almacén— y <b>conserva usuarios, roles, el
+            Para el despliegue real. Borra lo operativo y <b>conserva usuarios, roles, el
             árbol de planta, los catálogos y la auditoría</b>.
           </p>
 
@@ -383,11 +376,10 @@ export default function Limpieza() {
         <div className="card">
           <div className="section-title" style={{ marginTop: 0 }}>Depurar auditoría antigua</div>
           <p style={{ fontSize: 13 }}>
-            La auditoría es el registro de quién hizo qué. Se puede depurar lo viejo
-            para que no crezca sin límite, con tres frenos:
+            Se depura lo viejo para que no crezca sin límite, con tres frenos:
           </p>
           <ul style={{ fontSize: 13, lineHeight: 1.7 }}>
-            <li><b>Nunca lo reciente:</b> mínimo 90 días de antigüedad. Poder borrar lo de hoy convertiría la auditoría en un adorno.</li>
+            <li><b>Nunca lo reciente:</b> mínimo 90 días. Borrar lo de hoy la convertiría en un adorno.</li>
             <li><b>La depuración queda registrada</b> con quién la hizo y cuántas filas borró. El hueco se ve.</li>
             <li><b>Los registros de borrados anteriores nunca se van.</b> Esa cadena no se rompe.</li>
           </ul>
