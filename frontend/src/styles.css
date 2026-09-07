@@ -2662,7 +2662,7 @@ table td, table th, .kpi .value, .indicador-valor, code {
 }
 .como-calcula > summary::-webkit-details-marker { display: none; }
 .como-calcula > summary::marker { content: ''; }
-.como-calcula > summary::before { content: '?'; 
+.como-calcula > summary::before { content: '?';
   display: inline-flex; align-items: center; justify-content: center;
   width: 16px; height: 16px; border-radius: 50%;
   border: 1px solid currentColor; font-size: 11px; }

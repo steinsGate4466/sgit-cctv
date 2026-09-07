@@ -1,0 +1,46 @@
+# =============================================================================
+#  FIN DE LÍNEA — normalizado, y no es cosmético
+# -----------------------------------------------------------------------------
+#  EL PROBLEMA, que este proyecto ya sufrió en el bloque 62:
+#
+#    «Cinco archivos salían como modificados —cuatro migraciones y RESPALDO_BD—
+#     y el contenido era IDÉNTICO: sólo cambiaba el fin de línea (CRLF ↔ LF)
+#     por mezclar Windows con el entorno del agente.»
+#
+#  Sin este archivo, cada equipo decide por su cuenta. Un editor de Windows
+#  guarda CRLF, el repositorio tiene LF, y GitHub pinta el ARCHIVO ENTERO en
+#  rojo aunque no se haya tocado una sola letra. El diff deja de servir: si
+#  todo sale marcado, no se ve lo que de verdad cambió.
+#
+#  Y en las MIGRACIONES no es sólo ruido: Prisma guarda un checksum de cada
+#  una. Si entran con el fin de línea cambiado, el despliegue muere con
+#  «migration was modified after it was applied».
+# -----------------------------------------------------------------------------
+
+# Por defecto: Git normaliza a LF al guardar y respeta lo que use cada equipo
+# al sacar el código. Es la opción segura para un repositorio mixto.
+* text=auto eol=lf
+
+# Los .bat y .ps1 SON de Windows: se entregan al usuario para que los ejecute
+# en su consola. Con LF, PowerShell y cmd se comportan de forma rara.
+*.bat  text eol=crlf
+*.ps1  text eol=crlf
+
+# Binarios: que Git no toque ni un byte. Un .xlsx o un .png "normalizado" se
+# corrompe y se abre roto.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.xlsx binary
+*.xls  binary
+*.docx binary
+*.pptx binary
+*.zip  binary
+*.woff binary
+*.woff2 binary
+
+# El cliente de Prisma es salida generada: no ensucia el diff.
+backend/src/generated/** linguist-generated=true

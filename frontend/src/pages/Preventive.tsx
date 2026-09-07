@@ -187,7 +187,7 @@ export default function Preventive() {
               </tr>
             ))}
             {!plans.length && <tr><td colSpan={8} className="muted" style={{ textAlign: 'center', padding: 30 }}>Sin planes preventivos. Crea uno con “+ Nuevo plan”.</td></tr>}
-          
+
             {/* Caso vacío: una tabla en blanco se lee como «se rompió»,
                 no como «todavía no hay nada». */}
             {!plans.length && (

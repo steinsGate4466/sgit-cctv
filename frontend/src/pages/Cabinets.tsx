@@ -32,7 +32,7 @@ export default function Cabinets() {
     setRows(c || []);
   }, [ambito]);
   // Las ubicaciones son catálogo: se piden una sola vez.
-   
+
   useEffect(() => {
     api.get('/locations').then((r) => setLocations(r.data || [])).catch(() => setLocations([]));
   }, []);

@@ -689,4 +689,3 @@ ALTER TABLE "asset_photos" ADD CONSTRAINT "asset_photos_assetId_fkey" FOREIGN KE
 
 -- AddForeignKey
 ALTER TABLE "incident_evidences" ADD CONSTRAINT "incident_evidences_incidentId_fkey" FOREIGN KEY ("incidentId") REFERENCES "incidents"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-

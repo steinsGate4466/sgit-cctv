@@ -89,7 +89,7 @@ export default function Inventory() {
   //
   // El buscador de texto NO va aquí a propósito: recargaría en cada letra.
   // Ese sigue disparándose con Enter, que es lo que ya hacía.
-   
+
   useEffect(() => { setPagina(1); }, [fCat, onlyLow]);
   // `load` NO va en las dependencias a propósito: obligaría a envolverla en
   // `useCallback` y volvería a consultar el servidor en cada tecla del
@@ -273,7 +273,7 @@ export default function Inventory() {
                   {can('inventory.read') && <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => openCompat(r)}>Compat.</button>}
                   {can('inventory.manage') && <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => openEdit(r)}>Editar</button>}
                   {can('inventory.manage') && <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => del(r)}>✕</button>}
-                
+
                   {/* Borrado definitivo. Solo lo pinta si eres Jefe de Mantenimiento. */}
                   <BotonPurgar recurso="repuesto" id={r.id} onBorrado={() => load()} />
                 </td>

@@ -423,7 +423,7 @@ export default function Incidents() {
                     </button>
                   )}
                   <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => downloadReport(i)}>Informe</button>
-                
+
                   {/* Borrado definitivo. Solo lo pinta si eres Jefe de Mantenimiento. */}
                   <BotonPurgar recurso="incidencia" id={i.id} onBorrado={() => load()} />
                   </div>

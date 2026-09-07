@@ -113,7 +113,7 @@ export default function BuscadorRapido() {
     document.addEventListener('keydown', tecla);
     return () => document.removeEventListener('keydown', tecla);
     // Sin dependencias: se monta una vez. Ver el comentario del foco en Modal.
-     
+
   }, []);
 
   useEffect(() => {
