@@ -4215,3 +4215,84 @@ debajo de una baja de hace un mes.
 El panel nuevo subió Indicadores de 173 a 208 palabras. Tenía razón. Se recortó
 hasta 173 **sin subir la línea base ni una vez** — que es la única forma de que
 el tope siga significando algo.
+
+---
+
+## 42. Bloque 99 — la CI no comprobaba lo que yo decía que comprobaba
+
+### Lo preguntó el usuario y tenía razón en sospechar
+
+*«Quiero que el CI de testeo verifique todo esto.»* Se midió el `ci.yml`
+contra lo que se corre en local, y **siete de dieciséis verificadores del
+backend NUNCA se ejecutaban**:
+
+    verificar:sql-roles    NUNCA        (bloque 62 · roles fantasma en SQL)
+    verificar:cable        NUNCA        (bloque 74 · un cable no es un activo)
+    verificar:estructura   NUNCA        (bloque 95 · recién escrito)
+    verificar:dto          NUNCA        (bloque 85 · la deuda congelada)
+    verificar-relaciones   NUNCA        (bloque 16.1 · P1012)
+    verificar-escrituras   NUNCA        (bloque 76)
+    verificar-ambito       NUNCA        ← OWASP A01
+
+El de ámbito es el que impide que un usuario del Tren 2 pida por identificador
+un equipo del Tren 1. Llevaba desde el bloque 12.3 sin correr en la CI.
+
+### La causa: una lista escrita a mano
+
+El `ci.yml` llamaba a los verificadores **uno a uno**, en veintisiete pasos.
+Cada verificador nuevo nacía fuera de esa lista, y **no falla nada**: la CI
+sale verde igual.
+
+> **Un control que no se ejecuta no es un control.** Es la misma regla que ya
+> estaba escrita para el `|| true` del `npm audit` (bloque 85), para los
+> verificadores que no se pueden poner en rojo (bloque 9) y para la prueba de
+> Playwright que siempre se saltaba (bloque 89). Cuarta vez.
+
+Y es la explicación de algo que dije en el bloque 94: *«30 verificadores en
+verde»* sin haber corrido tres de ellos. No era sólo despiste mío — es que el
+agregado no los incluía y la CI tampoco.
+
+### El arreglo no es acordarse mejor
+
+**La CI llama al AGREGADO**, que es la única lista. Veintisiete pasos a mano
+pasan a dos:
+
+    - name: Los 16 verificadores del backend      → npm run verificar
+    - name: Los 18 verificadores del frontend     → npm run verificar
+
+Los tres sueltos del backend (`relaciones`, `escrituras`, `ambito`) entran en
+el agregado. **Y el frontend no tenía agregado siquiera**: se crea, para que
+haya UNA lista y no dos que se desincronizan.
+
+### Verificador 17 — `verificar:ci`
+
+Porque el arreglo de arriba también se puede deshacer sin querer. Comprueba
+tres cosas:
+
+1. Que el `ci.yml` llame al agregado en los DOS proyectos.
+2. Que no haya vuelto a aparecer una lista suelta de `verificar:x` — así fue
+   exactamente como se desincronizó.
+3. Que **todo** script `verificar-*` del disco esté dentro del agregado de su
+   proyecto.
+
+Probado en los dos sentidos: sacando `verificar:ambito` del agregado, y
+devolviendo el `ci.yml` a una lista suelta. Caza los dos y los nombra.
+
+### Y encontró un decimoctavo verificador huérfano
+
+`frontend/scripts/verificar-cadenas.cjs` —el de sintaxis real con esbuild, del
+bloque 18.1— **existía y no tenía script en `package.json`**. No corría en
+ningún sitio, ni en local ni en la CI, desde que se escribió.
+
+Es exactamente el fallo que el verificador nuevo busca, cazado en su primera
+ejecución. Ya está enchufado: el frontend pasa de 17 a 18.
+
+### Un detalle de colocación que casi rompe la CI
+
+El agregado del frontend quedó primero dentro del trabajo del BACKEND, donde
+no hay `npm ci` del frontend — y `verificar:formato` necesita esbuild, que es
+una dependencia suya. Movido al trabajo del frontend, después del lint.
+
+**Se vio leyendo los pasos de cada trabajo con `yaml.safe_load`, no mirando el
+archivo.** Un `ci.yml` que parece bien colocado y no lo está falla en la
+ejecución, no antes.

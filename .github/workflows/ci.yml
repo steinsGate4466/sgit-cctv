@@ -64,122 +64,30 @@ jobs:
       - name: Compilar (verificacion de tipos real)
         working-directory: backend
         run: npm run build
-
-      # Comprueba que cada dependencia inyectada por constructor esté
-      # declarada en su modulo. El 01/08 esto tumbo el arranque en produccion
-      # y ni build ni test lo vieron: es un dato de tiempo de ejecucion.
-      - name: Verificar inyeccion de dependencias
+      # ─────────────────────────────────────────────────────────────────
+      #  LOS 16 VERIFICADORES DEL BACKEND, DE UNA SOLA VEZ
+      # ─────────────────────────────────────────────────────────────────
+      #  ANTES eran trece pasos escritos a mano, y la lista se quedo atras:
+      #  `sql-roles`, `cable`, `estructura`, `dto`, `relaciones`, `escrituras`
+      #  y `ambito` NUNCA se ejecutaban aqui. El de ambito es el de OWASP A01
+      #  —el que impide pedir por identificador algo de otro tren—.
+      #
+      #  UN CONTROL QUE NO SE EJECUTA NO ES UN CONTROL. Y una lista que hay
+      #  que acordarse de ampliar es un agujero con fecha: cada verificador
+      #  nuevo nacia sin correr en la CI y nadie se enteraba.
+      #
+      #  Ahora se llama al AGREGADO. Si manana se anade el numero 17, entra
+      #  solo. Lo vigila `verificar-ci.js`, que comprueba que este paso siga
+      #  llamando al agregado y no vuelva a una lista a mano.
+      - name: Los 16 verificadores del backend
         working-directory: backend
-        run: npm run verificar:inyeccion
-
-      # Filtros de Prisma anidados por error. El 02/08 esto devolvio 400 en
-      # el tablero de produccion y ni build ni test lo vieron: la constante
-      # estaba anotada ': any', que apaga justo la comprobacion que lo caza.
-      - name: Verificar filtros de Prisma
-        working-directory: backend
-        run: npm run verificar:filtros
-
-      # Desfase entre schema.prisma y las migraciones, SIN base de datos.
-      # El trabajo `migraciones` de mas abajo hace la comprobacion completa con
-      # `prisma migrate diff`, pero tarda minutos porque levanta un Postgres.
-      # Esta version lee los .sql y falla en medio segundo, asi que el aviso
-      # llega al principio del CI y no al final.
-      # REVISION DE DEPENDENCIAS - AHORA SI ROMPE (bloque 85)
-      # ---------------------------------------------------------------------
-      # Antes ponia `continue-on-error: true` Y `|| true`: DOS formas de
-      # callarse en la misma linea. La CI miraba las 10 vulnerabilidades y
-      # pasaba en verde SIEMPRE. Un control que nunca puede fallar no es un
-      # control - es la misma regla que ya vale para los verificadores: uno
-      # que no se puede poner en rojo se desactiva.
-      #
-      # Se pudo cerrar sin subir NI UNA version mayor de las directas. La
-      # herramienta proponia BAJAR prisma 7 -> 6, exceljs 4 -> 3 y minio a un
-      # major anterior; eso no se hace. En su lugar, `overrides` en el
-      # package.json fija la version PARCHEADA de la libreria transitiva y
-      # deja la directa donde estaba. Resultado: 0 vulnerabilidades, 0
-      # dependencias directas tocadas.
-      #
-      # NUNCA se ejecuta `npm audit fix --force` aqui: eso sube versiones
-      # mayores solo y es exactamente lo que este proyecto tiene prohibido.
-      #
-      # Si algun dia entra una vulnerabilidad ALTA que no se pueda cerrar con
-      # un override, la decision se escribe en docs/DEPENDENCIAS.md y se sube
-      # el umbral A PROPOSITO en esta linea. Lo que no se hace es volver a
-      # poner un `|| true`, que esconde el problema sin que nadie lo decida.
+        run: npm run verificar
       - name: Vulnerabilidades altas en el backend
         working-directory: backend
         run: npm audit --audit-level=high
-
-      # El foco que saltaba al primer campo con cada tecla. Un fallo de
-      # teclado no lo caza el typecheck ni un test de unidad: lo encontro el
-      # usuario despues de semanas.
-      - name: Efectos que roban el foco
-        working-directory: frontend
-        run: npm run verificar:foco
-
-      # Misma decision que en el backend (bloque 85). El frontend tenia UNA
-      # alta, `browserslist`, transitiva de eslint-plugin-react-hooks. Cerrada
-      # con un override a la version parcheada, sin tocar ninguna directa.
       - name: Vulnerabilidades altas en el frontend
         working-directory: frontend
         run: npm audit --audit-level=high
-
-      - name: Campos de Prisma que no existen
-        working-directory: backend
-        run: npm run verificar:campos
-
-      - name: Verificar migraciones (lectura, sin base de datos)
-        working-directory: backend
-        run: npm run verificar:migraciones
-
-      # `new X()` sobre un modulo importado con `import * as`. Compila sin una
-      # queja y revienta al pulsar el boton. Paso el 02/08 con la hoja de
-      # etiquetas de gabinetes.
-      - name: Verificar constructores
-        working-directory: backend
-        run: npm run verificar:constructores
-
-      # El control de acceso vive en cinco sitios que nadie obliga a coincidir:
-      # la semilla, los @RequirePermissions, el catalogo de la pantalla de
-      # Roles, los can() del frontend y los `role === 'Nombre'` sueltos.
-      # Cuando uno se desincroniza NO revienta nada: simplemente deja de
-      # proteger, o esconde una pantalla para siempre. Encontro 11 desfases
-      # el 13/08, entre ellos que la semilla revocaba permisos al ejecutarse.
-      - name: Roles y permisos sin desfase
-        working-directory: backend
-        run: npm run verificar:roles
-
-      # La pantalla de Roles deja armar un rol marcando cuarenta casillas, y
-      # nada avisaba de que acabas de darle a Produccion el modulo de
-      # infraestructura entero. Paso: un jefe de linea con Gabinetes,
-      # Cableado, Electricidad, Conexiones, Mi bandeja e Indicadores en el
-      # menu. Esto impide que las PLANTILLAS de la semilla, que es de donde
-      # salen los roles nuevos, vuelvan a nacer asi.
-      - name: Roles de observacion sin llaves de operacion
-        working-directory: backend
-        run: npm run verificar:coherencia
-
-      # Node 20 murio el 30/04/2026 y el proyecto siguio sobre el tres meses y
-      # medio sin parches, porque una version sin soporte NO se rompe: sigue
-      # funcionando igual. Esto lo caza, y ademas comprueba que Dockerfile, CI
-      # y engines digan los tres la misma version.
-      - name: Node con soporte y una sola version declarada
-        working-directory: backend
-        run: npm run verificar:node
-
-      # El contenedor arrancaba con `prisma db push`, que NO aplica migraciones
-      # y puede ELIMINAR COLUMNAS. Llevaba meses ahi: con la base vacia nunca
-      # paso nada, asi que nada aviso. Lo encontro la auditoria del 13/08.
-      - name: Dockerfile sin trampas que cuesten datos
-        working-directory: backend
-        run: npm run verificar:despliegue
-
-      # El mismo agujero que tenia el frontend hasta el bloque 8, y que aqui
-      # duro hasta el 51. `nest build` usa tsconfig.build.json, que EXCLUYE
-      # test/ y **/*.spec.ts. Y ts-jest, al ver isolatedModules:true en el
-      # tsconfig, transpila SIN comprobar tipos. Resultado: 901 pruebas en
-      # verde y 8 errores de TypeScript en test/ que nadie veia, porque no
-      # habia un solo paso que mirara esos archivos. Este es ese paso.
       - name: Verificar tipos (incluidas las pruebas)
         working-directory: backend
         run: npm run typecheck
@@ -227,143 +135,15 @@ jobs:
         working-directory: frontend
         run: npm run lint
 
-      # El bloque 35 sustituyo 117 window.confirm/alert/prompt por los dialogos
-      # de la aplicacion. La 118 se escribe sola si nada lo impide: `confirm(...)`
-      # es mas corto que pedir el hook. Ademas de feas, esas ventanas las puede
-      # APAGAR el navegador ("impedir que esta pagina cree mas dialogos"), y
-      # entonces confirm() devuelve false sin preguntar y el boton deja de
-      # funcionar sin ningun error.
-      - name: Sin ventanas del navegador
+      # ─────────────────────────────────────────────────────────────────
+      #  LOS 18 VERIFICADORES DEL FRONTEND, DE UNA SOLA VEZ
+      # ─────────────────────────────────────────────────────────────────
+      #  Mismo motivo que en el backend: eran diecisiete pasos escritos a
+      #  mano. El agregado no existia siquiera en `package.json`; se crea
+      #  aqui para que haya UNA sola lista y no dos que se desincronizan.
+      - name: Los 18 verificadores del frontend
         working-directory: frontend
-        run: npm run verificar:dialogos
-
-      # Las 44 pantallas llegaron a 9454 palabras de texto visible sin que
-      # nadie lo decidiera: una explicacion cada vez, y cada una razonable por
-      # separado. Esto es un TRINQUETE: la deuda vieja esta medida y anotada en
-      # LINEA_BASE, pero no puede crecer, y cuando una pantalla mejora su
-      # numero baja y ya no puede volver a subir.
-      - name: Pantallas que no marean
-        working-directory: frontend
-        run: npm run verificar:densidad
-
-      # 17 sitios usaban toLocaleDateString() SIN idioma. Sin idioma, el
-      # navegador usa el del sistema: en un PC en espanol sale 15/8/2026 y en
-      # uno en ingles 8/15/2026. El MISMO dato, con dia y mes intercambiados.
-      # Una fecha de mantenimiento mal leida es un trabajo hecho el mes que no
-      # toca -- un dato incorrecto que parece correcto.
-      - name: Fechas que se leen igual en cualquier PC
-        working-directory: frontend
-        run: npm run verificar:formato
-
-      # =======================================================================
-      #  TRES VERIFICADORES QUE EXISTIAN Y NO CORRIAN AQUI (bloque 57)
-      # =======================================================================
-      #  Al anadir `verificar:clases` se contaron los pasos y salio que de los
-      #  OCHO verificadores del frontend, el CI solo ejecutaba CINCO. `cascada`,
-      #  `avisos` y `etiquetas` estaban escritos, probados y en package.json,
-      #  pero nadie los llamaba: solo corrian si alguien se acordaba a mano.
-      #
-      #  Un verificador que no corre en el CI no es un verificador: es un
-      #  archivo. Es el mismo patron que ya nos mordio con los tipos de las
-      #  pruebas y con Node 22 — la comprobacion existia y nadie la miraba.
-      # =======================================================================
-
-      # Una regla al final que tapa otra de arriba. La hoja tiene 2900 lineas:
-      # el conflicto no se ve leyendo, solo contando.
-      - name: Sin reglas de CSS que se pisen
-        working-directory: frontend
-        run: npm run verificar:cascada
-
-      # Los 44 avisos que no se anunciaban a un lector de pantalla, y la mano
-      # del cursor puesta donde no hay nada que pulsar.
-      - name: Avisos que se anuncian y manos donde toca
-        working-directory: frontend
-        run: npm run verificar:avisos
-
-      # 291 rotulos de formulario que no estaban atados a su campo: tocar el
-      # texto no enfocaba nada. En el movil, con guante, eso es la diferencia
-      # entre acertar y no.
-      - name: Cada campo enfocable desde su rotulo
-        working-directory: frontend
-        run: npm run verificar:etiquetas
-
-      # `new Date(null).toLocaleDateString()` no falla: imprime literalmente
-      # "Invalid Date" en medio de una tabla de planta. Habia 21 sitios
-      # pintando fechas a mano; ahora todas pasan por src/fechas.ts, que
-      # acepta nulos y devuelve "sin fecha".
-      - name: Ninguna fecha se pinta a mano
-        working-directory: frontend
-        run: npm run verificar:fechas
-
-      # El usuario paso el raton por una barra del tablero y le salio
-      # "value : 3" -- el nombre interno de la columna, delante del ingeniero
-      # al que le estaba enseñando el software. Todo <Tooltip> lleva formatter.
-      - name: Los graficos hablan en castellano
-        working-directory: frontend
-        run: npm run verificar:graficos
-
-      # EL PEOR DE TODOS: el sistema echo al usuario en mitad de una
-      # exposicion porque mover el raton no contaba como actividad, y porque
-      # una vez salia el aviso ignoraba que siguiera trabajando.
-      - name: La sesion no echa a quien esta trabajando
-        working-directory: frontend
-        run: npm run verificar:sesion
-
-      # Peticion del usuario tras la exposicion: "textos cortos y
-      # profesionales en todos los dashboards e incluso formularios".
-      # Habia 81 parrafos de hasta 260 caracteres debajo de las tablas.
-      - name: Los textos de pantalla son cortos
-        working-directory: frontend
-        run: npm run verificar:textos
-
-      # Usuarios tenia CUATRO encabezados y CINCO columnas: "Estado" quedaba
-      # escrito encima de la columna de trenes. No rompe nada, no lo ve el
-      # compilador y no lo ve el lint -- por eso llega a una exposicion.
-      - name: Las tablas no salen descuadradas
-        working-directory: frontend
-        run: npm run verificar:tablas
-
-      # Un boton apagado NO DISPARA NINGUN EVENTO: no hay forma de preguntarle
-      # por que. El usuario mira el formulario, no encuentra la diferencia y
-      # concluye que el software esta roto. Paso en la exposicion. Si la
-      # condicion de `disabled` mira el CONTENIDO de un campo, tiene que
-      # decir cual falta.
-      - name: Los botones apagados dicen que falta
-        working-directory: frontend
-        run: npm run verificar:botones
-
-      # `.btn-mini` media 34 px y `.btn-primary` 42. Ocho pixeles: en cualquier
-      # barra donde convivan los dos, la fila se ve encajonada. No lo ve el
-      # compilador ni las pruebas; se ve ABRIENDO la pantalla, que es como lo
-      # encontro el usuario. Ahora la altura sale de una sola variable.
-      - name: Los botones se alinean entre si
-        working-directory: frontend
-        run: npm run verificar:botones-alto
-
-      # Un `.catch(() => {})` sobre una LECTURA es deuda: el bloque sale vacio.
-      # Sobre una ESCRITURA es una MENTIRA: la pantalla dice que algo paso y no
-      # paso. Asi se perdio una contrasena de equipo en silencio y asi un
-      # borrado de credenciales decia haber ido bien sin borrar nada (b. 77).
-      # Se arreglaron los tres y NADA impedia que volvieran.
-      - name: Ninguna escritura se traga el error
-        working-directory: frontend
-        run: npm run verificar:catch
-
-      # Una pantalla sin entrada en el menu NO EXISTE para el usuario: la ruta
-      # funciona y no hay forma de llegar. Al reagrupar 44 entradas por oficio
-      # (bloque 69) es justo el fallo que se comete y que no rompe nada.
-      - name: Ninguna pantalla se queda fuera del menu
-        working-directory: frontend
-        run: npm run verificar:menu
-
-      # El codigo escribia `className="chip est-OPERATIVO"` y en styles.css no
-      # habia NI UNA regla `.est-`: siete pantallas con los estados en gris
-      # plano. No rompe nada —el navegador ignora la clase— asi que no hay
-      # error, ni en consola ni en el build. Solo se ve mirando la pantalla.
-      - name: Clases de CSS que el codigo usa y no existen
-        working-directory: frontend
-        run: npm run verificar:clases
-
+        run: npm run verificar
       - name: Compilar
         working-directory: frontend
         run: npm run build
