@@ -1,6 +1,9 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { resolverContextoDePlanta } from '../../common/plant-context';
+import {
+  Recorte, TOPE_FILAS_EXCEL, avisoDeRecorte, lineaDePortada, medirRecorte,
+} from '../../common/tope-de-filas';
 
 // exceljs entra con require, NO con `import * as`: con esModuleInterop eso
 // da un espacio de nombres que compila y revienta al ejecutar. Es el mismo
@@ -33,7 +36,19 @@ const ExcelJS = require('exceljs');
  */
 
 interface Col { clave: string; titulo: string; ancho?: number; id?: boolean }
-interface Hoja { nombre: string; columnas: Col[]; filas: Record<string, any>[] }
+interface Hoja {
+  nombre: string;
+  columnas: Col[];
+  filas: Record<string, any>[];
+  /**
+   * Sólo lo traen las hojas de tablas que CRECEN CON EL USO (bloque 101).
+   *
+   * Las de Activos, Gabinetes, Ubicaciones, Almacén y Red no lo llevan a
+   * propósito: esas tablas crecen con el tamaño de la PLANTA, no con los años,
+   * y un tope ahí sólo podría esconder una fila sin ganar nada.
+   */
+  recorte?: Recorte;
+}
 
 const ESTADO: Record<string, string> = {
   OPERATIVO: 'Operativo', FUERA_SERVICIO: 'Fuera de servicio', MANTENIMIENTO: 'En mantenimiento',
@@ -180,18 +195,33 @@ export class ExportacionService {
   }
 
   private async hojaOrdenes(): Promise<Hoja> {
-    const filas = await this.prisma.workOrder.findMany({
-      select: {
-        id: true, code: true, type: true, status: true, activity: true,
-        scheduledDate: true, executedDate: true, createdAt: true, zone: true,
-        assetId: true,
-        asset: { select: { assetCode: true } },
-        location: { select: { name: true } },
-        technician: { select: { fullName: true } },
-        closedBy: { select: { fullName: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    /* BLOQUE 101 · ESTA CONSULTA NO TENÍA `where` NI `take`.
+       Se traía TODAS las órdenes que existen para armar el libro en memoria.
+       Con la planta arrancando son cuatrocientas y no se nota; con tres años
+       de operación son decenas de miles, y el proceso se cae en UNA sola
+       petición — la que el `RitmoGuard` no puede frenar, porque es una y no
+       cien.
+
+       El `count` va EN PARALELO y no es un lujo: sin él, veinte mil filas de
+       veinte mil que hay y veinte mil de doscientas mil se ven exactamente
+       igual, y el archivo no podría decir la verdad. */
+    const [filas, total] = await Promise.all([
+      this.prisma.workOrder.findMany({
+        select: {
+          id: true, code: true, type: true, status: true, activity: true,
+          scheduledDate: true, executedDate: true, createdAt: true, zone: true,
+          assetId: true,
+          asset: { select: { assetCode: true } },
+          location: { select: { name: true } },
+          technician: { select: { fullName: true } },
+          closedBy: { select: { fullName: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: TOPE_FILAS_EXCEL,
+      }),
+      this.prisma.workOrder.count(),
+    ]);
+    const recorte = medirRecorte(filas.length, total);
     return {
       nombre: 'Órdenes',
       columnas: [
@@ -219,19 +249,28 @@ export class ExportacionService {
         cerradaPor: o.closedBy?.fullName ?? '', creada: fecha(o.createdAt),
         id: o.id, idEquipo: o.assetId ?? '',
       })),
+      recorte,
     };
   }
 
   private async hojaIncidencias(): Promise<Hoja> {
-    const filas = await this.prisma.incident.findMany({
-      select: {
-        id: true, code: true, title: true, status: true, priority: true,
-        reportedAt: true, resolvedAt: true, zone: true, assetId: true,
-        asset: { select: { assetCode: true } },
-        responsible: { select: { fullName: true } },
-      },
-      orderBy: { reportedAt: 'desc' },
-    });
+    /* Mismo caso que las órdenes (bloque 101): tampoco tenía `where` ni
+       `take`. Las incidencias crecen con el uso —una por cada cámara que se
+       cae— así que es la otra tabla que puede llegar a decenas de miles. */
+    const [filas, total] = await Promise.all([
+      this.prisma.incident.findMany({
+        select: {
+          id: true, code: true, title: true, status: true, priority: true,
+          reportedAt: true, resolvedAt: true, zone: true, assetId: true,
+          asset: { select: { assetCode: true } },
+          responsible: { select: { fullName: true } },
+        },
+        orderBy: { reportedAt: 'desc' },
+        take: TOPE_FILAS_EXCEL,
+      }),
+      this.prisma.incident.count(),
+    ]);
+    const recorte = medirRecorte(filas.length, total);
     return {
       nombre: 'Incidencias',
       columnas: [
@@ -254,6 +293,7 @@ export class ExportacionService {
         reportada: fecha(i.reportedAt), resuelta: fecha(i.resolvedAt),
         id: i.id, idEquipo: i.assetId ?? '',
       })),
+      recorte,
     };
   }
 
@@ -362,6 +402,26 @@ export class ExportacionService {
 
     for (const f of h.filas) ws.addRow(h.columnas.map((c) => f[c.clave]));
 
+    /* EL AVISO DE RECORTE VA AL FINAL, NO ARRIBA (bloque 101).
+       Arriba rompería el `autoFilter` y el panel congelado: la primera fila
+       de datos tiene que seguir siendo la fila 2 o los filtros de Excel dejan
+       de funcionar, y una hoja con los filtros rotos se abandona.
+       Al final es además donde llega quien pulsa Ctrl+Fin para ver «cuántas
+       filas hay» — que es justo la persona a la que hay que avisar. */
+    const aviso = h.recorte
+      ? avisoDeRecorte(h.recorte, h.nombre.toLowerCase())
+      : null;
+    if (aviso) {
+      ws.addRow([]);
+      const fila = ws.addRow([aviso]);
+      fila.font = { bold: true, color: { argb: 'FFB3261E' }, size: 11 };
+      /* Se combina a lo ancho de la tabla: si no, el texto se corta en la
+         primera columna y no se lee nada. */
+      ws.mergeCells(fila.number, 1, fila.number, Math.max(h.columnas.length, 2));
+      fila.getCell(1).alignment = { wrapText: true, vertical: 'top' };
+      fila.height = 34;
+    }
+
     // Las columnas de identificadores van en gris y con letra pequeña: son
     // para las máquinas, no para leerlas. Pero quitarlas sería peor: sin
     // ellas ninguna reimportación futura puede casar filas.
@@ -386,6 +446,18 @@ export class ExportacionService {
     const wb = new ExcelJS.Workbook();
     wb.creator = 'SGIT-CCTV';
 
+    /* LAS HOJAS SE ARMAN ANTES DE LA PORTADA, y el orden importa (bloque 101):
+       la portada tiene que poder AVISAR de las hojas que salieron recortadas, y
+       para eso hay que haberlas armado ya. Escribirla primero obligaría a
+       consultar dos veces o a dejar el aviso sólo dentro de la hoja — y quien
+       abre el libro por la portada y no baja a Órdenes no lo vería nunca.
+       Una advertencia a la que hay que llegar no es una advertencia (b62). */
+    const hojas: Hoja[] = [];
+    for (const item of this.catalogo()) hojas.push(await this.hoja(item.clave));
+    const recortes = hojas
+      .map((h) => (h.recorte ? lineaDePortada(h.nombre, h.recorte) : null))
+      .filter((t): t is string => !!t);
+
     const portada = wb.addWorksheet('LÉEME');
     portada.columns = [{ width: 100 }];
     const lineas = [
@@ -399,14 +471,21 @@ export class ExportacionService {
       'Los datos están enlazados entre sí por los identificadores (columnas',
       'grises). La restauración de verdad se hace desde los respaldos de la',
       'base de datos. Ante una pérdida, avisar ANTES de intentar nada.',
+      /* Sólo si hay algo que decir. Un «no hay hojas recortadas» fijo en la
+         portada se deja de leer, y entonces no sirve el día que sí las hay
+         (regla de los verificadores desde el bloque 9). */
+      ...(recortes.length
+        ? ['', 'HOJAS RECORTADAS: no todo el histórico entra en un Excel.', ...recortes]
+        : []),
     ];
     lineas.forEach((t, i) => {
       const r = portada.addRow([t]);
       if (i === 0) r.font = { bold: true, size: 14, color: { argb: 'FF1F4E79' } };
       if (t.startsWith('IMPORTANTE')) r.font = { bold: true, color: { argb: 'FFB3261E' } };
+      if (t.startsWith('HOJAS RECORTADAS')) r.font = { bold: true, color: { argb: 'FFB3261E' } };
     });
 
-    for (const item of this.catalogo()) this.pintarHoja(wb, await this.hoja(item.clave));
+    for (const h of hojas) this.pintarHoja(wb, h);
 
     const buffer = await wb.xlsx.writeBuffer();
     return { nombre: `sgit_copia_completa_${new Date().toISOString().slice(0, 10)}.xlsx`, buffer: Buffer.from(buffer) };

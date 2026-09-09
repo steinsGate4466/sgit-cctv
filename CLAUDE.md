@@ -4484,3 +4484,143 @@ corte de acceso puede tardar 15 segundos si lo atendió la otra. Ninguno de los
 dos **corrompe datos**, que es el criterio con el que se ordenó esta lista.
 Cerrarlos pide un almacén compartido (Redis) — infraestructura nueva, y eso lo
 decide el usuario.
+
+---
+
+## 44. Bloque 101 — el techo que se dice
+
+### MI PROPIO INFORME ESTABA MAL ENFOCADO, y eso va primero
+
+En la auditoría del bloque 100 medí `231 findMany · 183 sin take` y reporté
+«hay que ponerle tope a las 183». **Poner `take` a las 183 habría sido el peor
+arreglo posible.** Mirándolas una por una salieron TRES familias que se tratan
+al revés:
+
+| Familia | Qué hacer |
+|---|---|
+| **No crece con el uso** — roles (11), permisos, etapas, catálogos, ubicaciones, gabinetes, hojas de ruta | **NADA.** Crecen con el tamaño de la PLANTA, no con los años. Un tope no gana nada y puede ESCONDER una fila |
+| **CÁLCULOS** — estado derivado, MTTR, cumplimiento, backlog, cobertura, cámaras caídas, candidatos a purga | **NUNCA un tope.** Se acotan por FECHA |
+| **Listas y archivos que lee una persona** | **Techo, Y SE DICE** |
+
+La pregunta que separa la familia 1: *¿esta tabla es más grande dentro de tres
+años aunque la planta sea exactamente igual de grande?*
+
+> **Un `take` sobre un CÁLCULO no hace la pantalla más rápida: hace que el
+> número MIENTA.** Un cumplimiento calculado sobre «las primeras mil órdenes»
+> no es un cumplimiento: es una cifra inventada con pinta de medida, **y va a
+> un comité.** Y un tope en «cámaras caídas» ESCONDERÍA cámaras caídas, que es
+> el único resultado inaceptable de esa pantalla.
+
+### La bomba: la exportación no tenía `where` NI `take`
+
+```ts
+const filas = await this.prisma.workOrder.findMany({
+  select: { … },
+  orderBy: { createdAt: 'desc' },
+});          // ← TODAS las órdenes que existen, a memoria
+```
+
+Igual en `hojaIncidencias`. Y el libro **se arma entero en memoria** — por eso
+esas rutas ya llevaban `RITMO_PESADO` desde el 12.2.
+
+Con la planta arrancando son cuatrocientas filas y no se nota. Con tres años de
+operación son decenas de miles y el proceso se cae en **UNA sola petición**:
+justo la que el `RitmoGuard` no puede frenar, porque es una y no cien.
+
+**Era la segunda mitad del hallazgo S-03**, que decía «`/exportacion/todo`
+genera el libro en memoria». Se cerró el límite de peticiones y **no se cerró el
+tamaño del libro.**
+
+### LA REGLA DEL BLOQUE, y manda sobre todo lo demás
+
+> **Un recorte que no se dice es una mentira.** Un Excel con las últimas veinte
+> mil órdenes entregado como «todas las órdenes» es PEOR que un Excel lento:
+> quien lo abre cuenta filas, saca un total y lo lleva a una reunión. **Nadie va
+> a sospechar de un archivo que no se queja.**
+
+Por eso el tope nunca va solo:
+
+    take: TOPE_FILAS_EXCEL   cuántas se traen
+    workOrder.count()        cuántas HAY
+    avisoDeRecorte(...)      una frase, DENTRO del archivo
+
+**El `count` es lo que hace posible decir la verdad.** Sin él, veinte mil de
+veinte mil y veinte mil de doscientas mil **se ven exactamente igual**.
+
+Misma decisión que el paginador de Activos del 81 y que el NVR sin canales del
+bloque 5: *si no se sabe, no se inventa.*
+
+### Dónde va el aviso
+
+**En la hoja, AL FINAL.** No arriba: arriba rompería el `autoFilter` y el panel
+congelado —la primera fila de datos tiene que seguir siendo la 2 o los filtros
+de Excel dejan de funcionar, y una hoja con los filtros rotos se abandona—. Y el
+final es donde llega quien pulsa `Ctrl+Fin` para ver cuántas filas hay, que es
+exactamente a quien hay que avisar.
+
+**Y en la PORTADA del libro completo**, porque quien abre por la portada y no
+baja a Órdenes no vería el aviso nunca. *Una advertencia a la que hay que llegar
+no es una advertencia* (bloque 62). Eso obligó a **armar las hojas ANTES de
+escribir la portada**: la portada tiene que poder hablar de ellas.
+
+Y sólo sale si hay algo que decir: un «no hay hojas recortadas» fijo se deja de
+leer (bloque 9).
+
+El texto dice **los dos números**, **qué se conservó** (las más RECIENTES — eso
+cambia cómo se lee la hoja) y **qué hacer**. Sin lo último es un reproche, no un
+aviso (bloque 78).
+
+### Por qué 20.000 y por qué NO se edita desde la interfaz
+
+No «todas», porque el libro va entero a memoria. No mil, porque tiene que caber
+la operación de varios años y un tope que se alcanza el primer año convierte el
+aviso en ruido permanente.
+
+**Y es la única excepción a «todo lo de planta es editable»**: esto no es un
+dato de planta, es un límite de memoria del servidor. Si hace falta el histórico
+completo, la respuesta NO es subir el número — es exportar por periodos.
+
+### Verificador 19 — `verificar:topes`
+
+Comprueba: que todo `findMany` sobre una de las 25 tablas que CRECEN tenga
+`take` o esté declarado con categoría y motivo; que **el número de consultas de
+cada exención cuadre** (una exención no es barra libre para el archivo); que la
+**DEUDA sólo pueda ENCOGER** (diseño de `verificar:dto`, b85); y que la
+exportación siga diciendo su recorte.
+
+    CALCULO  22 consultas   un tope las haría mentir · exentas para siempre
+    HIJO     16 consultas   acotadas por su padre (las fotos de UN activo)
+    DEUDA     4 consultas   pantalla sin techo · sólo puede encoger
+
+**Probado reintroduciendo el fallo en SEIS direcciones**, con `diff -r` para
+comprobar que `src/` vuelve idéntico.
+
+### La deuda declarada, y por qué NO se cierra aquí
+
+`access.service.ts::accessRequest` alimenta una pantalla **sin paginador ni
+total**: devuelve un array plano y la pantalla pinta lo que llegue. Poner tope
+sin decirlo sería el recorte silencioso que este bloque cierra; decirlo exige
+cambiar la forma de la respuesta y las DOS llamadas de `Access.tsx`, con su
+`catch(() => [])`.
+
+> **Media puerta es peor que ninguna.** O se hace entero o se declara. Se
+> declara — con las otras dos (`campanaMapeo`, `mejoraProcedimiento`).
+
+### Y un fallo mío al probar el verificador
+
+La comprobación del aviso buscaba `avisoDeRecorte` en el archivo. **Quité la
+llamada y siguió en VERDE**: el nombre seguía en la línea del `import`.
+
+> Un verificador que se conforma con que algo esté **importado** no comprueba
+> que se **use**. Es el «modelo + endpoint ≠ función» aplicado a una función.
+
+Corregido a buscar `avisoDeRecorte(` con paréntesis. **Lo encontré probando el
+verificador, no leyéndolo** — y van DOCE veces con la misma firma.
+
+### Las pruebas ABREN el archivo
+
+Cuatro de las doce **arman el libro con 20.000 filas, lo escriben a un búfer y
+lo vuelven a abrir con ExcelJS**. Tardan tres segundos porque hacen trabajo de
+verdad: es la lección de los bloques 84 y 95 —*un `addRow` con la clave
+equivocada escribe celdas vacías y pasa el typecheck*—. Y hay una para el caso
+contrario, igual de importante: **sin recorte, ningún aviso.**

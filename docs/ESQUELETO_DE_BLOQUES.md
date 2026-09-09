@@ -260,3 +260,29 @@ con una sola instancia: un despliegue después de las 7 lo mandaba otra vez.
 Cadena: typecheck ✅ · 18 verificadores ✅ · 1.251 pruebas ✅ · build ✅
 
 Detalle completo en `docs/BLOQUE_100_CANDADO_DE_INSTANCIA.md`.
+
+---
+
+## Bloque 101 · El techo que se dice ✅
+
+**Qué cierra:** `hojaOrdenes` y `hojaIncidencias` de la exportación no tenían
+`where` NI `take` — se traían todas las filas que existen para armar un Excel
+en memoria. Segunda mitad del hallazgo S-03.
+
+**Y lo que NO se hizo, a propósito:** poner `take` a las 183 consultas sin tope.
+Hay tres familias y se tratan al revés — un `take` sobre un CÁLCULO hace que el
+número mienta.
+
+| | |
+|---|---|
+| `src/common/tope-de-filas.ts` | NUEVO · el tope y el aviso de recorte |
+| `modules/exportacion/exportacion.service.ts` | tope + `count` + aviso en la hoja y en la portada |
+| `scripts/verificar-topes.js` | NUEVO · verificador 19 |
+| `test/tope-de-filas.spec.ts` | NUEVO · 12 pruebas, cuatro ABREN el Excel |
+| `package.json` | el verificador nuevo al agregado (19) |
+
+**Migraciones: ninguna.** **Frontend: sin tocar.**
+
+Cadena: typecheck ✅ · 19 verificadores ✅ · 1.263 pruebas ✅ · build ✅
+
+Detalle en `docs/BLOQUE_101_EL_TECHO_QUE_SE_DICE.md`.
