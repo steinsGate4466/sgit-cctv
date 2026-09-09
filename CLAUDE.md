@@ -190,7 +190,38 @@ Causas conocidas de falso positivo, ya resueltas:
 
 ## 6. Estado — agosto 2026
 
-**28 módulos · 30 pantallas · 22 migraciones · 375 pruebas · 6 verificadores.**
+> **⚠ ESTA SECCIÓN ESTUVO MINTIENDO.** Los números de abajo son de agosto de
+> 2026 y decían la mitad de la realidad: 28 módulos donde hay 40, 375 pruebas
+> donde hay 1.251, 6 verificadores donde hay 34. Y dos entradas eran falsas:
+> «Falta CSP» (existe desde hace bloques, en `main.ts`) y «Documents es un
+> cascarón vacío» (tiene 356 líneas y 4 endpoints).
+>
+> Corregido en el bloque 100, después de medirlo. **Un documento de estado que
+> miente es peor que no tenerlo**, y éste mentía HACIA ABAJO — que es la
+> dirección menos peligrosa pero la que hace que el proyecto se venda por la
+> mitad delante de un tribunal.
+>
+> **Regla: los números de esta sección se MIDEN antes de escribirlos.** Van los
+> comandos, para que no haya que fiarse de la memoria de nadie:
+>
+> ```
+> ls backend/src/modules | wc -l
+> ls frontend/src/pages/*.tsx | wc -l
+> ls backend/prisma/migrations | grep -c "^2"
+> grep -c "^model " backend/prisma/schema.prisma
+> ```
+
+**Medido el 8 de septiembre de 2026:**
+
+**40 módulos · 54 pantallas · 53 migraciones · 80 modelos · 1.251 pruebas ·
+34 verificadores (18 backend + 18 frontend, menos los solapes) · 7 archivos de
+recorridos Playwright.**
+44.237 líneas de backend · 31.077 de frontend · 353 rutas.
+
+*(Lo de abajo se conserva tal cual estaba, como historia. Lo que ya no es
+cierto está tachado en su fila.)*
+
+~~28 módulos · 30 pantallas · 22 migraciones · 375 pruebas · 6 verificadores.~~
 16.788 líneas de backend · 13.499 de frontend · 214 endpoints · 52 modelos.
 
 ### Pendiente, por orden
@@ -215,7 +246,7 @@ Causas conocidas de falso positivo, ya resueltas:
 | **S-04** | Al desactivar un usuario, su token vive hasta 15 min. La estrategia JWT no consulta la base | 🟡 Conocido |
 | **S-05** | 26 `@Body() dto: any` | 🟡 Abierto |
 | **S-06** | CI no revisa dependencias. `exceljs` arrastró `glob@7`, `rimraf@2`, `fstream` | 🟡 Abierto |
-| **S-07** | Falta CSP | 🟡 Abierto |
+| **S-07** | ~~Falta CSP~~ | ✅ **CERRADO** — la CSP completa está en `main.ts` (líneas 60-90), a mano y sin dependencias, junto con otras cinco cabeceras. `'unsafe-inline'` se permite en ESTILOS a propósito (el frontend usa `style={}` de forma generalizada) y **no** en scripts. `connect-src *` queda abierto porque la API y el frontend viven en dominios distintos de Railway; se cierra el día que haya dominio propio. **Esta fila decía «Abierto» durante bloques con la CSP ya puesta.** |
 
 **Procedimiento correcto hoy para dar de baja a alguien:** desactivar **y**
 cerrar todas sus sesiones. Si la salida fue conflictiva, rotar `JWT_SECRET`.
@@ -4296,3 +4327,160 @@ una dependencia suya. Movido al trabajo del frontend, después del lint.
 **Se vio leyendo los pasos de cada trabajo con `yaml.safe_load`, no mirando el
 archivo.** Un `ci.yml` que parece bien colocado y no lo está falla en la
 ejecución, no antes.
+
+---
+
+## 43. Bloque 100 — el candado de instancia
+
+### Lo que cerraba: tres tareas que se ejecutaban DOS VECES
+
+Había tres `setInterval` en el backend y los tres tenían guarda contra la
+ejecución doble… **dentro del proceso**:
+
+| Tarea | Su guarda | Qué era de verdad |
+|---|---|---|
+| Preventivo | `alreadyRanToday()` | Consulta la auditoría — pero es *comprobar y luego actuar*, y eso no es atómico |
+| Despachador | `this.ocupado` | Un booleano en memoria |
+| Resumen | `ultimoDiaEnviado` | Un texto en memoria |
+
+Con **una** instancia las tres funcionan. Con **dos réplicas en Railway**,
+ninguna: cada proceso tiene su copia, y la comprobación del preventivo la hacen
+los dos a la vez.
+
+    PREVENTIVO   →  las dos generaban el plan entero. ÓRDENES DUPLICADAS: dos
+                    cuadrillas al mismo poste, y el reparto correctivo/
+                    preventivo del comité contando el doble.
+    DESPACHADOR  →  cada aviso de Telegram, dos veces.
+    RESUMEN      →  dos resúmenes cada mañana.
+
+**Y el despliegue lo empeora en vez de suavizarlo:** las dos réplicas arrancan
+a la vez, así que sus primeros disparos caen con milisegundos de diferencia. El
+momento de máximo riesgo es justo el momento de subir código.
+
+### Uno de los tres fallaba también con UNA instancia
+
+`ultimoDiaEnviado` vivía en memoria. **Un despliegue después de las 7 de la
+mañana** —que es cuando se despliega— reiniciaba el proceso, el campo volvía a
+`null`, y el resumen salía otra vez ese mismo día. Llevaba ahí desde que se
+escribió: no rompe, no sale en rojo, y quien lo sufre cree que el bot está mal
+configurado. Ahora se anota en `ConfiguracionSistema`, que ya existía —**este
+bloque no necesita ninguna migración**—.
+
+### `xact` y no el candado de sesión, y el motivo hay que dejarlo escrito
+
+    pg_try_advisory_lock(k)        se suelta con pg_advisory_unlock(k)
+                                   O al cerrarse la CONEXIÓN
+    pg_try_advisory_xact_lock(k)   se suelta SOLO al terminar la transacción
+
+**Prisma tiene un POOL.** Dos consultas seguidas pueden viajar por conexiones
+distintas, así que con el candado de sesión el `unlock` puede salir por una
+conexión que no lo tiene: no suelta nada y **el candado se queda tomado**.
+
+Eso es un fallo **cerrado y permanente**: la tarea no vuelve a correr nunca y
+nadie se entera, porque no hay error — sencillamente no pasa nada. Misma
+familia que el selector de CSS muerto del bloque 89. El `xact` no puede
+quedarse tomado ni matando el proceso de un tirón, y va dentro de
+`$transaction`, que es lo que obliga a Prisma a usar una sola conexión.
+
+Y es `try_`, no el que espera: el que espera acumula transacciones abiertas
+cada minuto y se come el pool. La respuesta correcta a «lo hace el otro» es no
+hacer nada y volver en el siguiente ciclo.
+
+### ESTE FALLA CERRADO, y es lo CONTRARIO que los guards
+
+Los guards fallan **abriendo** a propósito (bloques 12.3 y 82): son defensa en
+profundidad y un fallo de base no puede dejar a la planta sin sistema. Aquí es
+al revés, porque las consecuencias son opuestas:
+
+    un guard que falla cerrado    →  la planta se queda sin sistema
+    un candado que falla abierto  →  órdenes y avisos duplicados
+
+### La regla de uso, y no se afloja
+
+> **Todo lo que haya que hacer una sola vez va DENTRO del candado, INCLUIDA la
+> comprobación de «¿ya se hizo?».**
+
+Dejarla fuera y meter sólo la escritura no arregla nada: las dos instancias
+comprobarían a la vez y entrarían una detrás de otra. **Sería el fallo original
+con un candado encima.** Hay una prueba que lo fija leyendo el código, probada
+sacando la comprobación fuera.
+
+### El despachador: el candado cubre *leer y reservar*; el envío queda FUERA
+
+    DENTRO:  findMany(30)  +  updateMany(proximoIntento → +5 min)
+    FUERA:   las 30 llamadas a Telegram
+
+Treinta mensajes son treinta llamadas de red. Una transacción abierta mientras
+tanto ata una conexión del pool al ritmo de un servidor que no controlamos, y
+si Telegram se cuelga la transacción muere por tiempo. **La reserva ya
+garantiza que nadie más los toque**, así que el candado no tiene que seguir
+puesto.
+
+Y la reserva **no toca `intentos`**: reservar no es intentar. Sumarlo gastaría
+uno de los cuatro reintentos por el mero hecho de haber cogido el mensaje.
+
+Si la instancia se cae a mitad, los que queden vuelven a la cola en 5 minutos
+en vez de en 1. *Retrasar cinco minutos un aviso es preferible a mandarlo dos
+veces:* el duplicado es lo que enseña a silenciar el bot, y con el bot
+silenciado se pierde también lo urgente.
+
+**Limitación declarada:** con dos réplicas las dos sondean Telegram y éste
+responde 409 a la segunda. No duplica nada y el `.catch` ya lo absorbe.
+
+### Las claves son NÚMEROS FIJOS
+
+Los candados consultivos comparten un solo espacio de nombres en toda la base.
+Derivar la clave de un texto con un hash haría que dos nombres pudieran chocar,
+y un choque significa **dos tareas sin relación bloqueándose entre sí**, con un
+síntoma —«a veces no corre»— que no lleva a ninguna parte.
+
+### Verificador 18 — `verificar:planificadores`
+
+El cuarto planificador se escribirá copiando uno de los tres, y se copiará el
+`setInterval` sin el candado, porque el candado no salta a la vista. *Una regla
+que hay que acordarse de cumplir es un agujero con fecha.*
+
+Comprueba: que todo `setInterval` real use el candado o esté en `EXENTOS` con
+su motivo; que las claves sean números únicos; que toda clave usada esté
+declarada; y que siga siendo `xact` dentro de `$transaction`. **Probado
+reintroduciendo el fallo en las cuatro direcciones**, con `diff -r` para
+comprobar que `src/` vuelve idéntico.
+
+### Y `verificar:ci` tenía un número escrito a mano que ya estaba mal
+
+Decía «son 16 verificadores» cuando había 17. Un número a mano dentro de un
+verificador es la misma familia de fallo que el verificador viene a cerrar.
+Ahora lo **cuenta del agregado**, que es la única lista.
+
+### TRES tropiezos míos en este bloque, y los tres son el mismo
+
+1. **Cerré mi propio comentario antes de tiempo** escribiendo la marca de
+   cierre dentro del comentario que la explicaba. Node lo cazó al instante.
+   Bloque 18.1 con otra cara.
+2. **Mi limpieza borraba justo la prueba que buscaba.** La primera versión del
+   verificador quitaba comentarios *y cadenas* para todo, y **se dio tres
+   falsos positivos a sí mismo** en su primera ejecución: la ruta del `import`
+   y el SQL **viven dentro de cadenas**. Son dos preguntas distintas y
+   necesitan dos limpiezas:
+
+       ¿hay un setInterval de verdad?   →  sin comentarios y SIN cadenas
+       ¿usa el candado? ¿sigue el SQL?  →  sin comentarios pero CON cadenas
+
+3. **Una prueba mía se cayó señalando un comentario correcto:**
+   `not.toContain('pg_advisory_unlock')` sobre el archivo entero, cuando la
+   cabecera EXPLICA por qué no se usa. Acotada al cuerpo de la función.
+
+> **Un patrón más flojo —o más rígido— de lo necesario acaba leyendo otra
+> cosa.** Van **once veces**, y las tres de este bloque salieron en menos de
+> una hora. Eso ya no es un descuido puntual: es el modo por defecto de
+> equivocarse con búsquedas de texto. **Cuando un barrido da un resultado
+> sorprendente, de lo primero que hay que dudar es del barrido.**
+
+### Lo que NO se cierra aquí, y queda dicho
+
+El contador del `RitmoGuard` y la caché de permisos **siguen viviendo en
+memoria del proceso**. Con dos réplicas el tope de peticiones se duplica y un
+corte de acceso puede tardar 15 segundos si lo atendió la otra. Ninguno de los
+dos **corrompe datos**, que es el criterio con el que se ordenó esta lista.
+Cerrarlos pide un almacén compartido (Redis) — infraestructura nueva, y eso lo
+decide el usuario.

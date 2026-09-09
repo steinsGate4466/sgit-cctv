@@ -235,3 +235,28 @@ frontend/src/pages/Notificaciones  ← qué se envió, qué falló, reintentar
 Las plantillas van en su propio archivo y con pruebas: el texto de una alerta se
 lee a las tres de la mañana, medio dormido, en una pantalla de 5 pulgadas. Es
 contenido, no decoración.
+
+---
+
+## Bloque 100 · El candado de instancia ✅
+
+**Qué cierra:** con dos réplicas en Railway, las tres tareas programadas del
+backend se ejecutaban dos veces — órdenes preventivas duplicadas, avisos de
+Telegram duplicados y dos resúmenes cada mañana. Y el resumen fallaba también
+con una sola instancia: un despliegue después de las 7 lo mandaba otra vez.
+
+| | |
+|---|---|
+| `src/common/candado-de-instancia.ts` | NUEVO · `pg_try_advisory_xact_lock` dentro de `$transaction` |
+| `preventive.scheduler.ts` | El tick entero dentro del candado, con la comprobación DENTRO |
+| `resumen.scheduler.ts` | Candado + marcador persistido en `ConfiguracionSistema` |
+| `despachador.service.ts` | Candado en *leer y reservar*; el envío a Telegram queda fuera |
+| `scripts/verificar-planificadores.js` | NUEVO · verificador 18 |
+| `scripts/verificar-ci.js` | El número de verificadores se cuenta, ya no está a mano |
+| `test/candado-de-instancia.spec.ts` | NUEVO · 14 pruebas |
+
+**Migraciones: ninguna.** **Frontend: sin tocar.**
+
+Cadena: typecheck ✅ · 18 verificadores ✅ · 1.251 pruebas ✅ · build ✅
+
+Detalle completo en `docs/BLOQUE_100_CANDADO_DE_INSTANCIA.md`.

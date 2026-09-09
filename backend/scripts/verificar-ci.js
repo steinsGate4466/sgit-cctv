@@ -62,14 +62,27 @@ if (!fs.existsSync(rutaCi)) {
 }
 const ci = fs.readFileSync(rutaCi, 'utf8');
 
+/* Cuántos verificadores hay de verdad en cada proyecto.
+   ANTES ESTABA ESCRITO A MANO (`16` y `18`) y ya se había quedado corto: el
+   backend tenía 17. Un número a mano dentro de un verificador es la misma
+   familia de fallo que el verificador viene a cerrar — una lista que hay que
+   acordarse de ampliar. Se cuenta del agregado, que es la única lista. */
+function cuantosVerificadores(proyecto) {
+  const pkg = path.join(RAIZ, proyecto, 'package.json');
+  if (!fs.existsSync(pkg)) return 0;
+  const agregado = (JSON.parse(fs.readFileSync(pkg, 'utf8')).scripts || {}).verificar || '';
+  return new Set(agregado.match(/verificar:[a-z-]+/g) || []).size;
+}
+
 /* 1 · el agregado se llama en los dos proyectos ---------------------------- */
-for (const [proyecto, cuantos] of [['backend', 16], ['frontend', 18]]) {
+for (const proyecto of ['backend', 'frontend']) {
   const re = new RegExp(
     `working-directory:\\s*${proyecto}\\s*\\n\\s*run:\\s*npm run verificar\\s*$`, 'm',
   );
   if (!re.test(ci)) {
     apunta(`La CI no llama a \`npm run verificar\` en ${proyecto}. `
-      + `Son ${cuantos} verificadores que dejan de ejecutarse, y la CI sale verde igual.`);
+      + `Son ${cuantosVerificadores(proyecto)} verificadores que dejan de ejecutarse, `
+      + 'y la CI sale verde igual.');
   }
 }
 

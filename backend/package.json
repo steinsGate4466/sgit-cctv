@@ -21,7 +21,7 @@
     "verificar:node": "node scripts/verificar-node.js",
     "verificar:arranque": "node scripts/verificar-arranque.js",
     "verificar:despliegue": "node scripts/verificar-despliegue.js",
-    "verificar": "npm run verificar:inyeccion && npm run verificar:filtros && npm run verificar:campos && npm run verificar:migraciones && npm run verificar:constructores && npm run verificar:roles && npm run verificar:coherencia && npm run verificar:sql-roles && npm run verificar:cable && npm run verificar:estructura && npm run verificar:node && npm run verificar:despliegue && npm run verificar:dto && npm run verificar:relaciones && npm run verificar:escrituras && npm run verificar:ambito && npm run verificar:ci",
+    "verificar": "npm run verificar:inyeccion && npm run verificar:filtros && npm run verificar:campos && npm run verificar:migraciones && npm run verificar:constructores && npm run verificar:roles && npm run verificar:coherencia && npm run verificar:sql-roles && npm run verificar:cable && npm run verificar:estructura && npm run verificar:node && npm run verificar:despliegue && npm run verificar:dto && npm run verificar:relaciones && npm run verificar:escrituras && npm run verificar:ambito && npm run verificar:planificadores && npm run verificar:ci",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main.js",
@@ -44,6 +44,7 @@
     "verificar:relaciones": "node scripts/verificar-relaciones.js",
     "verificar:escrituras": "node scripts/verificar-escrituras.js",
     "verificar:ambito": "node scripts/verificar-ambito.js",
+    "verificar:planificadores": "node scripts/verificar-planificadores.js",
     "verificar:ci": "node scripts/verificar-ci.js"
   },
   "dependencies": {

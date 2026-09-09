@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CANDADO, conCandado } from '../../common/candado-de-instancia';
 import { PreventiveService } from './preventive.service';
 
 /**
@@ -57,8 +58,20 @@ export class PreventiveScheduler implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Revisa si corresponde ejecutar hoy y, de ser así, genera las OM preventivas.
-   * Es idempotente: si ya se ejecutó hoy (aunque el servicio se haya reiniciado),
-   * no vuelve a correr, porque consulta la traza de auditoría del día.
+   *
+   * IDEMPOTENTE EN DOS NIVELES, y hacen falta los dos (bloque 100):
+   *
+   *   · `alreadyRanToday()` consulta la traza de auditoría del día, así que un
+   *     reinicio del servicio no vuelve a generar.
+   *   · El CANDADO hace que esa comprobación sea atómica ENTRE INSTANCIAS.
+   *     Sin él, dos réplicas comprobaban a la vez, las dos veían «hoy no se ha
+   *     ejecutado» y las dos generaban el plan entero: órdenes duplicadas, dos
+   *     cuadrillas al mismo poste, y el reparto del comité contando el doble.
+   *     Y el peor momento era el despliegue, porque las dos réplicas arrancan
+   *     juntas y sus primeros disparos caen con milisegundos de diferencia.
+   *
+   * Por eso la comprobación va DENTRO del candado. Dejarla fuera y meter sólo
+   * la generación no arregla nada: es el fallo original con un candado encima.
    */
   private async tick(): Promise<void> {
     try {
@@ -66,12 +79,27 @@ export class PreventiveScheduler implements OnModuleInit, OnModuleDestroy {
       const now = this.plantNow();
       if (now.getUTCHours() < startHour) return; // aún no es la hora de planta
 
-      if (await this.alreadyRanToday()) return;
+      const r = await conCandado(this.prisma, CANDADO.PREVENTIVO, async () => {
+        if (await this.alreadyRanToday()) return null;
+        const lookahead = Number(process.env.PREVENTIVE_LOOKAHEAD_DAYS ?? 0);
+        return this.preventive.generateDue(null, 'sistema (automático)', lookahead);
+      });
 
-      const lookahead = Number(process.env.PREVENTIVE_LOOKAHEAD_DAYS ?? 0);
-      const result = await this.preventive.generateDue(null, 'sistema (automático)', lookahead);
+      if (r.motivo === 'fallo') {
+        /* No poder tomar el candado NO se ejecuta: no se puede demostrar que
+           la otra réplica no esté haciéndolo. Se reintenta en 30 minutos. */
+        this.logger.error(
+          `No se pudo tomar el candado de la generación automática; se salta este ciclo: ${
+            (r.error as any)?.message || r.error
+          }`,
+        );
+        return;
+      }
+      // `tomado: false` sin fallo = lo está haciendo la otra instancia. Normal.
+      if (!r.tomado || !r.valor) return;
+
       this.logger.log(
-        `Generación automática: ${result.generated} OM preventiva(s) creada(s), ${result.skipped.length} omitida(s).`,
+        `Generación automática: ${r.valor.generated} OM preventiva(s) creada(s), ${r.valor.skipped.length} omitida(s).`,
       );
     } catch (e: any) {
       // Nunca tumbar la aplicación por un fallo del job; se reintenta en el próximo ciclo.

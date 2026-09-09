@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CANDADO, conCandado } from '../../common/candado-de-instancia';
 import { TelegramClient } from './telegram.client';
 import { VinculacionService } from './vinculacion.service';
 
@@ -29,6 +30,19 @@ export class DespachadorService implements OnModuleInit, OnModuleDestroy {
   private readonly ESPERAS_MIN = [1, 5, 15, 60];
   /** Tope por vuelta: 30 mensajes/minuto va muy por debajo del límite de Telegram. */
   private readonly POR_VUELTA = 30;
+  /**
+   * Cuánto se RESERVA una tanda antes de mandarla (bloque 100).
+   *
+   * Al reservar se empuja `proximoIntento` a este futuro, así que ninguna otra
+   * réplica los ve como pendientes mientras esta los manda. Si esta instancia
+   * se cae a mitad del envío, los que quedaron vuelven a la cola pasado este
+   * rato en lugar de al minuto siguiente.
+   *
+   * **Retrasar cinco minutos un aviso es preferible a mandarlo dos veces**: el
+   * duplicado es lo que enseña a silenciar el bot, y con el bot silenciado se
+   * pierde también lo urgente.
+   */
+  private readonly RESERVA_MS = 5 * 60_000;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -58,18 +72,24 @@ export class DespachadorService implements OnModuleInit, OnModuleDestroy {
     if (this.timer) clearInterval(this.timer);
   }
 
-  async vuelta() {
-    // Si la vuelta anterior sigue en marcha no se lanza otra: dos a la vez
-    // mandarían el mismo aviso dos veces.
-    if (this.ocupado || !(await this.telegram.activo())) return;
-    this.ocupado = true;
-    try {
-      // Antes de enviar se leen los mensajes que le han escrito al bot: es
-      // como se vincula la gente. Va aquí y no en un temporizador aparte
-      // porque son la misma conversación con Telegram, y así se gasta una
-      // petición en lugar de dos.
-      await this.vinculacion.revisarMensajes().catch(() => 0);
-
+  /**
+   * Coge una tanda de avisos y la RESERVA, de forma que ninguna otra réplica
+   * la coja (bloque 100).
+   *
+   * El candado envuelve **leer y reservar juntos**. Si sólo envolviera la
+   * lectura, las dos instancias leerían la misma tanda una detrás de otra y
+   * mandarían los mismos mensajes: la exclusión tiene que cubrir la decisión
+   * entera, no una de sus mitades.
+   *
+   * **El ENVÍO queda FUERA del candado, y eso es deliberado.** Mandar treinta
+   * mensajes a Telegram son treinta llamadas de red; tener una transacción de
+   * base de datos abierta mientras tanto ata una conexión del pool al ritmo de
+   * un servidor que no controlamos, y si Telegram se queda colgado la
+   * transacción muere por tiempo. La reserva ya garantiza que nadie más los
+   * toque, así que el candado no tiene que seguir puesto.
+   */
+  private async reservarTanda() {
+    const r = await conCandado(this.prisma, CANDADO.AVISOS_SALIENTES, async () => {
       const pendientes = await this.prisma.notificacionSaliente.findMany({
         where: {
           estado: 'PENDIENTE',
@@ -78,6 +98,51 @@ export class DespachadorService implements OnModuleInit, OnModuleDestroy {
         orderBy: { creadaEn: 'asc' },
         take: this.POR_VUELTA,
       });
+      if (pendientes.length === 0) return [];
+
+      /* Se empuja `proximoIntento` al futuro SIN tocar `intentos`: esto no es
+         un intento fallido, es una reserva. Sumarlo gastaría uno de los cuatro
+         reintentos por el mero hecho de haberlo cogido. */
+      await this.prisma.notificacionSaliente.updateMany({
+        where: { id: { in: pendientes.map((p) => p.id) }, estado: 'PENDIENTE' },
+        data: { proximoIntento: new Date(Date.now() + this.RESERVA_MS) },
+      });
+      return pendientes;
+    });
+
+    if (r.motivo === 'fallo') {
+      this.logger.error(
+        `No se pudo reservar la tanda de avisos; se salta esta vuelta: ${
+          (r.error as any)?.message || r.error
+        }`,
+      );
+      return [];
+    }
+    // `tomado: false` sin fallo = la tanda la tiene la otra instancia.
+    return r.valor ?? [];
+  }
+
+  async vuelta() {
+    // Si la vuelta anterior sigue en marcha no se lanza otra. Este freno es
+    // DENTRO del proceso; el que cubre las otras réplicas es el candado de
+    // `reservarTanda()`. Se conservan los dos: éste ahorra el viaje a la base.
+    if (this.ocupado || !(await this.telegram.activo())) return;
+    this.ocupado = true;
+    try {
+      // Antes de enviar se leen los mensajes que le han escrito al bot: es
+      // como se vincula la gente. Va aquí y no en un temporizador aparte
+      // porque son la misma conversación con Telegram, y así se gasta una
+      // petición en lugar de dos.
+      //
+      // LIMITACIÓN DECLARADA (bloque 100): con dos réplicas, las dos sondean
+      // Telegram y Telegram responde 409 a la segunda. No duplica nada —el
+      // `.catch` ya lo absorbe— y la vinculación se resuelve en la vuelta
+      // siguiente. Meterlo dentro del candado obligaría a tener la
+      // transacción abierta durante una llamada de red, que es justo lo que
+      // se acaba de evitar.
+      await this.vinculacion.revisarMensajes().catch(() => 0);
+
+      const pendientes = await this.reservarTanda();
 
       for (const n of pendientes) {
         const r = await this.telegram.enviar(n.destino, n.cuerpo, n.silencioso);
