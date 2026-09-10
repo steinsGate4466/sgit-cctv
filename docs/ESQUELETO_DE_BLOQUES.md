@@ -286,3 +286,32 @@ número mienta.
 Cadena: typecheck ✅ · 19 verificadores ✅ · 1.263 pruebas ✅ · build ✅
 
 Detalle en `docs/BLOQUE_101_EL_TECHO_QUE_SE_DICE.md`.
+
+---
+
+## Bloque 102 · La cámara que existía en una pantalla y no en la otra ✅
+
+**Qué cierra:** «Mis cámaras» decía que el tren no tenía cámaras mientras «Por
+tren» enseñaba dos. La consulta pedía `location` (el objeto) y no `locationId`
+(la clave foránea); con `select:` Prisma trae sólo lo pedido, el recorrido del
+árbol no arrancaba y el filtro por tren descartaba todas las cámaras.
+
+**Lo encontró el usuario abriendo el software.**
+
+| | |
+|---|---|
+| `src/common/plant-context.ts` | `locationId` pasa a OBLIGATORIO (era `?`) |
+| `modules/dashboard/camaras-caidas.service.ts` | `locationId: true` en la consulta |
+| 12 servicios | fuera los **19 `as any`** que apagaban al compilador |
+| `scripts/verificar-contexto-planta.js` | NUEVO · verificador 20 |
+| `test/contexto-de-planta-locationid.spec.ts` | NUEVO · 7 pruebas |
+| `package.json` | el verificador nuevo al agregado (20) |
+
+**Migraciones: ninguna.** **Frontend: sin tocar.**
+
+Cadena: typecheck ✅ · 20 verificadores ✅ · 1.270 pruebas ✅ · build ✅
+
+Detalle en `docs/BLOQUE_102_LA_CAMARA_QUE_NO_EXISTIA.md`.
+
+**Anotado, no cerrado:** la pantalla de Usuarios no avisa de que un usuario sin
+tren asignado ve la planta entera.

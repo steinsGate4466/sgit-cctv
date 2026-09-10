@@ -175,7 +175,7 @@ export class IncidentsService {
           .findUnique({ where: { id: inc.assetId }, select: { id: true, locationId: true, assetCode: true } })
           .catch(() => null);
         if (activo) {
-          const ctx = await resolverContextoDePlanta(this.prisma, [activo] as any).catch(() => ({} as any));
+          const ctx = await resolverContextoDePlanta(this.prisma, [activo]).catch(() => ({} as any));
           tren = ctx?.[activo.id]?.trenNombre || ctx?.[activo.id]?.trenCode || null;
         }
       }
@@ -252,7 +252,7 @@ export class IncidentsService {
     if (!quien) throw new BadRequestException('No se pudo identificar quién reporta.');
 
     // Tren y criticidad declarada: los dos salen del árbol, no del formulario.
-    const ctx = await resolverContextoDePlanta(this.prisma, [activo] as any).catch(() => ({} as any));
+    const ctx = await resolverContextoDePlanta(this.prisma, [activo]).catch(() => ({} as any));
     const contexto = ctx?.[activo.id];
 
     /* La foto se sube ANTES de entrar a la transacción. Ver la nota de arriba:

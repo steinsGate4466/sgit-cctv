@@ -73,7 +73,7 @@ export class MapaDeRedService {
       }),
     ]);
 
-    const ctx = await resolverContextoDePlanta(this.prisma, activos as any);
+    const ctx = await resolverContextoDePlanta(this.prisma, activos);
     const estados = await computeEffectiveStatuses(this.prisma, activos as any);
     const ambito = await ambitoDelUsuario(this.prisma, userId);
     const filtro = tren ? tren.toUpperCase() : null;

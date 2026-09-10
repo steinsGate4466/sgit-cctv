@@ -351,7 +351,7 @@ export class CriticidadService {
 
     const [crit, ctx] = await Promise.all([
       this.deUnActivo(assetId),
-      resolverContextoDePlanta(this.prisma, [asset as any]),
+      resolverContextoDePlanta(this.prisma, [asset]),
     ]);
     const c = ctx[assetId];
     const porAmbiente = c?.intervaloDias ?? intervaloParaAmbiente(c?.ambiente ?? null);

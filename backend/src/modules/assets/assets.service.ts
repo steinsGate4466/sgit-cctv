@@ -215,7 +215,7 @@ export class AssetsService {
     // Tren 2 y diga TREN_1.
     const [eff, ctx, letras] = await Promise.all([
       computeEffectiveStatuses(this.prisma, rows),
-      resolverContextoDePlanta(this.prisma, rows as any),
+      resolverContextoDePlanta(this.prisma, rows),
       /* LA LETRA A/B/C EN EL LISTADO (bloque 78).
          -------------------------------------------------------------------
          Decisión del usuario: la criticidad se ve «en el campo de activos y
@@ -362,7 +362,7 @@ export class AssetsService {
       orderBy: { assetCode: 'asc' },
     });
 
-    const ctx = await resolverContextoDePlanta(this.prisma, activos as any);
+    const ctx = await resolverContextoDePlanta(this.prisma, activos);
 
     let completos = 0;
     let sinFoto = 0;

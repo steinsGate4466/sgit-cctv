@@ -118,7 +118,7 @@ export class DashboardService {
       select: { id: true, type: true, status: true, criticality: true, locationId: true },
     });
     const eff = await computeEffectiveStatuses(this.prisma, assets);
-    const ctx = await resolverContextoDePlanta(this.prisma, assets as any);
+    const ctx = await resolverContextoDePlanta(this.prisma, assets);
 
     const count = (arr: string[]) => {
       const m: Record<string, number> = {};

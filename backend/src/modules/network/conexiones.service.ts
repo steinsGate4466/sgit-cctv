@@ -44,7 +44,7 @@ export class ConexionesService {
     });
     if (equipos.length === 0) return [];
 
-    const ctx = await resolverContextoDePlanta(this.prisma, equipos as any);
+    const ctx = await resolverContextoDePlanta(this.prisma, equipos);
     const ambito = await ambitoDelUsuario(this.prisma, userId);
     if (noVeNada(ambito)) return [];
     const visibles = equipos.filter((s) => {
@@ -128,7 +128,7 @@ export class ConexionesService {
       where: { id: { in: ids } },
       select: { id: true, locationId: true },
     });
-    const ctx = await resolverContextoDePlanta(this.prisma, extremos as any);
+    const ctx = await resolverContextoDePlanta(this.prisma, extremos);
     const ambito = await ambitoDelUsuario(this.prisma, userId);
 
     // Un enlace se ve si CUALQUIERA de sus extremos está en el ámbito: un

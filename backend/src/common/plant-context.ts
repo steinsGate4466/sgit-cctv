@@ -116,10 +116,61 @@ export interface ContextoDePlanta {
   requiereAsignarEtapa: boolean;
 }
 
+/* =============================================================================
+   BLOQUE 102 · `locationId` ES OBLIGATORIO, Y ANTES NO LO ERA
+   -----------------------------------------------------------------------------
+   EL FALLO QUE LO CAMBIÓ. El usuario vio dos pantallas contradiciéndose sobre
+   el MISMO tren:
+
+       «Por tren»     ->  Tren 1: 2 camaras, 1 antena, 6 activos
+       «Mis camaras»  ->  Tren 1: «todavia no tiene camaras cargadas»
+
+   Las dos no pueden tener razon. Y la causa estaba aqui abajo, en una
+   interrogacion:  `locationId?: string | null;`
+
+   `camaras-caidas.service.ts` pedia las camaras con `select:` y ponia
+   `location` —el objeto— pero NO `locationId`, que es la clave foranea. Con
+   `select`, Prisma trae SOLO lo que se pide, asi que llegaba `undefined`.
+
+   Y el recorrido del arbol empieza justo por ahi:
+
+       let actual = activo.locationId ? porId.get(activo.locationId) : undefined;
+
+   ...asi que no arrancaba NUNCA. Sin recorrido no hay `trenCode`, y el filtro
+   por tren descartaba absolutamente todas las camaras. Cero, en silencio.
+
+   «Por tren» funcionaba porque usa `include:`, que trae todos los campos del
+   modelo. Esa era la diferencia entera entre una pantalla que ve y otra que no.
+
+   -----------------------------------------------------------------------------
+   POR QUE NO LO CAZO NADA — y por que el arreglo va AQUI y no alli
+
+   Con la interrogacion, pasar un objeto sin `locationId` NO era un error de
+   tipos: era exactamente lo que el tipo permitia. Compilaba, pasaba el lint,
+   pasaban las 1.263 pruebas y pasaban los 19 verificadores.
+
+   > El campo del que depende TODO este calculo estaba declarado como
+   > prescindible. Eso no es un descuido de quien escribio la consulta: es que
+   > el tipo decia que se podia.
+
+   Se quita la interrogacion. Ahora omitirlo es un error de compilacion en el
+   sitio exacto y no hay que acordarse de nada. Es la decision de siempre en
+   este proyecto: se arregla donde esta el defecto, no en cada sitio donde se
+   nota (el `<Campo>` del bloque 77, el `heading()` del 94).
+
+   `null` SI se acepta —un activo en STOCK no cuelga de ninguna ubicacion y eso
+   es legitimo—. Lo que deja de aceptarse es NO DECIR NADA, que es lo que
+   confunde «este activo no tiene sitio» con «no se pregunto».
+============================================================================= */
 interface ActivoLike {
   id: string;
   criticality?: string | null;
-  locationId?: string | null;
+  /**
+   * OBLIGATORIO a proposito (bloque 102). `null` vale —STOCK, sin ubicar—;
+   * omitirlo, no. Si tu consulta usa `select:`, tiene que incluir
+   * `locationId: true`; si usa `include:`, ya viene.
+   */
+  locationId: string | null;
 }
 
 /** Devuelve la criticidad mayor entre dos. */

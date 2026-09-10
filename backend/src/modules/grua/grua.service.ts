@@ -49,7 +49,7 @@ export class GruaService {
     if (filas.length === 0) return [];
 
     const activos = filas.map((f) => ({ id: f.assetId, locationId: f.asset?.locationId ?? null }));
-    const ctx = await resolverContextoDePlanta(this.prisma, activos as any);
+    const ctx = await resolverContextoDePlanta(this.prisma, activos);
     const ambito = await ambitoDelUsuario(this.prisma, userId);
     // Bloque 42: rol sectorizado sin tren asignado -> ni una fila.
     if (noVeNada(ambito)) return [];

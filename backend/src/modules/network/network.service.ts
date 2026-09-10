@@ -59,7 +59,7 @@ export class NetworkService {
       }),
     ]);
 
-    const ctx = await resolverContextoDePlanta(this.prisma, activos as any);
+    const ctx = await resolverContextoDePlanta(this.prisma, activos);
     const info = new Map(
       activos.map((a) => [a.id, {
         code: a.assetCode,

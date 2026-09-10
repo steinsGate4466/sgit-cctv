@@ -38,7 +38,7 @@ export class GrabadoresService {
     });
     if (nvrs.length === 0) return { grabadores: [], sinAmbito: false };
 
-    const ctx = await resolverContextoDePlanta(this.prisma, nvrs as any);
+    const ctx = await resolverContextoDePlanta(this.prisma, nvrs);
     const ambito = await ambitoDelUsuario(this.prisma, userId);
 
     const visibles = nvrs.filter((n) => {
@@ -177,7 +177,7 @@ export class GrabadoresService {
     });
     if (libres.length === 0) return [];
 
-    const ctx = await resolverContextoDePlanta(this.prisma, [...libres, nvr] as any);
+    const ctx = await resolverContextoDePlanta(this.prisma, [...libres, nvr]);
     const trenDelNvr = ctx[nvr.id]?.trenCode ?? null;
 
     return libres

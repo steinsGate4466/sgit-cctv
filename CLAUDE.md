@@ -4624,3 +4624,123 @@ lo vuelven a abrir con ExcelJS**. Tardan tres segundos porque hacen trabajo de
 verdad: es la lección de los bloques 84 y 95 —*un `addRow` con la clave
 equivocada escribe celdas vacías y pasa el typecheck*—. Y hay una para el caso
 contrario, igual de importante: **sin recorte, ningún aviso.**
+
+---
+
+## 45. Bloque 102 — la cámara que existía en una pantalla y no en la otra
+
+### Lo encontró el usuario abriendo el software
+
+| Pantalla | Qué decía del MISMO tren |
+|---|---|
+| **Por tren** | «2 cámaras · 1 antena · 6 activos» |
+| **Mis cámaras** | «Este tren todavía no tiene cámaras cargadas» |
+
+Preguntó si había que «completar el activo al 100 %». **No.** Los datos
+estaban; una pantalla no sabía verlos.
+
+### `select` NO es `include`, y ahí estaba todo
+
+```ts
+select: {
+  id, assetCode, status, brand, model, referencePlace,
+  location: { select: { id: true, name: true } },   // ← el OBJETO
+}                                                    // ← NO `locationId`
+```
+
+Y el recorrido del árbol arranca justo ahí:
+
+```ts
+let actual = activo.locationId ? porId.get(activo.locationId) : undefined;
+```
+
+`locationId` llegaba `undefined` → el recorrido **no arrancaba nunca** → sin
+`trenCode` → el filtro por tren descartaba **todas** las cámaras.
+
+> **`include:` trae TODOS los campos del modelo. `select:` trae SÓLO los que
+> pides.** «Por tren» usa `include` y ve dos cámaras; «Mis cámaras» usa
+> `select`, se dejó una clave foránea, y ve cero. Ésa es la explicación entera.
+
+### POR QUÉ NO LO CAZÓ NADA — y por qué el arreglo va en el TIPO
+
+```ts
+locationId?: string | null;      // ← OPCIONAL
+```
+
+Con esa interrogación, **omitirlo no era un error: era lo que el tipo
+permitía.** Compilaba, pasaba el lint, pasaban 1.263 pruebas y 19
+verificadores.
+
+> **El campo del que depende TODO el cálculo estaba declarado como
+> prescindible.** No es un descuido de quien escribió la consulta: es que el
+> tipo decía que se podía.
+
+Y había una segunda capa de silencio: **19 de las 30 llamadas pasaban su lista
+con `as any`**, que apaga la comprobación aunque el tipo esté bien.
+
+**El arreglo:** `locationId: string | null` **obligatorio** + fuera los 19
+`as any`. `null` sí vale —STOCK, sin ubicar—; **no decir nada**, no.
+
+Parchear sólo la consulta habría cerrado ESA pantalla dejando el mecanismo
+intacto para la siguiente. *Se arregla donde está el defecto* (b77, b94).
+
+### MI BARRIDO DECÍA 22. EL COMPILADOR DIJO 1.
+
+Antes de tocar nada hice un barrido de texto: 22 candidatas. Al hacer el campo
+obligatorio y quitar los `as any`, **el compilador encontró UNA.** Las otras 21
+eran ruido.
+
+> **Cuando existe una herramienta exacta, escribir una aproximada al lado no
+> añade seguridad: añade falsos positivos.** Decimocuarta vez que un patrón mío
+> lee otra cosa — y la primera en que en vez de afinar el barrido se usó la
+> herramienta que no se equivoca.
+
+### Verificador 20 — `verificar:contexto`, y es PEQUEÑO a propósito
+
+No vuelve a comprobar los `select`: eso ya lo hace TypeScript, mejor. **Sólo
+protege lo único que TypeScript no puede ver: que alguien lo apague.**
+
+1. `ActivoLike.locationId` sigue **sin interrogación**.
+2. **Ninguna llamada pasa la lista con `as any`.**
+3. El recorrido **sigue arrancando en `activo.locationId`** — si cambia, avisa
+   en vez de dar verde sobre algo que ya no existe (b74).
+
+Los `.catch(() => ({} as any))` NO son falsos positivos: se mira el ARGUMENTO,
+no lo que va después del paréntesis.
+
+### Dos tropiezos míos
+
+1. **Restauré el respaldo equivocado y deshice mi propio arreglo.** Guardé la
+   copia de `src/` ANTES de arreglar, y al probar el verificador restauré esa
+   copia. **Regla: el respaldo para probar un verificador se hace DESPUÉS del
+   arreglo.**
+2. **Mi prueba se ancló en un texto que no era único:**
+   `indexOf('computeEffectiveStatuses')` devolvía cadena vacía porque ese
+   nombre aparece antes, en el `import`. Es la regla del bloque 77 —*el ancla
+   tiene que ser ÚNICA*— aplicada a una prueba en vez de a una edición.
+
+Y un `as any` con corchetes (`[asset as any]`) se escapó de la sustitución
+automática: **lo cazó el propio verificador en su primera ejecución**.
+
+### Lo del Jefe de Tren NO es un bug
+
+**El ámbito no viene del rol: va por USUARIO**, en la pantalla de Usuarios. Un
+Jefe de Tren recién creado no tiene tren asignado, y ámbito vacío = toda la
+planta. El filtro se aplica **en el servidor** y está probado desde el bloque
+42: un jefe del Tren 2 que escriba `T1` en la barra no ve el Tren 1.
+
+**Lo que falta es asignarle su tren en Usuarios.** Queda anotado un defecto
+real: esa pantalla **no avisa** de que un usuario sin tren ve la planta entera.
+No se cierra aquí porque toca el frontend.
+
+### Lo que demuestra este bloque
+
+Sobrevivió a 1.263 pruebas, 19 verificadores, cinco auditorías y siete
+recorridos. Ninguna herramienta que lee código podía verlo. **Sólo se ve
+abriendo las dos pantallas y comparando.**
+
+Cuarta vez que un fallo real sale así (b88, b89, b90 y ésta), y la regla del
+bloque 64 gana una vuelta de tuerca:
+
+> **Pasar el typecheck no es que funcione. Y un tipo que declara opcional lo
+> que es imprescindible convierte el typecheck en una firma en blanco.**

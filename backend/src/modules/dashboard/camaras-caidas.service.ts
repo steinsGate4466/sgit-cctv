@@ -70,6 +70,17 @@ export class CamarasCaidasService {
       select: {
         id: true, assetCode: true, status: true, brand: true, model: true,
         referencePlace: true,
+        /* BLOQUE 102 · `locationId` FALTABA, Y ESTA PANTALLA SALIA VACIA.
+           Estaba `location` —el objeto— pero NO la clave foranea. Con `select:`
+           Prisma trae solo lo pedido, asi que llegaba `undefined` y el
+           recorrido del arbol de planta no arrancaba: sin `trenCode`, el filtro
+           por tren descartaba TODAS las camaras. La pantalla decia «este tren
+           todavia no tiene camaras cargadas» mientras «Por tren» —que usa
+           `include:`— ensenaba dos.
+
+           Ahora `ActivoLike.locationId` es OBLIGATORIO: quitarlo de aqui es un
+           error de compilacion, no un silencio. */
+        locationId: true,
         location: { select: { id: true, name: true } },
       },
     });

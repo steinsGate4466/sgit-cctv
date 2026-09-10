@@ -222,7 +222,7 @@ export class PreventiveService {
         for (const e of r.equipos || []) m[e.id] = e;
         return m;
       }).catch(() => ({} as Record<string, any>)),
-      resolverContextoDePlanta(this.prisma, activos as any).catch(() => ({} as any)),
+      resolverContextoDePlanta(this.prisma, activos).catch(() => ({} as any)),
     ]);
 
     const pasosPorTipo = new Map<string, { op: number; sub: number | null; texto: string }[]>();

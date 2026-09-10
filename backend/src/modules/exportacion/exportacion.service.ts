@@ -93,7 +93,7 @@ export class ExportacionService {
       },
       orderBy: { assetCode: 'asc' },
     });
-    const ctx = await resolverContextoDePlanta(this.prisma, filas as any);
+    const ctx = await resolverContextoDePlanta(this.prisma, filas);
     return {
       nombre: 'Activos',
       columnas: [

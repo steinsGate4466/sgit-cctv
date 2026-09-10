@@ -66,7 +66,7 @@ export class InfraService {
    * Aquí es donde se aplica la única fuente de verdad del tren.
    */
   private async normalizar(activos: any[]) {
-    const ctx = await resolverContextoDePlanta(this.prisma, activos as any);
+    const ctx = await resolverContextoDePlanta(this.prisma, activos);
     const eff = await computeEffectiveStatuses(this.prisma, activos as any);
 
     const agregables: ActivoAgregable[] = activos.map((a) => {
@@ -96,7 +96,7 @@ export class InfraService {
     // fueran activos: solo necesita { id, locationId }. Así no hay una segunda
     // implementación de "sube el árbol hasta el TREN" que pueda desviarse.
     const falsos = ids.map((id) => ({ id, locationId: id }));
-    const ctx = await resolverContextoDePlanta(this.prisma, falsos as any);
+    const ctx = await resolverContextoDePlanta(this.prisma, falsos);
     const out: Record<string, string | null> = {};
     for (const id of ids) out[id] = ctx[id]?.trenCode ?? null;
     return out;
@@ -483,7 +483,7 @@ export class InfraService {
       },
       orderBy: { assetCode: 'asc' },
     });
-    const ctx = await resolverContextoDePlanta(this.prisma, activos as any);
+    const ctx = await resolverContextoDePlanta(this.prisma, activos);
 
     const filas = activos
       .filter((a) => !ctx[a.id]?.trenCode)
@@ -540,7 +540,7 @@ export class InfraService {
     }
 
     const activos = await this.activosConTodo();
-    const ctx = await resolverContextoDePlanta(this.prisma, activos as any);
+    const ctx = await resolverContextoDePlanta(this.prisma, activos);
     const eff = await computeEffectiveStatuses(this.prisma, activos as any);
 
     const delTren = activos.filter((a) => ctx[a.id]?.trenCode === tren.code);
@@ -601,7 +601,7 @@ export class InfraService {
       },
     });
 
-    const ctx = await resolverContextoDePlanta(this.prisma, activos as any);
+    const ctx = await resolverContextoDePlanta(this.prisma, activos);
 
     const filas: ActivoParaSalud[] = activos.map((a: any) => ({
       id: a.id,
