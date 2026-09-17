@@ -353,3 +353,54 @@ Detalle en `docs/BLOQUE_103_EL_TREN_QUE_NO_VIAJABA.md`.
 **Anotado, no cerrado:** «De qué depende» sigue sin filtrar por tren · y la
 pantalla de Usuarios dice «Todos» a un rol sectorizado sin tren asignado,
 cuando el servidor resuelve `NINGUNO` — afirma lo contrario de la verdad.
+
+---
+
+## Bloque 104 · Nadie se queda fuera, y nadie se escuda en el bloqueo ✅
+
+El bloqueo por cuenta vivía en un `Map` en memoria y **el contador NO caducaba**:
+no eran «5 fallos seguidos», eran 5 fallos desde la última vez que la persona
+entró bien. Dos errores el lunes con guantes y tres el viernes: bloqueado.
+Además, con dos réplicas cada una contaba por su lado y un despliegue lo borraba.
+
+Ahora vive en `intentos_acceso` con ventana de 15 min y castigo **fijo** de 15
+—**no escalonado**, decisión del usuario: un castigo corto le da al que prueba
+contraseñas una ventana barata—. Y el supervisor puede **desbloquear**, con
+motivo, auditado. Se audita también el intento DENEGADO.
+
+**Migraciones: ninguna** (se reutiliza la tabla del freno por origen con su
+propio prefijo de clave).
+
+Cadena: typecheck ✅ · 16 verificadores ✅ · lint 0 avisos ✅ · 20 verificadores
+frontend ✅ · 65 pruebas tocadas ✅. Los dos builds no corren en el entorno del
+agente, y el motivo se dice en el documento del bloque.
+
+Detalle en `docs/BLOQUE_104_NADIE_SE_QUEDA_FUERA.md`.
+
+---
+
+## Bloque 105 · Lo que crece se lee por fecha ✅
+
+Preparación del historial de activos. **Seis índices** que faltaban —`WorkOrder`
+tenía nueve y ninguno por fecha; `AssetHistory` sólo uno— y el **N+1 del
+planificador preventivo**, que hacía una consulta POR ACTIVO vencido: con
+cuatrocientos equipos, cuatrocientas idas y vueltas en cada tick.
+
+`AssetHistory` y `StockMovement` quedan exentas del índice por fecha suelto,
+**con su motivo medido**: cero consultas sin `assetId`.
+
+| | |
+|---|---|
+| `20260917000000_indices_de_historial` | NUEVO · 6 índices con los nombres de Prisma |
+| `preventive.service.ts` | una consulta para todos, no una por activo |
+| `scripts/verificar-indices-de-fecha.js` | NUEVO · verificador 17 del backend |
+
+Cadena: typecheck ✅ · 17 verificadores ✅ · sin desfase de migraciones ✅ ·
+preventivo 8/8 ✅ · bloqueo 9/9 ✅.
+
+Detalle en `docs/BLOQUE_105_LO_QUE_CRECE_SE_LEE_POR_FECHA.md`.
+
+**Lo siguiente:** 106 · `EquipoInstalado` y el estado RETIRADO · 107 · pantalla
+de Historial y Equipos retirados · 108 · los dos informes PDF · 109 · la red del
+activo · 110 · OM multi-equipo · 111 · correo (hoy cero líneas) · 112 · pulido
+visual de Producción.

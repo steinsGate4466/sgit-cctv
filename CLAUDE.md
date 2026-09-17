@@ -4970,3 +4970,25 @@ cambiando.
   el equipo que hay instalado ahora y, debajo, cuántas veces se ha intervenido
   ahí. Un técnico que llega ve la historia del punto, no sólo la del aparato.
 - **Un botón lleva a donde dice que lleva.** Tras el bloque 103, se comprueba.
+
+### 47.8 · `prisma validate` va ANTES de `migrate deploy` (bloque 105)
+
+Se declaró `@@index([assetId, createdAt])` sobre `StockMovement`, que **no
+tiene `assetId`** —el movimiento cuelga del repuesto—. Lo aceptaron el
+typecheck, `verificar:campos`, `verificar:migraciones` y el verificador nuevo;
+reventó contra la BASE del usuario con `P3018 · column "assetId" does not exist`.
+
+`npx prisma validate` lo habría cazado, y **ya estaba en la CI**. El fallo no
+fue de cobertura: fue de ORDEN — se migró antes de validar, porque `validate`
+no corre en el entorno del agente (descarga un motor, la red está cerrada) y se
+omitió del paso a paso sin decirlo.
+
+> **Un control que existe pero se ejecuta DESPUÉS del daño no es un control.**
+
+**Regla:** todo bloque que toque `schema.prisma` entrega `npx prisma validate`
+como PRIMER comando, antes de `migrate deploy`. Y si aquí no se puede correr,
+se dice en la entrega en vez de saltárselo.
+
+**Y la regla para los verificadores de esquema:** antes de exigir un índice
+sobre un campo, comprobar que el campo EXISTE. Un verificador que da por hecho
+el campo no verifica el esquema: lo repite.

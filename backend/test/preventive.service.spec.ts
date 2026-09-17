@@ -32,7 +32,16 @@ describe('PreventiveService — generación automática de OM', () => {
     const prisma: any = {
       preventivePlan: { findMany: jest.fn().mockResolvedValue(planes) },
       workOrder: {
-        // findFirst se usa para dos cosas: buscar OM abierta y calcular el correlativo.
+        /* BLOQUE 105 · «¿cuáles de estos activos YA tienen preventiva abierta?»
+           se pregunta ahora UNA VEZ para todos, con un `in`, en vez de una
+           consulta por activo dentro del bucle. El simulacro devuelve la
+           orden abierta que le pasen: el comportamiento que estas pruebas
+           fijan —no duplicar— es el mismo; lo que cambió es cuántas veces se
+           pregunta. */
+        findMany: jest.fn().mockImplementation((args: any) => Promise.resolve(
+          openWo ? (args?.where?.assetId?.in || []).map((id: string) => ({ assetId: id })) : [],
+        )),
+        // findFirst sigue usándose para calcular el correlativo del código.
         findFirst: jest.fn().mockImplementation((args: any) => {
           if (args?.where?.code) return Promise.resolve(null); // no hay códigos previos del año
           return Promise.resolve(openWo);

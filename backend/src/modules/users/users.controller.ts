@@ -127,7 +127,6 @@ export class UsersController {
     return this.users.desbloquearCuenta(id, actorId, dto.motivo);
   }
 
-  @SinAmbito()  // usuarios: configuración del sistema
   /* Qué cuentas están bloqueadas ahora. Va con el MISMO permiso que la
      pantalla que lo enseña: abrir la entrada del menú y dejar el endpoint
      cerrado es el fallo de los bloques 68, 77 y 83. */
@@ -140,6 +139,7 @@ export class UsersController {
 
   @Get(':id')
   @RequirePermissions('user.read')
+  @SinAmbito()  // usuarios: configuración del sistema
   findOne(@Param('id') id: string) {
     return this.users.findOne(id);
   }

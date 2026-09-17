@@ -1508,6 +1508,13 @@ model WorkOrder {
   @@index([rootCauseCode])
   @@index([paradaId])
   @@index([createdById])
+  /// BLOQUE 105 · el historial de UN activo se pide siempre igual: lo suyo,
+  /// ordenado por fecha, lo más reciente arriba. Sin este compuesto son
+  /// recorrido secuencial y ordenación en memoria: invisible con 400 filas,
+  /// caro con treinta mil y con cincuenta personas a la vez.
+  @@index([assetId, createdAt])
+  /// Listados y exportación ordenan por fecha sin filtrar por activo.
+  @@index([createdAt])
   @@map("work_orders")
 }
 
@@ -1690,6 +1697,10 @@ model Incident {
   @@index([reportedById])
   @@index([canalOrigen])
   @@index([occurredAt])
+  /// Bloque 105 · mismo motivo que en WorkOrder. `occurredAt` ya tenía índice,
+  /// pero el listado y el historial ordenan por `reportedAt`.
+  @@index([assetId, reportedAt])
+  @@index([reportedAt])
   @@map("incidents")
 }
 
@@ -2073,6 +2084,9 @@ model AssetHistory {
   createdAt  DateTime @default(now())
 
   @@index([assetId])
+  /// Bloque 105 · esta tabla NO tenía índice por fecha, y es justo la que la
+  /// pantalla de Historial de Activos va a recorrer.
+  @@index([assetId, createdAt])
   @@map("asset_history")
 }
 
@@ -2152,6 +2166,11 @@ model StockMovement {
   materialDevolucion WorkOrderMaterial[] @relation("MaterialDevolucion")
 
   @@index([sparePartId])
+  /// Bloque 105 · el movimiento de UN repuesto, por fecha. NO lleva `assetId`:
+  /// este modelo no conoce el activo — se llega a él por el repuesto o por la
+  /// línea de material de la orden. Lo intenté con `assetId` y la migración
+  /// reventó contra la base: la columna no existe.
+  @@index([sparePartId, createdAt])
   @@map("stock_movements")
 }
 

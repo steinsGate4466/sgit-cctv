@@ -239,13 +239,40 @@ export class PreventiveService {
        pidiendo una parada, no un fallo del lote. */
     const esperandoParada: { asset: string; tren: string | null }[] = [];
 
+    /* UNA CONSULTA PARA TODOS, NO UNA POR ACTIVO — bloque 105.
+       ----------------------------------------------------------------------
+       Antes esto preguntaba «¿tiene ya una preventiva abierta?» DENTRO del
+       bucle: una consulta por activo vencido. Con cuatrocientos equipos es
+       cuatrocientas idas y vueltas a la base en cada tick del planificador,
+       cada una atando una conexión del pool.
+
+       No se veía porque el planificador corre solo y nadie lo mira — pero es
+       exactamente el trabajo que CRECE con el tamaño de la planta, que es la
+       única clase de lentitud que acaba importando.
+
+       Ahora es UNA consulta y un conjunto en memoria. El resultado es idéntico;
+       lo que cambia es que ya no depende de cuántos equipos venzan. */
+    const idsVencidos = due
+      .map((p) => p.assetId)
+      .filter((x): x is string => !!x);
+    const conPreventivaAbierta = new Set(
+      idsVencidos.length
+        ? (await this.prisma.workOrder.findMany({
+            where: {
+              assetId: { in: idsVencidos },
+              type: 'PREVENTIVO',
+              status: { in: OPEN_WO },
+            },
+            select: { assetId: true },
+          }))
+          .map((w) => w.assetId)
+          .filter((x): x is string => !!x)
+        : [],
+    );
+
     for (const plan of due) {
       // Regla 3: no duplicar si ya hay una preventiva en curso para ese activo.
-      const openWo = await this.prisma.workOrder.findFirst({
-        where: { assetId: plan.assetId, type: 'PREVENTIVO', status: { in: OPEN_WO } },
-        select: { id: true },
-      });
-      if (openWo) {
+      if (conPreventivaAbierta.has(plan.assetId)) {
         skipped.push({ asset: plan.asset.assetCode, motivo: 'ya tiene una OM preventiva abierta' });
         continue;
       }

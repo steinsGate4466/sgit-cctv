@@ -106,6 +106,10 @@ const CRECEN = new Set([
               **Esta lista sólo puede encoger.**
 ----------------------------------------------------------------------------- */
 const EXENTOS = {
+  /* ---- HIJO: acotadas por su padre --------------------------------------- */
+  'modules/preventive/preventive.service.ts::workOrder': { n: 1, cat: 'HIJO',
+    motivo: 'Bloque 105. Pregunta "¿cuáles de ESTOS activos ya tienen preventiva abierta?" con un `in` de los ids vencidos: está acotada por ese conjunto, no por la tabla. Sustituye a la consulta que antes se hacía UNA POR ACTIVO dentro del bucle. Un `take` aquí haría que algunos activos recibieran una segunda orden preventiva duplicada — que es justo lo que esta consulta existe para evitar.' },
+
   /* ---- CÁLCULOS ---------------------------------------------------------- */
   'common/asset-status.ts::workOrder': { n: 2, cat: 'CALCULO',
     motivo: 'El estado efectivo de un activo se DERIVA de sus órdenes abiertas. Con un tope, un equipo con trabajo en curso saldría OPERATIVO.' },
