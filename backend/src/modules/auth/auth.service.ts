@@ -3,6 +3,10 @@ import { duracionDeToken, secretoJwt, secretoRefresh } from '../../common/secret
 import { randomUUID } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
+import {
+  claveDeCuenta, estadoLimpio, estaBloqueada, registrarFallo, intentosRestantes,
+  EstadoCuenta,
+} from '../../common/bloqueo-de-cuenta';
 
 /**
  * Hash de una contraseña que no es de nadie. Sólo existe para que verificar
@@ -29,11 +33,53 @@ export class AuthService {
     private audit: AuditService,
   ) {}
 
-  // Anti fuerza bruta en el SERVIDOR (no solo en el cliente): registra los intentos
-  // fallidos por correo y bloquea temporalmente tras varios fallos.
-  private attempts = new Map<string, { fails: number; lockedUntil: number }>();
-  private readonly MAX_FAILS = 5;
-  private readonly LOCK_MS = 15 * 60 * 1000; // 15 minutos
+  /* ANTI FUERZA BRUTA POR CUENTA — BLOQUE 104.
+     ------------------------------------------------------------------------
+     Antes esto era un `Map` en memoria con dos defectos:
+
+       · el contador NO CADUCABA: no eran «5 fallos seguidos», eran 5 fallos
+         desde la última vez que la persona entró bien. Dos errores el lunes
+         con guantes y tres el viernes bloqueaban el viernes;
+       · vivía en memoria: con dos réplicas cada una contaba por su lado, y un
+         despliegue lo borraba — desbloqueando por accidente.
+
+     Ahora vive en `intentos_acceso`, la misma tabla del freno por origen, con
+     su propio prefijo de clave para que las dos puertas no se pisen. La regla
+     está en `common/bloqueo-de-cuenta.ts`, probada aparte. */
+
+  /** Lee el estado de la cuenta. Si la base no responde, se deja pasar: un
+      fallo de base de datos no puede dejar a la planta sin poder entrar. */
+  private async leerCuenta(email: string, ahora: number): Promise<EstadoCuenta> {
+    const fila = await this.prisma.intentoAcceso
+      .findUnique({ where: { clave: claveDeCuenta(email) } })
+      .catch(() => null);
+    if (!fila) return estadoLimpio(ahora);
+    return {
+      fallos: fila.golpes,
+      ventanaDesde: fila.ventanaDesde.getTime(),
+      bloqueadaHasta: fila.bloqueadoHasta?.getTime() ?? 0,
+    };
+  }
+
+  private async guardarCuenta(email: string, e: EstadoCuenta, ahora: number) {
+    const datos = {
+      golpes: e.fallos,
+      ventanaDesde: new Date(e.ventanaDesde),
+      bloqueadoHasta: e.bloqueadaHasta ? new Date(e.bloqueadaHasta) : null,
+      actualizadoEn: new Date(ahora),
+    };
+    await this.prisma.intentoAcceso
+      .upsert({ where: { clave: claveDeCuenta(email) }, create: { clave: claveDeCuenta(email), ...datos }, update: datos })
+      .catch(() => null);
+  }
+
+  /** Acertar la contraseña limpia la cuenta. También lo hace el desbloqueo
+      del supervisor, desde `users.service`. */
+  private async limpiarCuenta(email: string) {
+    await this.prisma.intentoAcceso
+      .delete({ where: { clave: claveDeCuenta(email) } })
+      .catch(() => null);
+  }
 
   /**
    * Valida credenciales (email + password con argon2) y emite el par de tokens.
@@ -45,15 +91,17 @@ export class AuthService {
     const now = Date.now();
 
     // 1) ¿Está bloqueado ahora mismo?
-    const rec = this.attempts.get(key);
-    if (rec && rec.lockedUntil > now) {
-      const mins = Math.ceil((rec.lockedUntil - now) / 60000);
+    const cuenta = await this.leerCuenta(key, now);
+    const veredicto = estaBloqueada(cuenta, now);
+    if (veredicto.bloqueada) {
+      const mins = veredicto.minutosRestantes;
       await this.audit.record({
         action: 'LOGIN_BLOQUEADO', entity: 'auth', ip,
         after: { email: dto.email, minutosRestantes: mins },
       });
       throw new UnauthorizedException(
-        `Cuenta bloqueada temporalmente por varios intentos fallidos. Inténtalo en ${mins} min.`,
+        `Cuenta bloqueada por varios intentos fallidos. Podrás entrar en ${mins} min, `
+        + 'o pídele al supervisor que te desbloquee desde la pantalla de Usuarios.',
       );
     }
 
@@ -81,7 +129,7 @@ export class AuthService {
     }
 
     // Éxito: limpia el contador de intentos.
-    this.attempts.delete(key);
+    await this.limpiarCuenta(key);
     await this.prisma.user.update({ where: { id: user!.id }, data: { lastLoginAt: new Date() } });
     await this.audit.record({ userId: user!.id, action: 'LOGIN', entity: 'auth', entityId: user!.id, ip });
     return this.buildTokens(user, ip, resumirAgente(dispositivo));
@@ -90,18 +138,23 @@ export class AuthService {
   /** Registra un intento fallido y bloquea la cuenta si se supera el máximo. */
   private async registerFail(key: string, email: string, ip?: string | null) {
     const now = Date.now();
-    const rec = this.attempts.get(key) || { fails: 0, lockedUntil: 0 };
-    rec.fails += 1;
-    let locked = false;
-    if (rec.fails >= this.MAX_FAILS) {
-      rec.lockedUntil = now + this.LOCK_MS;
-      rec.fails = 0;
-      locked = true;
-    }
-    this.attempts.set(key, rec);
+    const previo = await this.leerCuenta(key, now);
+    const v = registrarFallo(previo, now);
+    await this.guardarCuenta(key, v.estado, now);
+    const locked = v.bloqueada;
+    /* SE AUDITA SIEMPRE, tambien el fallo que no bloquea. Sin la serie
+       completa no se puede distinguir a alguien que se equivoca con el guante
+       puesto de alguien que esta probando contrasenas desde fuera — y esa es
+       justo la pregunta que hay que poder contestar. Se anota cuantos
+       intentos le quedaban, que es lo que el usuario vio en pantalla. */
     await this.audit.record({
       action: locked ? 'LOGIN_BLOQUEADO' : 'LOGIN_FALLIDO', entity: 'auth', ip,
-      after: { email, intento: 'contraseña/usuario incorrecto', bloqueado: locked },
+      after: {
+        email,
+        intento: 'contraseña/usuario incorrecto',
+        bloqueado: locked,
+        intentosRestantes: locked ? 0 : intentosRestantes(v.estado, now),
+      },
     });
   }
 

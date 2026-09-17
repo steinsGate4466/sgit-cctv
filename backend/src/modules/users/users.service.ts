@@ -6,6 +6,9 @@ import { SetPinDto, VerifyPinDto } from './dto/pin.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { revisarPassword } from '../../common/politica-password';
+import { claveDeCuenta } from '../../common/bloqueo-de-cuenta';
+import { ForbiddenException } from '@nestjs/common';
+import { AuditService } from '../audit/audit.service';
 
 // Proyección segura: nunca expone passwordHash.
 const userSelect = {
@@ -29,7 +32,7 @@ const userSelect = {
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private audit: AuditService) {}
 
   findAll() {
     return this.prisma.user.findMany({ select: userSelect, orderBy: { createdAt: 'asc' } });
@@ -170,6 +173,87 @@ export class UsersService {
     ]);
     AccesoVigenteGuard.olvidar(id);
     return { ok: true, sesionesCerradas: sesiones.count };
+  }
+
+  /* ==================== DESBLOQUEAR UNA CUENTA — BLOQUE 104 ====================
+     El bloqueo por intentos fallidos dura 15 minutos FIJOS. En planta eso es
+     un técnico parado con la orden a medias, y hasta ahora no había forma de
+     ayudarle: ni endpoint, ni pantalla. Se esperaba.
+
+     Y al revés también importa, que es lo que pidió el usuario: sin desbloqueo
+     manual, «se me bloqueó» es una excusa que nadie puede comprobar ni
+     resolver. Con él, el supervisor lo levanta en dos segundos y la excusa
+     desaparece — y queda escrito quién lo levantó y por qué.
+
+     DOS LLAVES, como en la purga:
+       · la AMPLIA (`user.manage`) la mira el guard en el controlador;
+       · la ESTRECHA se mira AQUÍ, releyendo de la BASE y no del token.
+     Lo segundo no es adorno: los permisos viajan dentro del token y duran
+     hasta quince minutos. Alguien a quien se le acaba de retirar el cargo
+     todavía lleva un token que dice que lo tiene.
+
+     SE AUDITA TAMBIÉN EL INTENTO QUE NO PUDO. Pedido expreso del usuario, y
+     tiene sentido: quien prueba a desbloquear cuentas sin poder hacerlo es
+     justo lo que hay que poder ver después. */
+  private async exigirSupervisorVigente(actorId: string | null | undefined, objetivoId: string) {
+    const actor = actorId
+      ? await this.prisma.user.findUnique({
+          where: { id: actorId },
+          select: {
+            active: true, email: true,
+            role: { select: { permissions: { select: { permission: { select: { code: true } } } } } },
+          },
+        })
+      : null;
+    const puede = !!actor?.active
+      && !!actor.role?.permissions.some((p) => p.permission.code === 'user.manage');
+    if (!puede) {
+      await this.audit.record({
+        userId: actorId || null,
+        action: 'DESBLOQUEO_DENEGADO',
+        entity: 'users',
+        entityId: objetivoId,
+        after: { motivo: 'sin cargo vigente para desbloquear cuentas' },
+      }).catch(() => null);
+      throw new ForbiddenException(
+        'Desbloquear una cuenta es cosa del supervisor. Si tu cargo cambió hace poco, '
+        + 'cierra sesión y vuelve a entrar para que se aplique.',
+      );
+    }
+  }
+
+  /** Levanta el bloqueo por intentos fallidos. Sólo el supervisor, y auditado. */
+  async desbloquearCuenta(id: string, actorId?: string | null, motivo?: string) {
+    await this.exigirSupervisorVigente(actorId, id);
+    const u = await this.findOne(id);
+    /* `deleteMany` y no `delete`: si la cuenta no estaba bloqueada, no hay
+       fila y `delete` lanzaría. Desbloquear algo que ya está abierto tiene
+       que ser inofensivo — si no, el supervisor no se atreve a pulsarlo. */
+    const r = await this.prisma.intentoAcceso.deleteMany({
+      where: { clave: claveDeCuenta(u.email) },
+    });
+    await this.audit.record({
+      userId: actorId || null,
+      action: 'DESBLOQUEO_CUENTA',
+      entity: 'users',
+      entityId: id,
+      after: { email: u.email, estaba: r.count > 0, motivo: motivo?.trim() || null },
+    }).catch(() => null);
+    return { ok: true, estaba: r.count > 0, email: u.email };
+  }
+
+  /** Qué cuentas están bloqueadas ahora mismo, para poder ENSEÑARLO. */
+  async cuentasBloqueadas() {
+    const ahora = new Date();
+    const filas = await this.prisma.intentoAcceso.findMany({
+      where: { clave: { startsWith: 'cuenta|' }, bloqueadoHasta: { gt: ahora } },
+      select: { clave: true, bloqueadoHasta: true },
+      take: 200,
+    });
+    return filas.map((f) => ({
+      email: f.clave.slice('cuenta|'.length),
+      hasta: f.bloqueadoHasta,
+    }));
   }
 
   // Baja lógica: desactiva el usuario (no se borra, preserva trazabilidad).

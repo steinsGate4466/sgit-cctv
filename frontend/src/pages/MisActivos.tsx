@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { api } from '../api/client';
 import Icono from '../components/Iconos';
 import { EsqueletoTablero } from '../components/Esqueleto';
@@ -8,6 +9,7 @@ import {
   useVolverALaPantalla, useRefrescoDePulpito, useEdadDelDato,
 } from '../useVolverALaPantalla';
 import { plural } from '../formato';
+import { elegirTren, trenPedido } from '../trenes';
 import DeclararAcceso from '../components/DeclararAcceso';
 
 /**
@@ -67,17 +69,28 @@ export default function MisActivos() {
      En el PC del púlpito esta pantalla lleva ocho horas abierta. */
   const [cargadoEn, setCargadoEn] = useState<number | null>(null);
   const edad = useEdadDelDato(cargadoEn);
+  /* EL TREN QUE PIDE LA DIRECCIÓN — bloque 103. Se lee UNA vez, al montar:
+     releerlo en cada repintado haría que cambiar de pestaña aquí volviera a
+     saltar al tren del enlace, y no habría forma de moverse. */
+  const location = useLocation();
+  const [pedido] = useState(() => trenPedido(location.search));
 
   useEffect(() => {
     api.get('/dashboard/infra/trenes')
       .then((r) => {
         const t = r.data?.trenes || [];
         setTrenes(t);
-        if (t.length) setCode(t[0].code);
+        /* Bloque 103: el tren llega en la dirección desde «Por tren».
+           Sin esto se abría siempre el primero de la lista. */
+        const elegido = elegirTren(t, pedido);
+        if (elegido) setCode(elegido.code);
       })
       .catch(() => setTrenes([]))
       .finally(() => setCargandoLista(false));
-  }, []);
+    /* `pedido` se declara aunque no cambie nunca —sale de un useState sin
+       actualizador—. Declararlo es gratis y deja el lint en cero sin silenciar
+       la regla, que es lo que pide el bloque 93. */
+  }, [pedido]);
 
   const cargar = useCallback(async () => {
     if (!code) return;

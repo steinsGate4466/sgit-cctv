@@ -111,7 +111,33 @@ export class UsersController {
     return this.users.cortarAcceso(id, dto?.motivo);
   }
 
+  /* DESBLOQUEAR UNA CUENTA — bloque 104.
+     El bloqueo por intentos fallidos son 15 minutos fijos, y sin esto no había
+     forma de levantarlo: el técnico esperaba. La segunda llave y la auditoría
+     —incluido el intento denegado— viven en el servicio, que es por donde pasa
+     cualquier ruta nueva que se olvide del decorador. */
+  @Post(':id/desbloquear')
+  @RequirePermissions('user.manage')
+  @SinAmbito()   // una cuenta bloqueada no pertenece a ningún tren
+  desbloquear(
+    @Param('id') id: string,
+    @Body() dto: MotivoDto,
+    @CurrentUser('userId') actorId: string,
+  ) {
+    return this.users.desbloquearCuenta(id, actorId, dto.motivo);
+  }
+
   @SinAmbito()  // usuarios: configuración del sistema
+  /* Qué cuentas están bloqueadas ahora. Va con el MISMO permiso que la
+     pantalla que lo enseña: abrir la entrada del menú y dejar el endpoint
+     cerrado es el fallo de los bloques 68, 77 y 83. */
+  @Get('bloqueadas')
+  @RequirePermissions('user.manage')
+  @SinAmbito()   // una cuenta bloqueada no pertenece a ningún tren
+  bloqueadas() {
+    return this.users.cuentasBloqueadas();
+  }
+
   @Get(':id')
   @RequirePermissions('user.read')
   findOne(@Param('id') id: string) {

@@ -315,3 +315,41 @@ Detalle en `docs/BLOQUE_102_LA_CAMARA_QUE_NO_EXISTIA.md`.
 
 **Anotado, no cerrado:** la pantalla de Usuarios no avisa de que un usuario sin
 tren asignado ve la planta entera.
+
+---
+
+## Bloque 103 · El tren que no viajaba, y el login que culpaba a la contraseña ✅
+
+**Los dos los encontró el usuario abriendo el software.** Ninguno rompe nada.
+
+**103-A ·** En «Por tren» se elegía el Tren 2, se pulsaba «Qué está fallando» y
+la pantalla se abría en el **Tren 1**: los enlaces no llevaban el tren, y el
+destino arranca con `t[0].code`. Debajo había un segundo fallo —«Por tren»
+guarda la SIGLA (`T2`) y las otras el CÓDIGO (`AASA-PISCO-T2`)—, así que se
+arregla en el mecanismo y no en el enlace.
+
+**103-B ·** Sin red, el login decía *«Credenciales incorrectas. Te quedan 4
+intento(s)»* con la contraseña bien escrita — y **gastaba un intento que el
+servidor nunca recibió**. `avisos.ts` distingue ese caso desde el bloque 67; el
+login era el único sitio que no lo usaba.
+
+| | |
+|---|---|
+| `src/trenes.ts` | NUEVO · qué es un tren y cómo se comparan dos (regla del b. 42) |
+| `pages/PorTren.tsx` | los enlaces llevan `?tren=` |
+| `pages/MisCamaras.tsx` · `pages/MisActivos.tsx` | resuelven el tren con `elegirTren()` |
+| `pages/Login.tsx` | «sin respuesta» antes del contador · sólo el 401 gasta intento |
+| `scripts/verificar-trenes.cjs` | NUEVO · verificador 19 del frontend |
+| `scripts/verificar-login-red.cjs` | NUEVO · verificador 20 del frontend |
+
+**Migraciones: ninguna.** **Backend: sin tocar.**
+
+Cadena: typecheck ✅ · lint 0 avisos ✅ · 20 verificadores ✅ ·
+**build NO se pudo correr** en Linux (`node_modules` trae el binario de rolldown
+de Windows; no se reinstaló a propósito, para no romper el build del usuario).
+
+Detalle en `docs/BLOQUE_103_EL_TREN_QUE_NO_VIAJABA.md`.
+
+**Anotado, no cerrado:** «De qué depende» sigue sin filtrar por tren · y la
+pantalla de Usuarios dice «Todos» a un rol sectorizado sin tren asignado,
+cuando el servidor resuelve `NINGUNO` — afirma lo contrario de la verdad.

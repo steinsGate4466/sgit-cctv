@@ -153,13 +153,24 @@ export default function PorTren() {
           />
 
           <div className="sector-enlaces">
-            <Link className="btn-mini" to="/mis-camaras">
+            {/* EL TREN VIAJA EN EL ENLACE — bloque 103.
+                Sin `?tren=`, la pantalla de destino arranca en el PRIMERO de
+                la lista: elegías el Tren 2 y aterrizabas en el Tren 1. No
+                rompía nada —enseñaba un tren de verdad— y por eso sobrevivió
+                a 1.270 pruebas y 20 verificadores. Lo vio el usuario. */}
+            <Link className="btn-mini" to={`/mis-camaras?tren=${encodeURIComponent(sigla)}`}>
               <Icono n="alerta" size={13} /> Qué está fallando
             </Link>
+            {/* «De qué depende» NO lleva el tren, y es deliberado: esa
+                pantalla pide `/network/dependencias` de la planta entera y no
+                tiene pestañas de tren. Pasarle un `?tren=` que ignora sería
+                media puerta —parece que funciona y no funciona—, que es el
+                fallo de los bloques 68, 77 y 83. Queda declarado como
+                pendiente, no disimulado. */}
             <Link className="btn-mini" to="/dependencias">
               <Icono n="mapeo" size={13} /> De qué depende
             </Link>
-            <Link className="btn-mini" to="/mis-activos">
+            <Link className="btn-mini" to={`/mis-activos?tren=${encodeURIComponent(sigla)}`}>
               <Icono n="acceso" size={13} /> Cómo se llega
             </Link>
           </div>

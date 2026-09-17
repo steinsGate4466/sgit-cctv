@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { api } from '../api/client';
 import { EsqueletoTablero } from '../components/Esqueleto';
 import CamaraCaida from '../components/CamaraCaida';
@@ -7,6 +8,7 @@ import {
   useVolverALaPantalla, useRefrescoDePulpito, useEdadDelDato,
 } from '../useVolverALaPantalla';
 import { plural } from '../formato';
+import { elegirTren, trenPedido } from '../trenes';
 
 /**
  * MIS CÁMARAS — el panel del jefe de tren. Bloque 39.
@@ -43,17 +45,26 @@ export default function MisCamaras() {
   // Bloque 42: la edad del dato. Esta pantalla vive abierta en el púlpito.
   const [cargadoEn, setCargadoEn] = useState<number | null>(null);
   const edad = useEdadDelDato(cargadoEn);
+  /* EL TREN QUE PIDE LA DIRECCIÓN — bloque 103. Se lee UNA vez, al montar:
+     si se releyera en cada repintado, cambiar de pestaña aquí volvería a
+     saltar al tren del enlace y no habría forma de moverse. */
+  const location = useLocation();
+  const [pedido] = useState(() => trenPedido(location.search));
 
   useEffect(() => {
     api.get('/dashboard/infra/trenes')
       .then((r) => {
         const t = r.data?.trenes || [];
         setTrenes(t);
-        if (t.length) setCode(t[0].code);
+        const elegido = elegirTren(t, pedido);
+        if (elegido) setCode(elegido.code);
       })
       .catch(() => setTrenes([]))
       .finally(() => setCargandoLista(false));
-  }, []);
+    /* `pedido` se declara aunque no cambie nunca —sale de un useState sin
+       actualizador—. Declararlo es gratis y deja el lint en cero sin silenciar
+       la regla, que es lo que pide el bloque 93. */
+  }, [pedido]);
 
   const cargar = useCallback(async () => {
     if (!code) return;

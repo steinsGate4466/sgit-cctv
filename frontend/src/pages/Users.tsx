@@ -4,6 +4,8 @@ import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { mensajeDeError } from '../avisos';
+import { fechaHora } from '../fechas';
+import { useDialogos } from '../components/Dialogos';
 
 export default function Users() {
   const [rows, setRows] = useState<any[]>([]);
@@ -35,7 +37,13 @@ export default function Users() {
      porque con la lista escrita a mano las casillas SIEMPRE salen bien; lo que
      falla es el guardado, al final. */
   const [trenesDeLaPlanta, setTrenesDeLaPlanta] = useState<any[] | null>(null);
+  /* CUENTAS BLOQUEADAS — bloque 104. Hasta aquí un bloqueo por intentos
+     fallidos eran 15 minutos en los que el técnico esperaba: no había ni forma
+     de VERLO desde aquí, ni de levantarlo. Ahora se ve y se levanta. */
+  const [bloqueadas, setBloqueadas] = useState<Record<string, string>>({});
+  const [desbloqueando, setDesbloqueando] = useState('');
   const { can } = useAuth();
+  const { pedirTexto } = useDialogos();
 
   function abrirAmbito(u: any) {
     setAmbitoDe(u);
@@ -48,6 +56,25 @@ export default function Users() {
         .then((r) => setTrenesDeLaPlanta(r.data?.trenes || []))
         .catch(() => setTrenesDeLaPlanta([]));
     }
+  }
+
+  async function desbloquear(u: any) {
+    if (desbloqueando) return;                 // dos pulsaciones = dos peticiones
+    const motivo = await pedirTexto({
+      titulo: `Levantar el bloqueo de ${u.email}`,
+      mensaje: 'Podrá volver a entrar en el acto. Escribe por qué: queda en la auditoría con tu nombre.',
+      aceptar: 'Desbloquear',
+      obligatorio: true,
+      valorInicial: '',
+    });
+    if (motivo === null) return;               // canceló
+    setDesbloqueando(u.id); setError('');
+    try {
+      await api.post(`/users/${u.id}/desbloquear`, { motivo });
+      await load();
+    } catch (e: any) {
+      setError(mensajeDeError(e, 'desbloquear esta cuenta'));
+    } finally { setDesbloqueando(''); }
   }
 
   async function guardarUsuario() {
@@ -86,12 +113,18 @@ export default function Users() {
 
   async function load() {
     setLoading(true);
-    const [us, rl] = await Promise.all([
+    const [us, rl, bl] = await Promise.all([
       api.get('/users').then((r) => r.data).catch(() => []),
       api.get('/users/roles').then((r) => r.data).catch(() => []),
+      /* Si esta falla no se rompe la pantalla: se deja de ver el bloqueo, que
+         es peor que verlo pero mucho mejor que no poder abrir Usuarios. */
+      api.get('/users/bloqueadas').then((r) => r.data).catch(() => []),
     ]);
     setRows(us || []);
     setRoles(rl || []);
+    const mapa: Record<string, string> = {};
+    for (const b of bl || []) mapa[String(b.email).toLowerCase()] = b.hasta;
+    setBloqueadas(mapa);
     setLoading(false);
   }
   useEffect(() => { load(); }, []);
@@ -156,6 +189,23 @@ export default function Users() {
                 </td>
                 <td>
                   <span className={'badge ' + (u.active ? 'OPERATIVO' : 'FUERA_SERVICIO')}>{u.active ? 'Activo' : 'Inactivo'}</span>
+                  {/* EL BLOQUEO SE VE, Y SE LEVANTA. Sin esto, «se me bloqueó»
+                      no se podía ni comprobar ni resolver desde aquí. */}
+                  {bloqueadas[String(u.email).toLowerCase()] && (
+                    <>
+                      <span className="badge FUERA_SERVICIO" style={{ marginLeft: 6 }}
+                        title={`Bloqueada por intentos fallidos hasta ${fechaHora(bloqueadas[String(u.email).toLowerCase()])}`}>
+                        Bloqueada
+                      </span>
+                      {can('user.manage') && (
+                        <button className="btn-mini" style={{ marginLeft: 6 }}
+                          onClick={() => desbloquear(u)} disabled={desbloqueando === u.id}
+                          title="Levanta el bloqueo ahora. Queda auditado con tu nombre y el motivo.">
+                          {desbloqueando === u.id ? 'Desbloqueando…' : 'Desbloquear'}
+                        </button>
+                      )}
+                    </>
+                  )}
                   {can('user.manage') && (
                     <button className="btn-mini" style={{ marginLeft: 8 }}
                       onClick={() => setEditaUsuario({

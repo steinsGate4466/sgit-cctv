@@ -4744,3 +4744,229 @@ bloque 64 gana una vuelta de tuerca:
 
 > **Pasar el typecheck no es que funcione. Y un tipo que declara opcional lo
 > que es imprescindible convierte el typecheck en una firma en blanco.**
+
+---
+
+## 46. Bloque 103 — el tren que no viajaba, y el login que culpaba a la contraseña
+
+### Los dos los encontró el usuario abriendo el software
+
+Quinta vez (b88, b89, b90, b102 y ésta). Ninguna herramienta que lee código
+podía verlos: los dos compilan, pasan el lint, pasan las 1.270 pruebas y los 20
+verificadores. **Los dos mienten en pantalla.**
+
+### 103-A · El enlace que no llevaba el tren
+
+`<Link to="/mis-camaras">` sin parámetro, y el destino arranca con
+`setCode(t[0].code)` — el primero de la lista. Elegías el Tren 2 y aterrizabas
+en el Tren 1.
+
+> **Y no rompe nada: enseña un tren de verdad, con datos de verdad y su pestaña
+> marcada.** Ésa es la firma de este tipo de fallo — el mismo del `locationId`
+> del bloque 102 y de la OM sin fecha del 64.
+
+**Pero el fallo de fondo era el segundo:** `PorTren` guardaba la SIGLA (`T2`) y
+las pantallas de destino el CÓDIGO (`AASA-PISCO-T2`). Pasar el valor sin
+normalizar habría cerrado el síntoma dejando el mecanismo intacto.
+
+Por eso el arreglo es `src/trenes.ts`: **un solo sitio** que dice qué es un tren
+y cómo se comparan dos, replicando la regla del bloque 42 —acepta las dos
+formas, y **nunca por subcadena suelta**, porque con `includes('T1')` el Tren 1
+alcanzaría a un futuro Tren 10—.
+
+**Lo que NO se hizo:** pasarle `?tren=` a «De qué depende». Esa pantalla pide la
+planta entera y no tiene pestañas de tren; un parámetro que se ignora es media
+puerta. Se declara pendiente.
+
+### 103-B · Sin respuesta no es contraseña mal
+
+Sin red, el login decía «Credenciales incorrectas. Te quedan 4 intento(s)» con
+la contraseña bien escrita — y **descontaba un intento que el servidor nunca
+recibió**. `err.response` es `undefined` cuando no hay respuesta: el mensaje
+salía vacío, no casaba con «bloqueado», y caía en la rama de credenciales.
+
+Ahora **sólo el 401 gasta intento**. Un 429 del freno o un 500 de un despliegue
+a medias no dicen nada sobre la contraseña.
+
+#### La lección de método, que es la que vale
+
+`avisos.ts` distingue este caso **desde el bloque 67**, con la frase escrita:
+*sin respuesta → no llegó al servidor*. El login era el único sitio que no lo
+usaba. Y el **bloque 88 vio este mensaje exacto**, lo diagnosticó bien, y lo
+arregló **en el andamio de Playwright — no en la pantalla que componía el
+texto**.
+
+> **Cuando un aviso falso aparece en una herramienta de diagnóstico, hay que
+> preguntarse QUIÉN compone ese texto. Si lo compone la pantalla, la pantalla
+> tiene el mismo fallo.** Arreglar sólo el andamio deja el bug en producción y
+> encima con la sensación de haberlo cerrado.
+
+### Del entorno
+
+El **build del frontend no corre en la VM Linux del usuario**:
+`node_modules/@rolldown/` sólo trae `binding-win32-x64-msvc`, porque las
+dependencias se instalaron en Windows. **No se corrió `npm ci` a propósito** —
+cambiaría ese binario por el de Linux y rompería el build en su máquina. Lo que
+sí se corrió y se dice tal cual: typecheck, lint (0 avisos) y los 20
+verificadores. El build lo corre él.
+
+---
+
+## 47. EL NORTE DEL PROYECTO, y el modelo de identidad de los activos
+
+> **Esta sección manda sobre las demás.** No describe un bloque: describe para
+> qué existe el software y cómo tiene que estar modelada la realidad de la
+> planta. Cualquier bloque que la contradiga está mal, por muy verde que salga
+> la cadena.
+
+### 47.0 · Para qué existe esto, dicho por el usuario
+
+> **Automatizar la gestión del mantenimiento, y dejar el ANÁLISIS a ingenieros
+> que dan el visto bueno.** El software recoge, ordena, mide y presenta. La
+> decisión —cambiar un equipo, aprobar un gasto, declarar un riesgo— la firma
+> una persona. El sistema no decide; hace que decidir sea posible con datos.
+
+De ahí salen las tres reglas que ya estaban dispersas y aquí se juntan:
+
+1. **Sin datos, nunca un número inventado.**
+2. **Lo que no está documentado, no ocurrió.**
+3. **Todo lo que afirma algo lo firma alguien, y queda auditado.**
+
+### 47.1 · El fallo de identidad que había que cerrar
+
+Palabras del usuario:
+
+> *«Imagínate que cambio la cámara y le pongo el mismo ID, el mismo rotulado,
+> el mismo todo. El software acumula esa información, se la lleva. Y no: tiene
+> que ser de cero, porque es un equipo nuevo con nuevas características.»*
+
+Tiene razón, y hoy el modelo no lo permite: `Asset` es **a la vez** el sitio y
+el aparato. El código `AA-CAM-T2-014` identifica «la cámara del foso» — que es
+un SITIO — y también la unidad física que está ahí ahora mismo. Al sustituirla,
+o se reutiliza el registro (y el historial se contamina) o se crea otro (y se
+pierde la historia del sitio). **Las dos salidas son malas.**
+
+### 47.2 · La norma ya lo resolvió: el SITIO y el EQUIPO son dos cosas
+
+Es la distinción **Ubicación Funcional / Equipo** de SAP PM, y los niveles 6-9
+de la taxonomía de **ISO 14224**:
+
+    UBICACIÓN FUNCIONAL   el SITIO. Fijo. «La cámara del foso del Tren 2.»
+                          Nunca se va de la planta. Su historia es la del
+                          PUNTO: cuántas veces ha habido que intervenir ahí,
+                          qué ambiente tiene, si exige parada de tren.
+
+    EQUIPO                la UNIDAD FÍSICA. Tiene marca, modelo, serie. Se
+                          instala, se desinstala, se lleva al almacén, se da
+                          de baja. Su historia es la de ESE aparato, y se va
+                          con él.
+
+    CLASE DE EQUIPO       marca + modelo + tipo. No es un registro de planta:
+                          es la MUESTRA. Es lo que contesta «este modelo no
+                          aguanta calor radiante», y es donde ISO 14224 dice
+                          que está el valor de los datos de fiabilidad — se
+                          comparan tasas de falla por CLASE, no por unidad.
+
+**Y de ahí sale exactamente lo que pedía el usuario:**
+
+| Pregunta | Quién la contesta |
+|---|---|
+| ¿Cuántas veces hemos intervenido en el foso del Tren 2? | la UBICACIÓN |
+| ¿Cuánto duró la cámara que estuvo ahí? | el EQUIPO retirado |
+| ¿Qué tal se porta este modelo en calor radiante? | la CLASE |
+| ¿El equipo nuevo empieza de cero? | **sí: es otro EQUIPO** |
+| ¿Se pierde la historia del sitio al cambiarlo? | **no: es de la UBICACIÓN** |
+
+> **Un rótulo pegado a una pared nombra un SITIO, no un aparato.** Ése era el
+> error de fondo, y explica por qué «mismo ID, equipo nuevo» no tenía solución
+> buena con el modelo de hoy.
+
+### 47.3 · Tres estados, y el botón que NO se pone
+
+Decidido con el usuario, y el motivo es suyo:
+
+> *«Ese es un botón que nos puede arruinar, nos puede eliminar toda la data.
+> Imagínate que otro personal ingrese con el usuario del supervisor.»*
+
+    ACTIVO      en planta, en servicio.
+    RETIRADO    fuera de planta. Historial INTACTO. Fuera de listas,
+                tableros, backlog y cumplimiento — salvo que se pidan.
+    PURGADO     sólo lo que NUNCA debió existir: duplicados y pruebas.
+                Sigue el freno del bloque 15.1 — con una OM cerrada, no se
+                purga.
+
+**No se añade ningún botón de borrado masivo.** En su lugar, una pantalla
+propia: **«Equipos retirados»**. Separar por PANTALLA lo que antes se quería
+separar por BORRADO — mismo efecto de limpieza, cero riesgo de pérdida.
+
+*Se borra sólo lo que nunca debió existir. Todo lo demás se retira.* Es el
+consenso de la gestión de activos, y coincide con lo que este proyecto ya hace
+con las personas desde el bloque 15: quien firmó algo se desactiva, nunca se
+borra.
+
+**El retiro lo hace SÓLO el supervisor**, con motivo escrito y auditado —las
+dos llaves del bloque 15: el guard mira el permiso, el servicio mira el cargo—.
+Y **se audita también el intento fallido**: quien no pudo, queda registrado.
+
+### 47.4 · La base de datos aguanta, y el número está medido
+
+La preocupación era acumulación. La cuenta de esta planta:
+
+    400 activos × 8 intervenciones/año × 10 años = 32.000 OM ≈ 30-60 MB
+
+**El problema nunca fue el almacenamiento: es la LECTURA.** Por eso el
+historial abre con los últimos 12 meses y un resumen, y lo anterior se pide
+aparte. Lo que sí pesa —fotos e informes— vive en MinIO, no en la base.
+
+**Rendimiento con 20-50 personas a la vez** (lo pidió el usuario): no lo
+deciden las filas, lo deciden tres cosas, y las tres son reglas de este
+archivo: consultas con tope y con índice (bloque 101), nada de N+1 al pintar
+una lista, y lo que se puede calcular se calcula acotado por FECHA, no sobre
+la tabla entera.
+
+### 47.5 · La OM no nace sabiendo qué equipo se toca
+
+Palabras del usuario:
+
+> *«El operador de púlpito sólo va a decir "cámara malograda" o "no se ve la
+> pantalla". El supervisor no sabe con qué activo se tiene que hacer el
+> mantenimiento, y por el tiempo sólo va a registrar la OM y ya.»*
+
+Es el flujo real y el modelo tiene que admitirlo:
+
+    se REPORTA sobre lo que se ve      →  la cámara, o ni eso
+    se INTERVIENE sobre lo que falla   →  la antena, el switch, el grabador
+
+Así que **una OM puede cambiar de equipo, y puede tocar varios**. Lo que se
+reportó NO se reescribe —es lo que vio el púlpito y es un dato— y el equipo
+intervenido se declara aparte, **por quien está autorizado**, con su motivo.
+
+Sin esto, el diagnóstico se pierde: la orden dice «cámara» y lo que se cambió
+fue la fuente PoE del gabinete, y esa fuente nunca aparece en su propia
+estadística de fallas.
+
+### 47.6 · El informe que justifica el cambio, y el de la mejora
+
+Dos documentos, y el segundo es el que el usuario pidió con más ganas:
+
+- **Informe de reemplazo.** Un equipo reincidente en correctivas. Va a
+  gerencia, firmado, con toda la traza **fecha a fecha**. Es lo que convierte
+  «esta cámara da problemas» en una decisión de dinero defendible.
+- **Informe de migración.** *«De esta cochinada estamos migrando a algo mejor,
+  y éste es su impacto real.»* Compara el equipo retirado con el que lo
+  sustituyó **en la misma ubicación**: intervenciones antes y después, MTBF
+  antes y después, tiempo de reparación antes y después.
+
+**El segundo sólo es posible con el modelo de 47.2.** Sin separar sitio y
+equipo no hay «antes y después» que comparar: hay un solo registro que fue
+cambiando.
+
+### 47.7 · Lo que esto obliga a respetar en cada pantalla
+
+- **Toda ficha dice cuándo se registró y cuándo se actualizó por última vez.**
+  Pedido explícito del usuario, y es lo que permite que el informe recorra la
+  línea de tiempo día a día.
+- **El QR sigue siendo la puerta de campo**, y ahora escanea un SITIO: enseña
+  el equipo que hay instalado ahora y, debajo, cuántas veces se ha intervenido
+  ahí. Un técnico que llega ve la historia del punto, no sólo la del aparato.
+- **Un botón lleva a donde dice que lleva.** Tras el bloque 103, se comprueba.
