@@ -267,9 +267,13 @@ export default function Layout() {
        todo lo demás. */
     {
       titulo: 'Producción',
-      rutas: ['/por-tren', '/vista-general', '/trains', '/dependencias', '/zonas'],
+      rutas: ['/por-tren', '/tablero-om', '/vista-general', '/trains', '/dependencias', '/zonas'],
       items: [
         can('om.mirar') && <NavLink key="pt" to="/por-tren"><Icono n="tren" /> Por tren</NavLink>,
+        /* BLOQUE 113. Va justo después de «Por tren» porque es la misma
+           pregunta con un día de diferencia: «qué tengo» y «cómo va lo que
+           pedí». Con `om.mirar`, que es la llave de lectura de Producción. */
+        can('om.mirar') && <NavLink key="tom" to="/tablero-om"><Icono n="parada" /> Cómo van las OM</NavLink>,
         can('om.mirar') && <NavLink key="vg" to="/vista-general"><Icono n="tablero" /> Vista general</NavLink>,
         can('dashboard.read') && <NavLink key="t" to="/trains"><Icono n="tren" /> Estado por Tren</NavLink>,
         can('om.mirar') && <NavLink key="dep" to="/dependencias"><Icono n="mapeo" /> De qué depende</NavLink>,
@@ -378,10 +382,16 @@ export default function Layout() {
        y la energía, que es lo que se consulta en el gabinete. */
     {
       titulo: 'Gestión técnica',
-      rutas: ['/assets', '/locations', '/cabinets', '/instalaciones', '/campanas',
+      rutas: ['/assets', '/retirados', '/locations', '/cabinets', '/instalaciones', '/campanas',
         '/mapeo', '/access', '/equipos', '/rotulado', '/salud-de-datos', '/documentos'],
       items: [
         can('asset.read') && <NavLink key="a" to="/assets"><Icono n="activos" /> Estructura de activos</NavLink>,
+        /* BLOQUE 107. Justo debajo de la estructura de activos: es la misma
+           lista un paso después. Con `activos.mirar` además de `asset.read`,
+           porque el técnico y el jefe de tren también preguntan qué se cambió
+           — y la respuesta no lleva ni una credencial. */
+        (can('asset.read') || can('activos.mirar'))
+          && <NavLink key="ret" to="/retirados"><Icono n="activos" /> Equipos retirados</NavLink>,
         can('asset.read') && <NavLink key="u" to="/locations"><Icono n="ubicacion" /> Ubicaciones</NavLink>,
         can('asset.read') && <NavLink key="g" to="/cabinets"><Icono n="gabinete" /> Gabinetes</NavLink>,
         // Una instalación terminada CREA el activo: es la puerta de entrada.

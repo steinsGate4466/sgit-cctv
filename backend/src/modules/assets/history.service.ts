@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { evaluarReincidencia, severidadGlobal, VENTANA_DIAS } from '../../common/reincidencia';
+import { filtroConAmbito } from '../../common/ambito-usuario';
 import { LIMITE_TRAMO_M } from './cables.service';
 
 /**
@@ -200,6 +201,153 @@ export class HistoryService {
     };
   }
 
+  /* ===========================================================================
+     BLOQUE 107 · EQUIPOS RETIRADOS — LO QUE SALIÓ DE PLANTA SIGUE CONTANDO
+     ---------------------------------------------------------------------------
+     DE DÓNDE SALE. Palabras del usuario, descartando un botón de borrado
+     masivo: «nos puede eliminar toda la data... mejor hagamos un módulo de
+     historial de equipos desfasados/retirados».
+
+     Tenía razón, y la razón es de fondo: un equipo dado de BAJA no es basura
+     que estorba. Es la mitad de dos informes que este proyecto necesita:
+
+       · el de REEMPLAZO   — «esta cámara se cambió tres veces en dos años»
+       · el de MIGRACIÓN   — qué se sustituyó, por qué y cuándo
+
+     Sin pantalla, todo eso existía en la base y no lo veía nadie. Y en este
+     proyecto eso tiene nombre: modelo + endpoint ≠ función.
+
+     ---------------------------------------------------------------------------
+     POR QUÉ NO SE REUTILIZA `findAll` CON `?status=BAJA`
+
+     Porque `findAll` filtra `deletedAt: null` de entrada, que es justo lo que
+     aquí hay que mirar. Colarle una excepción a la lista principal la
+     convertiría en una función con dos comportamientos, y el día que alguien
+     olvide el parámetro, los equipos retirados aparecerían mezclados con los
+     vivos en la pantalla del ingeniero. Un listado que a veces enseña equipos
+     que ya no están es peor que no tenerlo.
+
+     ---------------------------------------------------------------------------
+     TRES CONSULTAS Y NINGÚN N+1
+
+     Una para los equipos, una para quién firmó la baja (auditoría) y una para
+     la última orden de cada uno. Nada dentro de un bucle: la lección del
+     bloque 102 y del preventivo del 105.
+  =========================================================================== */
+
+  /** Tope de la pantalla de retirados. Va con su `count`, como manda el 101. */
+  static readonly TOPE_RETIRADOS = 200;
+
+  async retirados(
+    q: { tren?: string | null; etapa?: string | null } | null | undefined,
+    userId?: string | null,
+  ) {
+    const generadoEn = new Date();
+    const ambito = await filtroConAmbito(this.prisma, userId, {
+      tren: q?.tren, etapa: q?.etapa,
+    });
+
+    /* DOS MARCAS PARA UNA MISMA COSA, y las dos se miran a propósito.
+       `deletedAt` la pone la baja; `status: BAJA` lo puede dejar una edición
+       manual antigua. Mirar sólo una dejaría equipos retirados fuera de la
+       pantalla, que es exactamente lo que este bloque viene a arreglar. */
+    const where: any = {
+      OR: [{ deletedAt: { not: null } }, { status: 'BAJA' }],
+    };
+    if (ambito) where.locationId = ambito;
+
+    const [total, activos] = await this.prisma.$transaction([
+      this.prisma.asset.count({ where }),
+      this.prisma.asset.findMany({
+        where,
+        orderBy: [{ deletedAt: 'desc' }, { updatedAt: 'desc' }],
+        take: HistoryService.TOPE_RETIRADOS,
+        select: {
+          id: true, assetCode: true, type: true, brand: true, model: true,
+          serialNumber: true, status: true, deletedAt: true, updatedAt: true,
+          installDate: true, criticality: true,
+          location: { select: { id: true, code: true, name: true } },
+        },
+      }),
+    ]);
+
+    const ids = activos.map((a) => a.id);
+
+    /* QUIÉN FIRMÓ LA BAJA. Sale de la auditoría y no de un campo en el activo:
+       el dato ya está escrito allí desde el bloque 15 y duplicarlo en el
+       activo abriría la puerta a que los dos digan cosas distintas. */
+    const firmas = new Map<string, any>();
+    /* LA ÚLTIMA ORDEN DE CADA UNO: es lo que responde «por qué salió». */
+    const ultimaOm = new Map<string, any>();
+
+    if (ids.length) {
+      const [bajas, ordenes] = await Promise.all([
+        this.prisma.auditLog.findMany({
+          where: { entity: 'assets', action: 'DELETE_ASSET', entityId: { in: ids } },
+          orderBy: { createdAt: 'desc' },
+          take: HistoryService.TOPE_RETIRADOS,
+          select: {
+            entityId: true, createdAt: true,
+            user: { select: { id: true, fullName: true } },
+          },
+        }),
+        this.prisma.workOrder.findMany({
+          where: { assetId: { in: ids } },
+          orderBy: [{ createdAt: 'desc' }],
+          take: HistoryService.TOPE_RETIRADOS * 3,
+          select: {
+            assetId: true, code: true, type: true, status: true,
+            rootCause: true, rootCauseCode: true, rootCauseNote: true,
+            endedAt: true, createdAt: true,
+          },
+        }),
+      ]);
+      /* Se queda la PRIMERA de cada activo porque vienen ordenadas de más
+         reciente a más antigua. El tope de 3 por equipo es holgado para la
+         última; si un equipo tuviera más de tres órdenes muy recientes, la
+         suya sigue siendo la primera que aparece. */
+      for (const b of bajas) {
+        if (b.entityId && !firmas.has(b.entityId)) firmas.set(b.entityId, b);
+      }
+      for (const o of ordenes) {
+        if (o.assetId && !ultimaOm.has(o.assetId)) ultimaOm.set(o.assetId, o);
+      }
+    }
+
+    const data = activos.map((a) => {
+      const firma = firmas.get(a.id) ?? null;
+      const om = ultimaOm.get(a.id) ?? null;
+      /* LA FECHA DE SALIDA, DICIENDO DE DÓNDE SALE. Si no hay `deletedAt` es
+         una baja antigua hecha a mano: se usa `updatedAt` y se MARCA como
+         aproximada. Enseñarla como exacta sería inventar una fecha, y en este
+         proyecto eso no se hace ni para que la tabla quede bonita. */
+      const salida = a.deletedAt ?? firma?.createdAt ?? a.updatedAt;
+      return {
+        ...a,
+        salida,
+        salidaEsAproximada: !a.deletedAt && !firma,
+        firmadaPor: firma?.user?.fullName ?? null,
+        ultimaOm: om
+          ? {
+            code: om.code, tipo: om.type, estado: om.status,
+            causa: om.rootCauseCode ?? om.rootCause ?? null,
+            nota: om.rootCauseNote ?? null,
+            en: om.endedAt ?? om.createdAt,
+          }
+          : null,
+      };
+    });
+
+    return {
+      generadoEn,
+      total,
+      tope: HistoryService.TOPE_RETIRADOS,
+      recortados: total > data.length ? total - data.length : 0,
+      sinFirma: data.filter((d) => !d.firmadaPor).length,
+      data,
+    };
+  }
+
   /**
    * Activos con reincidencia detectada, para el tablero.
    *
@@ -226,10 +374,47 @@ export class HistoryService {
       take: 200,
     });
 
+    /* EL BUCLE QUE ERA UN N+1 — bloque 107.
+       -------------------------------------------------------------------------
+       Esto era un `for` con un `await` dentro llamando a `delActivo`, y
+       `delActivo` hace SEIS consultas. Con 150 candidatos —que en una planta de
+       400 equipos es un número normal— son NOVECIENTAS consultas, y además
+       EN FILA: cada una espera a que termine la anterior. A 5 ms de ida y
+       vuelta contra Railway eso son cuatro segundos y medio de pantalla en
+       blanco, y esta consulta se dispara al abrir «Avance del mapeo».
+
+       NO SE CAMBIA EL CÁLCULO, NI UN RESULTADO. Las consultas siguen siendo
+       las mismas: lo único que cambia es que van de cinco en cinco en vez de
+       una detrás de otra. El orden de entrada se conserva —se escribe en la
+       posición que le toca, no con un `push`— porque el `sort` de abajo es
+       estable y un empate resuelto al revés cambiaría la primera fila.
+
+       CINCO Y NO CINCUENTA: el pool de conexiones de Prisma es limitado y esta
+       consulta no es la única del servidor. Cinco reparte bien sin dejar a las
+       demás peticiones esperando conexión. Sigue siendo la consulta más cara
+       del proyecto: la forma correcta de arreglarla del todo es calcular la
+       reincidencia con agregados en vez de activo por activo, y eso es un
+       bloque propio. Esto quita el 80 % del dolor sin arriesgar el resultado.
+
+       ES LA MISMA LECCIÓN DEL BLOQUE 105 en el preventivo, aplicada donde
+       todavía quedaba. */
+    const utiles = candidatos.filter((c) => c.assetId);
+    const historiales: Array<any | null> = new Array(utiles.length).fill(null);
+    const A_LA_VEZ = 5;
+    let siguiente = 0;
+    const obrero = async () => {
+      for (;;) {
+        const i = siguiente++;
+        if (i >= utiles.length) return;
+        historiales[i] = await this.delActivo(utiles[i].assetId as string).catch(() => null);
+      }
+    };
+    await Promise.all(
+      Array.from({ length: Math.min(A_LA_VEZ, utiles.length) }, () => obrero()),
+    );
+
     const resultado: any[] = [];
-    for (const c of candidatos) {
-      if (!c.assetId) continue;
-      const h = await this.delActivo(c.assetId).catch(() => null);
+    for (const h of historiales) {
       if (!h || h.severidad === 'NINGUNA') continue;
       resultado.push({
         assetId: h.activo.id,

@@ -38,13 +38,30 @@ export default function HistorialActivo({ assetId, compacto }: Props) {
   const [d, setD] = useState<any>(null);
   const [cargando, setCargando] = useState(true);
 
+  /* LA GUARDIA — bloque 115. NO ES DE ADORNO.
+     -------------------------------------------------------------------------
+     Este efecto se relanza cada vez que cambia el equipo. Al dar de alta una
+     OM el ingeniero cambia el equipo en el desplegable: se lanzan DOS
+     peticiones, y si la primera —la del equipo que ya descartó— llega
+     DESPUÉS, es la que se queda en pantalla. La ficha diría una cámara y el
+     historial sería de otra.
+
+     Y este componente existe justo para que nadie intervenga a ciegas: se
+     enseña ANTES de tocar el equipo, con las señales de reincidencia. Un
+     historial cruzado no es un fallo de pantalla: es mandar a alguien a campo
+     con la información de otro equipo.
+
+     React ejecuta la limpieza ANTES de volver a lanzar el efecto, así que
+     `vivo` cierra las dos puertas: el cambio de equipo y el desmontaje. */
   useEffect(() => {
     if (!assetId) { setCargando(false); return; }
+    let vivo = true;
     setCargando(true);
     api.get('/assets/' + assetId + '/historial')
-      .then((r) => setD(r.data))
-      .catch(() => setD(null))
-      .finally(() => setCargando(false));
+      .then((r) => { if (vivo) setD(r.data); })
+      .catch(() => { if (vivo) setD(null); })
+      .finally(() => { if (vivo) setCargando(false); });
+    return () => { vivo = false; };
   }, [assetId]);
 
   if (!assetId) return null;

@@ -263,6 +263,13 @@ export default function Rotulado() {
               <tr><th>Color</th><th>Para qué</th><th>De dónde sale</th></tr>
             </thead>
             <tbody>
+              {/* Bloque 115: sin norma cargada, la tabla salía con cabecera y
+                  ninguna fila, que se lee como pantalla rota. */}
+              {!norma?.colores?.length && (
+                <tr><td colSpan={3} className="muted" style={{ textAlign: 'center', padding: 22 }}>
+                  No se pudo cargar la norma de colores.
+                </td></tr>
+              )}
               {norma?.colores?.map((c: any) => (
                 <tr key={c.proposito}>
                   <td style={{ whiteSpace: 'nowrap' }}>

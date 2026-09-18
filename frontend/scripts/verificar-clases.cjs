@@ -79,6 +79,8 @@ const definidas = new Set([...css.matchAll(/\.([a-zA-Z][\w-]*)/g)].map((m) => m[
 
 // ---- 2. Lo que el código USA ----
 const usadas = new Map(); // clase -> [ 'archivo:linea', ... ]
+/* Cadenas de varias clases en un literal, para el barrido del bloque 113. */
+const cadenas = [];
 const anota = (clase, archivo, linea) => {
   if (!usadas.has(clase)) usadas.set(clase, []);
   usadas.get(clase).push(`${path.relative(SRC, archivo).replace(/\\/g, '/')}:${linea}`);
@@ -101,6 +103,43 @@ for (const p of archivos(SRC)) {
   // ' clase' sueltas dentro de una expresión de className
   for (const m of t.matchAll(/className=\{[^}]*?'\s([\w-]+)'/g)) {
     anota(m[1], p, lineaDe(m.index));
+  }
+
+  /* EL HUECO QUE SE ESCAPÓ — bloque 113.
+     -------------------------------------------------------------------------
+     Los tres barridos de arriba cogen la clase pegada a la llave
+     (`className={'a b' + ...}`) y las que van precedidas de espacio dentro de
+     la expresión (`? ' activa' : ''`). Lo que NO cogen es el PRIMER literal de
+     un ternario cuando delante hay una condición:
+
+         className={edad >= VIEJO ? 'edad-dato viejo' : 'edad-dato'}
+                                     ^^^^^^^^^^^^^^^ invisible para los tres
+
+     Se coló escribiendo esta misma pantalla: `viejo` no existía en la hoja, el
+     verificador dijo verde, y el aviso de «dato viejo» habría salido sin
+     formato — que es EXACTAMENTE el fallo que este verificador existe para
+     cazar. Un verificador con un agujero es peor que no tenerlo, porque da
+     permiso para no mirar.
+
+     CÓMO SE CIERRA SIN EMPEZAR A GRITAR DE MÁS. Dentro de una expresión de
+     `className` hay literales que NO son clases: comparaciones contra un
+     estado (`o.status === 'ABIERTA' ? ...`), claves, textos. Marcarlos todos
+     llenaría el informe de ruido y el verificador se acabaría ignorando.
+
+     La señal que se usa: un literal cuyas palabras son TODAS con pinta de
+     clase —minúsculas y guiones— y donde al menos UNA ya está definida en la
+     hoja. Eso ya no es una comparación: es una cadena de clases, y entonces
+     sus hermanas TAMBIÉN tienen que existir. `'ABIERTA'` no entra (mayúsculas
+     y ninguna regla la define); `'edad-dato viejo'` sí, porque `edad-dato`
+     está en la hoja. Prefiero que se me escape uno antes que inventarme uno.
+     La comprobación real se hace abajo, cuando ya se sabe qué define la hoja. */
+  for (const m of t.matchAll(/className=\{([\s\S]{0,400}?)\}/g)) {
+    for (const lit of m[1].matchAll(/'([^'\\\n]*)'/g)) {
+      const palabras = lit[1].trim().split(/\s+/).filter(Boolean);
+      if (palabras.length < 2) continue;              // una sola: ya la cogen los de arriba
+      if (!palabras.every((c) => /^[a-z][a-z0-9-]*$/.test(c))) continue;
+      cadenas.push({ palabras, sitio: `${path.relative(SRC, p).replace(/\\/g, '/')}:${lineaDe(m.index)}` });
+    }
   }
 }
 
@@ -125,6 +164,30 @@ for (const [clase, sitios] of usadas) {
     continue;
   }
   problemas.push({ clase, sitios });
+}
+
+/* Bloque 113: las cadenas de clases. Se comprueban AQUÍ y no arriba porque
+   hace falta saber ya qué define la hoja para distinguir una cadena de clases
+   de una comparación contra un texto cualquiera. */
+for (const { palabras, sitio } of cadenas) {
+  if (!palabras.some((c) => definidas.has(c))) continue;   // no es una cadena de clases
+  for (const c of palabras) {
+    if (DE_FUERA.has(c) || definidas.has(c)) continue;
+    /* Trozo de una clase dinámica (`'marca marca-' + tono`). Se le aplica la
+       MISMA regla que arriba y no una propia: basta con que exista alguna
+       regla con ese prefijo. La primera versión de este barrido no lo hacía y
+       sacó tres falsos positivos de golpe — justo lo que este archivo lleva
+       dos pantallas de comentario diciendo que no hay que hacer. */
+    if (c.endsWith('-')
+        && [...definidas].some((d) => d.startsWith(c) && d.length > c.length)) continue;
+    const ya = problemas.find((x) => x.clase === c);
+    if (ya) { if (!ya.sitios.includes(sitio)) ya.sitios.push(sitio); continue; }
+    problemas.push({
+      clase: c,
+      sitios: [sitio],
+      nota: 'Va junto a otra clase que SÍ existe, así que es una clase y falta su regla.',
+    });
+  }
 }
 
 // ---- 4. Informe ----

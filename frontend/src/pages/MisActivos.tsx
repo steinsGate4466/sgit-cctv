@@ -76,8 +76,10 @@ export default function MisActivos() {
   const [pedido] = useState(() => trenPedido(location.search));
 
   useEffect(() => {
+    let vivo = true;          // bloque 115: la guardia va aunque `pedido` no cambie
     api.get('/dashboard/infra/trenes')
       .then((r) => {
+        if (!vivo) return;
         const t = r.data?.trenes || [];
         setTrenes(t);
         /* Bloque 103: el tren llega en la dirección desde «Por tren».
@@ -85,11 +87,12 @@ export default function MisActivos() {
         const elegido = elegirTren(t, pedido);
         if (elegido) setCode(elegido.code);
       })
-      .catch(() => setTrenes([]))
-      .finally(() => setCargandoLista(false));
+      .catch(() => { if (vivo) setTrenes([]); })
+      .finally(() => { if (vivo) setCargandoLista(false); });
     /* `pedido` se declara aunque no cambie nunca —sale de un useState sin
        actualizador—. Declararlo es gratis y deja el lint en cero sin silenciar
        la regla, que es lo que pide el bloque 93. */
+    return () => { vivo = false; };
   }, [pedido]);
 
   const cargar = useCallback(async () => {

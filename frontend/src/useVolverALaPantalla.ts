@@ -166,6 +166,37 @@ export function useEdadDelDato(desde: number | null): number | null {
 }
 
 /**
+ * LO MISMO, PERO EN SEGUNDOS — bloque 113.
+ *
+ * `useEdadDelDato` cuenta minutos y a las pantallas de cinco minutos les
+ * sobra. El tablero de Producción refresca cada 25 segundos: ahí «hace 0
+ * minutos» estaría escrito durante casi un minuto entero y no distingue un
+ * dato de hace dos segundos de uno de hace cincuenta. Y esa distinción es
+ * justamente lo que el jefe de turno necesita para fiarse de la pantalla.
+ *
+ * Se recalcula cada 5 segundos: suficiente para que el número avance solo y
+ * poco como para no repintar sin motivo.
+ *
+ * SE MIDE CONTRA EL RELOJ LOCAL A PROPÓSITO, y las dos marcas son locales: la
+ * de la carga y la de ahora. Comparar contra la hora del SERVIDOR metería el
+ * desfase del PC del púlpito en el número, que es lo contrario de lo que se
+ * busca. La marca del servidor se enseña aparte, como hora de generación.
+ */
+export function useEdadEnSegundos(desde: number | null): number | null {
+  const [segundos, setSegundos] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!desde) { setSegundos(null); return; }
+    const calcular = () => setSegundos(Math.max(0, Math.floor((Date.now() - desde) / 1000)));
+    calcular();
+    const id = window.setInterval(calcular, 5_000);
+    return () => window.clearInterval(id);
+  }, [desde]);
+
+  return segundos;
+}
+
+/**
  * TAPAR LA PANTALLA AL SALIR DE LA APLICACIÓN — bloque 37.
  *
  * =============================================================================

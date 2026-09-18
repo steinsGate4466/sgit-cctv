@@ -21,7 +21,7 @@
     "verificar:node": "node scripts/verificar-node.js",
     "verificar:arranque": "node scripts/verificar-arranque.js",
     "verificar:despliegue": "node scripts/verificar-despliegue.js",
-    "verificar": "npm run verificar:inyeccion && npm run verificar:filtros && npm run verificar:campos && npm run verificar:migraciones && npm run verificar:constructores && npm run verificar:roles && npm run verificar:coherencia && npm run verificar:sql-roles && npm run verificar:cable && npm run verificar:estructura && npm run verificar:node && npm run verificar:despliegue && npm run verificar:dto && npm run verificar:relaciones && npm run verificar:escrituras && npm run verificar:ambito && npm run verificar:planificadores && npm run verificar:topes && npm run verificar:contexto && npm run verificar:ci && npm run verificar:indices-fecha",
+    "verificar": "npm run verificar:esquema && npm run verificar:inyeccion && npm run verificar:filtros && npm run verificar:campos && npm run verificar:migraciones && npm run verificar:constructores && npm run verificar:roles && npm run verificar:coherencia && npm run verificar:sql-roles && npm run verificar:cable && npm run verificar:estructura && npm run verificar:node && npm run verificar:despliegue && npm run verificar:dto && npm run verificar:relaciones && npm run verificar:escrituras && npm run verificar:ambito && npm run verificar:planificadores && npm run verificar:topes && npm run verificar:contexto && npm run verificar:ci && npm run verificar:indices-fecha",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main.js",
@@ -48,7 +48,8 @@
     "verificar:topes": "node scripts/verificar-topes.js",
     "verificar:contexto": "node scripts/verificar-contexto-planta.js",
     "verificar:ci": "node scripts/verificar-ci.js",
-    "verificar:indices-fecha": "node scripts/verificar-indices-de-fecha.js"
+    "verificar:indices-fecha": "node scripts/verificar-indices-de-fecha.js",
+    "verificar:esquema": "node scripts/verificar-esquema.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.2.1",

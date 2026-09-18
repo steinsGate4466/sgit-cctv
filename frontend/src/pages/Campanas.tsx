@@ -55,11 +55,20 @@ export default function Campanas() {
     setLista(l || []);
   }, []);
 
+  /* Bloque 115: `cargar` es estable hoy, pero la guardia va igual. Una
+     dependencia que deja de ser estable es un cambio de una línea en otro
+     sitio, y entonces la carrera entra sin que nadie la vea. */
   useEffect(() => {
+    let vivo = true;
     setCargando(true);
-    cargar().finally(() => setCargando(false));
-    api.get('/locations').then((r) => setUbicaciones(r.data?.items || r.data || [])).catch(() => setUbicaciones([]));
-    api.get('/users').then((r) => setUsuarios(r.data || [])).catch(() => setUsuarios([]));
+    cargar().finally(() => { if (vivo) setCargando(false); });
+    api.get('/locations')
+      .then((r) => { if (vivo) setUbicaciones(r.data?.items || r.data || []); })
+      .catch(() => { if (vivo) setUbicaciones([]); });
+    api.get('/users')
+      .then((r) => { if (vivo) setUsuarios(r.data || []); })
+      .catch(() => { if (vivo) setUsuarios([]); });
+    return () => { vivo = false; };
   }, [cargar]);
 
   async function abrir(id: string) {

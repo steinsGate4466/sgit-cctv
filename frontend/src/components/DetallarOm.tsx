@@ -29,12 +29,19 @@ export default function DetallarOm({ wo, onHecho, onClose }: {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
 
+  /* Bloque 115: con dos órdenes abiertas seguidas, la duración típica de la
+     primera puede llegar después y quedarse puesta sobre la segunda. */
   useEffect(() => {
-    api.get('/assets/options').then((r) => setActivos(r.data || [])).catch(() => setActivos([]));
+    let vivo = true;
+    api.get('/assets/options')
+      .then((r) => { if (vivo) setActivos(r.data || []); })
+      .catch(() => { if (vivo) setActivos([]); });
     // Cuánto suele tardar esto en este equipo. El dato ya estaba guardado en
     // las órdenes cerradas y no lo miraba nadie.
     api.get('/work-orders/' + wo.id + '/duracion-tipica')
-      .then((r) => setTipica(r.data)).catch(() => setTipica(null));
+      .then((r) => { if (vivo) setTipica(r.data); })
+      .catch(() => { if (vivo) setTipica(null); });
+    return () => { vivo = false; };
   }, [wo.id]);
 
   const cambiaAlcance = !!wo.assignedAssetId && !!form.assetId && wo.assignedAssetId !== form.assetId;

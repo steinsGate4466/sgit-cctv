@@ -55,6 +55,23 @@ export class AssetsController {
    * PARA QUÉ: que la señal aparezca sola en el tablero. Si hay que buscarla
    * activo por activo, nadie la mira y el problema sigue invisible.
    */
+  /* =========================================================================
+     BLOQUE 107 · EQUIPOS RETIRADOS. VA ANTES DE `@Get(':id')`, como todas las
+     rutas literales de este controlador: puesta después, la palabra
+     «retirados» entraría como identificador.
+
+     `asset.read` O `activos.mirar`: el técnico y el jefe de tren tienen que
+     poder ver qué salió de su tren. No hay ni una credencial en la respuesta
+     —sólo ficha, fecha de salida, quién firmó y la última orden—, así que la
+     llave de lectura de planta basta. El recorte por tren lo pone el servicio
+     con `filtroConAmbito`, no la pantalla.
+  ========================================================================= */
+  @Get('retirados')
+  @RequireAlguno('asset.read', 'activos.mirar')
+  retirados(@Query('tren') tren: string, @Query('etapa') etapa: string, @CurrentUser() user: any) {
+    return this.history.retirados({ tren: tren ?? null, etapa: etapa ?? null }, user?.userId);
+  }
+
   @Get('reincidentes')
   @RequirePermissions('asset.read')
   reincidentes() {
@@ -229,9 +246,18 @@ export class AssetsController {
    * Es la retroalimentación que faltaba: hasta ahora todo esto se guardaba y
    * nadie lo volvía a mirar antes de intervenir.
    */
+  /* BLOQUE 107 · EL HISTORIAL DEJA DE SER SÓLO DEL INGENIERO.
+     Estaba cerrado con `asset.read`, así que el técnico que va a intervenir y
+     el jefe de tren que pregunta «¿otra vez esta cámara?» no podían abrirlo —
+     y son justo los dos que más lo necesitan. Se abre a `activos.mirar`.
+
+     SE COMPROBÓ QUÉ DEVUELVE ANTES DE ABRIRLO: órdenes con su causa,
+     incidencias, tramos de cable, accesos en altura e infraestructura
+     compartida. Ni una contraseña, ni una IP de gestión. Si algún día se le
+     añade un dato sensible, esta llave hay que volver a estrecharla. */
   @AmbitoDe('asset')
   @Get(':id/historial')
-  @RequirePermissions('asset.read')
+  @RequireAlguno('asset.read', 'activos.mirar')
   historial(@Param('id') id: string) {
     return this.history.delActivo(id);
   }

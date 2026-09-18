@@ -10,6 +10,7 @@ import { filtroConAmbito } from '../../common/ambito-usuario';
 import { BandejaSalidaService } from '../notificaciones/bandeja-salida.service';
 import { omCerrada, omAsignada, omEnEspera } from '../notificaciones/plantillas';
 import { evaluarEspera } from './espera';
+import { estadoDeAvance, horasSinNoticias, FRASE_DE_AVANCE } from './avance';
 import { fechaLimite, estadoDetalle, actividadDesdeIncidencia } from './asignacion.util';
 import { resolverContexto } from '../../common/plant-context';
 import { AuditService } from '../audit/audit.service';
@@ -315,6 +316,181 @@ export class MaintenanceService {
       if (w.asset && w.asset.id) w.asset.effectiveStatus = eff[w.asset.id] || w.asset.status;
     }
     return { page, pageSize, total, data };
+  }
+
+  /* ===========================================================================
+     BLOQUE 113 · «CÓMO VAN LAS OM DE MI TREN» — EL TABLERO DE PRODUCCIÓN
+     ---------------------------------------------------------------------------
+     POR QUÉ UN ENDPOINT PROPIO Y NO UN PARÁMETRO MÁS EN `findAll`
+
+     `findAll` es la lista del ingeniero: catorce filtros, paginación, búsqueda
+     documental, estado efectivo del activo calculado por cada fila. Producción
+     no necesita nada de eso y NO debe pagarlo: esta pantalla se queda abierta
+     ocho horas en el púlpito refrescando cada 25 segundos, y cada refresco de
+     `findAll` arrastraría `computeEffectiveStatuses` sobre cincuenta activos.
+
+     Y al revés: meter aquí un `modo=tablero` habría dejado una función con dos
+     comportamientos, que es como empiezan los fallos que nadie encuentra.
+
+     ---------------------------------------------------------------------------
+     LO QUE NO SE TOCA
+
+     El permiso y el recorte por tren ya existían (bloques 68 y 83): se reutiliza
+     `filtroConAmbito` TAL CUAL. Si el Jefe del Tren 2 escribe `?tren=T1` a mano,
+     no ve el Tren 1: ve vacío. Ese cruce no se reimplementa aquí — reimplementar
+     un recorte de permisos es exactamente cómo se abre un agujero.
+
+     ---------------------------------------------------------------------------
+     EL TOPE, Y POR QUÉ SE DICE
+
+     `take` de 200 sobre una tabla que crece con los años (bloque 101). Pero un
+     recorte que no se dice es una mentira: se devuelve el `total` junto al tope
+     para que la pantalla pueda escribir «se enseñan 200 de 340». Con las órdenes
+     VIVAS de un tren nunca se llega ahí; el tope está para el día que alguien
+     deje 900 órdenes abiertas, no para el día normal.
+  =========================================================================== */
+
+  /** Tope del tablero. Ver el comentario de arriba: va con su `count`. */
+  static readonly TOPE_TABLERO = 200;
+
+  async tablero(
+    q: { tren?: string | null; etapa?: string | null } | null | undefined,
+    userId?: string | null,
+  ) {
+    /* La marca del SERVIDOR. La pantalla escribe la edad del dato a partir de
+       esto y no de su propio reloj: el PC del púlpito puede ir desfasado, y un
+       «hace 0 segundos» falso es justo lo que este bloque viene a evitar. */
+    const generadoEn = new Date();
+
+    const ambito = await filtroConAmbito(this.prisma, userId, {
+      tren: q?.tren, etapa: q?.etapa,
+    });
+
+    /* SÓLO LAS VIVAS. Una orden cerrada o cancelada no responde «cómo van mis
+       técnicos»; para eso está el listado del ingeniero, con sus filtros. */
+    const where: Prisma.WorkOrderWhereInput = {
+      status: { in: ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'] },
+    };
+    if (ambito) {
+      where.AND = [{ OR: [{ asset: { locationId: ambito } }, { locationId: ambito }] }];
+    }
+
+    const [total, ordenes] = await this.prisma.$transaction([
+      this.prisma.workOrder.count({ where }),
+      this.prisma.workOrder.findMany({
+        where,
+        /* Las detenidas primero y las recientes arriba. `EN_ESPERA` es el
+           valor más alto del enum, así que se ordena descendente para que lo
+           bloqueado —lo único que Producción puede desatascar— quede el
+           primero de la lista sin necesidad de ordenar en memoria. */
+        orderBy: [{ status: 'desc' }, { createdAt: 'desc' }],
+        take: MaintenanceService.TOPE_TABLERO,
+        select: {
+          id: true, code: true, type: true, status: true,
+          activity: true, zone: true, progressPct: true,
+          detailedAt: true, startedAt: true, plannedStopAt: true,
+          plannedDurationMin: true, scheduledDate: true, createdAt: true,
+          asset: { select: { id: true, assetCode: true, type: true } },
+          location: { select: { id: true, code: true, name: true } },
+          technician: { select: { id: true, fullName: true } },
+          incident: { select: { id: true, code: true } },
+          /* «Si están llenando todo el formulario»: cuántos puntos del
+             checklist ha respondido ya. Se devuelve el NÚMERO RESPONDIDO, no
+             un porcentaje: el total de puntos depende del tipo de equipo y de
+             la hoja de ruta, y un porcentaje calculado contra un total que no
+             se conoce aquí sería una cifra inventada con pinta de medida. */
+          _count: { select: { checklist: true, evidences: true, progress: true } },
+        },
+      }),
+    ]);
+
+    /* EL ÚLTIMO AVANCE DE CADA ORDEN, en dos consultas y exacto.
+       -------------------------------------------------------------------------
+       La tentación era una sola consulta ordenada por fecha con un tope. No
+       vale: con un tope global, la orden que lleva tres días sin noticias —que
+       es justamente la que hay que mirar— se queda fuera del corte y aparece
+       como si nunca hubiera tenido avances.
+
+       Se hace con un `groupBy` que saca la fecha máxima por orden y una lectura
+       de esas filas exactas. Dos consultas acotadas a 200 órdenes. */
+    const ids = ordenes.map((o) => o.id);
+    const ultimoPorOm = new Map<string, any>();
+    if (ids.length) {
+      const maximos = await this.prisma.workOrderProgress.groupBy({
+        by: ['workOrderId'],
+        where: { workOrderId: { in: ids } },
+        _max: { reportedAt: true },
+      });
+      const parejas = maximos
+        .filter((m) => m._max.reportedAt)
+        .map((m) => ({ workOrderId: m.workOrderId, reportedAt: m._max.reportedAt as Date }));
+      if (parejas.length) {
+        const filas = await this.prisma.workOrderProgress.findMany({
+          where: { OR: parejas },
+          take: MaintenanceService.TOPE_TABLERO,
+          select: {
+            workOrderId: true, pct: true, reasonCode: true, note: true,
+            reportedAt: true,
+            reportedBy: { select: { id: true, fullName: true } },
+          },
+        });
+        for (const f of filas) {
+          const previo = ultimoPorOm.get(f.workOrderId);
+          /* Dos avances en el MISMO instante (dos pulsaciones a la vez) darían
+             dos filas para la misma orden. Se queda la de mayor porcentaje:
+             enseñar la menor haría creer que la orden retrocedió. */
+          if (!previo || f.pct > previo.pct) ultimoPorOm.set(f.workOrderId, f);
+        }
+      }
+    }
+
+    const data = ordenes.map((o) => {
+      const ultimo = ultimoPorOm.get(o.id) ?? null;
+      const paraAvance = {
+        status: o.status as string,
+        progressPct: o.progressPct,
+        detailedAt: o.detailedAt,
+        startedAt: o.startedAt,
+        ultimoAvanceEn: ultimo?.reportedAt ?? null,
+      };
+      const estadoAvance = estadoDeAvance(paraAvance);
+      return {
+        ...o,
+        estadoAvance,
+        frase: FRASE_DE_AVANCE[estadoAvance],
+        horasSinNoticias: horasSinNoticias(paraAvance, o.createdAt, generadoEn),
+        ultimoAvance: ultimo
+          ? {
+            pct: ultimo.pct,
+            motivo: ultimo.reasonCode ?? null,
+            nota: ultimo.note ?? null,
+            en: ultimo.reportedAt,
+            quien: ultimo.reportedBy?.fullName ?? null,
+          }
+          : null,
+      };
+    });
+
+    /* EL RESUMEN VA CALCULADO AQUÍ y no en la pantalla, por la misma razón que
+       el filtro: si lo contara la pantalla, contaría sólo lo que recibió —las
+       200— y el titular no cuadraría con el total. */
+    const cuenta = (e: string) => data.filter((d) => d.estadoAvance === e).length;
+
+    return {
+      generadoEn,
+      total,
+      recortadas: total > data.length ? total - data.length : 0,
+      tope: MaintenanceService.TOPE_TABLERO,
+      resumen: {
+        vivas: data.length,
+        sinEmpezar: cuenta('SIN_EMPEZAR'),
+        preparadas: cuenta('PREPARADA'),
+        enCurso: cuenta('EN_CURSO'),
+        porAcabar: cuenta('POR_ACABAR'),
+        detenidas: cuenta('DETENIDA'),
+      },
+      data,
+    };
   }
 
   async findOne(id: string) {

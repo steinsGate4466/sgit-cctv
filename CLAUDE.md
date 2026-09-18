@@ -4992,3 +4992,213 @@ se dice en la entrega en vez de saltárselo.
 **Y la regla para los verificadores de esquema:** antes de exigir un índice
 sobre un campo, comprobar que el campo EXISTE. Un verificador que da por hecho
 el campo no verifica el esquema: lo repite.
+
+---
+
+## 48. Bloque 106-A — el sitio y el aparato, y el verificador que sustituye a `prisma validate`
+
+### La identidad quedó partida, y sin partir la tabla
+
+`Asset` pasa a ser la **UBICACIÓN FUNCIONAL** —ya lo era: lleva ubicación,
+criticidad, ambiente, acceso y QR, que son atributos del punto— y el aparato
+concreto vive en `EquipoInstalado`. Es la distinción de SAP PM y los niveles
+6-9 de ISO 14224. Detalle en `docs/BLOQUE_106A_EL_SITIO_Y_EL_APARATO.md`.
+
+**Lo que salva el bloque es lo que NO se hizo.** Partir `Asset` en dos tablas
+tocaba 76 archivos, 102 llamadas a `prisma.asset`, 23 modelos y 42 pantallas:
+cuatro a seis bloques con el software a medias. La migración ADITIVA cuesta una
+tabla y **no cambia ninguna de las 102 llamadas**.
+
+> **Antes de partir un modelo central, preguntarse si el modelo actual ya ES
+> una de las dos mitades.** Aquí lo era, y la respuesta pasó de seis bloques a
+> uno.
+
+Y **no se añadió un estado nuevo**: `AssetStatus` ya tiene `BAJA` y
+`asset-status.ts` lo respeta con la precedencia más alta. El «retirado» del
+usuario es del EQUIPO y lo lleva la fecha `hasta`. Un valor de enum más habría
+sido una segunda verdad sobre lo mismo.
+
+### `verificar:esquema` — porque `prisma validate` no siempre se puede correr
+
+Nace del fallo del bloque 105: `@@index([assetId, createdAt])` sobre
+`StockMovement`, que no tiene `assetId`. Lo aceptaron el typecheck y tres
+verificadores; reventó contra la base del usuario.
+
+`prisma validate` lo habría cazado, **pero descarga un motor y aquí no hay
+red**. Así que se comprueba leyendo el texto del esquema: todo campo citado en
+`@@index`, `@@unique` y `@relation(fields:)` existe, y todo tipo es primitivo o
+está declarado. **Va el PRIMERO del agregado.**
+
+**Regla:** todo bloque que toque `schema.prisma` corre `verificar:esquema`
+aquí, y entrega `npx prisma validate` como primer comando para el usuario.
+
+### Índices parciales: `verificar:migraciones` tolera lo que Prisma no sabe decir
+
+El índice único parcial que garantiza «un solo aparato puesto a la vez» no se
+puede declarar en `schema.prisma` — Prisma no expresa un `WHERE`, igual que no
+expresa GIN. Sin distinguirlo, el verificador quedaba en rojo para siempre, y
+*un verificador que no se puede poner en verde acaba desactivado* (bloque 9).
+
+Ahora lo reconoce y lo lista como «a propósito». Probado quitándole el `WHERE`:
+vuelve a marcar desfase.
+
+### LO QUE NO SE ENTREGA, Y POR QUÉ — regla de proceso
+
+`npx prisma generate` tampoco corre aquí, así que **un modelo nuevo no existe
+para TypeScript** hasta que el usuario lo genere. El servicio y la pantalla van
+en el 106-B.
+
+Parchear el cliente a mano para un MODELO ya rompió el cliente **dos veces**
+—bloques 75 y 95—: el `class.ts` generado lleva el esquema embebido como JSON y
+un `runtimeDataModel`.
+
+> **Cuando una parte del bloque no se puede compilar aquí, se parte el bloque y
+> se dice.** Entregar código sin typecheck es lo que puso un P1012 en la
+> máquina del usuario con 22 archivos escritos (bloque 16.1). Media entrega
+> verificada vale más que una entera sin verificar.
+
+### 48.1 · Tiempo real: la decisión, para no volver a discutirla (bloque 113)
+
+El usuario pidió ver «en tiempo real» cómo avanzan las OM de su tren. Se midió
+antes de responder:
+
+- **El permiso y el recorte por tren YA existen** (bloque 83-A): `GET /maintenance`
+  acepta `om.mirar` y `findAll` cruza con `filtroConAmbito`. Un Jefe de línea
+  del Tren 2 ya recibe sólo las suyas.
+- **El avance YA se guarda entero**: `progressPct`, la serie de
+  `WorkOrderProgress` con motivo y autor, y `detailedAt` para saber si el
+  técnico ni ha empezado.
+- **No hay tiempo real de ningún tipo**: cero WebSocket, cero SSE. Lo que hay
+  es `visibilitychange` y `useRefrescoDePulpito` cada 5 minutos, en 6 pantallas.
+
+**Decisión: NO se usa WebSocket.** Con dos réplicas en Railway exige afinidad de
+sesión o un bus; el púlpito deja la pantalla abierta ocho horas y un socket
+caído se queda congelado sin avisar; y nadie necesita un segundo de latencia
+para una orden de trabajo.
+
+> **Lo que hace falta no es latencia baja: es saber de cuándo es el dato.**
+> Refresco de 20-30 s, apagado con la pestaña oculta, y la edad escrita en
+> pantalla. Si algún día hace falta empuje: SSE antes que WebSocket, y el bus
+> se declara antes de empezar.
+
+Y la regla que esto vuelve a confirmar: **antes de construir, medir qué parte ya
+existe.** Aquí el permiso, el ámbito y el dato estaban; faltaba la pantalla. Lo
+contrario —dar por hecho que falta todo— habría reescrito lo que ya funciona.
+
+---
+
+## 49 · Bloques 113 y 107 — lo que enseñaron
+
+### 49.1 · Antes de construir, medir qué parte ya existe
+
+Las dos veces pasó lo mismo y las dos veces ahorró un bloque entero:
+
+- **113**: el permiso, el recorte por tren y TODO el dato del avance
+  (`progressPct`, `WorkOrderProgress`, `detailedAt`) ya estaban. Faltaba la
+  pantalla. Dar por hecho que faltaba todo habría tocado el recorte de
+  permisos — lo último que se debe tocar.
+- **107**: `GET /assets/:id/historial`, `HistorialActivo.tsx` y
+  `GET /assets/reincidentes` ya existían. El bloque quedó en tres cosas
+  concretas en vez de en un módulo nuevo.
+
+> Medir no es un paso previo al trabajo. **Es la mitad del trabajo.**
+
+### 49.2 · Un endpoint propio no es duplicar: es no pagar lo que no se usa
+
+El tablero de Producción NO se metió como un `modo=tablero` en `findAll`.
+`findAll` es la lista del ingeniero —catorce filtros, paginación,
+`computeEffectiveStatuses` por fila—, y esta pantalla refresca cada 25 s
+durante ocho horas.
+
+Dos razones, y la segunda pesa más: **una función con dos comportamientos es
+como empiezan los fallos que nadie encuentra.**
+
+Mismo criterio con `retirados`: `findAll` filtra `deletedAt: null` de entrada.
+Colarle una excepción habría dejado equipos retirados mezclados con los vivos
+el primer día que alguien olvidara el parámetro.
+
+### 49.3 · El ORDEN de las comprobaciones es el diseño
+
+`estadoDeAvance` mira `EN_ESPERA` ANTES que el porcentaje. Si lo mirara
+después, una orden al 90 % parada tres días por falta de repuesto saldría «por
+acabar» y nadie iría a desbloquearla. Hay una prueba para exactamente eso, y el
+comentario dice por qué está.
+
+Y el veredicto se calcula en el **servidor**, en una función pura: si lo
+decidiera cada pantalla, en tres bloques habría tres definiciones de «por
+acabar» y ninguna sería la buena.
+
+### 49.4 · Un verificador propio también puede tener un agujero
+
+`verificar:clases` dijo VERDE sobre una clase que no existía. Sus tres barridos
+cogían la clase pegada a la llave y las precedidas de espacio, pero **no el
+primer literal de un ternario**:
+
+```
+className={edad >= VIEJO ? 'edad-dato viejo' : 'edad-dato'}
+```
+
+Es exactamente el fallo que ese verificador existe para cazar.
+
+**La regla que queda:** cuando un verificador dé verde sobre algo que acabas de
+escribir y no estés seguro, **compruébalo a mano una vez**. Un verificador con
+un agujero es peor que no tenerlo, porque da permiso para no mirar.
+
+Y al cerrarlo, la primera versión sacó tres falsos positivos de golpe. Se
+cerró con una señal que no admite discusión: un literal cuenta como cadena de
+clases sólo si todas sus palabras tienen pinta de clase **y al menos una ya
+está definida en la hoja**. Probado reintroduciendo el fallo.
+
+### 49.5 · Un N+1 se arregla sin tocar el resultado
+
+`reincidentes()` hacía 900 consultas en fila. Se pasó a cinco a la vez
+**sin cambiar el cálculo**, conservando el orden de entrada porque el `sort`
+de después es estable y un empate al revés cambiaría la primera fila.
+
+> Cuando no se puede probar contra la base, el arreglo seguro es el que **no
+> cambia ni un resultado**. La optimización que cambia el cálculo se hace el
+> día que se puede medir, y se declara como bloque propio (114).
+
+---
+
+## 50 · Bloque 115 — el fallo que sólo existe con la red de planta
+
+### 50.1 · Hay fallos que ninguna herramienta local puede ver
+
+Once efectos escribían en pantalla sin comprobar que su petición siguiera
+siendo la buena. **Compila. El lint está contento. Las pruebas pasan.** En
+local el servidor responde en 2 ms y las peticiones nunca se adelantan.
+
+> Cuando algo sólo falla con latencia, **el entorno de desarrollo es el peor
+> sitio para buscarlo.** Se busca leyendo, no ejecutando.
+
+Y la consecuencia no era de pantalla: `HistorialActivo` se enseña ANTES de
+intervenir, así que una carrera ahí manda a alguien a campo con la información
+de otro equipo.
+
+### 50.2 · La guardia va aunque hoy no haga falta
+
+Tres de los once efectos estaban a salvo **por casualidad**: su dependencia
+sale de un `useState` sin actualizador y no cambia nunca. Se les puso la
+guardia igual.
+
+> Estar a salvo por casualidad no es estar a salvo. Que esa dependencia deje de
+> ser estable es un cambio de una línea en otro archivo, y entonces la carrera
+> entra sin que nadie la vea.
+
+### 50.3 · Un verificador nuevo acepta lo que ya estaba bien
+
+`AuthContext` llevaba la guardia desde antes, con otro nombre (`vigente`). El
+verificador acepta los tres nombres que el proyecto ya usaba en vez de imponer
+uno. **Obligar a reescribir lo que ya funciona es cómo se rompe algo al
+arreglar otra cosa.**
+
+### 50.4 · Y lo que enseñó el barrido sobre los propios barridos
+
+La primera pasada del cruce de permisos dio **21 hallazgos y 20 eran míos**: el
+script no entendía `can('x') ? api.get(...) : null`, ni las condiciones
+escritas en la línea de arriba del `NavLink`.
+
+> **Cuando un barrido da muchos resultados, lo primero de lo que hay que dudar
+> es del barrido.** Ya estaba escrito en este archivo; esta vez costó tres
+> pasadas volver a aprenderlo. Ningún hallazgo se reporta sin abrir el archivo.

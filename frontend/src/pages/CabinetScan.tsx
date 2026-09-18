@@ -28,15 +28,21 @@ export default function CabinetScan() {
   const [cargando, setCargando] = useState(true);
   const [fallo, setFallo] = useState('');
 
+  /* Bloque 115: mismo caso que el QR del activo, con el armario delante. */
   useEffect(() => {
+    let vivo = true;
     api.get(`/cabinets/${id}/ficha`)
-      .then((r) => setD(r.data))
-      .catch((e) => setFallo(
-        e?.response?.status === 404
-          ? 'Este gabinete ya no existe en el sistema.'
-          : 'No se pudo cargar. Comprueba la señal y vuelve a intentarlo.',
-      ))
-      .finally(() => setCargando(false));
+      .then((r) => { if (vivo) setD(r.data); })
+      .catch((e) => {
+        if (!vivo) return;
+        setFallo(
+          e?.response?.status === 404
+            ? 'Este gabinete ya no existe en el sistema.'
+            : 'No se pudo cargar. Comprueba la señal y vuelve a intentarlo.',
+        );
+      })
+      .finally(() => { if (vivo) setCargando(false); });
+    return () => { vivo = false; };
   }, [id]);
 
   if (cargando) return <div className="loading">Abriendo el gabinete…</div>;

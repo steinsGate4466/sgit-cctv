@@ -3031,6 +3031,10 @@ a.ta-fila:focus-visible { outline: 2px solid #1f4e79; outline-offset: 2px; }
 /* La edad del dato (bloque 42). Discreta pero legible: no es una alerta, es
    una admisión. En el PC del pulpito la pantalla lleva horas abierta. */
 .edad-dato { font-size: 12px; color: var(--muted); margin: -6px 0 10px; }
+/* BLOQUE 113 · el dato ya no es fresco. El tablero de Producción refresca cada
+   25 s; si el servidor deja de responder, el número de arriba sigue creciendo
+   y esto lo pone en ámbar. Un dato viejo que ADMITE que es viejo no engaña. */
+.edad-dato.viejo { color: var(--warn); font-weight: 600; }
 
 /* =============================================================================
    DATOS QUE NO SE PARTEN — bloque 43

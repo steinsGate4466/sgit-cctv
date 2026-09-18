@@ -109,11 +109,20 @@ export default function AssetScan() {
      de la orden que se ve sea el de verdad y no el de hace un minuto. */
   const [recarga, setRecarga] = useState(0);
 
+  /* LA GUARDIA — bloque 115. El caso es de campo, no de laboratorio: el
+     técnico escanea una cámara, la señal de planta tarda, escanea la
+     siguiente, y sin esto se queda mirando la ficha de la PRIMERA con el
+     código de la segunda en la dirección. Con guantes y a pleno sol nadie
+     comprueba eso. */
   useEffect(() => {
+    let vivo = true;
     api.get('/assets/' + id)
-      .then((r) => setA(r.data))
-      .catch(() => setErr('No se encontró el activo. Verifica la etiqueta o consulta al Jefe de Mantenimiento.'))
-      .finally(() => setLoading(false));
+      .then((r) => { if (vivo) setA(r.data); })
+      .catch(() => {
+        if (vivo) setErr('No se encontró el activo. Verifica la etiqueta o consulta al Jefe de Mantenimiento.');
+      })
+      .finally(() => { if (vivo) setLoading(false); });
+    return () => { vivo = false; };
   }, [id, recarga]);
 
   if (loading) return <div className="loading">Cargando equipo…</div>;

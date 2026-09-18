@@ -37,9 +37,14 @@ export default function OmHerramientas({ workOrderId, onChange, soloLectura }: P
   const [marcas, setMarcas] = useState<Record<string, boolean>>({});
   const [cargando, setCargando] = useState(true);
 
+  /* Bloque 115: las herramientas de la orden anterior no pueden quedarse
+     marcadas sobre la siguiente. Aquí el técnico va a salir a campo con lo
+     que diga esta lista. */
   useEffect(() => {
+    let vivo = true;
     api.get('/work-orders/' + workOrderId + '/tools')
       .then((r) => {
+        if (!vivo) return;
         setD(r.data);
         // Se precarga lo ya declarado, si la orden se abrió antes.
         const inicial: Record<string, boolean> = {};
@@ -48,8 +53,9 @@ export default function OmHerramientas({ workOrderId, onChange, soloLectura }: P
         }
         setMarcas(inicial);
       })
-      .catch(() => setD(null))
-      .finally(() => setCargando(false));
+      .catch(() => { if (vivo) setD(null); })
+      .finally(() => { if (vivo) setCargando(false); });
+    return () => { vivo = false; };
   }, [workOrderId]);
 
   function alternar(toolId: string, valor: boolean) {

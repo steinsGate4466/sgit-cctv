@@ -60,12 +60,19 @@ export default function Ipam() {
 
   useEffect(() => { setCargando(true); cargar().finally(() => setCargando(false)); }, [cargar]);
 
+  /* EL REBOTE NO BASTA — bloque 115. Los 300 ms evitan una consulta por
+     tecla, pero en cuanto UNA sale, seguir escribiendo lanza otra: si la
+     primera tarda más, el buscador acaba enseñando el resultado de lo que ya
+     no está escrito. El rebote reduce la carrera; la guardia la cierra. */
   useEffect(() => {
     if (busca.trim().length < 2) { setResultado(null); return; }
+    let vivo = true;
     const t = setTimeout(() => {
-      api.get('/ipam/buscar', { params: { q: busca } }).then((r) => setResultado(r.data)).catch(() => setResultado(null));
+      api.get('/ipam/buscar', { params: { q: busca } })
+        .then((r) => { if (vivo) setResultado(r.data); })
+        .catch(() => { if (vivo) setResultado(null); });
     }, 300);
-    return () => clearTimeout(t);
+    return () => { vivo = false; clearTimeout(t); };
   }, [busca]);
 
   async function verMapa(id: string) {

@@ -61,6 +61,24 @@ export class MaintenanceController {
     return this.wo.findAll(q, user?.userId);
   }
 
+  /* ===========================================================================
+     BLOQUE 113 · EL TABLERO DE PRODUCCIÓN — «cómo van las OM de mi tren»
+     ---------------------------------------------------------------------------
+     VA ANTES QUE `@Get(':id')` Y NO ES UN DETALLE DE ESTILO. Nest resuelve las
+     rutas por orden de declaración: puesta después, `tablero` entraría por la
+     ruta con parámetro y el servicio recibiría el texto «tablero» como si fuera
+     un identificador. Ya pasó una vez en este proyecto.
+
+     MISMA LLAVE QUE LA LISTA: `wo.read` o `om.mirar`. No abre nada nuevo — es
+     lectura, y el recorte por tren lo pone el servidor. Escribir sigue pidiendo
+     `wo.update` y cerrar `wo.approve`, que no se han movido.
+  =========================================================================== */
+  @Get('tablero')
+  @RequireAlguno('wo.read', 'om.mirar')
+  tablero(@Query() q: any, @CurrentUser() user: any) {
+    return this.wo.tablero({ tren: q?.tren ?? null, etapa: q?.etapa ?? null }, user?.userId);
+  }
+
   // Descargar imagen de evidencia (para previsualización).
   // ---- Asignar y detallar (4A) ----
 

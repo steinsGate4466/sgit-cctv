@@ -179,6 +179,10 @@ model User {
   woProgress      WorkOrderProgress[] @relation("WoProgressBy")
   sesiones        Sesion[]
 
+  /// Bloque 106 · quién instaló y quién retiró cada equipo.
+  equiposQueInstalo EquipoInstalado[] @relation("EquipoInstaladoPor")
+  equiposQueRetiro  EquipoInstalado[] @relation("EquipoRetiradoPor")
+
   @@map("users")
   inspeccionesGrua InspeccionGrua[] @relation("InspeccionGruaPor")
   /// Hojas de ruta que esta persona aprobó (bloque 75).
@@ -930,6 +934,11 @@ model Asset {
   // de que el índice exista y el despliegue se caería. Pasó el 17/08 con
   // `locations_siglaTren_idx`.
   observacion     AssetObservation?
+  /// BLOQUE 106 · los aparatos que han estado instalados en ESTE SITIO.
+  /// `Asset` es la UBICACIÓN FUNCIONAL —«la cámara del foso del Tren 2»—;
+  /// el aparato concreto que hay ahora es el último `EquipoInstalado`.
+  equiposInstalados EquipoInstalado[]
+
   @@map("assets")
 }
 
@@ -3704,4 +3713,68 @@ model AcuerdoServicio {
 
   @@index([fijadoPorId])
   @@map("acuerdo_servicio")
+}
+
+/// EL APARATO FÍSICO QUE ESTÁ (O ESTUVO) EN UN SITIO — BLOQUE 106.
+///
+/// Hasta aquí `Asset` era a la vez el SITIO y el APARATO. Al cambiar una cámara
+/// conservando su rótulo, o se reutilizaba el registro —y el historial de la
+/// cámara nueva arrancaba con las averías de la vieja— o se creaba otro, y se
+/// perdía la historia del punto. Las dos salidas eran malas.
+///
+/// Es la distinción UBICACIÓN FUNCIONAL / EQUIPO de SAP PM, y los niveles 6-9
+/// de la taxonomía de ISO 14224:
+///
+///   Asset            el SITIO. Fijo. Nunca se va de la planta. Su historia es
+///                    la del PUNTO: cuántas veces hubo que intervenir ahí.
+///   EquipoInstalado  la UNIDAD FÍSICA. Se instala, se retira, se va. Su
+///                    historia se va CON ELLA.
+///   marca + modelo   la CLASE. No es un registro de planta: es la MUESTRA que
+///                    contesta «este modelo no aguanta calor radiante», que es
+///                    donde ISO 14224 dice que está el valor de estos datos.
+///
+/// Y de aquí sale el informe de migración: comparar el equipo retirado con el
+/// que lo sustituyó EN EL MISMO SITIO. Sin separar sitio y aparato no hay
+/// «antes y después» que comparar: hay un registro que fue cambiando.
+model EquipoInstalado {
+  id              String    @id @default(uuid())
+
+  /// El SITIO. Se borra en cascada con él: si el punto deja de existir, sus
+  /// aparatos tampoco tienen dónde colgar.
+  assetId         String
+  asset           Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  marca           String?
+  modelo          String?
+  serie           String?
+  firmware        String?
+
+  /// Desde cuándo está puesto.
+  desde           DateTime
+  /// TRUE cuando `desde` no se sabía y se usó el alta del sitio. Se marca en
+  /// vez de inventar una fecha: un dato estimado que no se distingue de uno
+  /// medido envenena cualquier cálculo de vida útil (regla del bloque 78).
+  desdeEsEstimado Boolean   @default(false)
+
+  /// VACÍO = es el que está puesto AHORA. Con fecha = retirado.
+  hasta           DateTime?
+  /// Por qué se retiró. Obligatorio al retirar, y queda en la auditoría: «se
+  /// cambió la cámara» sin motivo no explica nada seis meses después.
+  motivoRetiro    String?
+
+  instaladoPorId  String?
+  instaladoPor    User?     @relation("EquipoInstaladoPor", fields: [instaladoPorId], references: [id])
+  retiradoPorId   String?
+  retiradoPor     User?     @relation("EquipoRetiradoPor", fields: [retiradoPorId], references: [id])
+
+  notas           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @default(now()) @updatedAt
+
+  /// El historial de un sitio se pide siempre así: lo suyo, por fecha.
+  @@index([assetId, desde])
+  /// «Qué hay instalado ahora mismo» y «qué se retiró» son dos consultas
+  /// distintas y las dos filtran por aquí.
+  @@index([hasta])
+  @@map("equipos_instalados")
 }

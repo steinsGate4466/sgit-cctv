@@ -771,7 +771,9 @@ export default function Assets() {
           </thead>
           <tbody>
             {visibles.map((a) => (
-              <tr key={a.id} style={{ cursor: 'pointer' }} onClick={() => openDetail(a.id)}>
+              <tr key={a.id} className="ta-pulsable" tabIndex={0} style={{ cursor: 'pointer' }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') openDetail(a); }}
+                  onClick={() => openDetail(a.id)}>
                 {/* `dato-fijo`: un código no se parte nunca. Ver styles.css. */}
                 {/* `dato-fijo`: un código no se parte nunca. Ver styles.css. */}
                 <td className="dato-fijo">

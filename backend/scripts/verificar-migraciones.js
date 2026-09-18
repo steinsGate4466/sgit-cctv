@@ -99,9 +99,17 @@ function leerMigraciones() {
     // otro de menos. Fue lo que pasó con
     // notificaciones_salientes_estado_idx sobre (estado, proximoIntento).
     for (const m of sql.matchAll(/CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?"?([\w.]+)"?\s+ON\s+"?([\w.]+)"?\s*(?:USING\s+(\w+)\s*)?\(([^)]*)\)/gi)) {
+      /* ÍNDICE PARCIAL (`... WHERE ...`) — bloque 106.
+         Prisma NO sabe expresar un índice parcial, igual que no sabe expresar
+         uno GIN. Si no se distingue, el esquema nunca podrá declararlo y este
+         verificador lo marcaría como desfase para siempre — y un verificador
+         que no se puede poner en verde acaba desactivado (bloque 9).
+         Se mira lo que sigue al paréntesis de columnas, hasta el `;`. */
+      const cola = sql.slice(m.index + m[0].length).split(';')[0];
       indices.set(m[1], {
         tabla: m[2].replace(/^public\./, ''),
         metodo: (m[3] || 'btree').toLowerCase(),
+        parcial: /^\s*WHERE\b/i.test(cola),
         columnas: m[4].split(',').map((c) => c.trim().replace(/"/g, '')),
       });
     }
@@ -274,6 +282,10 @@ for (const [tabla, cols] of S.tablas) {
   for (const [nombre, i] of M.indices) {
     if (i.metodo !== 'btree') {
       sobran.push(`índice ${nombre} (${i.metodo}: Prisma no sabe expresarlo)`);
+      continue;
+    }
+    if (i.parcial) {
+      sobran.push(`índice ${nombre} (PARCIAL, con WHERE: Prisma no sabe expresarlo)`);
       continue;
     }
     // Sólo se exige para tablas cuyo CREATE TABLE se ha leído: si falta el

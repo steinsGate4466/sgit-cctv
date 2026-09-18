@@ -404,3 +404,159 @@ Detalle en `docs/BLOQUE_105_LO_QUE_CRECE_SE_LEE_POR_FECHA.md`.
 de Historial y Equipos retirados · 108 · los dos informes PDF · 109 · la red del
 activo · 110 · OM multi-equipo · 111 · correo (hoy cero líneas) · 112 · pulido
 visual de Producción.
+
+---
+
+## Bloque 106-A · El sitio y el aparato dejan de ser la misma cosa ✅
+
+`Asset` pasa a ser la UBICACIÓN FUNCIONAL y el aparato concreto vive en
+`EquipoInstalado` (SAP PM · ISO 14224 niveles 6-9). Cámara nueva con el mismo
+rótulo → historial desde cero; el punto conserva el suyo.
+
+**Migración ADITIVA:** una tabla, cero columnas tocadas, **ninguna de las 102
+llamadas a `prisma.asset` cambia**. Partir la tabla habría sido 76 archivos y
+42 pantallas.
+
+| | |
+|---|---|
+| `EquipoInstalado` | NUEVO · con índice único PARCIAL: un solo aparato puesto a la vez |
+| relleno de la migración | cada sitio estrena su aparato actual, con `desdeEsEstimado` cuando la fecha no se sabía |
+| `scripts/verificar-esquema.js` | NUEVO · verificador 18 — hace lo que `prisma validate` cuando no hay red |
+| `scripts/verificar-migraciones.js` | aprende a tolerar índices parciales |
+
+Cadena: esquema ✅ · relaciones ✅ (137 FK) · migraciones sin desfase ✅ ·
+18 verificadores ✅ · typecheck ✅ · CI ✅.
+
+**106-B queda pendiente a propósito:** `prisma generate` no corre en el entorno
+del agente, así que el servicio y la pantalla no se pueden compilar aquí.
+Un comando del usuario lo desbloquea.
+
+---
+
+## Bloque 107 · Lo que salió de planta sigue contando ✅
+
+**Detalle completo:** `docs/BLOQUE_107_LO_QUE_SALIO_DE_PLANTA.md`
+
+Se midió primero: `GET /assets/:id/historial`, `HistorialActivo.tsx` y
+`GET /assets/reincidentes` **ya existían**. Faltaban tres cosas, y son las tres
+que se hicieron.
+
+1. **`GET /assets/retirados` + pantalla «Equipos retirados».** Lo que pidió el
+   usuario en vez de un botón de borrado masivo. Ficha, fecha de salida, quién
+   firmó la baja (sale de la auditoría, no de un campo duplicado) y la última
+   orden con su causa. Una fecha que no se sabe se marca **aproximada**. Tres
+   consultas, ningún bucle, `take` 200 con su `count`. **Aquí no se borra
+   nada:** la purga sigue en Limpieza con su permiso propio.
+
+2. **El historial se abre a `activos.mirar`.** Estaba cerrado con `asset.read`,
+   así que el técnico que va a intervenir no podía verlo. Se comprobó ANTES que
+   la respuesta no lleva ni una credencial ni una IP de gestión.
+
+3. **El N+1 más caro del proyecto.** `reincidentes()` llamaba a `delActivo`
+   —seis consultas— dentro de un `for` con `await`: con 150 candidatos son 900
+   consultas EN FILA, y se dispara al abrir «Avance del mapeo». Ahora van de
+   cinco en cinco, **sin cambiar un solo resultado** (se conserva el orden de
+   entrada porque el `sort` de después es estable). Sigue siendo la consulta
+   más cara: arreglarla del todo pide agregados, y eso es un bloque propio.
+
+---
+
+## Bloque 113 · «Cómo van las OM de mi tren» — la pantalla de Producción ✅
+
+Pedido del usuario: *«que el supervisor pueda ver cómo van las OM de ese tren»*
+y *«en qué van mis técnicos, si están por acabar o de repente ni siquiera han
+empezado»*.
+
+### Lo que YA existe (medido, no supuesto)
+
+| | |
+|---|---|
+| `GET /maintenance` | `@RequireAlguno('wo.read', 'om.mirar')` — Producción ya entra |
+| el recorte por tren | lo hace el SERVIDOR con `filtroConAmbito` |
+| rutas por id | `@AmbitoDe('workOrder')`, y responde 404, no 403 |
+| `WorkOrder.progressPct` | avance declarado 0-100 |
+| `WorkOrderProgress` | la SERIE: pct, motivo, nota, quién y cuándo |
+| `detailedAt` | si el técnico detalló o **ni ha empezado** |
+
+**El dato está entero y el permiso también.** Lo que falta es la PANTALLA:
+`Maintenance.tsx` son 41 KB para el ingeniero —alta completa, asignar,
+materiales, cerrar— y Producción sólo necesita leer.
+
+### Lo que se construye
+
+Una pantalla de **sólo lectura**, acotada a su tren, con el avance grande y
+tres estados que se leen de un vistazo: **sin empezar · en curso · por acabar**.
+Cada fila dice quién la tiene y de cuándo es el último avance.
+
+### Y el «tiempo real», decidido
+
+**NO se usa WebSocket.** Tres motivos, y los tres son de planta:
+
+1. Con dos réplicas en Railway un socket exige afinidad de sesión o un bus
+   (Redis): infraestructura nueva, y eso lo decide el usuario.
+2. El púlpito deja la pantalla abierta ocho horas. Un socket que se cae y no
+   reconecta es PEOR que un refresco: se queda congelado y nadie se entera.
+3. Nadie necesita un segundo de latencia para saber cómo va una orden. Necesita
+   saber que **lo que ve es de hace menos de un minuto**.
+
+Se hace con **refresco corto y honesto**: 20-30 s, apagado mientras la pestaña
+está oculta (`visibilitychange`, como el resto del sistema desde el bloque 42),
+y **con la edad del dato escrita en pantalla** — `useEdadDelDato` ya lo hace en
+«Mis cámaras». Con el `RitmoGuard` en 600/min, tres peticiones por minuto no
+rozan el cupo.
+
+*Si algún día hace falta empuje de verdad: **SSE antes que WebSocket** —
+unidireccional, sobre HTTP, atraviesa los proxies de planta y reconecta solo.
+Con dos réplicas seguiría necesitando un bus, y eso se declara antes de
+empezar, no después.*
+
+**Lo que se construyó (bloque 113):** `avance.ts` —función pura, 13 pruebas—
+que traduce el avance a cinco estados, con `EN_ESPERA` mandando sobre el
+porcentaje; `GET /work-orders/tablero`, endpoint propio para no arrastrar los
+catorce filtros de `findAll` en un refresco de 25 s; y `TableroOm.tsx`, seis
+columnas de sólo lectura con la edad del dato en segundos.
+
+**Y el verificador que tenía un agujero:** `verificar:clases` no miraba el
+primer literal de un ternario, así que dejó pasar una clase inexistente escrita
+en esta misma pantalla. Cerrado y probado reintroduciendo el fallo.
+
+---
+
+## Bloque 115 · La respuesta que llegaba tarde ✅
+
+**Detalle completo:** `docs/BLOQUE_115_LA_RESPUESTA_QUE_LLEGABA_TARDE.md`
+**De dónde sale:** `docs/AUDITORIA_BARRIDO_2026-09-17.md`
+
+Once efectos se relanzaban al cambiar un equipo, una orden o un texto de
+búsqueda y escribían en pantalla **sin comprobar que su petición siguiera
+siendo la buena**. Si la anterior llegaba después, ganaba.
+
+El peor, `HistorialActivo`: se enseña ANTES de intervenir, así que una carrera
+ahí **manda a un técnico a campo con el historial de otro equipo**. `AssetScan`
+lo mismo con el QR en la mano.
+
+No lo cazaba nada: compila, el lint está contento y en local el servidor
+responde en 2 ms. **Sólo aparece con la red de planta.**
+
+Arreglado con la guardia `let vivo` que el proyecto ya usaba, en 10 archivos.
+`AuthContext` ya estaba bien con una guardia llamada `vigente`, así que el
+verificador acepta los tres nombres en uso en vez de obligar a reescribirlo.
+
+Y **`verificar:carreras`** (verificador 21 del frontend) para que no vuelva a
+entrar, probado reintroduciendo el fallo. De paso: estado vacío en las tablas
+de `Roles` y `Rotulado`, y la fila de `Assets` pulsable con el teclado.
+
+---
+
+## Lo que queda ⏳
+
+| Bloque | Qué es | Bloqueado por |
+|---|---|---|
+| **106-B** | Servicio y pantalla de `EquipoInstalado` (instalar / retirar con firma de supervisor) | `npx.cmd prisma generate` en el PC del usuario |
+| **108** | Informe de reemplazo y de migración (PDF detallado; supervisor con todo, técnico sin credenciales ni coste) | 106-B |
+| **109** | Campos de red del activo: prefijo `/16` `/24`, VLAN, puerta de enlace + informe de estandarización de switches | — |
+| **110** | OM multiequipo: reportado ≠ intervenido | — |
+| **111** | Módulo de correo (hoy cero líneas) | — |
+| **112** | Pulido visual de Producción, fechas de registro en todas partes, tableros por audiencia | — |
+| **114** | Reincidencia por agregados, para quitar del todo la consulta más cara | — |
+| **116** | Paleta unificada: 86 colores escritos a mano en estilos en línea, con cuatro rojos distintos para decir lo mismo + verificador | — |

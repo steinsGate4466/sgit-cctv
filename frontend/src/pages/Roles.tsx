@@ -176,6 +176,13 @@ export default function Roles() {
             </tr>
           </thead>
           <tbody>
+            {/* Bloque 115: una tabla con cabecera y cero filas no dice «no hay
+                nada» — parece que la pantalla se rompió al cargar. */}
+            {!roles.length && (
+              <tr><td colSpan={5} className="muted" style={{ textAlign: 'center', padding: 22 }}>
+                Todavía no hay roles creados.
+              </td></tr>
+            )}
             {roles.map((r) => (
               <tr key={r.id}>
                 <td>
