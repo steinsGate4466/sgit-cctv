@@ -11,6 +11,7 @@ import { useAutoOcultar } from '../auth/useInactivity';
 import AssetSpecFields, { FICHA_DE } from '../components/AssetSpecFields';
 import AssetPhotoPicker, { FotoPendiente } from '../components/AssetPhotoPicker';
 import HistorialActivo from '../components/HistorialActivo';
+import AparatoInstalado from '../components/AparatoInstalado';
 import CriticidadActivo from '../components/CriticidadActivo';
 import RepuestosDelActivo from '../components/RepuestosDelActivo';
 import BorrarDefinitivo from '../components/BorrarDefinitivo';
@@ -969,6 +970,11 @@ export default function Assets() {
               Se pregunta CON EL EQUIPO DELANTE: el técnico está arriba y
               necesita saber si bajar o no. */}
           <RepuestosDelActivo assetId={detail.id} />
+
+          {/* BLOQUE 106-B. Va ANTES del historial de averías y con razón: lo
+              primero que hay que saber al mirar tres fallas seguidas es si le
+              pasaron al MISMO aparato o a tres cámaras distintas. */}
+          <AparatoInstalado assetId={detail.id} />
 
           <HistorialActivo assetId={detail.id} />
 

@@ -433,6 +433,28 @@ Un comando del usuario lo desbloquea.
 
 ---
 
+## Bloque 106-B · Poner y quitar el aparato ✅
+
+**Detalle completo:** `docs/BLOQUE_106B_PONER_Y_QUITAR_EL_APARATO.md`
+
+El 106-A creó la tabla; esto la llena y la lee. Servicio, tres endpoints con
+sus DTO, y el apartado «Aparato instalado» en la ficha del activo — **antes**
+del historial de averías, porque lo primero que hay que saber al mirar tres
+fallas seguidas es si le pasaron al mismo aparato o a tres cámaras distintas.
+
+**Poner y quitar va con `asset.update`, no con firma de supervisor**: cambiar
+la cámara es el trabajo del técnico un martes por la tarde, y exigir firma sólo
+conseguiría que no se registre. CORREGIR una entrada ya cerrada sí es del
+supervisor —eso reescribe el pasado— y el intento denegado también se audita.
+
+Motivo obligatorio para desplazar al anterior, fechas futuras y cruzadas
+rechazadas, retirar sin reponer, las dos escrituras en una transacción, y **ni
+un `delete`**: esta tabla ES el informe de reemplazo.
+
+16 pruebas, todas de las puertas. **Desbloquea el bloque 108.**
+
+---
+
 ## Bloque 107 · Lo que salió de planta sigue contando ✅
 
 **Detalle completo:** `docs/BLOQUE_107_LO_QUE_SALIO_DE_PLANTA.md`
@@ -552,8 +574,7 @@ de `Roles` y `Rotulado`, y la fila de `Assets` pulsable con el teclado.
 
 | Bloque | Qué es | Bloqueado por |
 |---|---|---|
-| **106-B** | Servicio y pantalla de `EquipoInstalado` (instalar / retirar con firma de supervisor) | `npx.cmd prisma generate` en el PC del usuario |
-| **108** | Informe de reemplazo y de migración (PDF detallado; supervisor con todo, técnico sin credenciales ni coste) | 106-B |
+| **108** | Informe de reemplazo y de migración (PDF detallado; supervisor con todo, técnico sin credenciales ni coste) | **desbloqueado** por el 106-B |
 | **109** | Campos de red del activo: prefijo `/16` `/24`, VLAN, puerta de enlace + informe de estandarización de switches | — |
 | **110** | OM multiequipo: reportado ≠ intervenido | — |
 | **111** | Módulo de correo (hoy cero líneas) | — |

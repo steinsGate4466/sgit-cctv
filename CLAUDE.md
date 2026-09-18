@@ -5202,3 +5202,47 @@ escritas en la línea de arriba del `NavLink`.
 > **Cuando un barrido da muchos resultados, lo primero de lo que hay que dudar
 > es del barrido.** Ya estaba escrito en este archivo; esta vez costó tres
 > pasadas volver a aprenderlo. Ningún hallazgo se reporta sin abrir el archivo.
+
+---
+
+## 51 · Bloque 106-B — un permiso que se pide de más es un dato que se pierde
+
+### 51.1 · La decisión de permiso, y por qué NO fue la estricta
+
+Retirar un aparato y poner otro NO es dar de baja el activo: el sitio sigue ahí
+con su etiqueta, su criticidad y su historial. Es el trabajo del técnico un
+martes por la tarde, con la cámara nueva en la mano.
+
+> Pedirle firma de supervisor para eso tendría un único efecto real: **que no se
+> registre**. Cambiaría la cámara igual y el dato se perdería.
+>
+> **Un dato que no se registra es peor que un permiso flojo.**
+
+La regla que queda, para no volver a discutirlo bloque a bloque:
+
+- **REGISTRAR lo que acaba de pasar** → el permiso de quien lo hace.
+- **REESCRIBIR lo que ya está escrito** → el supervisor, leyendo el cargo de la
+  base y auditando también el intento denegado.
+
+El supervisor del usuario («solamente él») era sobre el RETIRO DEL ACTIVO y la
+purga, no sobre el aparato de dentro. Distinguirlo es lo que hace que el
+registro se use.
+
+### 51.2 · Escribir el DTO mirando qué lee el servicio
+
+Los tres endpoints nacieron con `@Body() body: any` y `verificar:dto` los cazó
+en la primera pasada. Con `any` el `ValidationPipe` no valida nada.
+
+Y los topes de longitud no son decoración: `serie` y `firmware` se teclean en
+planta con guantes, y sin tope un dedo apoyado en una tecla mete diez mil
+caracteres en una columna que después se enseña en una tabla.
+
+### 51.3 · Lo que NO se deja tocar, y se dice
+
+`CorregirAparatoDto` no admite fechas a propósito: mover un `desde` reordena el
+historial y puede solapar dos aparatos en el mismo sitio. Queda escrito en el
+propio DTO que, si hace falta, será su bloque con su comprobación de solapes.
+
+> Una puerta que no se abre y **dice por qué** no es una carencia: es una
+> decisión. Una que no se abre y no dice nada es un olvido esperando a que
+> alguien lo "arregle".

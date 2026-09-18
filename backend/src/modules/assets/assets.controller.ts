@@ -6,15 +6,17 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { AssetsService } from './assets.service';
 import { HistoryService } from './history.service';
+import { EquipoInstaladoService } from './equipo-instalado.service';
 import { SignedCreateAssetDto } from './dto/create-asset-signed.dto';
 import { SignedUpdateAssetDto } from './dto/update-asset-signed.dto';
 import { UpdateAssetStatusDto } from './dto/update-asset-status.dto';
 import { UpdateNetworkDto } from './dto/update-network.dto';
+import { InstalarAparatoDto, RetirarAparatoDto, CorregirAparatoDto } from './dto/aparato.dto';
 import { QueryAssetDto } from './dto/query-asset.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequireAlguno, RequirePermissions } from '../../common/decorators/permissions.decorator';
-import { AmbitoDe } from '../../common/ambito.decorator';
+import { AmbitoDe, SinAmbito } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('assets')
@@ -25,6 +27,7 @@ export class AssetsController {
   constructor(
     private readonly assets: AssetsService,
     private readonly history: HistoryService,
+    private readonly aparatos: EquipoInstaladoService,
   ) {}
 
   // Alta FIRMADA: exige re-autenticación (firma) y queda auditada (CREATE_ASSET).
@@ -260,6 +263,76 @@ export class AssetsController {
   @RequireAlguno('asset.read', 'activos.mirar')
   historial(@Param('id') id: string) {
     return this.history.delActivo(id);
+  }
+
+  /* =========================================================================
+     BLOQUE 106-B · QUÉ APARATO ESTÁ PUESTO EN ESTE SITIO
+     -------------------------------------------------------------------------
+     Todas llevan `@AmbitoDe('asset')`: el jefe del Tren 2 no ve, ni toca, los
+     aparatos del Tren 1 — y recibe un 404, no un 403, para no confirmar que
+     ese activo existe.
+
+     LEER va con `asset.read` o `activos.mirar`: no hay ni una credencial en la
+     respuesta, y el técnico tiene que poder mirar qué había antes aquí.
+
+     ESCRIBIR va con `asset.update`, el mismo permiso con el que ya edita la
+     ficha. Cambiar la cámara es su trabajo de un martes por la tarde; pedirle
+     firma de supervisor sólo conseguiría que no se registre, y un dato que no
+     se registra es peor que un permiso flojo. CORREGIR el historial sí es del
+     supervisor, y eso lo comprueba el servicio leyendo el cargo de la base.
+  ========================================================================= */
+  @AmbitoDe('asset')
+  @Get(':id/aparato')
+  @RequireAlguno('asset.read', 'activos.mirar')
+  aparatoActual(@Param('id') id: string) {
+    return this.aparatos.actual(id);
+  }
+
+  @AmbitoDe('asset')
+  @Get(':id/aparatos')
+  @RequireAlguno('asset.read', 'activos.mirar')
+  aparatos_(@Param('id') id: string) {
+    return this.aparatos.historial(id);
+  }
+
+  @AmbitoDe('asset')
+  @Post(':id/aparato')
+  @RequirePermissions('asset.update')
+  instalarAparato(
+    @Param('id') id: string,
+    @Body() dto: InstalarAparatoDto,
+    @CurrentUser() user: any,
+    @Ip() ip: string,
+  ) {
+    return this.aparatos.instalar(id, dto, user?.userId, ip);
+  }
+
+  @AmbitoDe('asset')
+  @Post(':id/aparato/retirar')
+  @RequirePermissions('asset.update')
+  retirarAparato(
+    @Param('id') id: string,
+    @Body() dto: RetirarAparatoDto,
+    @CurrentUser() user: any,
+    @Ip() ip: string,
+  ) {
+    return this.aparatos.retirar(id, dto, user?.userId, ip);
+  }
+
+  /* Ésta NO lleva `@AmbitoDe('asset')`: el parámetro es el identificador de la
+     ENTRADA del historial, no el del activo. Declararlo haría que el guard
+     buscase un activo con ese id, no lo encontrase y devolviera 404 siempre.
+     El servicio comprueba el cargo, que es la puerta que aquí importa. */
+  @SinAmbito()
+  @Patch('aparato/:id')
+  @RequirePermissions('asset.update')
+  corregirAparato(
+    @Param('id') id: string,
+    @Body() dto: CorregirAparatoDto,
+    @CurrentUser() user: any,
+    @Ip() ip: string,
+  ) {
+    return this.aparatos.corregir(id, dto, user?.userId, ip);
   }
 
   @AmbitoDe('asset')
