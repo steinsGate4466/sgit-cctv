@@ -7,6 +7,7 @@ import type { Response } from 'express';
 import { AssetsService } from './assets.service';
 import { HistoryService } from './history.service';
 import { EquipoInstaladoService } from './equipo-instalado.service';
+import { InformeReemplazoService } from './informe-reemplazo.service';
 import { SignedCreateAssetDto } from './dto/create-asset-signed.dto';
 import { SignedUpdateAssetDto } from './dto/update-asset-signed.dto';
 import { UpdateAssetStatusDto } from './dto/update-asset-status.dto';
@@ -28,6 +29,7 @@ export class AssetsController {
     private readonly assets: AssetsService,
     private readonly history: HistoryService,
     private readonly aparatos: EquipoInstaladoService,
+    private readonly reemplazo: InformeReemplazoService,
   ) {}
 
   // Alta FIRMADA: exige re-autenticación (firma) y queda auditada (CREATE_ASSET).
@@ -333,6 +335,45 @@ export class AssetsController {
     @Ip() ip: string,
   ) {
     return this.aparatos.corregir(id, dto, user?.userId, ip);
+  }
+
+  /* =========================================================================
+     BLOQUE 108 · INFORME DE REEMPLAZO
+     -------------------------------------------------------------------------
+     El de `:id/report` es la FICHA, para ir a campo. Éste contesta una
+     pregunta: ¿hay que cambiar este equipo? Y es el que se lleva a una reunión
+     de presupuesto.
+
+     LEER el análisis va con `asset.read` o `activos.mirar`: el técnico tiene
+     que poder ver por qué el sistema dice lo que dice. El PDF pide
+     `asset.read`, igual que el informe de ficha que ya había — es el mismo
+     tipo de documento y no lleva nada que el otro no lleve.
+
+     NO HAY UNA SEGUNDA VERSIÓN «SIN DATOS SENSIBLES»: se comprobó qué lleva
+     dentro —órdenes, causas, minutos sin visión, aparatos— y no hay ni una
+     contraseña, ni una IP de gestión, ni un coste. El control está en QUIÉN
+     descarga y de qué tren, que lo pone `@AmbitoDe`.
+  ========================================================================= */
+  @AmbitoDe('asset')
+  @Get(':id/analisis-reemplazo')
+  @RequireAlguno('asset.read', 'activos.mirar')
+  analisisReemplazo(@Param('id') id: string) {
+    return this.reemplazo.analisis(id);
+  }
+
+  @AmbitoDe('asset')
+  @Get(':id/informe-reemplazo')
+  @RequirePermissions('asset.read')
+  async informeReemplazo(
+    @Param('id') id: string,
+    @CurrentUser() user: any,
+    @Ip() ip: string,
+    @Res() res: Response,
+  ) {
+    const { buffer, filename } = await this.reemplazo.pdf(id, user?.userId, ip);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
   }
 
   @AmbitoDe('asset')

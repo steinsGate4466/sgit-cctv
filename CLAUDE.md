@@ -5246,3 +5246,52 @@ propio DTO que, si hace falta, será su bloque con su comprobación de solapes.
 > Una puerta que no se abre y **dice por qué** no es una carencia: es una
 > decisión. Una que no se abre y no dice nada es un olvido esperando a que
 > alguien lo "arregle".
+
+---
+
+## 52 · Bloque 108 — un informe que no concluye no sirve
+
+### 52.1 · El orden de las comprobaciones, otra vez
+
+Tercer bloque seguido en el que **el orden ES el diseño** (113 con `EN_ESPERA`,
+108 con los vecinos). Aquí: si los equipos que cuelgan de la misma antena
+también fallan, eso gana aunque haya diez órdenes encima. Cambiar la cámara
+tiraría una cámara buena y el fallo seguiría.
+
+> Cuando varias reglas pueden disparar a la vez, **cuál se mira primero es la
+> decisión entera.** Se escribe el porqué al lado, y se prueba ese caso.
+
+### 52.2 · El 106 se paga aquí
+
+Antes de separar sitio y aparato, las averías de la cámara vieja contaban
+contra la nueva y este informe habría pedido cambiar una cámara puesta hace
+tres semanas. **Un bloque de arquitectura se justifica cuando otro lo usa**, no
+cuando se escribe.
+
+### 52.3 · No inventar un coste, ni siquiera para que el informe quede completo
+
+No hay precio de equipos en ningún modelo. Una cifra «razonable» en un
+documento que va a una reunión de presupuesto es exactamente el dato inventado
+que este proyecto no admite. Lo que sí hay —**minutos de púlpito sin vista**—
+es mejor argumento que un precio falso.
+
+### 52.4 · Dos versiones que serían iguales son peor que una
+
+Estaba previsto un informe de supervisor y otro «sin datos sensibles». Se
+comprobó qué lleva: ni una contraseña, ni una IP de gestión, ni un coste.
+
+> Dos versiones idénticas habrían dado la falsa impresión de que una está
+> recortada. El día que alguien añadiera un dato sensible lo pondría en «la
+> completa» creyendo que la otra se recorta sola. **Una puerta que parece
+> cerrada y no lo está es peor que una abierta.**
+
+### 52.5 · Un verificador se arregla cada vez que se le escapa algo
+
+Segunda vez en dos días que `verificar:clases` deja pasar una clase inexistente,
+por otra puerta: guardada en una tabla (`{ clase: 'card aviso' }`) en vez de
+escrita en el `className`. Cerrado.
+
+Y queda escrita la limitación que NO se cerró: lee nombres de clase sueltos, no
+selectores compuestos, así que `.card.aviso` faltando con `.zona-chip.aviso`
+existiendo le parece bien. **Una limitación anotada es una limitación; una
+limitación callada es una mentira sobre lo que el verificador garantiza.**

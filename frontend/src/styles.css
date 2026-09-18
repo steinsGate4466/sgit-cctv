@@ -1826,6 +1826,19 @@ label.campo > span,
 }
 .card.peligro b { color: #8c1414; }
 
+/* BLOQUE 108 · la hermana ámbar de la anterior. «Hay que mirarlo» no es lo
+   mismo que «hay que cambiarlo», y con el rabillo del ojo tienen que
+   distinguirse: si las dos salieran rojas, la roja dejaría de significar algo.
+
+   OJO CON `verificar:clases` AQUÍ: `aviso` ya existía como `.zona-chip.aviso`,
+   así que el verificador la daba por definida y `.card.aviso` no existía. Lee
+   nombres de clase sueltos, no selectores compuestos. Queda anotado. */
+.card.aviso {
+  border-left: 4px solid var(--warn); background: #fffaf0;
+  padding: 14px 16px; font-size: 13.5px; line-height: 1.55; margin-bottom: 14px;
+}
+.card.aviso b { color: #8a5a00; }
+
 /* ---- 4. Tablas: el dato manda -------------------------------------------
    Filas más altas (se pulsan con el pulgar), números alineados y la fila
    bajo el cursor claramente marcada para no equivocarse de renglón —que es

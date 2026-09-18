@@ -133,6 +133,32 @@ for (const p of archivos(SRC)) {
      y ninguna regla la define); `'edad-dato viejo'` sí, porque `edad-dato`
      está en la hoja. Prefiero que se me escape uno antes que inventarme uno.
      La comprobación real se hace abajo, cuando ya se sabe qué define la hoja. */
+  /* Y LAS TABLAS DE CLASES — bloque 108.
+     Muchas pantallas guardan la clase en un objeto y la sacan por índice:
+
+         const TONO = { GRAVE: { clase: 'card peligro' }, ... };
+         <div className={TONO[x].clase} />
+
+     El literal NO está dentro de un `className={...}`, así que todos los
+     barridos de arriba lo pierden. Pasó escribiendo `ReemplazoDelActivo`: la
+     clase `aviso` no existía en la hoja, el verificador dio verde, y el
+     recuadro habría salido sin formato — el mismo fallo que este archivo
+     existe para cazar, entrando por otra puerta.
+
+     La señal, estrecha a propósito: el literal es el valor de una clave que se
+     LLAMA `clase`, `className` o `cls`. Un texto guardado en una clave con ese
+     nombre es una clase; no hay ambigüedad que valga. */
+  for (const m of t.matchAll(/\b(?:clase|className|cls)\s*:\s*'([^'\n]+)'/g)) {
+    const palabras = m[1].trim().split(/\s+/).filter(Boolean);
+    if (!palabras.length) continue;
+    if (!palabras.every((c) => /^[a-z][a-z0-9-]*$/.test(c))) continue;
+    cadenas.push({
+      palabras,
+      siempre: true,   // la clave se llama `clase`: ya dijo lo que es
+      sitio: `${path.relative(SRC, p).replace(/\\/g, '/')}:${lineaDe(m.index)}`,
+    });
+  }
+
   for (const m of t.matchAll(/className=\{([\s\S]{0,400}?)\}/g)) {
     for (const lit of m[1].matchAll(/'([^'\\\n]*)'/g)) {
       const palabras = lit[1].trim().split(/\s+/).filter(Boolean);
@@ -169,8 +195,9 @@ for (const [clase, sitios] of usadas) {
 /* Bloque 113: las cadenas de clases. Se comprueban AQUÍ y no arriba porque
    hace falta saber ya qué define la hoja para distinguir una cadena de clases
    de una comparación contra un texto cualquiera. */
-for (const { palabras, sitio } of cadenas) {
-  if (!palabras.some((c) => definidas.has(c))) continue;   // no es una cadena de clases
+for (const { palabras, sitio, siempre } of cadenas) {
+  // Una clave llamada `clase:` no necesita confirmación: ya dijo lo que es.
+  if (!siempre && !palabras.some((c) => definidas.has(c))) continue;
   for (const c of palabras) {
     if (DE_FUERA.has(c) || definidas.has(c)) continue;
     /* Trozo de una clase dinámica (`'marca marca-' + tono`). Se le aplica la

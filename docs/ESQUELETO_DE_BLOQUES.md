@@ -455,6 +455,35 @@ un `delete`**: esta tabla ES el informe de reemplazo.
 
 ---
 
+## Bloque 108 · ¿Hay que cambiar este equipo? ✅
+
+**Detalle completo:** `docs/BLOQUE_108_HAY_QUE_CAMBIAR_ESTE_EQUIPO.md`
+
+Las SEÑALES de reincidencia ya existían desde el bloque 78 y el informe de
+ficha ya las imprimía. Lo que no existía es **el veredicto**: la frase que se
+lleva a una reunión.
+
+`veredicto-reemplazo.ts` — función pura, 10 pruebas. El ORDEN es la decisión:
+(1) si fallan los vecinos, manda eso aunque haya diez órdenes, porque cambiar
+la cámara tiraría una cámara buena; (2) **si las fallas son del aparato
+ANTERIOR no cuentan contra el actual** —aquí paga el 106—; (3) sólo entonces se
+propone el reemplazo, avisando de que si el punto ya consumió varios aparatos
+el problema es del SITIO y no del modelo.
+
+PDF con el veredicto en la primera página y los números detrás para poder
+comprobarlo. **Sin costes**: no existe el campo en ningún modelo e inventarlo
+para una reunión de presupuesto no se hace. El argumento que sí hay, destacado:
+**los minutos que el púlpito estuvo sin vista**.
+
+**Una sola versión, no dos:** se comprobó qué lleva dentro y no hay ni una
+contraseña, ni una IP de gestión, ni un coste. El control está en quién
+descarga y de qué tren.
+
+Y otro agujero de `verificar:clases` cerrado: las clases guardadas en una tabla
+(`{ clase: 'card aviso' }`) no las veía ningún barrido.
+
+---
+
 ## Bloque 107 · Lo que salió de planta sigue contando ✅
 
 **Detalle completo:** `docs/BLOQUE_107_LO_QUE_SALIO_DE_PLANTA.md`
@@ -574,7 +603,6 @@ de `Roles` y `Rotulado`, y la fila de `Assets` pulsable con el teclado.
 
 | Bloque | Qué es | Bloqueado por |
 |---|---|---|
-| **108** | Informe de reemplazo y de migración (PDF detallado; supervisor con todo, técnico sin credenciales ni coste) | **desbloqueado** por el 106-B |
 | **109** | Campos de red del activo: prefijo `/16` `/24`, VLAN, puerta de enlace + informe de estandarización de switches | — |
 | **110** | OM multiequipo: reportado ≠ intervenido | — |
 | **111** | Módulo de correo (hoy cero líneas) | — |
