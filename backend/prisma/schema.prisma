@@ -182,6 +182,8 @@ model User {
   /// Bloque 106 · quién instaló y quién retiró cada equipo.
   equiposQueInstalo EquipoInstalado[] @relation("EquipoInstaladoPor")
   equiposQueRetiro  EquipoInstalado[] @relation("EquipoRetiradoPor")
+  /// BLOQUE 110 · quién apuntó cada equipo en una orden.
+  omEquiposApuntados OmEquipo[]     @relation("OmEquipoApuntadoPor")
 
   @@map("users")
   inspeccionesGrua InspeccionGrua[] @relation("InspeccionGruaPor")
@@ -888,6 +890,8 @@ model Asset {
   isDraft       Boolean     @default(false)
   mappedInWorkOrderId String?
   mappedInWorkOrder   WorkOrder? @relation("AssetMappedInWo", fields: [mappedInWorkOrderId], references: [id])
+  /// BLOQUE 110 · órdenes en las que este equipo sale, reportado o intervenido.
+  enOrdenes           OmEquipo[] @relation("EquipoEnOm")
   accessRequests AccessRequest[]
   /// Instalaciones que dieron origen a este activo (normalmente una).
   instalacionesOrigen Instalacion[] @relation("AssetDeInstalacion")
@@ -1485,6 +1489,8 @@ model WorkOrder {
 
   /// Activos levantados durante esta orden (solo aplica a las de tipo MAPEO).
   mappedAssets  Asset[]          @relation("AssetMappedInWo")
+  /// BLOQUE 110 · los equipos de esta orden, con su papel. Ver `model OmEquipo`.
+  equipos       OmEquipo[]
   // ---- Preparación y consumo (Bloque 2f) ----
   tools         WorkOrderTool[]
   materialItems WorkOrderMaterial[]
@@ -3777,4 +3783,85 @@ model EquipoInstalado {
   /// distintas y las dos filtran por aquí.
   @@index([hasta])
   @@map("equipos_instalados")
+}
+
+/// QUÉ SE DIJO QUE FALLABA, FRENTE A QUÉ SE TOCÓ DE VERDAD — bloque 110.
+enum PapelEnOm {
+  /// Lo que Producción reportó, o lo que el ingeniero asignó al abrir.
+  REPORTADO
+  /// Lo que el técnico tocó en campo. Puede ser otro, y puede ser más de uno.
+  INTERVENIDO
+}
+
+/// =============================================================================
+///  UNA ORDEN, VARIOS EQUIPOS — bloque 110
+/// =============================================================================
+///  EL PROBLEMA, EN PALABRAS DEL USUARIO: «reportado ≠ intervenido».
+///
+///  Hasta aquí una orden colgaba de UN activo (`WorkOrder.assetId`). En planta
+///  eso casi nunca es verdad:
+///
+///    · Una orden de MAPEO recorre el lecho de enfriamiento y levanta 12
+///      cámaras. En los indicadores contaba como UNA.
+///    · Producción reporta la cámara 45, el técnico llega y el problema es el
+///      switch. Se arregla el switch. La orden queda apuntada a la cámara y la
+///      avería del switch no existe para nadie.
+///    · Un corte de energía deja media sala sin visión: una orden, ocho equipos.
+///
+///  CONSECUENCIA MEDIBLE, y es la que importa: **los indicadores que van al
+///  comité están bajos de verdad.** Un tren donde se tocaron 40 equipos reporta
+///  12 órdenes, y con esa cifra se pide presupuesto.
+///
+/// -----------------------------------------------------------------------------
+///  POR QUÉ UNA TABLA APARTE Y NO RETIRAR `assetId`
+/// -----------------------------------------------------------------------------
+///  `assetId` lo leen 353 rutas y decenas de pantallas. Quitarlo sería un bloque
+///  de semanas con riesgo en cada esquina. Se queda como **el equipo principal**
+///  —el que encabeza la orden— y esta tabla añade los demás. Misma decisión
+///  aditiva del bloque 106-A, y por el mismo motivo.
+///
+/// -----------------------------------------------------------------------------
+///  POR QUÉ EL PAPEL EN UNA COLUMNA Y NO DOS LISTAS
+/// -----------------------------------------------------------------------------
+///  Dos relaciones (`reportados` / `intervenidos`) obligarían a consultar dos
+///  veces y unir en memoria para responder «¿en qué órdenes sale esta cámara?»,
+///  que es LA pregunta del historial. Con el papel como columna, es un
+///  `where assetId = ...` y ya.
+///
+///  Y un mismo equipo puede salir con los DOS papeles en la misma orden —se
+///  reportó y además se intervino—, que es el caso normal. Por eso la unicidad
+///  es por los tres campos y no por los dos primeros.
+model OmEquipo {
+  id          String     @id @default(uuid())
+
+  workOrderId String
+  workOrder   WorkOrder  @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  assetId     String
+  asset       Asset      @relation("EquipoEnOm", fields: [assetId], references: [id], onDelete: Cascade)
+
+  papel       PapelEnOm
+
+  /// Qué se hizo sobre ESTE equipo, del catálogo ACCION —el mismo del cierre—.
+  /// Sin esto, una orden que tocó ocho equipos sólo puede declarar una acción
+  /// para los ocho, y el análisis por acción deja de servir.
+  accionCode  String?
+  /// Detalle libre. La válvula de escape, y la señal de que al catálogo le
+  /// falta una opción.
+  nota        String?
+
+  apuntadoPorId String?
+  apuntadoPor   User?    @relation("OmEquipoApuntadoPor", fields: [apuntadoPorId], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime   @default(now())
+
+  /// El mismo equipo, en la misma orden, con el mismo papel, UNA vez. Volver a
+  /// apuntarlo actualiza; no duplica.
+  @@unique([workOrderId, assetId, papel])
+  @@index([workOrderId])
+  /// «¿En qué órdenes sale esta cámara?» — lo suyo, por fecha. Sin el compuesto
+  /// es recorrido secuencial y ordenación en memoria (bloque 105).
+  @@index([assetId, createdAt])
+  @@index([createdAt])
+  @@map("om_equipos")
 }

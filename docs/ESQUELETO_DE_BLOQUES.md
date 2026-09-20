@@ -455,6 +455,56 @@ un `delete`**: esta tabla ES el informe de reemplazo.
 
 ---
 
+## Bloque 110-A · Una orden, varios equipos ✅
+
+**Detalle completo:** `docs/BLOQUE_110A_UNA_ORDEN_VARIOS_EQUIPOS.md`
+
+Una campaña de mapeo que levantó 12 cámaras contaba como **una** intervención.
+Un tren donde se tocaron 40 equipos reportaba 12 órdenes — y con esa cifra se
+pide presupuesto.
+
+Tabla `om_equipos` con el papel (REPORTADO / INTERVENIDO) en una columna, no en
+dos listas: así «¿en qué órdenes sale esta cámara?» es un `where assetId`.
+**Aditivo**: `WorkOrder.assetId` se queda como equipo principal porque lo leen
+353 rutas.
+
+Traspaso de tres orígenes —principal, asignado y los activos de cada campaña de
+mapeo—, **idempotente de principio a fin**. Lo que no está escrito no se
+inventa: una orden sin equipo asignado se queda sin REPORTADO.
+
+`om-equipos.ts` distingue lo que el booleano `scopeChanged` no podía: «se tocó
+otra cosa **y lo reportado quedó pendiente**» frente a «se tocó lo reportado y
+además otra cosa». 16 pruebas.
+
+**110-B queda pendiente a propósito:** el servicio necesita el cliente de
+Prisma regenerado. Un comando del usuario lo desbloquea.
+
+---
+
+## Bloque 112 · De cuándo son estos datos ✅
+
+**Detalle completo:** `docs/BLOQUE_112_DE_CUANDO_SON_ESTOS_DATOS.md`
+
+De las 56 pantallas, **7** decían de cuándo eran sus datos. En el púlpito, donde
+la pantalla lleva ocho horas abierta, el jefe de turno veía todo en verde y
+estaba leyendo la madrugada.
+
+**No se hizo pantalla por pantalla** —tres ediciones en cada una de las 49, 147
+sitios donde equivocarse, y la que se olvide no se nota porque la ausencia de
+un aviso no se ve—. Se hizo en tres piezas: el cliente marca la hora de cada
+GET bueno, un componente la lee y la cabecera la pinta. Las 56 cubiertas de
+golpe, y una pantalla nueva nace cubierta.
+
+Tres decisiones finas: **sólo los GET** (un POST no refresca lo que se ve), **se
+reinicia al cambiar de ruta** (si no, heredaría la hora de la anterior sobre una
+tabla vacía) y **dice un hecho, no una garantía** («datos hace X», no «todo
+actualizado»).
+
+`verificar:fecha-dato` (verificador 23) vigila las tres piezas, probado
+reintroduciendo el fallo en cada una.
+
+---
+
 ## Bloque 116 · Una sola paleta ✅
 
 **Detalle completo:** `docs/BLOQUE_116_UNA_SOLA_PALETA.md`
@@ -647,7 +697,7 @@ de `Roles` y `Rotulado`, y la fila de `Assets` pulsable con el teclado.
 | Bloque | Qué es | Bloqueado por |
 |---|---|---|
 | **109-B** | Informe de estandarización de switches para Producción (qué modelos hay, cuáles conviene unificar) | — |
-| **110** | OM multiequipo: reportado ≠ intervenido | — |
+| **110-B** | Servicio, endpoints y pantalla de OM multiequipo + los indicadores contando intervenciones | `npx.cmd prisma generate` |
 | **111** | Módulo de correo (hoy cero líneas) | — |
-| **112** | Pulido visual de Producción, fechas de registro en todas partes, tableros por audiencia | — |
+| **112-B** | Pulido visual de Producción y tableros por audiencia (la fecha del dato ya está, bloque 112) | — |
 | **114** | Reincidencia por agregados, para quitar del todo la consulta más cara | — |
