@@ -158,6 +158,17 @@ export default function Dashboard() {
           hint="Programadas y no ejecutadas"
           ir={() => nav('/bandeja')}
         />
+        {/* BLOQUE 110-B · EL TRABAJO REAL, NO EL NÚMERO DE ÓRDENES.
+            Una campaña de mapeo que recorrió el lecho de enfriamiento y tocó
+            doce cámaras contaba UNA orden. Las dos cifras conviven: «órdenes»
+            es la unidad de gestión —una parada, un permiso, un cierre— y
+            «equipos en trabajo» la de trabajo. */}
+        <Kpi
+          label="Equipos en trabajo" value={kpis?.intervencionesAbiertas ?? 0}
+          cls={kpis?.intervencionesAbiertas ? 'warn' : 'ok'}
+          hint={`${kpis?.pendingWorkOrders ?? 0} órdenes abiertas los cubren`}
+          ir={() => nav('/maintenance')}
+        />
         <Kpi
           label="Repuestos bajo mínimo" value={kpis?.lowStockParts ?? 0}
           cls={kpis?.lowStockParts ? 'crit' : 'ok'}

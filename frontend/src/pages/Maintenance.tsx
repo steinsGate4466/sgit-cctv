@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, AvisoAmbito } from '../components/FiltroAmbito';
 import Modal from '../components/Modal';
+import EquiposDeLaOm from '../components/EquiposDeLaOm';
 import { useAuth } from '../auth/AuthContext';
 import OmCampo from '../components/OmCampo';
 import HistorialActivo from '../components/HistorialActivo';
@@ -670,6 +671,10 @@ export default function Maintenance() {
 
       {intId && (
         <Modal title="Registrar intervención" onClose={() => setIntId(null)}>
+          {/* BLOQUE 110-B · los equipos de la orden. Va ARRIBA del formulario:
+              lo primero que hay que declarar es SOBRE QUÉ se trabajó; el
+              diagnóstico viene después y se refiere a eso. */}
+          <EquiposDeLaOm workOrderId={intId} cerrada={false} />
           <form onSubmit={submitIntervention}>
             <div className="sign-note">Registra qué se está interviniendo en el equipo. El cierre definitivo lo realiza el Jefe de Mantenimiento.</div>
             <label>Zona de intervención

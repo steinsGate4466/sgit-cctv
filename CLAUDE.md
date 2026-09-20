@@ -5363,3 +5363,110 @@ meses sin pintarse.
 > fallo silencioso de `verificar:clases`, en otra forma** — y por eso la
 > comprobación barata de «¿existe lo que citas?» vale tanto: cuesta cinco
 > líneas y caza lo que nadie va a ver mirando la pantalla.
+
+---
+
+## 55 · Bloque 112 — arreglarlo en 49 sitios habría garantizado que vuelva
+
+De las 56 pantallas, 7 decían de cuándo eran sus datos. La forma evidente de
+arreglarlo era añadir `cargadoEn` a las otras 49: tres ediciones en cada una,
+**147 sitios donde equivocarse**.
+
+> Y la que se olvide queda igual que antes **sin que nadie lo note, porque la
+> ausencia de un aviso no se ve.** Un arreglo que hay que repetir 49 veces no
+> es un arreglo: es una lista de tareas que alguien dejará a medias.
+
+Se hizo en tres piezas —el cliente marca la hora de cada GET, un componente la
+lee, la cabecera la pinta— y las 56 quedaron cubiertas. **Una pantalla nueva
+nace cubierta sin que su autor se acuerde de nada.**
+
+La regla general, que ya apareció en el 116 con la paleta:
+
+> Cuando el mismo arreglo hay que repetirlo en treinta sitios, **el sitio
+> correcto para arreglarlo es otro**.
+
+### 55.1 · Afirmar un hecho, no dar una garantía
+
+La cabecera dice «Datos hace X»: cuándo llegó la última respuesta buena. NO
+dice «todo actualizado», porque si un panel falló el suyo es más viejo y eso no
+se puede prometer.
+
+> Es preferible un hecho estrecho y comprobable a una garantía amplia que a
+> veces es falsa. La garantía falsa sólo se descubre el día que importa.
+
+### 55.2 · La pieza que hay que vigilar es la que no se nota
+
+De las tres, dos se notan al abrir la aplicación si desaparecen. La tercera —el
+reinicio al cambiar de ruta— **no se nota nunca**: la pantalla nueva heredaría
+la hora de la anterior y diría «hace 3 s» sobre una tabla vacía. Esa es la que
+el verificador vigila con más cuidado, y la primera que se probó rompiéndola.
+
+---
+
+## 56 · EL NORTE, CORREGIDO POR EL USUARIO (20/09/2026)
+
+Esta sección manda sobre cualquier prioridad que yo proponga. Se escribe porque
+me estaba yendo del tema.
+
+### 56.1 · Lo que el software propone NO es (sólo) automatización
+
+Palabras del usuario, casi literales:
+
+> «El software, más allá de la automatización, lo que propone es que se pueda
+> mantener una **estructura sólida para futuras instalaciones y futuros
+> proyectos**. Por ejemplo, proponer cámaras con inteligencia artificial. Pero
+> ¿cómo proponemos cámaras con IA si no sabemos qué modelo tenemos en planta?
+> ¿Debemos reinvertir en mejor hardware? ¿Las instalaciones son las adecuadas?
+> **¿Quién nos proporciona esa información?**»
+
+Ésa es la tesis. Todo lo que se construya se justifica contra ella:
+
+1. **Saber qué hay.** Modelo, marca, firmware, antigüedad, dónde y desde
+   cuándo. Sin eso no se puede proponer NADA a gerencia.
+2. **Saber si aguanta.** Capacidad de los switches, puertos libres, presupuesto
+   PoE, tramos fuera de norma. Antes de instalar hay que poder decir **apto o
+   no apto**.
+3. **Saber cómo se trabaja día a día.** Qué hacen los técnicos, cuánto, sobre
+   qué. No para vigilar: para poder pedir gente o repuestos con un dato.
+4. **Saber si la infraestructura va a mejor o a peor**, y qué hay que hacer
+   para volver a positivo.
+
+> El valor no es que el sistema trabaje solo. **Es que exista una respuesta
+> cuando alguien pregunta si se puede.**
+
+### 56.2 · Lo que está APARCADO y no se vuelve a proponer
+
+- **Correo (bloque 111)**: en stand-by. El usuario no tiene autorización para
+  decidir servidor ni proveedor. **No se retoma hasta que él lo diga.**
+- **Enlace del agente de monitoreo con las incidencias (Zabbix o similar)**:
+  descartado por ahora. Lo propuse dos veces; el usuario dijo que no. **No se
+  vuelve a proponer.**
+
+Los dos son módulos opcionales. Ninguno es el atractivo del software, y
+proponerlos otra vez es irse del tema.
+
+### 56.3 · A quién sirve cada informe — me equivoqué y queda corregido
+
+El **informe de capacidad de switches** (puertos libres, presupuesto PoE,
+modelos) lo propuse «para Producción». **Es para MANTENIMIENTO.**
+
+Producción pide el trabajo; Mantenimiento tiene que poder contestar si la
+infraestructura lo aguanta. La pregunta que responde ese informe es:
+
+> «Quieren cuatro cámaras nuevas en el lecho de enfriamiento. ¿Hay puertos?
+> ¿Hay PoE? ¿O hay que comprar un switch antes?»
+
+La regla general, para no volver a fallar: **un informe se coloca donde está
+QUIEN TIENE QUE DECIDIR CON ÉL**, no donde está quien lo pide.
+
+### 56.4 · La prioridad a partir de ahora: lo VISUAL
+
+Palabras del usuario: *«pule el apartado visual, que es lo que más atrae a
+Producción»*.
+
+No es maquillaje. Producción no lee un esquema de base de datos: mira una
+pantalla y decide en tres segundos si el sistema le sirve. Una pantalla
+inconsistente hace dudar de los datos que enseña, por buenos que sean.
+
+Mientras no se diga lo contrario: **primero el pulido visual, después
+funcionalidad nueva.**

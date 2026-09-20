@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { api } from '../api/client';
 import { useVolverALaPantalla } from '../useVolverALaPantalla';
 import { Accion, Cifras, LoQueHayQueHacer, Titular, Tono } from '../components/Patron';
+import { EsqueletoTablero } from '../components/Esqueleto';
 import { fecha, plural } from '../formato';
 
 /**
@@ -152,7 +153,11 @@ export default function TrainBoard() {
     }
   }
 
-  if (cargandoLista) return <div className="loading">Cargando los trenes…</div>;
+  /* BLOQUE 120 · esqueleto, no un «Cargando…» suelto. El texto ocupa una línea
+     y lo que viene después ocupa media pantalla: al llegar los datos la página
+     pega un salto que se lee como que algo falló. El esqueleto reserva el
+     sitio y la transición no se nota. */
+  if (cargandoLista) return <div className="page"><EsqueletoTablero /></div>;
 
   if (!trenes.length) {
     return (
@@ -287,7 +292,7 @@ export default function TrainBoard() {
           </button>
         </div>
       ) : cargandoDetalle ? (
-        <div className="loading">Cargando el tren…</div>
+        <EsqueletoTablero />
       ) : !d ? (
         <div className="card" style={{ padding: 30, textAlign: 'center' }}>
           <div className="muted">No se pudo cargar este tren.</div>

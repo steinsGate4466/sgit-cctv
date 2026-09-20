@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { api } from '../api/client';
 import { EsqueletoTablero } from '../components/Esqueleto';
-import { Cifras, ComoSeCalcula } from '../components/Patron';
+import { Cifras, ComoSeCalcula, Titular, Tono } from '../components/Patron';
 import {
   useVolverALaPantalla, useRefrescoDePulpito, useEdadEnSegundos,
 } from '../useVolverALaPantalla';
@@ -129,6 +129,48 @@ export default function TableroOm() {
   }
 
   const suTren = trenes.find((t) => t.code === code);
+
+  /* EL TITULAR — bloque 120.
+     -------------------------------------------------------------------------
+     Producción no viene a leer una tabla de seis columnas: viene a saber si
+     tiene que preocuparse. La frase de arriba contesta eso en tres segundos y
+     la tabla queda para quien quiera el detalle.
+
+     EL ORDEN DE LAS COMPROBACIONES ES LA DECISIÓN, igual que en `avance.ts`:
+     lo DETENIDO manda sobre todo, porque es lo único que Producción puede
+     desatascar. Una orden parada por falta de manlift es suya; una que avanza
+     despacio, no. */
+  function titular(): { tono: Tono; texto: string; apoyo?: string } {
+    if (!r) return { tono: 'sindatos', texto: 'Sin datos todavía.' };
+    if (!r.vivas) {
+      return {
+        tono: 'bien',
+        texto: 'No hay órdenes abiertas en este tren.',
+        apoyo: 'Cuando se abra una, aparece aquí con su avance.',
+      };
+    }
+    if (r.detenidas) {
+      return {
+        tono: 'grave',
+        texto: `${r.detenidas} ${r.detenidas === 1 ? 'orden detenida' : 'órdenes detenidas'}`,
+        apoyo: 'Están esperando algo declarado: repuesto, manlift o parada. '
+          + 'Es lo único de esta pantalla que Producción puede desatascar.',
+      };
+    }
+    if (r.sinEmpezar) {
+      return {
+        tono: 'atender',
+        texto: `${r.sinEmpezar} sin empezar de ${r.vivas}`,
+        apoyo: 'Nadie las ha detallado ni arrancado todavía.',
+      };
+    }
+    return {
+      tono: 'bien',
+      texto: `Las ${r.vivas} órdenes del tren están en marcha`,
+      apoyo: r.porAcabar ? `${r.porAcabar} por acabar.` : undefined,
+    };
+  }
+  const tit = titular();
   const filas: any[] = d?.data ?? [];
   const r = d?.resumen;
 
@@ -165,6 +207,8 @@ export default function TableroOm() {
 
       {cargando && !d ? <EsqueletoTablero /> : d && (
         <div className={cargando ? 'recargando' : undefined}>
+          <Titular tono={tit.tono} texto={tit.texto} apoyo={tit.apoyo} />
+
           <Cifras
             datos={[
               { n: r?.vivas ?? 0, et: 'órdenes vivas' },

@@ -455,6 +455,48 @@ un `delete`**: esta tabla ES el informe de reemplazo.
 
 ---
 
+## Bloque 120 · Las pantallas de Producción se leen igual ✅
+
+**Detalle completo:** `docs/BLOQUE_120_LAS_PANTALLAS_DE_PRODUCCION.md`
+
+Producción no lee un esquema de base de datos: mira la pantalla y decide en
+tres segundos. Una pantalla que se lee distinta de su vecina **hace dudar de
+los datos que enseña**, por buenos que sean.
+
+Tres huecos cerrados: **«Avance de órdenes»** —la que más se va a enseñar—
+abría con una tabla de seis columnas y ahora abre con una frase, con lo
+DETENIDO mandando porque es lo único que Producción puede desatascar;
+**«Zonas vitales»** abría con recuadros y un párrafo, y ahora avisa primero de
+las declaraciones VENCIDAS, que siguen subiendo prioridades sin que nadie lo
+note; y **«Estado por Tren»** cambia el «Cargando…» suelto por esqueleto, para
+que la página no pegue el salto que se lee como un fallo.
+
+`verificar:patron` (verificador 25) fija el patrón en las once pantallas de
+Producción: titular, esqueleto y estado vacío. No exige cifras —sería pedir
+adorno— ni se aplica a gestión técnica.
+
+---
+
+## Bloque 110-B · El trabajo que no se contaba ✅
+
+**Detalle completo:** `docs/BLOQUE_110B_EL_TRABAJO_QUE_NO_SE_CONTABA.md`
+
+El técnico ya puede apuntar en la misma orden los equipos que tocó de más.
+Antes sus opciones eran abrir otra orden o no registrarlo — y se registraba lo
+segundo. De ahí salían los indicadores bajos.
+
+**El tablero enseña las dos cifras:** «órdenes abiertas» (unidad de gestión) y
+«equipos en trabajo» (unidad de trabajo, el par orden-equipo). Enseñar sólo una
+engaña en un sentido o en el otro.
+
+Reportado y tocado van separados en pantalla, con aviso cuando queda algo
+**reportado sin tocar** — que es una deuda con Producción, no una curiosidad.
+
+Puertas: sobre una orden CERRADA no se apunta nada (ya entró en los indicadores
+del mes); tope de 200 por orden; volver a apuntar actualiza y no duplica.
+
+---
+
 ## Bloque 119 · El nombre que sólo oyen algunos ✅
 
 **Detalle completo:** `docs/BLOQUE_119_EL_NOMBRE_QUE_SOLO_OYEN_ALGUNOS.md`
@@ -761,7 +803,6 @@ de `Roles` y `Rotulado`, y la fila de `Assets` pulsable con el teclado.
 | Bloque | Qué es | Bloqueado por |
 |---|---|---|
 | **109-B** | Informe de estandarización de switches para Producción (qué modelos hay, cuáles conviene unificar) | — |
-| **110-B** | Servicio, endpoints y pantalla de OM multiequipo + los indicadores contando intervenciones | `npx.cmd prisma generate` |
 | **111** | Módulo de correo (hoy cero líneas) | — |
 | **112-B** | Pulido visual de Producción y tableros por audiencia (la fecha del dato ya está, bloque 112) | — |
 | **114** | Reincidencia por agregados, para quitar del todo la consulta más cara | — |

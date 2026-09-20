@@ -9,6 +9,7 @@ import { enviarConRespaldo } from '../envio-seguro';
 import { fecha } from '../formato';
 import BotonConMotivo from '../components/BotonConMotivo';
 import { mensajeDeError, queFalta } from '../avisos';
+import { Titular, Tono } from '../components/Patron';
 
 /**
  * ZONAS VITALES PARA LA PRODUCCIÓN — bloque 26.
@@ -99,9 +100,41 @@ export default function Zonas() {
     });
   }, [zonas, filtro, soloConEquipos]);
 
+  /* EL TITULAR — bloque 120. Era la única pantalla de Producción sin una frase
+     que se lea de un vistazo: abría con tres recuadros de cifras y un párrafo.
+
+     LO VENCIDO manda sobre lo que falta por declarar: una declaración caducada
+     sigue subiendo la prioridad de todas las cámaras que cuelgan de esa zona,
+     y eso ensucia la cola de trabajo sin que nadie lo note. */
+  function titular(): { tono: Tono; texto: string; apoyo?: string } {
+    if (!resumen) return { tono: 'sindatos', texto: 'Consultando el árbol de zonas…' };
+    if (resumen.vencidas?.length) {
+      return {
+        tono: 'grave',
+        texto: `${resumen.vencidas.length} declaración(es) vencida(s)`,
+        apoyo: 'Una declaración caducada sigue subiendo la prioridad de sus cámaras.',
+      };
+    }
+    if (resumen.sinDeclarar?.length) {
+      return {
+        tono: 'atender',
+        texto: `${resumen.sinDeclarar.length} zona(s) sin declarar`,
+        apoyo: 'Mientras no se declaren, sus cámaras tienen la prioridad de base.',
+      };
+    }
+    return {
+      tono: 'bien',
+      texto: `Las ${resumen.declaradas} zonas vitales están declaradas y al día`,
+      apoyo: `De ${resumen.total} ubicaciones del árbol.`,
+    };
+  }
+  const tit = titular();
+
   return (
     <div className="page">
       <h1 className="page-title">Zonas vitales para la producción</h1>
+
+      <Titular tono={tit.tono} texto={tit.texto} apoyo={tit.apoyo} />
 
       <div className="card explica">
         <b>Esta pantalla la llena Producción, y la leen las tres áreas.</b> La
