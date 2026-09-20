@@ -47,7 +47,7 @@ export default function Improvements() {
       <div className="card">
         <table>
           <thead>
-            <tr><th>Código</th><th>Activo</th><th>Zona</th><th>Mejora</th><th>Estado</th><th>Programada</th><th></th></tr>
+            <tr><th>Código</th><th>Activo</th><th>Zona</th><th>Órdenes de mejora</th><th>Estado</th><th>Programada</th><th></th></tr>
           </thead>
           <tbody>
             {oms.map((w) => (

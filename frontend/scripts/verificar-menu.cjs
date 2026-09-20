@@ -101,8 +101,41 @@ const secciones = trozos.map((t) => {
 
 const enElMenu = new Set(secciones.flatMap((s) => s.enlaces));
 
+/* =============================================================================
+   PANTALLAS QUE SON PESTAÑA DE OTRA — bloque 118
+   -----------------------------------------------------------------------------
+   El bloque 118 quitó del menú «Preventivo», «Correctivo», «Mejora» e
+   «Indicadores»: no desaparecieron, pasaron a ser PESTAÑAS de la pantalla que
+   las contiene. La declaración vive en `src/pestanas.ts`.
+
+   NO SE METEN EN `EXENTAS`, y la diferencia importa. Una exención dice «a esta
+   no se llega desde el menú y ya». Aquí sí se llega, por un camino declarado y
+   comprobable: **su padre tiene que estar en el menú**. Si alguien quitara el
+   padre, estas cuatro se quedarían sin forma de llegar y este verificador
+   tiene que decirlo — cosa que una exención no haría nunca.
+
+   Y sus rutas SIGUEN en la lista `rutas` de la sección a propósito: estando en
+   una pestaña, la sección del padre tiene que quedarse abierta.
+============================================================================= */
+const pestanas = sinComentarios(leer('pestanas.ts'));
+const hijas = new Map();   // ruta hija -> ruta padre
+{
+  const cuerpo = pestanas.slice(pestanas.indexOf('PESTANAS'));
+  const bloques = [...cuerpo.matchAll(/'(\/[\w-]+)':\s*\[([\s\S]*?)\]/g)];
+  for (const b of bloques) {
+    const padre = b[1];
+    for (const r of b[2].matchAll(/ruta:\s*'(\/[\w-]+)'/g)) {
+      if (r[1] !== padre) hijas.set(r[1], padre);
+    }
+  }
+}
+const huerfanasPorPadre = [];
+for (const [hija, padre] of hijas) {
+  if (!enElMenu.has(padre)) huerfanasPorPadre.push({ hija, padre });
+}
+
 // ---------------------------------------------------------------- 3. hallazgos
-const huerfanas = rutasApp.filter((r) => !EXENTAS[r] && !enElMenu.has(r));
+const huerfanas = rutasApp.filter((r) => !EXENTAS[r] && !enElMenu.has(r) && !hijas.has(r));
 
 const sinDeclarar = [];
 for (const s of secciones) {
@@ -118,8 +151,22 @@ for (const s of secciones) {
 const sobran = [];
 for (const s of secciones) {
   for (const d of s.declaradas) {
-    if (!s.enlaces.includes(d)) sobran.push({ seccion: s.titulo, ruta: d });
+    // Una hija declarada en la sección de su padre NO sobra: es lo que
+    // mantiene la sección abierta mientras se navega por sus pestañas.
+    if (!s.enlaces.includes(d) && !hijas.has(d)) sobran.push({ seccion: s.titulo, ruta: d });
   }
+}
+
+if (huerfanasPorPadre.length) {
+  console.error('\nMenú: pestañas cuyo PADRE ya no está en el menú.\n');
+  for (const x of huerfanasPorPadre) {
+    console.error(`   ${x.hija} es pestaña de ${x.padre}, y ${x.padre} no tiene entrada`);
+  }
+  console.error(
+    '\nSin el padre en el menú no hay forma de llegar a la pestaña. O se devuelve'
+    + '\nla entrada del padre, o estas pantallas vuelven al menú por su cuenta.\n',
+  );
+  process.exit(1);
 }
 
 let fallo = false;

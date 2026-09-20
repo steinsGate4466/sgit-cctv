@@ -455,6 +455,51 @@ un `delete`**: esta tabla ES el informe de reemplazo.
 
 ---
 
+## Bloque 118 · Cuatro entradas para un solo objeto ✅
+
+**Detalle completo:** `docs/BLOQUE_118_CUATRO_ENTRADAS_UN_SOLO_OBJETO.md`
+
+«Órdenes», «Preventivo», «Correctivo» y «Mejora» eran cuatro entradas para el
+mismo objeto — y ninguna de las cuatro contenía todas las órdenes. En ISO 14224
+preventivo y correctivo son **clases del mismo evento**, no módulos. Pasan a
+pestañas, igual que «Indicadores» bajo «Dashboard».
+
+**El hallazgo más útil es el que NO se tocó:** «Resumen de planta» y «Estado por
+Tren» parecían duplicados por contenido, pero abren con permisos distintos
+—`om.mirar` y `dashboard.read`—, así que son la misma información para dos
+audiencias. Juntarlas habría dejado a Producción sin pantalla. Lo decidió mirar
+QUIÉN entra, no qué enseña.
+
+Las cuatro pantallas siguen enteras; sólo pierden entrada propia. Menú de 53 a
+49 sin perder ninguna. **No se usó la lista de exenciones**: el verificador
+aprendió a leer `pestanas.ts` y comprueba que el padre de cada pestaña siga en
+el menú — cosa que una exención no comprobaría nunca.
+
+---
+
+## Bloque 117 · Cada pantalla en su sitio ✅
+
+**Detalle completo:** `docs/BLOQUE_117_CADA_PANTALLA_EN_SU_SITIO.md`
+
+Primera auditoría de la ESTRUCTURA del menú contra el sentido del negocio.
+Criterio: **cada sección contesta UNA pregunta**, y la pantalla que no la
+contesta está mal colocada.
+
+Cuatro movidas: **Riesgo de activos** (no es trabajo, es el estado del parque →
+ISO 55000), **Rotulado** (es la norma del cable, vive con el cable), **Equipos
+conocidos** (control de acceso, ISO 27001, no ISO 14224) y **Exportar**
+(transversal, colgaba de uno de sus cinco temas).
+
+Seis rótulos reescritos para que digan qué hay dentro y no cómo suenan, cada
+uno en los tres sitios a la vez (menú, cabecera y `<h1>`).
+
+**Tres solapamientos quedan señalados y sin tocar, a propósito:** Resumen de
+planta vs Estado por Tren; Preventivo/Correctivo/Mejora como cuatro entradas
+para un solo objeto (en ISO 14224 son clases del mismo evento, no módulos); y
+Dashboard vs Indicadores. Fusionarlos es decisión del usuario.
+
+---
+
 ## Bloque 110-A · Una orden, varios equipos ✅
 
 **Detalle completo:** `docs/BLOQUE_110A_UNA_ORDEN_VARIOS_EQUIPOS.md`

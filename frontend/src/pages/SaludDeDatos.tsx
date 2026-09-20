@@ -55,7 +55,7 @@ export default function SaludDeDatos() {
   if (error) {
     return (
       <div className="page">
-        <h1 className="page-title">Salud de los datos</h1>
+        <h1 className="page-title">Calidad de datos</h1>
         <div role="alert" className="aviso-error">{error}</div>
       </div>
     );
@@ -64,7 +64,7 @@ export default function SaludDeDatos() {
   if (!d?.total) {
     return (
       <div className="page">
-        <h1 className="page-title">Salud de los datos</h1>
+        <h1 className="page-title">Calidad de datos</h1>
         <div className="card vacio">
           <h3>Todavía no hay activos cargados</h3>
           <p>En cuanto haya equipos en el inventario, aquí saldrá qué les falta.</p>
@@ -80,7 +80,7 @@ export default function SaludDeDatos() {
 
   return (
     <div className="page">
-      <h1 className="page-title">Salud de los datos</h1>
+      <h1 className="page-title">Calidad de datos</h1>
 
       <Titular tono={tono} texto={d.titular} />
 

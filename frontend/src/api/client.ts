@@ -109,8 +109,65 @@ function hardLogout() {
 // Ante un 401 (token de acceso expirado) NO se cierra sesión de golpe:
 // se intenta RENOVAR con el refresh token y se reintenta la petición original.
 // Solo si la renovación falla se cierra la sesión.
+/* =============================================================================
+   CUÁNDO SE TRAJERON LOS DATOS QUE HAY EN PANTALLA — bloque 112
+   -----------------------------------------------------------------------------
+   PETICIÓN DEL USUARIO, REPETIDA: «en cada dashboard siempre tiene que haber un
+   apartado de fecha en la que se actualizó».
+
+   Tenía razón y el número decía cuánta: de las 56 pantallas, **sólo 7** lo
+   enseñaban. Las otras 49 dejaban creer que lo que se ve es de ahora mismo — y
+   en el púlpito, donde la pantalla lleva ocho horas abierta, eso no es un
+   detalle de presentación: es una pantalla que miente sin romperse.
+
+   -----------------------------------------------------------------------------
+   POR QUÉ SE HACE AQUÍ Y NO PANTALLA POR PANTALLA
+
+   La forma evidente era añadir `cargadoEn` a las 49. Son tres ediciones en cada
+   una —estado, marca al recibir, línea en el título— y CIENTO CUARENTA Y SIETE
+   sitios donde equivocarse. Peor: la que se olvide queda igual que antes y
+   nadie lo nota, porque la ausencia de un aviso no se ve.
+
+   Aquí sólo hay un sitio: **toda respuesta buena de un GET deja su hora**. La
+   cabecera la lee y la escribe. Las 56 pantallas quedan cubiertas de golpe, y
+   una pantalla nueva nace cubierta sin que su autor tenga que acordarse.
+
+   -----------------------------------------------------------------------------
+   QUÉ DICE EXACTAMENTE, Y QUÉ NO
+
+   Dice **cuándo llegó la última respuesta buena**. NO dice que todos los
+   paneles de la pantalla sean de esa hora: si uno falló, el suyo es más viejo.
+   Por eso el texto es «Datos traídos hace X» y no «todo está actualizado» —
+   afirma un hecho comprobable en vez de una garantía que no se puede dar.
+
+   Sólo cuentan los GET. Un POST que guarda algo no refresca lo que se ve, y
+   contarlo pondría el contador a cero enseñando datos viejos: justo la mentira
+   que esto viene a quitar.
+============================================================================= */
+let ultimaCargaMs: number | null = null;
+const oyentes = new Set<(t: number | null) => void>();
+
+/** Se llama al cambiar de pantalla: lo de antes no describe lo de ahora. */
+export function reiniciarUltimaCarga() {
+  ultimaCargaMs = null;
+  for (const f of oyentes) f(null);
+}
+
+export function ultimaCarga(): number | null { return ultimaCargaMs; }
+
+export function escucharUltimaCarga(f: (t: number | null) => void): () => void {
+  oyentes.add(f);
+  return () => { oyentes.delete(f); };
+}
+
 api.interceptors.response.use(
   (res) => {
+    /* Bloque 112. Va antes de cualquier otra cosa: si algo de abajo lanzara,
+       la hora quedaría sin registrar y la pantalla diría que no ha cargado. */
+    if (String(res.config?.method || 'get').toLowerCase() === 'get') {
+      ultimaCargaMs = Date.now();
+      for (const f of oyentes) f(ultimaCargaMs);
+    }
     // Una respuesta buena retira el aviso: si vuelve la red, la franja se va
     // sola. Dejarla puesta hasta que el usuario la cierre haría que la gente
     // aprendiera a ignorarla, que es como muere cualquier aviso.

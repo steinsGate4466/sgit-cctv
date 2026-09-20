@@ -6,6 +6,8 @@ import Icono from './Iconos';
 import BuscadorRapido from './BuscadorRapido';
 import RestaurarScroll from './RestaurarScroll';
 import AvisoRed from './AvisoRed';
+import FechaDelDato from './FechaDelDato';
+import Pestanas from './Pestanas';
 import AvisoPendientes from './AvisoPendientes';
 import ErrorBoundary from './ErrorBoundary';
 import { MarcaSGIT } from './Ilustraciones';
@@ -26,17 +28,17 @@ const TITLES: Record<string, string> = {
   '/inventory': 'Inventario de Repuestos',
   '/audit': 'Auditoría',
   '/users': 'Usuarios',
-  '/sesiones': 'Quién está dentro',
+  '/sesiones': 'Sesiones activas',
   '/roles': 'Roles y permisos',
   '/mi-tren': 'Mi tren',
   '/topologia': 'Puntos críticos de la red',
   '/riesgo': 'Dónde no vamos a poder arreglar',
   '/mis-camaras': 'Mis cámaras',
-  '/vista-general': 'Vista general por sector',
-  '/dependencias': 'De qué depende cada cámara',
+  '/vista-general': 'Resumen de planta',
+  '/dependencias': 'Impacto de una caída',
   '/mapa-de-red': 'Mapa de red por gabinete y tablero',
   '/por-tren': 'Por tren',
-  '/salud-de-datos': 'Salud de los datos',
+  '/salud-de-datos': 'Calidad de datos',
   '/mis-activos': 'Mis activos y cómo se llega a ellos',
   '/rotulado': 'Estándar de rotulado',
   '/monitoreo': 'Monitoreo de red',
@@ -273,10 +275,10 @@ export default function Layout() {
         /* BLOQUE 113. Va justo después de «Por tren» porque es la misma
            pregunta con un día de diferencia: «qué tengo» y «cómo va lo que
            pedí». Con `om.mirar`, que es la llave de lectura de Producción. */
-        can('om.mirar') && <NavLink key="tom" to="/tablero-om"><Icono n="parada" /> Cómo van las OM</NavLink>,
-        can('om.mirar') && <NavLink key="vg" to="/vista-general"><Icono n="tablero" /> Vista general</NavLink>,
+        can('om.mirar') && <NavLink key="tom" to="/tablero-om"><Icono n="parada" /> Avance de órdenes</NavLink>,
+        can('om.mirar') && <NavLink key="vg" to="/vista-general"><Icono n="tablero" /> Resumen de planta</NavLink>,
         can('dashboard.read') && <NavLink key="t" to="/trains"><Icono n="tren" /> Estado por Tren</NavLink>,
-        can('om.mirar') && <NavLink key="dep" to="/dependencias"><Icono n="mapeo" /> De qué depende</NavLink>,
+        can('om.mirar') && <NavLink key="dep" to="/dependencias"><Icono n="mapeo" /> Impacto de una caída</NavLink>,
         can('location.read') && <NavLink key="zn" to="/zonas"><Icono n="zonaVital" /> Zonas vitales</NavLink>,
       ].filter(Boolean) as ReactNode[],
     },
@@ -294,8 +296,7 @@ export default function Layout() {
       titulo: 'Gestión del mantenimiento',
       rutas: ['/incidents', '/maintenance', '/paradas', '/criticidad', '/hojas-de-ruta',
         '/preventive', '/corrective', '/improvements', '/gruas',
-        '/mejoras-procedimiento', '/inventory', '/riesgo', '/dashboard', '/indicadores',
-        '/exportar'],
+        '/mejoras-procedimiento', '/inventory', '/dashboard', '/indicadores'],
       items: [
         can('incident.read') && <NavLink key="i" to="/incidents"><Icono n="incidencia" /> Incidencias</NavLink>,
         /* ÓRDENES Y PARADAS, TAMBIÉN PARA PRODUCCIÓN (bloque 83).
@@ -332,8 +333,6 @@ export default function Layout() {
            lo que le da contenido: el preventivo dice CUÁNDO tocar el equipo y
            la hoja de ruta dice QUÉ hacer. */
         can('wo.read') && <NavLink key="hr" to="/hojas-de-ruta"><Icono n="nota" /> Hojas de ruta</NavLink>,
-        can('wo.read') && <NavLink key="p" to="/preventive"><Icono n="preventivo" /> Preventivo</NavLink>,
-        can('wo.read') && <NavLink key="c" to="/corrective"><Icono n="correctivo" /> Correctivo</NavLink>,
         /* PREDICTIVO FUERA DEL MENÚ (bloque 80).
            Decisión del usuario, y con razón de planta: ¿qué se va a predecir
            en una cámara o en un switch? El predictivo tiene sentido donde hay
@@ -344,7 +343,6 @@ export default function Layout() {
            hace el módulo de monitoreo. La pantalla NO se borra: hay órdenes
            viejas cargadas así y su ruta sigue funcionando para consultarlas
            (está en EXENTAS del verificador del menú, con este motivo). */
-        can('wo.read') && <NavLink key="me" to="/improvements"><Icono n="mejora" /> Mejora</NavLink>,
         // Las grúas fallan distinto: cable fatigado, antena desalineada, y no
         // se llega sin manlift. Por eso tienen su propio mantenimiento.
         can('wo.read') && <NavLink key="gr2" to="/gruas"><Icono n="grua" /> Cámaras de grúa</NavLink>,
@@ -358,10 +356,7 @@ export default function Layout() {
            el trabajo. Es LECTURA; retirar material sigue pidiendo su permiso. */
         (can('inventory.read') || can('om.mirar'))
           && <NavLink key="inv" to="/inventory"><Icono n="inventario" /> Inventario</NavLink>,
-        can('infra.read') && <NavLink key="rg" to="/riesgo"><Icono n="alerta" /> Riesgo</NavLink>,
         can('dashboard.read') && <NavLink key="d" to="/dashboard"><Icono n="tablero" /> Dashboard</NavLink>,
-        can('dashboard.read') && <NavLink key="ind" to="/indicadores"><Icono n="indicadores" /> Indicadores</NavLink>,
-        can('dashboard.read') && <NavLink key="xl" to="/exportar"><Icono n="exportar" /> Exportar</NavLink>,
       ].filter(Boolean) as ReactNode[],
     },
 
@@ -383,7 +378,7 @@ export default function Layout() {
     {
       titulo: 'Gestión técnica',
       rutas: ['/assets', '/retirados', '/locations', '/cabinets', '/instalaciones', '/campanas',
-        '/mapeo', '/access', '/equipos', '/rotulado', '/salud-de-datos', '/documentos'],
+        '/mapeo', '/access', '/riesgo', '/salud-de-datos', '/documentos'],
       items: [
         can('asset.read') && <NavLink key="a" to="/assets"><Icono n="activos" /> Estructura de activos</NavLink>,
         /* BLOQUE 107. Justo debajo de la estructura de activos: es la misma
@@ -413,11 +408,14 @@ export default function Layout() {
            PENDIENTE DE DECISIÓN: el Supervisor TI / Redes tiene `asset.read`
            y `red.read` pero NO `user.manage`, así que hoy no puede gestionar
            el registro de equipos conocidos — que es justo lo suyo. */
-        can('user.manage') && <NavLink key="eq" to="/equipos"><Icono n="pc" /> Equipos conocidos</NavLink>,
-        can('infra.read') && <NavLink key="rt" to="/rotulado"><Icono n="etiqueta" /> Rotulado</NavLink>,
         // Fichas incompletas: sin IP, sin ubicación, sin foto. Cierra la
         // sección porque habla de la CALIDAD de todo lo de arriba.
-        can('asset.update') && <NavLink key="sdd" to="/salud-de-datos"><Icono n="ok" /> Salud de los datos</NavLink>,
+        /* RIESGO DE ACTIVOS — obsolescencia y repuestos críticos. Estaba bajo
+           Gestión del mantenimiento y no es trabajo: es el estado del PARQUE.
+           ISO 55000 lo trata como gestión de activos, y es la entrada natural
+           al informe de reemplazo del bloque 108. */
+        can('infra.read') && <NavLink key="rg" to="/riesgo"><Icono n="alerta" /> Riesgo de activos</NavLink>,
+        can('asset.update') && <NavLink key="sdd" to="/salud-de-datos"><Icono n="ok" /> Calidad de datos</NavLink>,
         can('document.read') && <NavLink key="dc" to="/documentos"><Icono n="etiqueta" /> Manuales y planos</NavLink>,
       ].filter(Boolean) as ReactNode[],
     },
@@ -455,7 +453,7 @@ export default function Layout() {
        línea con un título encima. */
     {
       titulo: 'Dependencias',
-      rutas: ['/conexiones', '/cableado', '/electricidad', '/grabadores',
+      rutas: ['/conexiones', '/cableado', '/rotulado', '/electricidad', '/grabadores',
         '/mapa-de-red', '/ipam', '/topologia', '/monitoreo'],
       items: [
         /* CONEXIONES ABRE LA SECCIÓN. Aquí es donde vive el CABLE, y es lo que
@@ -466,6 +464,9 @@ export default function Layout() {
         can('red.read') && <NavLink key="tp" to="/topologia"><Icono n="critico" /> Puntos críticos</NavLink>,
         can('red.read') && <NavLink key="gr" to="/grabadores"><Icono n="grabador" /> Grabadores</NavLink>,
         can('red.read') && <NavLink key="ip" to="/ipam"><Icono n="ipam" /> Direccionamiento IP</NavLink>,
+        /* ROTULADO — la norma de colores del cableado. Vive junto al cable que
+           rige, no en la ficha del activo: es una norma, no un equipo. */
+        can('infra.read') && <NavLink key="rt" to="/rotulado"><Icono n="etiqueta" /> Rotulado</NavLink>,
         can('infra.read') && <NavLink key="cb" to="/cableado"><Icono n="cableado" /> Cableado</NavLink>,
         can('infra.read') && <NavLink key="el" to="/electricidad"><Icono n="electricidad" /> Electricidad</NavLink>,
         // Cierra la sección: es lo que dice si la cadena de arriba está viva.
@@ -478,7 +479,8 @@ export default function Layout() {
        y no se entra aquí por costumbre. */
     {
       titulo: 'Sistema',
-      rutas: ['/users', '/sesiones', '/roles', '/audit', '/avisos', '/limpieza', '/mi-cuenta'],
+      rutas: ['/users', '/sesiones', '/roles', '/audit', '/equipos', '/exportar',
+        '/avisos', '/limpieza', '/mi-cuenta'],
       items: [
         can('user.manage') && <NavLink key="us" to="/users"><Icono n="usuarios" /> Usuarios</NavLink>,
         /* QUIÉN ESTÁ DENTRO (bloque 82). Va JUSTO detrás de Usuarios: la
@@ -487,8 +489,17 @@ export default function Layout() {
 
            `user.manage` y no `user.read`: la lista dice desde qué IP y qué
            aparato entra cada persona. Eso es seguridad, no directorio. */
-        can('user.manage') && <NavLink key="se" to="/sesiones"><Icono n="candado" /> Quién está dentro</NavLink>,
+        can('user.manage') && <NavLink key="se" to="/sesiones"><Icono n="candado" /> Sesiones activas</NavLink>,
         can('role.manage') && <NavLink key="ro" to="/roles"><Icono n="candado" /> Roles y permisos</NavLink>,
+        /* EQUIPOS CONOCIDOS — desde qué PC entra cada persona. Estaba en
+           Gestión técnica, pero no es un activo de planta: es control de
+           acceso, y pide `user.manage`. ISO 27001, no ISO 14224. */
+        can('user.manage') && <NavLink key="eq" to="/equipos"><Icono n="pc" /> Equipos conocidos</NavLink>,
+        /* EXPORTAR — saca activos, ubicaciones, órdenes, red y almacén. No es
+           de un área: es transversal, y cada tema pide el permiso de SU
+           pantalla. Estaba bajo Gestión del mantenimiento, que es sólo uno de
+           los cinco temas que exporta. */
+        can('dashboard.read') && <NavLink key="xl" to="/exportar"><Icono n="exportar" /> Exportar</NavLink>,
         can('audit.read') && <NavLink key="au" to="/audit"><Icono n="auditoria" /> Auditoría</NavLink>,
         // Avisos lo ve CUALQUIERA: todo el mundo puede vincular su Telegram.
         <NavLink key="av" to="/avisos"><Icono n="alerta" /> Avisos</NavLink>,
@@ -600,6 +611,10 @@ export default function Layout() {
               repetía su propio título debajo: el mismo texto dos veces,
               ochenta píxeles de alto tirados. */}
           <h1 className="title">{title}</h1>
+          {/* BLOQUE 112 · cuándo se trajo lo que hay en pantalla. Va pegado al
+              título porque es parte de lo que la pantalla AFIRMA, no un
+              adorno del pie que nadie baja a leer. */}
+          <FechaDelDato />
           {/* EL NOMBRE Y EL AVATAR LLEVAN A «MI CUENTA» — bloque 67.
               -----------------------------------------------------------------
               Lo detectó una prueba de uso: la gente pulsa su propio nombre
@@ -633,6 +648,10 @@ export default function Layout() {
         <AvisoRed />
         {/* 12.6 — sólo aparece si hay borradores esperando señal. */}
         <AvisoPendientes />
+        {/* BLOQUE 118 · las pestañas del grupo, si esta pantalla pertenece a
+            uno. Va fuera del ErrorBoundary a propósito: si la pantalla
+            revienta, la barra sigue ahí y se puede salir a la de al lado. */}
+        <Pestanas />
         <main className="content">
           {/* La clave está en la `key`: al cambiar de ruta se monta una red
               nueva. Sin eso, una pantalla que falló dejaría el error puesto

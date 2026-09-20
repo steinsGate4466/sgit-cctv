@@ -3087,6 +3087,15 @@ a.ta-fila:focus-visible { outline: 2px solid #1f4e79; outline-offset: 2px; }
    y esto lo pone en ámbar. Un dato viejo que ADMITE que es viejo no engaña. */
 .edad-dato.viejo { color: var(--warn); font-weight: 600; }
 
+/* BLOQUE 112 · la hora del dato, en la cabecera de TODAS las pantallas.
+   Discreta a propósito: es una afirmación que tiene que estar siempre, no un
+   aviso. Cuando envejece se pone en ámbar y entonces sí pide que la mires. */
+.fecha-dato {
+  font-size: 12px; color: var(--muted); white-space: nowrap;
+  margin-left: 12px; align-self: center;
+}
+.fecha-dato.viejo { color: var(--warn-texto); font-weight: 600; }
+
 /* =============================================================================
    DATOS QUE NO SE PARTEN — bloque 43
    -----------------------------------------------------------------------------
