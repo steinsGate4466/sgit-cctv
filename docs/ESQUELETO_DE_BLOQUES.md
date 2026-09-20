@@ -455,6 +455,27 @@ un `delete`**: esta tabla ES el informe de reemplazo.
 
 ---
 
+## Bloque 122 · Capacidad de red ✅
+
+**Detalle completo:** `docs/BLOQUE_122_CAPACIDAD_DE_RED.md`
+
+Contesta **«¿hay puertos y PoE para cuatro cámaras más, o hay que comprar un
+switch?»** — que hasta hoy se contestaba yendo al gabinete con una linterna. El
+dato estaba entero en `SwitchPort` desde hace meses y **nadie lo preguntaba**.
+
+Segunda pestaña: **el parque por marca y modelo**, que es lo que permite
+proponer una renovación. Sin ella, «tenemos 47 cámaras y 31 son del mismo
+modelo de 2019» no se podía decir con un dato detrás.
+
+**«Sin declarar» no es «lleno»**: cero libres significa comprar un switch; sin
+declarar significa ir a medirlo. Confundirlos hace comprar de más, así que el
+titular avisa primero de cuántos switches impiden contestar la pregunta.
+
+Vive en Dependencias y abre la sección, pero con `asset.read` además de las
+llaves de red: **quien decide con este informe es Mantenimiento**.
+
+---
+
 ## Bloque 121 · Elegir el equipo ✅
 
 **Detalle completo:** `docs/BLOQUE_121_ELEGIR_EL_EQUIPO.md`

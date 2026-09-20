@@ -1,11 +1,13 @@
 import {
-  Body, Controller, Get, Ip, Param, Patch, Post, Query,
+  Body, Controller, Delete, Get, Ip, Param, Patch, Post, Query,
   Res, UploadedFile, UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { MaintenanceService } from './maintenance.service';
+import { OmEquiposService } from './om-equipos.service';
+import { ApuntarEquipoDto } from './dto/om-equipo.dto';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { UpdateWorkOrderDto } from './dto/update-work-order.dto';
 import { QueryWorkOrderDto } from './dto/query-work-order.dto';
@@ -20,7 +22,10 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 @ApiBearerAuth()
 @Controller('work-orders')
 export class MaintenanceController {
-  constructor(private readonly wo: MaintenanceService) {}
+  constructor(
+    private readonly wo: MaintenanceService,
+    private readonly equipos: OmEquiposService,
+  ) {}
 
   // Generar OM: SOLO Jefe de Mantenimiento (permiso wo.create).
   /* QUIÉN PIDIÓ LA ORDEN SE TOMA DE LA SESIÓN, NO DEL CUERPO — bloque 94.
@@ -144,6 +149,51 @@ export class MaintenanceController {
   @RequireAlguno('wo.read', 'om.mirar')
   findOne(@Param('id') id: string) {
     return this.wo.findOne(id);
+  }
+
+  /* =========================================================================
+     BLOQUE 110-B · LOS EQUIPOS DE LA ORDEN
+     -------------------------------------------------------------------------
+     LEER va con la llave de lectura de la orden, `wo.read` u `om.mirar`:
+     Producción tiene que poder ver qué se tocó de verdad en lo que pidió.
+
+     APUNTAR y QUITAR van con `wo.update`, el mismo permiso con el que el
+     técnico ya detalla la orden. Es registrar lo que acaba de pasar, no
+     reescribir el pasado — la regla que quedó escrita en el bloque 106-B.
+
+     `Delete` lleva el id de la FILA, no el del activo: el mismo equipo puede
+     estar apuntado dos veces en la orden con papeles distintos, y borrar «por
+     activo» se llevaría los dos.
+  ========================================================================= */
+  @AmbitoDe('workOrder')
+  @Get(':id/equipos')
+  @RequireAlguno('wo.read', 'om.mirar')
+  listarEquipos(@Param('id') id: string) {
+    return this.equipos.listar(id);
+  }
+
+  @AmbitoDe('workOrder')
+  @Post(':id/equipos')
+  @RequirePermissions('wo.update')
+  apuntarEquipo(
+    @Param('id') id: string,
+    @Body() dto: ApuntarEquipoDto,
+    @CurrentUser() user: any,
+    @Ip() ip: string,
+  ) {
+    return this.equipos.apuntar(id, dto, user?.userId, ip);
+  }
+
+  @AmbitoDe('workOrder')
+  @Delete(':id/equipos/:filaId')
+  @RequirePermissions('wo.update')
+  quitarEquipo(
+    @Param('id') id: string,
+    @Param('filaId') filaId: string,
+    @CurrentUser() user: any,
+    @Ip() ip: string,
+  ) {
+    return this.equipos.quitar(id, filaId, user?.userId, ip);
   }
 
   @AmbitoDe('workOrder')

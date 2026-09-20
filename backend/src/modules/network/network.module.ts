@@ -4,6 +4,7 @@ import { NetworkController } from './network.controller';
 import { GrabadoresService } from './grabadores.service';
 import { GrabadoresController } from './grabadores.controller';
 import { ConexionesService } from './conexiones.service';
+import { CapacidadService } from './capacidad.service';
 import { ConexionesController } from './conexiones.controller';
 import { MapaDeRedService } from './mapa-de-red.service';
 import { ArranqueService } from './arranque.service';
@@ -40,7 +41,7 @@ import { ArranqueService } from './arranque.service';
  */
 @Module({
   controllers: [NetworkController, GrabadoresController, ConexionesController],
-  providers: [NetworkService, GrabadoresService, ConexionesService, MapaDeRedService, ArranqueService],
+  providers: [NetworkService, GrabadoresService, ConexionesService, MapaDeRedService, ArranqueService, CapacidadService],
   exports: [NetworkService, GrabadoresService, ConexionesService, MapaDeRedService, ArranqueService],
 })
 export class NetworkModule {}

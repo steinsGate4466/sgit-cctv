@@ -38,6 +38,7 @@ const Riesgo = lazyConReintento(() => import('./pages/Riesgo'));
 const MisCamaras = lazyConReintento(() => import('./pages/MisCamaras'));
 const TableroOm = lazyConReintento(() => import('./pages/TableroOm'));
 const EquiposRetirados = lazyConReintento(() => import('./pages/EquiposRetirados'));
+const Capacidad = lazyConReintento(() => import('./pages/Capacidad'));
 const MisActivos = lazyConReintento(() => import('./pages/MisActivos'));
 const VistaGeneral = lazyConReintento(() => import('./pages/VistaGeneral'));
 const Dependencias = lazyConReintento(() => import('./pages/Dependencias'));
@@ -117,6 +118,7 @@ export default function App() {
           <Route path="/mis-camaras" element={<MisCamaras />} />
           <Route path="/tablero-om" element={<TableroOm />} />
           <Route path="/retirados" element={<EquiposRetirados />} />
+          <Route path="/capacidad" element={<Capacidad />} />
           <Route path="/mis-activos" element={<MisActivos />} />
           <Route path="/vista-general" element={<VistaGeneral />} />
           <Route path="/dependencias" element={<Dependencias />} />

@@ -6,6 +6,7 @@ import { CablesController } from './cables.controller';
 import { HistoryService } from './history.service';
 import { EquipoInstaladoService } from './equipo-instalado.service';
 import { InformeReemplazoService } from './informe-reemplazo.service';
+import { RedDelActivoService } from './red-del-activo.service';
 import { AuditModule } from '../audit/audit.module';
 import { StorageModule } from '../storage/storage.module';
 import { CriticidadModule } from '../criticidad/criticidad.module';
@@ -16,7 +17,7 @@ import { CriticidadModule } from '../criticidad/criticidad.module';
   // Si fuera después, @Get(':id') de AssetsController capturaría "cables" y
   // el endpoint devolvería "activo no encontrado" en lugar de la lista.
   controllers: [CablesController, AssetsController],
-  providers: [AssetsService, CablesService, HistoryService, EquipoInstaladoService, InformeReemplazoService],
-  exports: [AssetsService, CablesService, HistoryService, EquipoInstaladoService, InformeReemplazoService],
+  providers: [AssetsService, CablesService, HistoryService, EquipoInstaladoService, InformeReemplazoService, RedDelActivoService],
+  exports: [AssetsService, CablesService, HistoryService, EquipoInstaladoService, InformeReemplazoService, RedDelActivoService],
 })
 export class AssetsModule {}

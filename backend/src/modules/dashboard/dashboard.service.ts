@@ -65,6 +65,18 @@ export class DashboardService {
       `.then((r) => Number(r?.[0]?.count ?? 0)).catch(() => 0),
     ]);
 
+    /* Los equipos apuntados en las órdenes vivas. Una sola consulta con
+       `distinct`: no hace falta traer las filas, sólo saber cuántos pares
+       (orden, equipo) hay y cuántos equipos distintos. */
+    const apuntados = await this.prisma.omEquipo.findMany({
+      where: { papel: 'INTERVENIDO', workOrder: { is: { status: { in: WO_ABIERTAS } } } },
+      select: { workOrderId: true, assetId: true },
+      distinct: ['workOrderId', 'assetId'],
+      take: 5000,
+    });
+    const intervenciones = apuntados.length;
+    const equiposDistintos = new Set(apuntados.map((x) => x.assetId)).size;
+
     // Disponibilidad de visión con el ESTADO EFECTIVO (el mismo que ve el usuario en
     // Activos): una cámara con OM o incidencia abierta NO cuenta como operativa.
     const cameraRows = await this.prisma.asset.findMany({
@@ -102,6 +114,19 @@ export class DashboardService {
       preventiveOverdue,
       preventiveCompliancePct: preventiveCompliance,
       lowStockParts: lowStock,
+      /* BLOQUE 110-B · LA CIFRA QUE IBA MAL AL COMITÉ.
+         -------------------------------------------------------------------
+         `pendingWorkOrders` cuenta ÓRDENES, que es la unidad de gestión: una
+         parada, un permiso, un cierre. Pero una campaña de mapeo que recorrió
+         el lecho de enfriamiento y tocó doce cámaras contaba UNA, y con esa
+         cifra se pedía presupuesto.
+
+         `intervencionesAbiertas` cuenta el par (orden, equipo intervenido),
+         que es la unidad de TRABAJO. Las dos conviven a propósito: enseñar
+         sólo la segunda haría creer que se abrieron doce órdenes; enseñar
+         sólo la primera es lo que veníamos haciendo mal. */
+      intervencionesAbiertas: intervenciones,
+      equiposEnTrabajo: equiposDistintos,
     };
   }
 

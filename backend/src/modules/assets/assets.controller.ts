@@ -8,6 +8,7 @@ import { AssetsService } from './assets.service';
 import { HistoryService } from './history.service';
 import { EquipoInstaladoService } from './equipo-instalado.service';
 import { InformeReemplazoService } from './informe-reemplazo.service';
+import { RedDelActivoService } from './red-del-activo.service';
 import { SignedCreateAssetDto } from './dto/create-asset-signed.dto';
 import { SignedUpdateAssetDto } from './dto/update-asset-signed.dto';
 import { UpdateAssetStatusDto } from './dto/update-asset-status.dto';
@@ -30,6 +31,7 @@ export class AssetsController {
     private readonly history: HistoryService,
     private readonly aparatos: EquipoInstaladoService,
     private readonly reemplazo: InformeReemplazoService,
+    private readonly redActivo: RedDelActivoService,
   ) {}
 
   // Alta FIRMADA: exige re-autenticación (firma) y queda auditada (CREATE_ASSET).
@@ -354,6 +356,21 @@ export class AssetsController {
      contraseña, ni una IP de gestión, ni un coste. El control está en QUIÉN
      descarga y de qué tren, que lo pone `@AmbitoDe`.
   ========================================================================= */
+  /* BLOQUE 109 · LA RED DE ESTE EQUIPO, DERIVADA DE IPAM.
+     No hay campos nuevos en el activo: el prefijo, la máscara, la VLAN y la
+     puerta de enlace salen de la subred a la que pertenece su IP. Copiarlos al
+     activo crearía cuatro campos que pueden contradecir a la subred, y el día
+     que no coincidan nadie sabría cuál creerse.
+
+     `red.read` y no `activos.mirar`: aquí se enseña direccionamiento, que es
+     el mismo criterio que ya usa `network.controller.ts`. */
+  @AmbitoDe('asset')
+  @Get(':id/red')
+  @RequirePermissions('red.read')
+  redDelActivo(@Param('id') id: string) {
+    return this.redActivo.del(id);
+  }
+
   @AmbitoDe('asset')
   @Get(':id/analisis-reemplazo')
   @RequireAlguno('asset.read', 'activos.mirar')

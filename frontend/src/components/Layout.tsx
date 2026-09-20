@@ -43,6 +43,7 @@ const TITLES: Record<string, string> = {
   '/rotulado': 'Estándar de rotulado',
   '/monitoreo': 'Monitoreo de red',
   '/grabadores': 'Grabadores y canales',
+  '/capacidad': 'Capacidad de red',
   '/conexiones': 'Conexiones de red',
   '/gruas': 'Cámaras de grúa',
   '/documentos': 'Manuales y planos',
@@ -453,12 +454,18 @@ export default function Layout() {
        línea con un título encima. */
     {
       titulo: 'Dependencias',
-      rutas: ['/conexiones', '/cableado', '/rotulado', '/electricidad', '/grabadores',
+      rutas: ['/capacidad', '/conexiones', '/cableado', '/rotulado', '/electricidad', '/grabadores',
         '/mapa-de-red', '/ipam', '/topologia', '/monitoreo'],
       items: [
         /* CONEXIONES ABRE LA SECCIÓN. Aquí es donde vive el CABLE, y es lo que
            declara qué está unido con qué: sin esto, todo lo demás sale como
            cajas sueltas y parece roto (bloque 12.1). */
+        /* BLOQUE 122 · CAPACIDAD DE RED. Abre la sección porque es la
+           pregunta que se hace ANTES de instalar nada: ¿hay puertos, hay PoE,
+           o hay que comprar un switch? Con `asset.read` además de las llaves
+           de red, porque quien decide con este informe es Mantenimiento. */
+        (can('red.read') || can('infra.read') || can('asset.read'))
+          && <NavLink key="cap" to="/capacidad"><Icono n="ok" /> Capacidad de red</NavLink>,
         can('red.read') && <NavLink key="cx" to="/conexiones"><Icono n="puertos" /> Conexiones</NavLink>,
         can('red.read') && <NavLink key="mred" to="/mapa-de-red"><Icono n="gabinete" /> Mapa de red</NavLink>,
         can('red.read') && <NavLink key="tp" to="/topologia"><Icono n="critico" /> Puntos críticos</NavLink>,
