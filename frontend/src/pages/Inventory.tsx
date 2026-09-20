@@ -181,7 +181,7 @@ export default function Inventory() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 className="page-title">Inventario</h1>
+          <h1 className="page-title">Inventario de Repuestos</h1>
           <p className="page-sub">
             {tab === 'repuestos'
               ? 'Repuestos que se consumen · disponibilidad frente al parque en campo'

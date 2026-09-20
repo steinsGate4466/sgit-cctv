@@ -455,6 +455,25 @@ un `delete`**: esta tabla ES el informe de reemplazo.
 
 ---
 
+## Bloque 119 · El nombre que sólo oyen algunos ✅
+
+**Detalle completo:** `docs/BLOQUE_119_EL_NOMBRE_QUE_SOLO_OYEN_ALGUNOS.md`
+
+Empezó como un falso positivo: 37 pantallas pintan su propio `<h1>` teniendo
+la cabecera el título. **No es un duplicado**: la hoja lo oculta a la vista y
+existe para los lectores de pantalla. Leer el CSS antes de tocar el código
+evitó «arreglar» 37 pantallas y romper la accesibilidad de todas.
+
+El fallo real estaba debajo: al estar invisible, **nadie nota cuando los dos
+nombres dejan de coincidir**. Había cuatro desajustados, y tres los causé yo
+renombrando entradas en el 117. Para quien ve, invisible; para quien usa lector
+de pantalla, es otra pantalla.
+
+`verificar:titulos` (verificador 24) los compara en cada ejecución. **Es un
+defecto que ningún recorrido manual encuentra**, porque no se ve.
+
+---
+
 ## Bloque 118 · Cuatro entradas para un solo objeto ✅
 
 **Detalle completo:** `docs/BLOQUE_118_CUATRO_ENTRADAS_UN_SOLO_OBJETO.md`

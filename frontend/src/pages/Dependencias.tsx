@@ -78,7 +78,7 @@ export default function Dependencias() {
   if (error) {
     return (
       <div className="page">
-        <h1 className="page-title">De qué depende cada cámara</h1>
+        <h1 className="page-title">Impacto de una caída</h1>
         <div className="card peligro">{error}</div>
       </div>
     );
@@ -89,7 +89,7 @@ export default function Dependencias() {
   if (!soportes.length) {
     return (
       <div className="page">
-        <h1 className="page-title">De qué depende cada cámara</h1>
+        <h1 className="page-title">Impacto de una caída</h1>
         <div className="card vacio">
           <h3>Todavía no se puede saber de qué depende cada cámara</h3>
           <p>
@@ -109,7 +109,7 @@ export default function Dependencias() {
 
   return (
     <div className="page">
-      <h1 className="page-title">De qué depende cada cámara</h1>
+      <h1 className="page-title">Impacto de una caída</h1>
       {edad !== null && edad >= 2 && (
         <p className="edad-dato">Datos de hace {plural(edad, 'minuto')}.</p>
       )}

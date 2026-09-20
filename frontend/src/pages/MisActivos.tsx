@@ -131,7 +131,7 @@ export default function MisActivos() {
   if (!trenes.length) {
     return (
       <div className="page">
-        <h1 className="page-title">Activos por tren</h1>
+        <h1 className="page-title">Mis activos y cómo se llega a ellos</h1>
         <div className="card vacio">
           <h3>Todavía no hay trenes en el árbol de planta</h3>
           <p>En cuanto se creen, aquí aparece todo lo que cuelga de cada uno.</p>

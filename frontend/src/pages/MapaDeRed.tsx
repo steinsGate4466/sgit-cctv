@@ -74,7 +74,7 @@ export default function MapaDeRed() {
   if (error) {
     return (
       <div className="page">
-        <h1 className="page-title">Mapa de red</h1>
+        <h1 className="page-title">Mapa de red por gabinete y tablero</h1>
         <div role="alert" className="aviso-error">{error}</div>
       </div>
     );
@@ -87,7 +87,7 @@ export default function MapaDeRed() {
   if (!grupos.length) {
     return (
       <div className="page">
-        <h1 className="page-title">Mapa de red</h1>
+        <h1 className="page-title">Mapa de red por gabinete y tablero</h1>
         <div className="card vacio">
           <h3>Todavía no hay equipos de red registrados</h3>
           <p>
@@ -106,7 +106,7 @@ export default function MapaDeRed() {
 
   return (
     <div className="page">
-      <h1 className="page-title">Mapa de red</h1>
+      <h1 className="page-title">Mapa de red por gabinete y tablero</h1>
       {edad !== null && edad >= 2 && (
         <p className="edad-dato">Datos de hace {plural(edad, 'minuto')}.</p>
       )}
