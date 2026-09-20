@@ -311,7 +311,7 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
 
             <label style={{ marginTop: 10 }}>
               ¿Por qué no se avanzó más?
-              {pct < (wo.progressPct ?? 0) && <span style={{ color: '#b91c1c' }}> (obligatorio: el avance baja)</span>}
+              {pct < (wo.progressPct ?? 0) && <span style={{ color: 'var(--crit-texto)' }}> (obligatorio: el avance baja)</span>}
             </label>
             <textarea aria-label="Nota del avance" value={nota} onChange={(e) => setNota(e.target.value)} rows={3}
               style={{ width: '100%', resize: 'vertical' }}
@@ -322,7 +322,7 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
                 <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Avances anteriores</div>
                 {historial.map((h) => (
                   <div key={h.id} style={{
-                    borderLeft: '3px solid #cbd5e1', paddingLeft: 10, marginBottom: 8, fontSize: 12,
+                    borderLeft: '3px solid var(--border)', paddingLeft: 10, marginBottom: 8, fontSize: 12,
                   }}>
                     <div><strong>{h.pct}%</strong> · {fh(h.reportedAt)} · {h.reportedBy?.fullName || '—'}</div>
                     {h.note && <div className="muted">{h.note}</div>}
@@ -357,7 +357,7 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
 
             {sobrante.length > 0 && (
               <div style={{
-                background: '#fff4e5', border: '1px solid #f5dcb0',
+                background: 'var(--warn-fondo)', border: '1px solid var(--warn-borde)',
                 borderLeft: '4px solid var(--warn)', borderRadius: 8,
                 padding: '10px 12px', marginBottom: 12,
               }}>
@@ -368,7 +368,7 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
                   <div key={m.id} style={{ fontSize: 12 }}>
                     {m.description}: retirado <b>{m.withdrawnQty}</b>, usado{' '}
                     <b>{m.usedQty ?? 0}</b> → sobran{' '}
-                    <b style={{ color: '#b45309' }}>{m.porDevolver} {m.unit || ''}</b>
+                    <b style={{ color: 'var(--warn-texto)' }}>{m.porDevolver} {m.unit || ''}</b>
                   </div>
                 ))}
                 <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>
@@ -439,7 +439,7 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
 
         {/* ----------------------------------------------------------- FIRMA */}
         {accion !== 'avance' && (
-          <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #e5e7eb' }}>
+          <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
             <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Firma electrónica</div>
             <label>Correo
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
@@ -453,7 +453,7 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
 
         {error && (
           <div style={{
-            marginTop: 10, background: '#fee2e2', color: '#991b1b',
+            marginTop: 10, background: 'var(--crit-fondo)', color: 'var(--crit-texto)',
             padding: '8px 10px', borderRadius: 6, fontSize: 13,
           }}>{error}</div>
         )}

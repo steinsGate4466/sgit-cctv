@@ -446,7 +446,7 @@ export default function Maintenance() {
                     </span>
                   ) : (
                     <div>
-                      <div style={{ background: '#e5e7eb', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+                      <div style={{ background: 'var(--border)', borderRadius: 4, height: 6, overflow: 'hidden' }}>
                         <div style={{
                           width: `${w.progressPct || 0}%`, height: '100%',
                           background: (w.progressPct || 0) >= 100 ? '#16a34a' : '#2563eb',
@@ -461,7 +461,7 @@ export default function Maintenance() {
                       orden sin detallar no es trabajo listo, y mezclarla con el
                       resto es como el tablero deja de ser creíble. */}
                   {!w.detailedAt && (
-                    <div style={{ fontSize: 10, color: '#b45309', fontWeight: 700 }}>SIN DETALLAR</div>
+                    <div style={{ fontSize: 10, color: 'var(--warn-texto)', fontWeight: 700 }}>SIN DETALLAR</div>
                   )}
                   {w.scopeChanged && (
                     <div style={{ fontSize: 10, color: 'var(--steel)' }} title={w.scopeNote || ''}>
@@ -491,7 +491,7 @@ export default function Maintenance() {
                   {!w.detailedAt && w.status !== 'CERRADA' && w.status !== 'CANCELADA'
                     && can('wo.update') && (
                     <button className="btn-mini"
-                      style={{ borderColor: 'var(--warn)', color: '#b45309', fontWeight: 600 }}
+                      style={{ borderColor: 'var(--warn)', color: 'var(--warn-texto)', fontWeight: 600 }}
                       onClick={() => setDetallando(w)}>
                       Detallar
                     </button>
@@ -624,7 +624,7 @@ export default function Maintenance() {
             <label>Materiales (uno por línea)
               <textarea value={form.materials} onChange={(e) => setForm({ ...form, materials: e.target.value })} rows={3} style={{ width: '100%', resize: 'vertical' }} placeholder="Ej: 2x Conector RJ45 / 1x Fuente PoE 48V" />
             </label>
-            <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #e5e7eb' }}>
+            <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
               <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Recepción del pedido</div>
               <div className="muted" style={{ fontSize: 11, marginBottom: 8 }}>
                 Registrar el origen evita que la solicitud se pierda.
@@ -645,7 +645,7 @@ export default function Maintenance() {
               </label>
             </div>
 
-            <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #e5e7eb' }}>
+            <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
               <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Parada estimada</div>
               <div className="muted" style={{ fontSize: 11, marginBottom: 8 }}>
                 Es tentativa. El técnico confirmará por radio la hora real cuando esté en campo.
@@ -747,7 +747,7 @@ export default function Maintenance() {
           <div style={{ marginTop: 14 }}>
             <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>{evidence.length} foto(s) registradas</div>
             {evidence.map((ev) => (
-              <div key={ev.id} style={{ fontSize: 12, padding: '4px 0', borderTop: '1px solid #eee' }}>
+              <div key={ev.id} style={{ fontSize: 12, padding: '4px 0', borderTop: '1px solid var(--border)' }}>
                 <Icono n="camara" size={14} /> {ev.caption || '(sin descripción)'} <span className="muted">· {fechaHora(ev.createdAt)}</span>
               </div>
             ))}

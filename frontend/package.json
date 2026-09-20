@@ -32,11 +32,12 @@
     "e2e:ui": "dotenv -e .env.e2e -- playwright test --ui",
     "e2e:instalar": "playwright install chromium webkit",
     "verificar:catch": "node scripts/verificar-catch.cjs",
-    "verificar": "npm run verificar:foco && npm run verificar:cascada && npm run verificar:clases && npm run verificar:dialogos && npm run verificar:densidad && npm run verificar:formato && npm run verificar:avisos && npm run verificar:etiquetas && npm run verificar:fechas && npm run verificar:graficos && npm run verificar:sesion && npm run verificar:textos && npm run verificar:tablas && npm run verificar:botones && npm run verificar:menu && npm run verificar:botones-alto && npm run verificar:catch && npm run verificar:cadenas && npm run verificar:trenes && npm run verificar:login-red && npm run verificar:carreras",
+    "verificar": "npm run verificar:foco && npm run verificar:cascada && npm run verificar:clases && npm run verificar:dialogos && npm run verificar:densidad && npm run verificar:formato && npm run verificar:avisos && npm run verificar:etiquetas && npm run verificar:fechas && npm run verificar:graficos && npm run verificar:sesion && npm run verificar:textos && npm run verificar:tablas && npm run verificar:botones && npm run verificar:menu && npm run verificar:botones-alto && npm run verificar:catch && npm run verificar:cadenas && npm run verificar:trenes && npm run verificar:login-red && npm run verificar:carreras && npm run verificar:paleta",
     "verificar:cadenas": "node scripts/verificar-cadenas.cjs",
     "verificar:trenes": "node scripts/verificar-trenes.cjs",
     "verificar:login-red": "node scripts/verificar-login-red.cjs",
-    "verificar:carreras": "node scripts/verificar-carreras.cjs"
+    "verificar:carreras": "node scripts/verificar-carreras.cjs",
+    "verificar:paleta": "node scripts/verificar-paleta.cjs"
   },
   "dependencies": {
     "axios": "^1.7.7",

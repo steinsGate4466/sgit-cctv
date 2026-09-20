@@ -265,7 +265,7 @@ export default function AssetScan() {
 
       {/* Confirmacion de la orden recien abierta, con su codigo y su enlace. */}
       {omCreada && (
-        <div className="scan-note" style={{ borderColor: '#7fbf8f', background: '#eef8f0' }}>
+        <div className="scan-note" style={{ borderColor: 'var(--ok-borde)', background: 'var(--ok-fondo)' }}>
           <Icono n="ok" size={16} />
           <span>
             {omCreada.pendiente ? (

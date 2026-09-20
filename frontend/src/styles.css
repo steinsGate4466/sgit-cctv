@@ -12,6 +12,44 @@
   --warn: #d97706;
   --crit: #dc2626;
   --shadow: 0 1px 3px rgba(16,24,40,.06), 0 1px 2px rgba(16,24,40,.04);
+
+  /* ==========================================================================
+     BLOQUE 116 · LOS TONOS DE ESTADO, CON NOMBRE
+     --------------------------------------------------------------------------
+     DE DÓNDE SALE. El barrido del 17/09 encontró **136 colores escritos a mano**
+     en 45 tonos distintos repartidos por los estilos en línea. Entre ellos
+     SEIS rojos para decir lo mismo (#991b1b, #8c1414, #b91c1c, #b3261e,
+     #dc2626, #c0392b) y CINCO ámbares.
+
+     POR QUÉ ES UN DEFECTO Y NO UN GUSTO:
+       1. El mismo estado se ve de dos colores según la pantalla.
+       2. Cambiar la paleta era imposible: 136 sitios a mano.
+       3. Un modo oscuro para el púlpito de noche, impensable.
+       4. En una exposición se nota: parece hecho por dos personas.
+
+     `--ok`, `--warn` y `--crit` ya existían pero sólo daban EL TRAZO. Un aviso
+     necesita tres tonos —texto, fondo y borde— y al no tenerlos, cada pantalla
+     se inventaba los suyos. Aquí están los tres, con nombre, una sola vez.
+  ========================================================================== */
+  --crit-texto:  #8c1414;
+  --crit-fondo:  #fdecec;
+  --crit-borde:  #f6c9c9;
+
+  --warn-texto:  #92400e;
+  --warn-fondo:  #fff4e5;
+  --warn-borde:  #f5dcb0;
+
+  --ok-texto:    #166534;
+  --ok-fondo:    #eef8f0;
+  --ok-borde:    #bfe9cf;
+
+  /* AZUL INFORMATIVO. No es un estado de planta —no dice si algo va bien o
+     mal—: marca lo que el sistema explica o propone. Separarlo del verde es lo
+     que evita que una sugerencia se lea como «esto está correcto». */
+  --info:        #2563eb;
+  --info-texto:  #1e40af;
+  --info-fondo:  #eef4ff;
+  --info-borde:  #dbe6fb;
 }
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }

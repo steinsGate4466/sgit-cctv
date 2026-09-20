@@ -255,7 +255,7 @@ export default function Roles() {
                       {p.necesitaAmbito && ' · exige ámbito de tren'}
                     </div>
                     {p.advertencia && (
-                      <div style={{ fontSize: 11.5, marginTop: 6, color: '#8c1414', lineHeight: 1.4 }}>
+                      <div style={{ fontSize: 11.5, marginTop: 6, color: 'var(--crit-texto)', lineHeight: 1.4 }}>
                         <Icono n="alerta" size={12} /> {p.advertencia}
                       </div>
                     )}
@@ -342,7 +342,7 @@ function PanelDesfase({ info, poniendo, onPonerAlDia }: any) {
       </p>
 
       {info.desviados.map((d: any) => (
-        <div key={d.rolId} style={{ borderTop: '1px solid var(--linea)', padding: '10px 0' }}>
+        <div key={d.rolId} style={{ borderTop: '1px solid var(--border)', padding: '10px 0' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <div>
               <b>{d.nombre}</b>

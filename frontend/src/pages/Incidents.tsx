@@ -513,7 +513,7 @@ export default function Incidents() {
           <div style={{ marginTop: 14 }}>
             <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>{evidence.length} foto(s) registradas</div>
             {evidence.map((ev) => (
-              <div key={ev.id} style={{ fontSize: 12, padding: '4px 0', borderTop: '1px solid #eee' }}>
+              <div key={ev.id} style={{ fontSize: 12, padding: '4px 0', borderTop: '1px solid var(--border)' }}>
                 <Icono n="camara" size={14} /> {ev.caption || '(sin descripción)'} <span className="muted">· {fechaHora(ev.createdAt)}</span>
               </div>
             ))}

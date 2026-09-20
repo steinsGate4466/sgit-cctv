@@ -19,9 +19,9 @@ import { useDialogos } from './Dialogos';
 type Resultado = 'OK' | 'NO_OK' | 'NO_APLICA';
 
 const BOTONES: { v: Resultado; t: string; fondo: string; color: string }[] = [
-  { v: 'OK', t: 'Conforme', fondo: '#e7f7ee', color: '#166534' },
-  { v: 'NO_OK', t: 'No conforme', fondo: '#fdecec', color: '#991b1b' },
-  { v: 'NO_APLICA', t: 'No aplica', fondo: '#eef2f9', color: '#6b7688' },
+  { v: 'OK', t: 'Conforme', fondo: '#e7f7ee', color: 'var(--ok-texto)' },
+  { v: 'NO_OK', t: 'No conforme', fondo: '#fdecec', color: 'var(--crit-texto)' },
+  { v: 'NO_APLICA', t: 'No aplica', fondo: '#eef2f9', color: 'var(--muted)' },
 ];
 
 export default function RutinaEnCampo({ workOrderId, soloLectura, onCambio }: {
@@ -108,8 +108,8 @@ export default function RutinaEnCampo({ workOrderId, soloLectura, onCambio }: {
 
       {error && (
         <div style={{
-          background: '#fdecec', border: '1px solid #f6c9c9', borderRadius: 6,
-          padding: '8px 10px', marginTop: 10, fontSize: 12, color: '#991b1b',
+          background: 'var(--crit-fondo)', border: '1px solid var(--crit-borde)', borderRadius: 6,
+          padding: '8px 10px', marginTop: 10, fontSize: 12, color: 'var(--crit-texto)',
         }}>{error}</div>
       )}
 
@@ -160,7 +160,7 @@ export default function RutinaEnCampo({ workOrderId, soloLectura, onCambio }: {
               </div>
 
               {r?.result === 'NO_OK' && r.note && (
-                <div style={{ fontSize: 12, color: '#991b1b', marginTop: 6 }}>
+                <div style={{ fontSize: 12, color: 'var(--crit-texto)', marginTop: 6 }}>
                   {r.note}
                   {!soloLectura && (
                     <button type="button" className="btn-mini" style={{ marginLeft: 8 }}
@@ -175,7 +175,7 @@ export default function RutinaEnCampo({ workOrderId, soloLectura, onCambio }: {
 
       {datos.bloqueo && (
         <div style={{
-          background: '#fff4e5', border: '1px solid #f5dcb0', borderLeft: '4px solid var(--warn)',
+          background: 'var(--warn-fondo)', border: '1px solid var(--warn-borde)', borderLeft: '4px solid var(--warn)',
           borderRadius: 8, padding: '10px 12px', marginTop: 12, fontSize: 12,
         }}>
           <b>No se puede cerrar todavía.</b> {datos.bloqueo}
@@ -184,7 +184,7 @@ export default function RutinaEnCampo({ workOrderId, soloLectura, onCambio }: {
 
       {!datos.bloqueo && datos.propuestas?.length > 0 && (
         <div style={{
-          background: '#eef4ff', border: '1px solid #dbe6fb', borderLeft: '4px solid var(--steel)',
+          background: 'var(--info-fondo)', border: '1px solid var(--info-borde)', borderLeft: '4px solid var(--steel)',
           borderRadius: 8, padding: '10px 12px', marginTop: 12,
         }}>
           <div style={{ fontWeight: 700, fontSize: 13 }}>

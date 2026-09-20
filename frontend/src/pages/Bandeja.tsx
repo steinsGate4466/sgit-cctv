@@ -161,7 +161,7 @@ export default function Bandeja() {
                 {g.lineas.map((l: any) => `${l.description} (${l.plannedQty ?? '?'} ${l.unit || ''})`).join(' · ')}
               </span>,
               g.sinStock
-                ? <span style={{ color: '#b45309', fontSize: 12 }}>{g.sinStock} sin stock suficiente</span>
+                ? <span style={{ color: 'var(--warn-texto)', fontSize: 12 }}>{g.sinStock} sin stock suficiente</span>
                 : <span className="muted">—</span>,
             ]}
             accion={() => navegar('/maintenance')}
@@ -286,7 +286,7 @@ export default function Bandeja() {
               m.description,
               m.withdrawnQty,
               m.usedQty ?? 0,
-              <b style={{ color: '#b45309' }}>{m.porDevolver} {m.unit || ''}</b>,
+              <b style={{ color: 'var(--warn-texto)' }}>{m.porDevolver} {m.unit || ''}</b>,
             ]}
           />
 

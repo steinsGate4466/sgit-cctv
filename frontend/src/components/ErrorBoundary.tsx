@@ -57,7 +57,7 @@ export default class ErrorBoundary extends Component<Props, State> {
 
         <div style={{
           fontFamily: 'monospace', fontSize: 11.5, textAlign: 'left',
-          background: '#f4f6fa', border: '1px solid var(--border)',
+          background: 'var(--bg)', border: '1px solid var(--border)',
           borderRadius: 8, padding: 12, margin: '16px auto 0', maxWidth: 560,
           whiteSpace: 'pre-wrap', wordBreak: 'break-word',
         }}>

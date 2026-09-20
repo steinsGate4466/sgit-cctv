@@ -82,12 +82,12 @@ export default function MiPin({ onClose }: { onClose: () => void }) {
         </div>
 
         {error && (
-          <div style={{ background: '#fee2e2', color: '#991b1b', padding: '8px 10px', borderRadius: 6, fontSize: 13 }}>
+          <div style={{ background: 'var(--crit-fondo)', color: 'var(--crit-texto)', padding: '8px 10px', borderRadius: 6, fontSize: 13 }}>
             {error}
           </div>
         )}
         {listo && (
-          <div style={{ background: '#dcfce7', color: '#166534', padding: '8px 10px', borderRadius: 6, fontSize: 13 }}>
+          <div style={{ background: 'var(--ok-fondo)', color: 'var(--ok-texto)', padding: '8px 10px', borderRadius: 6, fontSize: 13 }}>
             {listo}
           </div>
         )}

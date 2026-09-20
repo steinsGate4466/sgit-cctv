@@ -127,7 +127,7 @@ export default function AccessRequestForm({ assetId, assetCode, assets, onDone }
   if (step === 2) {
     return (
       <div>
-        <div className="sign-note" style={{ background: '#e7f7ee', borderColor: '#bfe9cf', color: '#15803d' }}>
+        <div className="sign-note" style={{ background: 'var(--ok-fondo)', borderColor: 'var(--ok-borde)', color: 'var(--ok-texto)' }}>
           ✓ Solicitud <b>{created?.code}</b> registrada. Ahora adjunta las fotos que evidencian
           la inaccesibilidad: <b>sin evidencia el Jefe no puede aprobarla</b>.
         </div>
@@ -150,7 +150,7 @@ export default function AccessRequestForm({ assetId, assetCode, assets, onDone }
             {photos.length} fotografía(s) adjuntas
           </div>
           {photos.map((p) => (
-            <div key={p.id} style={{ fontSize: 12, padding: '4px 0', borderTop: '1px solid #eee' }}>
+            <div key={p.id} style={{ fontSize: 12, padding: '4px 0', borderTop: '1px solid var(--border)' }}>
               <Icono n="camara" size={14} /> {p.caption || '(sin descripción)'}
             </div>
           ))}

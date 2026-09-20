@@ -455,6 +455,49 @@ un `delete`**: esta tabla ES el informe de reemplazo.
 
 ---
 
+## Bloque 116 · Una sola paleta ✅
+
+**Detalle completo:** `docs/BLOQUE_116_UNA_SOLA_PALETA.md`
+
+136 colores a mano en 45 tonos, con **seis rojos distintos** para decir lo
+mismo y cinco ámbares. No era desidia: `--ok`, `--warn` y `--crit` daban un
+solo tono cada uno, y un aviso necesita tres (texto, fondo, borde), así que
+cada pantalla se inventaba los suyos.
+
+Catorce variables nuevas con nombre, **136 sustituciones, 0 sin mapear**, y
+`verificar:paleta` (verificador 22) para que no vuelva.
+
+**Y encontró dos bugs de paso:** `var(--linea)` en Roles y `var(--line)` en
+Activos no existen — dos bordes que llevaban tiempo sin pintarse y que nadie
+podía ver, porque el navegador ignora una variable inexistente sin decir nada.
+
+Cierra el último hallazgo abierto de la auditoría del 17/09. El modo oscuro del
+púlpito pasa de «impensable» a «redefinir catorce variables».
+
+---
+
+## Bloque 109 · La red del equipo, sin duplicar un solo campo ✅
+
+**Detalle completo:** `docs/BLOQUE_109_LA_RED_DEL_EQUIPO.md`
+
+Se pidió un campo (`/16`, `/24`) y se entregó un **cálculo**: el prefijo, la
+máscara, la VLAN, el gateway y el DNS ya estaban declarados en IPAM, una vez
+por subred. Copiarlos al activo habría creado cuatro campos capaces de
+contradecir a la subred — y eso es salir a campo con una máscara mala.
+
+Tres decisiones probadas: **el /24 gana al /16** (la más específica); **no se
+inventa una máscara** cuando la IP no cae en ninguna subred declarada; y una
+subred desactivada ya no explica nada.
+
+Dos avisos que ahora salen con el equipo delante en vez de en una pantalla que
+nadie abre: **estática dentro del pool del DHCP** y **VLAN del equipo que no
+coincide con la de su subred**.
+
+Funciona con los tres tipos: cámara, switch y NVR guardan la IP en sitios
+distintos. **Sin migración y sin `prisma generate`.**
+
+---
+
 ## Bloque 108 · ¿Hay que cambiar este equipo? ✅
 
 **Detalle completo:** `docs/BLOQUE_108_HAY_QUE_CAMBIAR_ESTE_EQUIPO.md`
@@ -603,9 +646,8 @@ de `Roles` y `Rotulado`, y la fila de `Assets` pulsable con el teclado.
 
 | Bloque | Qué es | Bloqueado por |
 |---|---|---|
-| **109** | Campos de red del activo: prefijo `/16` `/24`, VLAN, puerta de enlace + informe de estandarización de switches | — |
+| **109-B** | Informe de estandarización de switches para Producción (qué modelos hay, cuáles conviene unificar) | — |
 | **110** | OM multiequipo: reportado ≠ intervenido | — |
 | **111** | Módulo de correo (hoy cero líneas) | — |
 | **112** | Pulido visual de Producción, fechas de registro en todas partes, tableros por audiencia | — |
 | **114** | Reincidencia por agregados, para quitar del todo la consulta más cara | — |
-| **116** | Paleta unificada: 86 colores escritos a mano en estilos en línea, con cuatro rojos distintos para decir lo mismo + verificador | — |

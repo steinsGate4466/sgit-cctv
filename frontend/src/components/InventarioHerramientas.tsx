@@ -105,8 +105,8 @@ export default function InventarioHerramientas() {
       {/* --------------------------------------------- las que más faltan */}
       {faltantes.length > 0 && (
         <div style={{
-          background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 8,
-          padding: '12px 14px', margin: '14px 0', color: '#92400e',
+          background: 'var(--warn-fondo)', border: '1px solid var(--warn-borde)', borderRadius: 8,
+          padding: '12px 14px', margin: '14px 0', color: 'var(--warn-texto)',
         }}>
           <div style={{ fontWeight: 700, marginBottom: 4 }}>Herramientas que más faltan</div>
           <div style={{ fontSize: 12, marginBottom: 8 }}>
@@ -199,7 +199,7 @@ export default function InventarioHerramientas() {
                 const activo = (form.suggestedFor || []).includes(t);
                 return (
                   <button key={t} type="button" className="btn-mini"
-                    style={activo ? { background: '#2563eb', color: '#fff', borderColor: '#2563eb' } : undefined}
+                    style={activo ? { background: 'var(--info)', color: 'var(--card)', borderColor: 'var(--info)' } : undefined}
                     onClick={() => alternarTipo(t)}>
                     {WO_TYPE_ES[t] || t}
                   </button>

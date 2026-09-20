@@ -134,9 +134,9 @@ export default function Topologia() {
             <div className="card" style={{ padding: 12 }}>
               <MapaRed datos={mapa} onNodo={(n) => verImpacto(n)} />
               <div className="mapa-leyenda">
-                <span><i style={{ background: '#16a34a' }} /> Operativo</span>
-                <span><i style={{ background: '#ea580c' }} /> Con incidencia</span>
-                <span><i style={{ background: '#dc2626' }} /> Fuera de servicio o sin camino al grabador</span>
+                <span><i style={{ background: 'var(--ok)' }} /> Operativo</span>
+                <span><i style={{ background: 'var(--warn-texto)' }} /> Con incidencia</span>
+                <span><i style={{ background: 'var(--crit)' }} /> Fuera de servicio o sin camino al grabador</span>
                 <span><i className="anillo" /> Tramo de anillo</span>
                 <span className="muted">
                   Las columnas son saltos hasta el grabador. Pulsa un equipo para ver qué se

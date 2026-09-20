@@ -81,7 +81,7 @@ export default function BorrarDefinitivo({
 
       {previa && !previa.sePuedePurgar && (
         <div className="card vacio" style={{ textAlign: 'left', margin: 0 }}>
-          <h3 style={{ color: '#b3261e', marginTop: 0 }}>Esto no se borra</h3>
+          <h3 style={{ color: 'var(--crit-texto)', marginTop: 0 }}>Esto no se borra</h3>
           <p style={{ margin: 0 }}>{previa.motivoSiNo}</p>
           {tipo === 'activo' && (
             <p style={{ marginBottom: 0, fontSize: 13 }}>
@@ -168,7 +168,7 @@ export default function BorrarDefinitivo({
               <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', margin: 0 }}>
                 <input type="checkbox" checked={forzar} onChange={(e) => setForzar(e.target.checked)}
                        style={{ width: 18, height: 18, minHeight: 18, marginTop: 2 }} />
-                <span style={{ margin: 0, fontSize: 13, color: '#8c1414', fontWeight: 600 }}>
+                <span style={{ margin: 0, fontSize: 13, color: 'var(--crit-texto)', fontWeight: 600 }}>
                   Lo he leído y quiero borrarla igual.
                   <small className="muted" style={{ display: 'block', fontWeight: 400 }}>
                     Quedará marcado en la auditoría que se forzó, y por qué avisos.

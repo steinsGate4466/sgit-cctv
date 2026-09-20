@@ -163,7 +163,7 @@ export default function Monitoreo() {
             se genera otro.
           </div>
           <div style={{
-            fontFamily: 'monospace', fontSize: 12, background: '#f4f6fa',
+            fontFamily: 'monospace', fontSize: 12, background: 'var(--bg)',
             border: '1px solid var(--border)', borderRadius: 8, padding: 12,
             margin: '12px 0', wordBreak: 'break-all',
           }}>

@@ -171,7 +171,7 @@ export default function Gruas() {
         manlift. Por eso se sube <b>una vez</b> y se revisa <b>todo</b>.
       </div>
 
-      {hecho && <div className="card" style={{ borderColor: '#7fbf8f', background: '#eef8f0' }}>{hecho}</div>}
+      {hecho && <div className="card" style={{ borderColor: 'var(--ok-borde)', background: 'var(--ok-fondo)' }}>{hecho}</div>}
       {fallo && <div className="card aviso-error">{fallo}</div>}
       {cargando && <EsqueletoTabla filas={4} />}
 
@@ -234,7 +234,7 @@ export default function Gruas() {
                     </span>
                   )}
                 </td>
-                <td>{i.pendientes > 0 ? <b style={{ color: '#b3261e' }}>{i.pendientes}</b> : '—'}</td>
+                <td>{i.pendientes > 0 ? <b style={{ color: 'var(--crit-texto)' }}>{i.pendientes}</b> : '—'}</td>
               </tr>
             ))}
           </tbody>

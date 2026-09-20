@@ -13,6 +13,7 @@ import AssetPhotoPicker, { FotoPendiente } from '../components/AssetPhotoPicker'
 import HistorialActivo from '../components/HistorialActivo';
 import AparatoInstalado from '../components/AparatoInstalado';
 import ReemplazoDelActivo from '../components/ReemplazoDelActivo';
+import RedDelActivo from '../components/RedDelActivo';
 import CriticidadActivo from '../components/CriticidadActivo';
 import RepuestosDelActivo from '../components/RepuestosDelActivo';
 import BorrarDefinitivo from '../components/BorrarDefinitivo';
@@ -716,8 +717,8 @@ export default function Assets() {
 
       {omMapeo && (
         <div style={{
-          background: '#dbeafe', border: '1px solid #93c5fd', borderRadius: 8,
-          padding: '10px 14px', margin: '12px 0', fontSize: 13, color: '#1e40af',
+          background: 'var(--info-fondo)', border: '1px solid var(--info-borde)', borderRadius: 8,
+          padding: '10px 14px', margin: '12px 0', fontSize: 13, color: 'var(--info-texto)',
         }}>
           Estás registrando dentro de la orden de mapeo <strong>{omCodigo || omMapeo}</strong>.
           Cada activo que crees quedará ligado a ella.
@@ -785,7 +786,7 @@ export default function Assets() {
                 <td style={{ minWidth: 74 }}>
                   {/* Avance de la ficha. Es lo que permite repartir el trabajo
                       de mapeo y saber cuánto falta de los 400 activos. */}
-                  <div style={{ background: '#e5e7eb', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+                  <div style={{ background: 'var(--border)', borderRadius: 4, height: 6, overflow: 'hidden' }}>
                     <div style={{
                       width: `${a.fichaPct ?? 0}%`, height: '100%',
                       background: (a.fichaPct ?? 0) >= 80 ? '#16a34a'
@@ -891,7 +892,7 @@ export default function Assets() {
         {meta.pages > 1 && (
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            gap: 10, padding: '10px 12px', borderTop: '1px solid var(--line, #e5e7eb)', flexWrap: 'wrap',
+            gap: 10, padding: '10px 12px', borderTop: '1px solid var(--border)', flexWrap: 'wrap',
           }}>
             <span className="muted" style={{ fontSize: 12 }}>
               Mostrando {(meta.page - 1) * meta.pageSize + 1}–
@@ -981,18 +982,22 @@ export default function Assets() {
 
           <AparatoInstalado assetId={detail.id} />
 
+          {/* BLOQUE 109. La máscara, la VLAN y la puerta de enlace salen de la
+              subred a la que pertenece la IP, no de campos copiados aquí. */}
+          <RedDelActivo assetId={detail.id} />
+
           <HistorialActivo assetId={detail.id} />
 
           {detail.completitud && detail.completitud.faltanClave?.length > 0 && (
             <div style={{
-              background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 8,
+              background: 'var(--warn-fondo)', border: '1px solid var(--warn-borde)', borderRadius: 8,
               padding: '10px 12px', marginBottom: 12, fontSize: 13,
             }}>
-              <div style={{ fontWeight: 700, color: '#92400e', marginBottom: 4 }}>
+              <div style={{ fontWeight: 700, color: 'var(--warn-texto)', marginBottom: 4 }}>
                 Ficha incompleta — {detail.completitud.porcentaje}%
               </div>
-              <div style={{ color: '#92400e' }}>Falta registrar:</div>
-              <ul style={{ margin: '4px 0 0 18px', color: '#92400e' }}>
+              <div style={{ color: 'var(--warn-texto)' }}>Falta registrar:</div>
+              <ul style={{ margin: '4px 0 0 18px', color: 'var(--warn-texto)' }}>
                 {detail.completitud.faltanClave.map((f: any) => (
                   <li key={f.campo}>{f.etiqueta}</li>
                 ))}

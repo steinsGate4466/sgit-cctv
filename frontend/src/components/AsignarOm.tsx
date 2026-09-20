@@ -125,7 +125,7 @@ export default function AsignarOm({ incidente, onHecho, onClose }: {
         </div>
 
         {error && <div style={{ color: 'var(--crit)', fontSize: 12, marginTop: 8 }}>{error}</div>}
-        {aviso && <div style={{ color: '#b45309', fontSize: 12, marginTop: 8 }}>{aviso}</div>}
+        {aviso && <div style={{ color: 'var(--warn-texto)', fontSize: 12, marginTop: 8 }}>{aviso}</div>}
 
         <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
           <button className="btn-primary" disabled={guardando}>

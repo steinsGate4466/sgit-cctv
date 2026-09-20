@@ -221,7 +221,7 @@ export default function Campanas() {
                       <strong>{z.ubicacion?.name || z.ubicacion?.code}</strong>
                       <div className="muted" style={{ fontSize: 11.5 }}>{z.ubicacion?.path}</div>
                       {z.observaciones && (
-                        <div style={{ fontSize: 12, color: '#8c1414', marginTop: 4 }}>↩ {z.observaciones}</div>
+                        <div style={{ fontSize: 12, color: 'var(--crit-texto)', marginTop: 4 }}>↩ {z.observaciones}</div>
                       )}
                     </td>
                     <td><span className={'badge ' + z.estado}>{ESTADO_ZONA[z.estado]}</span></td>

@@ -219,7 +219,7 @@ export default function TrainBoard() {
         <div
           onClick={abrirSinUbicar}
           style={{
-            background: '#fff4e5', border: '1px solid #f5dcb0', borderLeft: '4px solid var(--warn)',
+            background: 'var(--warn-fondo)', border: '1px solid var(--warn-borde)', borderLeft: '4px solid var(--warn)',
             borderRadius: 8, padding: '10px 14px', marginTop: 14, cursor: 'pointer',
             display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
           }}

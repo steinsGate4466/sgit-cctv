@@ -60,7 +60,7 @@ export default function CampoDelTurno({ assetId }: { assetId: string }) {
     <>
       {/* ---- 1. LO QUE DEJÓ EL ANTERIOR ---- */}
       {d.notas.length > 0 && (
-        <div className="card scan-card" style={{ borderLeft: '4px solid var(--warn,#d97706)' }}>
+        <div className="card scan-card" style={{ borderLeft: '4px solid var(--warn,var(--warn))' }}>
           <h4 style={{ margin: '10px 0 6px' }}>
             <Icono n="nota" size={15} /> Lo que dejó dicho el turno anterior
           </h4>

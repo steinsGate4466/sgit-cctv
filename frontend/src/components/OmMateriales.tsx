@@ -187,7 +187,7 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
           {/* --------------------------------------------- barra del ingeniero */}
           {resumen && (resumen.hayQueRetirar || resumen.porDevolver > 0) && (
             <div style={{
-              background: '#eef4ff', border: '1px solid #dbe6fb', borderLeft: '4px solid var(--steel)',
+              background: 'var(--info-fondo)', border: '1px solid var(--info-borde)', borderLeft: '4px solid var(--steel)',
               borderRadius: 8, padding: '10px 12px', marginTop: 10,
               display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap',
             }}>
@@ -196,14 +196,14 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
                   <div>
                     <b>{resumen.solicitados} material(es) esperando salida de almacén.</b>
                     {resumen.sinStock > 0 && (
-                      <span style={{ color: '#b45309' }}>
+                      <span style={{ color: 'var(--warn-texto)' }}>
                         {' '}· {resumen.sinStock} sin stock suficiente en el catálogo
                       </span>
                     )}
                   </div>
                 )}
                 {resumen.porDevolver > 0 && (
-                  <div style={{ color: '#b45309' }}>
+                  <div style={{ color: 'var(--warn-texto)' }}>
                     {resumen.porDevolver} unidad(es) retiradas y no usadas, sin devolver.
                   </div>
                 )}
@@ -240,7 +240,7 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
                     <td>
                       {m.description}
                       {m.alerta && (
-                        <div style={{ color: '#b45309', fontSize: 11 }}>{m.alerta}</div>
+                        <div style={{ color: 'var(--warn-texto)', fontSize: 11 }}>{m.alerta}</div>
                       )}
                     </td>
                     <td className="muted">{m.sapCode || '—'}</td>
@@ -259,7 +259,7 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
                     <td>
                       <EstadoMaterial m={m} />
                       {m.porDevolver > 0 && (
-                        <div style={{ fontSize: 10, color: '#b45309' }}>
+                        <div style={{ fontSize: 10, color: 'var(--warn-texto)' }}>
                           sobran {m.porDevolver}
                         </div>
                       )}
@@ -288,7 +288,7 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
           )}
 
           {editable && (
-            <form onSubmit={agregar} style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #e5e7eb' }}>
+            <form onSubmit={agregar} style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
               <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Agregar material</div>
 
               <label>Del catálogo (con código SAP)
@@ -368,7 +368,7 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
           )}
 
           {editable && (
-            <form onSubmit={registrarSwap} style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #e5e7eb' }}>
+            <form onSubmit={registrarSwap} style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
               <label>Equipo retirado
                 <select value={swap.removedAssetId}
                 onChange={(e) => setSwap({ ...swap, removedAssetId: e.target.value })}>
@@ -430,7 +430,7 @@ function EstadoMaterial({ m }: { m: any }) {
         borderRadius: 20, padding: '2px 8px', fontSize: 10, fontWeight: 600,
       }}>{e.t}</span>
       {m.status === 'RECHAZADO' && m.rejectedReason && (
-        <div style={{ fontSize: 10, color: '#991b1b', marginTop: 2 }}>{m.rejectedReason}</div>
+        <div style={{ fontSize: 10, color: 'var(--crit-texto)', marginTop: 2 }}>{m.rejectedReason}</div>
       )}
     </>
   );

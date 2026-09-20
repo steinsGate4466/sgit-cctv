@@ -85,7 +85,7 @@ export default function AssetPhotoPicker({ fotos, onChange }: Props) {
   const ayuda = TIPOS_FOTO.find((t) => t.v === kind)?.ayuda;
 
   return (
-    <div style={{ marginTop: 14, paddingTop: 12, borderTop: '2px solid #e5e7eb' }}>
+    <div style={{ marginTop: 14, paddingTop: 12, borderTop: '2px solid var(--border)' }}>
       <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
         Fotografías del equipo
       </div>
@@ -136,7 +136,7 @@ export default function AssetPhotoPicker({ fotos, onChange }: Props) {
                 viva, que es exactamente lo que hace falta. */}
             {fotos.map((f, i) => (
               <div key={f.url} style={{
-                border: '1px solid #e5e7eb', borderRadius: 8, padding: 6,
+                border: '1px solid var(--border)', borderRadius: 8, padding: 6,
                 width: 128, position: 'relative',
               }}>
                 <img src={f.url} alt="" style={{
@@ -154,7 +154,7 @@ export default function AssetPhotoPicker({ fotos, onChange }: Props) {
                   title="Quitar"
                   style={{
                     position: 'absolute', top: 2, right: 2, border: 'none',
-                    background: '#dc2626', color: '#fff', borderRadius: 4,
+                    background: 'var(--crit)', color: 'var(--card)', borderRadius: 4,
                     width: 20, height: 20, cursor: 'pointer', lineHeight: 1,
                   }}
                 >×</button>

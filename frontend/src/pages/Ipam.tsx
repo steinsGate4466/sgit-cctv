@@ -124,7 +124,7 @@ export default function Ipam() {
 
           {hallazgos.duplicadas.length > 0 && (
             <div style={{ marginBottom: 10 }}>
-              <b style={{ color: '#8c1414' }}>
+              <b style={{ color: 'var(--crit-texto)' }}>
                 {hallazgos.duplicadas.length} dirección(es) DUPLICADA(S) — esto rompe la red
               </b>
               <ul style={{ margin: '4px 0 0', fontSize: 13, lineHeight: 1.7 }}>
@@ -140,7 +140,7 @@ export default function Ipam() {
 
           {hallazgos.enPoolDhcp.length > 0 && (
             <div style={{ marginBottom: 10 }}>
-              <b style={{ color: '#9a5b00' }}>
+              <b style={{ color: 'var(--warn-texto)' }}>
                 {hallazgos.enPoolDhcp.length} IP fija dentro del rango del DHCP — bomba de tiempo
               </b>
               <ul style={{ margin: '4px 0 0', fontSize: 13, lineHeight: 1.7 }}>
@@ -156,7 +156,7 @@ export default function Ipam() {
 
           {hallazgos.invalidas.length > 0 && (
             <div style={{ marginBottom: 10 }}>
-              <b style={{ color: '#8c1414' }}>{hallazgos.invalidas.length} IP mal escrita en la ficha</b>
+              <b style={{ color: 'var(--crit-texto)' }}>{hallazgos.invalidas.length} IP mal escrita en la ficha</b>
               <ul style={{ margin: '4px 0 0', fontSize: 13 }}>
                 {hallazgos.invalidas.map((d: any) => <li key={d.assetCode}><code>{d.ip}</code> — {d.assetCode}</li>)}
               </ul>

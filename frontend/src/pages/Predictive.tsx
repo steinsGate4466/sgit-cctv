@@ -90,7 +90,7 @@ export default function Predictive() {
                 </td>
                 <td>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <div style={{ width: 60, height: 6, background: '#eef2f9', borderRadius: 4, overflow: 'hidden' }}>
+                    <div style={{ width: 60, height: 6, background: 'var(--border)', borderRadius: 4, overflow: 'hidden' }}>
                       <div style={{
                         width: `${r.score}%`, height: '100%',
                         background: r.score >= 70 ? 'var(--crit)' : r.score >= 45 ? 'var(--warn)' : 'var(--steel)',

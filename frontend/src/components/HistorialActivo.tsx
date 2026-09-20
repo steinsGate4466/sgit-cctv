@@ -120,7 +120,7 @@ export default function HistorialActivo({ assetId, compacto }: Props) {
               : []),
           ].map((k) => (
             <div key={k.t} style={{
-              border: '1px solid #e5e7eb', borderRadius: 6, padding: '6px 10px', minWidth: 84,
+              border: '1px solid var(--border)', borderRadius: 6, padding: '6px 10px', minWidth: 84,
             }}>
               <div className="muted" style={{ fontSize: 10 }}>{k.t}</div>
               <div style={{ fontSize: 18, fontWeight: 700, color: k.alerta ? '#b91c1c' : undefined }}>
@@ -138,7 +138,7 @@ export default function HistorialActivo({ assetId, compacto }: Props) {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {Object.entries(d.porCausa).map(([causa, n]: any) => (
               <span key={causa} style={{
-                background: '#f1f5f9', borderRadius: 12, padding: '3px 10px', fontSize: 12,
+                background: 'var(--bg)', borderRadius: 12, padding: '3px 10px', fontSize: 12,
               }}>
                 {CAUSA_ES[causa] || causa} <strong>×{n}</strong>
               </span>
@@ -217,7 +217,7 @@ export default function HistorialActivo({ assetId, compacto }: Props) {
                   <td className="muted">{fh(o.endedAt || o.executedDate)}</td>
                   <td>
                     {o.rootCause ? (CAUSA_ES[o.rootCause] || o.rootCause) : '—'}
-                    {o.isRecurrent && <div style={{ fontSize: 10, color: '#b91c1c' }}>reincidente</div>}
+                    {o.isRecurrent && <div style={{ fontSize: 10, color: 'var(--crit-texto)' }}>reincidente</div>}
                   </td>
                   <td className="muted">{o.technician?.fullName || '—'}</td>
                 </tr>

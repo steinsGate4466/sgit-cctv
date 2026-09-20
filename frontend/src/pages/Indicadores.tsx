@@ -666,8 +666,8 @@ El MTTR de mantenimiento es <b>Reparar</b>.
             </div>
 
             <div className="reparto-leyenda">
-              <span><i style={{ background: '#c0392b' }} /> Correctivo · {t.reparto.correctivo}</span>
-              <span><i style={{ background: '#15803d' }} /> Preventivo · {t.reparto.preventivo}</span>
+              <span><i style={{ background: 'var(--crit-texto)' }} /> Correctivo · {t.reparto.correctivo}</span>
+              <span><i style={{ background: 'var(--ok-texto)' }} /> Preventivo · {t.reparto.preventivo}</span>
             </div>
 
             {/* EL QUESITO Y LA META, COMO LOS DIBUJÓ EL INGENIERO.
@@ -778,7 +778,7 @@ El MTTR de mantenimiento es <b>Reparar</b>.
             </div>
           ))}
           {t.backlog.total === 0 && (
-            <div style={{ flex: 1, background: '#e7f7ee', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>
+            <div style={{ flex: 1, background: 'var(--ok-fondo)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>
               nada pendiente
             </div>
           )}

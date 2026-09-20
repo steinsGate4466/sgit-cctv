@@ -138,15 +138,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
         }}>
           <div style={{
-            background: '#fff', borderRadius: 12, padding: '26px 28px', maxWidth: 380,
+            background: 'var(--card)', borderRadius: 12, padding: '26px 28px', maxWidth: 380,
             width: 'calc(100% - 32px)', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,.3)',
           }}>
             <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 8 }}>¿Sigues ahí?</div>
-            <div style={{ fontSize: 14, color: '#475569', marginBottom: 6 }}>
+            <div style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 6 }}>
               Tu sesión se cerrará en <strong>{restante}</strong> segundo{restante === 1 ? '' : 's'}
               {' '}por inactividad.
             </div>
-            <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 18 }}>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 18 }}>
               El sistema muestra direcciones IP y contraseñas de equipos de planta.
               Por eso se cierra sola a los {minutosCierre} minutos sin uso.
             </div>

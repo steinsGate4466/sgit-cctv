@@ -195,7 +195,7 @@ export default function Zonas() {
                         </span>
                       : <span className="muted">Sin declarar</span>}
                     {z.vencida && (
-                      <div style={{ fontSize: 11, color: 'var(--warn, #b45309)', marginTop: 3 }}>
+                      <div style={{ fontSize: 11, color: 'var(--warn, var(--warn-texto))', marginTop: 3 }}>
                         <Icono n="alerta" size={12} /> Caducada — confirmar
                       </div>
                     )}
@@ -228,7 +228,7 @@ export default function Zonas() {
                       </div>
                     )}
                     {z.firmaDesactualizada && (
-                      <div style={{ fontSize: 11, color: 'var(--crit,#dc2626)', marginTop: 3 }}>
+                      <div style={{ fontSize: 11, color: 'var(--crit,var(--crit))', marginTop: 3 }}>
                         <Icono n="alerta" size={12} /> La planta cambió desde que se firmó.
                       </div>
                     )}

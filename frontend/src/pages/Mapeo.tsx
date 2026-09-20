@@ -79,8 +79,8 @@ export default function Mapeo() {
       {/* --------------------------------------------------- reincidencia */}
       {rein && rein.total > 0 && (
         <div style={{
-          background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 8,
-          padding: '12px 14px', margin: '16px 0', color: '#991b1b',
+          background: 'var(--crit-fondo)', border: '1px solid var(--crit-borde)', borderRadius: 8,
+          padding: '12px 14px', margin: '16px 0', color: 'var(--crit-texto)',
         }}>
           <div style={{ fontWeight: 700, marginBottom: 6 }}>
             {rein.confirmadas > 0
@@ -142,7 +142,7 @@ export default function Mapeo() {
           <span style={{ fontWeight: 600 }}>Avance general</span>
           <span className="muted">{d.completos} de {d.total} con ficha completa</span>
         </div>
-        <div style={{ background: '#e5e7eb', borderRadius: 6, height: 14, overflow: 'hidden' }}>
+        <div style={{ background: 'var(--border)', borderRadius: 6, height: 14, overflow: 'hidden' }}>
           <div style={{
             width: `${d.porcentaje}%`, height: '100%',
             background: d.porcentaje >= 80 ? '#16a34a' : d.porcentaje >= 40 ? '#f59e0b' : '#dc2626',
@@ -164,7 +164,7 @@ export default function Mapeo() {
                   <td>{v.total}</td>
                   <td>{v.completos}</td>
                   <td style={{ minWidth: 130 }}>
-                    <div style={{ background: '#e5e7eb', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+                    <div style={{ background: 'var(--border)', borderRadius: 4, height: 6, overflow: 'hidden' }}>
                       <div style={{
                         width: `${pct}%`, height: '100%',
                         background: pct >= 80 ? '#16a34a' : pct >= 40 ? '#f59e0b' : '#dc2626',
@@ -226,7 +226,7 @@ export default function Mapeo() {
                   <div style={{ fontSize: 11 }}>{p.etapa || <em>falta etapa</em>}</div>
                 </td>
                 <td style={{ minWidth: 90 }}>
-                  <div style={{ background: '#e5e7eb', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+                  <div style={{ background: 'var(--border)', borderRadius: 4, height: 6, overflow: 'hidden' }}>
                     <div style={{
                       width: `${p.porcentaje}%`, height: '100%',
                       background: p.porcentaje >= 60 ? '#f59e0b' : '#dc2626',

@@ -90,7 +90,7 @@ export default function OmHerramientas({ workOrderId, onChange, soloLectura }: P
   const faltan = Object.values(marcas).filter((v) => !v).length;
 
   return (
-    <div style={{ marginTop: 14, paddingTop: 12, borderTop: '2px solid #e5e7eb' }}>
+    <div style={{ marginTop: 14, paddingTop: 12, borderTop: '2px solid var(--border)' }}>
       <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
         Herramientas que llevas
       </div>
@@ -103,7 +103,7 @@ export default function OmHerramientas({ workOrderId, onChange, soloLectura }: P
 
       {Object.entries(porFamilia).map(([familia, items]) => (
         <div key={familia} style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#64748b', marginBottom: 4 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', marginBottom: 4 }}>
             {familia}
           </div>
           {items.map((h) => {
@@ -126,11 +126,11 @@ export default function OmHerramientas({ workOrderId, onChange, soloLectura }: P
                   <>
                     <button type="button" className="btn-mini"
                       style={estado === true
-                        ? { background: '#16a34a', color: '#fff', borderColor: '#16a34a' } : undefined}
+                        ? { background: 'var(--ok)', color: 'var(--card)', borderColor: 'var(--ok)' } : undefined}
                       onClick={() => alternar(h.id, true)}>La llevo</button>
                     <button type="button" className="btn-mini"
                       style={estado === false
-                        ? { background: '#dc2626', color: '#fff', borderColor: '#dc2626' } : undefined}
+                        ? { background: 'var(--crit)', color: 'var(--card)', borderColor: 'var(--crit)' } : undefined}
                       onClick={() => alternar(h.id, false)}>No la tengo</button>
                   </>
                 )}
@@ -144,7 +144,7 @@ export default function OmHerramientas({ workOrderId, onChange, soloLectura }: P
         <div className="muted" style={{ fontSize: 11 }}>
           {marcadas} de {total} revisadas
           {faltan > 0 && (
-            <span style={{ color: '#b91c1c', fontWeight: 600 }}> · {faltan} sin disponibilidad</span>
+            <span style={{ color: 'var(--crit-texto)', fontWeight: 600 }}> · {faltan} sin disponibilidad</span>
           )}
         </div>
       )}

@@ -519,7 +519,7 @@ export default function Instalaciones() {
             <div className="card explica">Orden de trabajo: <b>{detalle.workOrder.code}</b> ({detalle.workOrder.status})</div>
           )}
           {detalle.assetCreado && (
-            <div className="card" style={{ borderColor: '#7fbf8f', background: '#eef8f0' }}>
+            <div className="card" style={{ borderColor: 'var(--ok-borde)', background: 'var(--ok-fondo)' }}>
               Activo creado: <b>{detalle.assetCreado.assetCode}</b>
             </div>
           )}

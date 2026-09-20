@@ -140,7 +140,7 @@ export default function Limpieza() {
           : 'Puedes mirar, pero no borrar: te falta el permiso «Borrar definitivamente».'}
       />
 
-      {hecho && <div className="card" style={{ borderColor: '#7fbf8f', background: '#eef8f0' }}>{hecho}</div>}
+      {hecho && <div className="card" style={{ borderColor: 'var(--ok-borde)', background: 'var(--ok-fondo)' }}>{hecho}</div>}
       {fallo && <div className="card aviso-error">{fallo}</div>}
 
       <div className="pestanas">

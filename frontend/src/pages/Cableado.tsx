@@ -231,7 +231,7 @@ export default function Cableado() {
                 <td style={{ fontSize: 12, maxWidth: 320 }}>
                   {c.avisos?.length
                     ? c.avisos.map((a: string, i: number) => (
-                        <div key={i} style={{ color: '#b45309' }}>· {a}</div>
+                        <div key={i} style={{ color: 'var(--warn-texto)' }}>· {a}</div>
                       ))
                     : <span className="muted">—</span>}
                 </td>
@@ -248,7 +248,7 @@ export default function Cableado() {
                     {c.status !== 'RETIRADO' && c.meters != null && c.meters > (resumen?.limiteM ?? 90) && (
                       <button
                         className="btn-mini"
-                        style={{ marginLeft: 4, borderColor: '#f6c9c9', color: 'var(--crit)' }}
+                        style={{ marginLeft: 4, borderColor: 'var(--crit-borde)', color: 'var(--crit)' }}
                         title="Crear una orden de trabajo para este tramo"
                         onClick={() => navegar('/maintenance?' + new URLSearchParams({
                           nueva: '1',

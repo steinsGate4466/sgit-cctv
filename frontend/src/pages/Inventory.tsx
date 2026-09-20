@@ -27,7 +27,7 @@ function Kpi({ label, value, cls, hint }: { label: string; value: ReactNode; cls
 
 function stockBadge(r: any) {
   if (r.outOfStock) return <span className="badge FUERA_SERVICIO">Sin stock</span>;
-  if (r.lowStock) return <span className="badge" style={{ background: '#fde68a', color: '#92400e' }}>Bajo mínimo</span>;
+  if (r.lowStock) return <span className="badge" style={{ background: 'var(--warn-borde)', color: 'var(--warn-texto)' }}>Bajo mínimo</span>;
   return <span className="badge OPERATIVO">OK</span>;
 }
 
@@ -382,7 +382,7 @@ export default function Inventory() {
             Este repuesto sirve a estos activos {compat.model ? '(además de todos los del modelo ' + compat.model + ')' : ''}:
           </div>
           {(compat.assets || []).map((a: any) => (
-            <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderTop: '1px solid #eee' }}>
+            <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderTop: '1px solid var(--border)' }}>
               <span>{a.asset?.assetCode} <span className="muted">· {a.asset?.type}</span></span>
               {can('inventory.manage') && <button className="btn-mini" onClick={() => removeLink(a.asset.id)}>quitar</button>}
             </div>

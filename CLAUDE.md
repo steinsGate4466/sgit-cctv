@@ -5295,3 +5295,71 @@ Y queda escrita la limitación que NO se cerró: lee nombres de clase sueltos, n
 selectores compuestos, así que `.card.aviso` faltando con `.zona-chip.aviso`
 existiendo le parece bien. **Una limitación anotada es una limitación; una
 limitación callada es una mentira sobre lo que el verificador garantiza.**
+
+---
+
+## 53 · Bloque 109 — cuando el usuario pide un campo y lo que falta es un cruce
+
+Se pidió «la máscara y el prefijo en el activo». Lo correcto NO era añadir los
+campos: ya estaban en `Subred`, declarados una vez, con su VLAN y su gateway.
+
+> Cuatro campos copiados son cuatro campos que pueden **contradecir** al
+> original. El día que no coincidan, nadie sabe cuál creerse — y en planta eso
+> es salir con una máscara equivocada.
+
+La regla, otra vez: **lo que se puede calcular no se guarda.**
+
+Y el cálculo da algo que el campo no daba: **una IP que no cae en ninguna
+subred declarada se ve**. Con un campo de texto, esa IP traería su máscara
+escrita a mano y parecería correcta.
+
+### 53.1 · Lo más específico gana
+
+Con un /24 dentro de un /16 declarados los dos, la respuesta es el /24.
+Ordenarlo al revés entrega la máscara del /16 y el equipo no llega a su
+gateway. Probado.
+
+### 53.2 · No inventar tampoco cuando duele dejar un hueco
+
+Sin subred declarada NO se devuelve «/24 probablemente». Se dice que no se sabe
+y qué hacer para saberlo. Hay una prueba que comprueba que la respuesta **no
+contiene ningún `255.255`** en ese caso: un dato inventado es más difícil de
+detectar que un hueco.
+
+### 53.3 · El aviso, donde se mira
+
+El choque «estática dentro del pool del DHCP» ya se detectaba — en la pantalla
+de IPAM, que casi nadie abre. **Un aviso correcto en una pantalla que nadie
+mira no es un aviso.** Ahora sale en la ficha del equipo.
+
+---
+
+## 54 · Bloque 116 — cinco ámbares no eran desidia: eran un hueco en la paleta
+
+136 colores a mano en 45 tonos. La lectura fácil era «alguien fue descuidado».
+La real es otra: `--ok`, `--warn` y `--crit` daban **un solo tono cada uno**, el
+del trazo. Un aviso necesita tres —texto, fondo y borde—, y al no tenerlos cada
+pantalla se inventaba los suyos.
+
+> Cuando el mismo atajo aparece en treinta sitios, el problema no es la
+> disciplina de quien lo tomó: **es que la pieza correcta no existía.** Arreglar
+> los treinta sin crear la pieza garantiza que vuelvan.
+
+### 54.1 · Separar «informativo» de «va bien»
+
+El azul nuevo (`--info`) no es un estado de planta. Marca lo que el sistema
+explica o propone. Mezclarlo con el verde haría que una sugerencia se leyera
+como «esto está correcto», y en una pantalla de planta esa confusión se paga.
+
+### 54.2 · La comprobación de propina fue la que encontró los bugs
+
+El verificador mira dos cosas: que no haya colores a mano y que **la variable
+citada exista**. La segunda se escribió casi de regalo, y fue la que encontró
+`var(--linea)` en Roles y `var(--line)` en Activos: dos bordes que llevaban
+meses sin pintarse.
+
+> El navegador ignora una variable que no existe. No hay error en consola, el
+> build pasa, las pruebas pasan, y el elemento sale sin formato. **Es el mismo
+> fallo silencioso de `verificar:clases`, en otra forma** — y por eso la
+> comprobación barata de «¿existe lo que citas?» vale tanto: cuesta cinco
+> líneas y caza lo que nadie va a ver mirando la pantalla.

@@ -228,8 +228,8 @@ export default function InventarioImportar({ onImportado }: { onImportado: () =>
 
       {error && (
         <div style={{
-          background: '#fdecec', border: '1px solid #f6c9c9', borderRadius: 8,
-          padding: '10px 12px', marginTop: 12, fontSize: 13, color: '#991b1b',
+          background: 'var(--crit-fondo)', border: '1px solid var(--crit-borde)', borderRadius: 8,
+          padding: '10px 12px', marginTop: 12, fontSize: 13, color: 'var(--crit-texto)',
         }}>{error}</div>
       )}
 
@@ -256,7 +256,7 @@ export default function InventarioImportar({ onImportado }: { onImportado: () =>
               { t: 'Se actualizarían', v: previa.actualizados || 0, c: '#2563eb' },
               { t: 'Rechazadas', v: previa.rechazadas?.length || 0, c: previa.rechazadas?.length ? '#dc2626' : undefined },
             ].map((k) => (
-              <div key={k.t} style={{ border: '1px solid #e5e7eb', borderRadius: 6, padding: '8px 12px', minWidth: 110 }}>
+              <div key={k.t} style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '8px 12px', minWidth: 110 }}>
                 <div className="muted" style={{ fontSize: 11 }}>{k.t}</div>
                 <div style={{ fontSize: 22, fontWeight: 700, color: k.c }}>{k.v}</div>
               </div>
@@ -287,8 +287,8 @@ export default function InventarioImportar({ onImportado }: { onImportado: () =>
 
           {previa.rechazadas?.length > 0 && (
             <div style={{
-              background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 6,
-              padding: '8px 10px', marginBottom: 10, fontSize: 12, color: '#991b1b',
+              background: 'var(--crit-fondo)', border: '1px solid var(--crit-borde)', borderRadius: 6,
+              padding: '8px 10px', marginBottom: 10, fontSize: 12, color: 'var(--crit-texto)',
             }}>
               <div style={{ fontWeight: 700, marginBottom: 4 }}>
                 {previa.rechazadas.length} fila(s) no se pueden importar
@@ -333,13 +333,13 @@ export default function InventarioImportar({ onImportado }: { onImportado: () =>
       {/* ------------------------------------------------------------- resultado */}
       {resultado && (
         <div className="card" style={{ padding: 16, marginTop: 12 }}>
-          <div style={{ fontWeight: 700, color: '#166534', marginBottom: 6 }}>Catálogo actualizado</div>
+          <div style={{ fontWeight: 700, color: 'var(--ok-texto)', marginBottom: 6 }}>Catálogo actualizado</div>
           <div style={{ fontSize: 13 }}>
             {resultado.creados} creados · {resultado.actualizados} actualizados
             {resultado.fallidos?.length ? ` · ${resultado.fallidos.length} con error` : ''}
           </div>
           {resultado.fallidos?.length > 0 && (
-            <div style={{ fontSize: 12, color: '#991b1b', marginTop: 6 }}>
+            <div style={{ fontSize: 12, color: 'var(--crit-texto)', marginTop: 6 }}>
               {resultado.fallidos.map((f: any, i: number) => (
                 <div key={i}>{f.sapCode}: {f.motivo}</div>
               ))}

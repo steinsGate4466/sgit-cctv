@@ -96,7 +96,7 @@ export default function AssetSpecFields({ tipo, spec, onChange, opciones }: Prop
   );
 
   return (
-    <div style={{ marginTop: 14, paddingTop: 12, borderTop: '2px solid #e5e7eb' }}>
+    <div style={{ marginTop: 14, paddingTop: 12, borderTop: '2px solid var(--border)' }}>
       <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>
         Datos propios del equipo
       </div>

@@ -234,7 +234,7 @@ export default function Avisos() {
               buscado. Así que tienes que escribirle tú una vez:
             </p>
             <div style={{
-              fontFamily: 'monospace', fontSize: 15, background: '#f4f6fa',
+              fontFamily: 'monospace', fontSize: 15, background: 'var(--bg)',
               border: '1px solid var(--border)', borderRadius: 8,
               padding: '12px 14px', letterSpacing: '.5px',
             }}>
