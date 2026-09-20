@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useDialogos } from './Dialogos';
+import SelectorDeActivo from './SelectorDeActivo';
 import { mensajeDeError } from '../avisos';
 
 /**
@@ -150,13 +151,13 @@ export default function EquiposDeLaOm({ workOrderId, cerrada }: Props) {
 
       {puedeTocar && (
         <div className="filters" style={{ marginTop: 10 }}>
-          <select aria-label="Equipo que se apunta" value={elegido}
-            onChange={(e) => setElegido(e.target.value)} style={{ minWidth: 220 }}>
-            <option value="">Elegir equipo…</option>
-            {opciones.map((o: any) => (
-              <option key={o.id} value={o.id}>{o.assetCode} — {o.type}</option>
-            ))}
-          </select>
+          <SelectorDeActivo
+            etiqueta="Equipo que se apunta"
+            opciones={opciones}
+            valor={elegido}
+            onChange={setElegido}
+            vacio="Elegir equipo…"
+          />
           <select aria-label="Papel del equipo en la orden" value={papel}
             onChange={(e) => setPapel(e.target.value as any)}>
             <option value="INTERVENIDO">Lo toqué</option>

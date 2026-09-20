@@ -1,5 +1,6 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { api } from '../api/client';
+import SelectorDeActivo from '../components/SelectorDeActivo';
 import AsignarOm from '../components/AsignarOm';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, AvisoAmbito } from '../components/FiltroAmbito';
 import Modal from '../components/Modal';
@@ -449,12 +450,16 @@ export default function Incidents() {
             <label>Zona / área (Horno, Laminación, Púlpito…)
               <input value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value })} />
             </label>
-            <label>Activo afectado (opcional)
-              <select value={form.assetId} onChange={(e) => setForm({ ...form, assetId: e.target.value })}>
-              <option value="">— ninguno —</option>
-              {assets.map((a) => <option key={a.id} value={a.id}>{a.assetCode}</option>)}
-            </select>
-            </label>
+            {/* BLOQUE 121 · agrupado por tipo y con su ubicación. Una
+                incidencia puede ser de cualquier equipo, así que NO se filtra:
+                se agrupa. Filtrar dejaría fuera justo el que falló. */}
+            <SelectorDeActivo
+              etiqueta="Activo afectado (opcional)"
+              opciones={assets}
+              valor={form.assetId}
+              onChange={(id) => setForm({ ...form, assetId: id })}
+              vacio="— ninguno —"
+            />
             <label>Descripción del problema
               <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} style={{ width: '100%', resize: 'vertical' }} />
             </label>

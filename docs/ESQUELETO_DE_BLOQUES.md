@@ -455,6 +455,26 @@ un `delete`**: esta tabla ES el informe de reemplazo.
 
 ---
 
+## Bloque 121 · Elegir el equipo ✅
+
+**Detalle completo:** `docs/BLOQUE_121_ELEGIR_EL_EQUIPO.md`
+
+**Diez formularios** pintaban los 400 activos de 14 tipos en una lista plana
+ordenada por código: una cámara, un switch y una pantalla seguidos. El técnico
+busca `1262AT04`, ve `1262AP02` dos líneas arriba y la pulsa — y a partir de
+ahí **el historial de los dos está mal**, sin forma de saberlo mirando.
+
+**Agrupar, no filtrar**: una incidencia puede ser de cualquier equipo, y
+filtrar dejaría fuera justo el que falló. `<SelectorDeActivo>` agrupa por tipo
+con `<optgroup>`, en el orden de lo que más se toca en planta —no alfabético—,
+y enseña **dónde está** cada equipo, que es lo que distingue dos cámaras del
+mismo modelo en dos trenes.
+
+Ocho formularios corregidos y `verificar:selector-activo` (verificador 26) para
+que no vuelva.
+
+---
+
 ## Bloque 120 · Las pantallas de Producción se leen igual ✅
 
 **Detalle completo:** `docs/BLOQUE_120_LAS_PANTALLAS_DE_PRODUCCION.md`

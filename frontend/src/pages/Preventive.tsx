@@ -1,4 +1,5 @@
 import { useEffect, useState, FormEvent } from 'react';
+import SelectorDeActivo from '../components/SelectorDeActivo';
 import { api } from '../api/client';
 import RutinasEditor from '../components/RutinasEditor';
 import Modal from '../components/Modal';
@@ -225,12 +226,13 @@ export default function Preventive() {
           <form onSubmit={submit}>
             {!form.assetCode && (
               <>
-                <label>Activo
-                  <select value={form.assetId} onChange={(e) => setForm({ ...form, assetId: e.target.value })} required>
-                  <option value="">— selecciona —</option>
-                  {assets.map((a) => <option key={a.id} value={a.id}>{a.assetCode}</option>)}
-                </select>
-                </label>
+                <SelectorDeActivo
+                  etiqueta="Activo"
+                  opciones={assets}
+                  valor={form.assetId}
+                  onChange={(id) => setForm({ ...form, assetId: id })}
+                  vacio="— selecciona —"
+                />
               </>
             )}
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400, marginTop: 10 }}>

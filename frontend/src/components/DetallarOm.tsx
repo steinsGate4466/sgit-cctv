@@ -1,4 +1,5 @@
 import { useEffect, useState, FormEvent } from 'react';
+import SelectorDeActivo from './SelectorDeActivo';
 import { api } from '../api/client';
 import Modal from './Modal';
 import HistorialActivo from './HistorialActivo';
@@ -74,14 +75,13 @@ export default function DetallarOm({ wo, onHecho, onClose }: {
           {asignado && <> · sobre <b>{asignado.assetCode}</b></>}
         </div>
 
-        <label>Equipo sobre el que se va a trabajar
-          <select value={form.assetId} onChange={(e) => setForm({ ...form, assetId: e.target.value })}>
-          <option value="">— sin equipo (trabajo de zona) —</option>
-          {activos.map((a) => (
-            <option key={a.id} value={a.id}>{a.assetCode}{a.referencePlace ? ` · ${a.referencePlace}` : ''}</option>
-          ))}
-        </select>
-        </label>
+        <SelectorDeActivo
+          etiqueta="Equipo sobre el que se va a trabajar"
+          opciones={activos}
+          valor={form.assetId}
+          onChange={(id) => setForm({ ...form, assetId: id })}
+          vacio="— sin equipo (trabajo de zona) —"
+        />
 
         {cambiaAlcance && (
           <div style={{

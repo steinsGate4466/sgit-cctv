@@ -1,4 +1,5 @@
 import { useEffect, useState, FormEvent } from 'react';
+import SelectorDeActivo from '../components/SelectorDeActivo';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, AvisoAmbito } from '../components/FiltroAmbito';
@@ -585,12 +586,13 @@ export default function Maintenance() {
               </>
             ) : (
               <>
-                <label>Activo
-                  <select value={form.assetId} onChange={(e) => setForm({ ...form, assetId: e.target.value })} required>
-                  <option value="">— selecciona —</option>
-                  {assets.map((a) => <option key={a.id} value={a.id}>{a.assetCode}</option>)}
-                </select>
-                </label>
+                <SelectorDeActivo
+                  etiqueta="Activo"
+                  opciones={assets}
+                  valor={form.assetId}
+                  onChange={(id) => setForm({ ...form, assetId: id })}
+                  vacio="— selecciona —"
+                />
                 <label>O bien una zona completa (si afecta a varios equipos)
                   <select value={form.locationId} onChange={(e) => setForm({ ...form, locationId: e.target.value })}>
                   <option value="">— ninguna —</option>

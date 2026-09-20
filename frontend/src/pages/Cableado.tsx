@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, FormEvent } from 'react';
 import { api } from '../api/client';
+import SelectorDeActivo from '../components/SelectorDeActivo';
 import BotonPurgar from '../components/BotonPurgar';
 import Paginacion from '../components/Paginacion';
 import { useNavigate } from 'react-router-dom';
@@ -295,24 +296,26 @@ export default function Cableado() {
               placeholder="Si el cable está rotulado en planta" />
             </label>
 
-            <label>Desde (equipo de origen)
-              <select value={form.fromAssetId} onChange={(e) => setForm({ ...form, fromAssetId: e.target.value })}>
-              <option value="">— sin definir —</option>
-              {opciones.map((o) => <option key={o.id} value={o.id}>{o.assetCode} · {o.type}</option>)}
-            </select>
-            </label>
+            <SelectorDeActivo
+              etiqueta="Desde (equipo de origen)"
+              opciones={opciones}
+              valor={form.fromAssetId}
+              onChange={(id) => setForm({ ...form, fromAssetId: id })}
+              vacio="— sin definir —"
+            />
 
             <label>Puerto de origen
               <input type="number" min={1} value={form.fromPortNumber}
               onChange={(e) => setForm({ ...form, fromPortNumber: e.target.value })} placeholder="Ej: 8" />
             </label>
 
-            <label>Hasta (equipo de destino)
-              <select value={form.toAssetId} onChange={(e) => setForm({ ...form, toAssetId: e.target.value })}>
-              <option value="">— sin definir —</option>
-              {opciones.map((o) => <option key={o.id} value={o.id}>{o.assetCode} · {o.type}</option>)}
-            </select>
-            </label>
+            <SelectorDeActivo
+              etiqueta="Hasta (equipo de destino)"
+              opciones={opciones}
+              valor={form.toAssetId}
+              onChange={(id) => setForm({ ...form, toAssetId: id })}
+              vacio="— sin definir —"
+            />
 
             <label>Categoría
               <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>

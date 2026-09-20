@@ -1,5 +1,6 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { api } from '../api/client';
+import SelectorDeActivo from './SelectorDeActivo';
 import Modal from './Modal';
 import { WO_TYPES, WO_TYPE_ES } from '../pages/omCatalogos';
 import { useDialogos } from './Dialogos';
@@ -99,14 +100,17 @@ export default function AsignarOm({ incidente, onHecho, onClose }: {
         />
         </label>
 
-        <label>Equipo (opcional si aún no se sabe cuál)
-          <select value={form.assetId} onChange={(e) => setForm({ ...form, assetId: e.target.value })}>
-          <option value="">— lo determina el técnico —</option>
-          {activos.map((a) => (
-            <option key={a.id} value={a.id}>{a.assetCode}{a.referencePlace ? ` · ${a.referencePlace}` : ''}</option>
-          ))}
-        </select>
-        </label>
+        {/* BLOQUE 121 · agrupado por tipo. Antes eran cuatrocientos equipos de
+            catorce tipos en una lista plana ordenada por código: una cámara,
+            un switch y una pantalla seguidos. Elegir el de al lado deja la
+            orden apuntada al equipo equivocado. */}
+        <SelectorDeActivo
+          etiqueta="Equipo (opcional si aún no se sabe cuál)"
+          opciones={activos}
+          valor={form.assetId}
+          onChange={(id) => setForm({ ...form, assetId: id })}
+          vacio="— lo determina el técnico —"
+        />
 
         <label>¿A quién se lo asignas?
           <select value={form.technicianId} onChange={(e) => setForm({ ...form, technicianId: e.target.value })}>

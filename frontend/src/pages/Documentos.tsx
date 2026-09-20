@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import SelectorDeActivo from '../components/SelectorDeActivo';
 import { api } from '../api/client';
 import Modal from '../components/Modal';
 import BotonPurgar from '../components/BotonPurgar';
@@ -219,17 +220,13 @@ export default function Documentos() {
             </select>
           </label>
 
-          <label className="campo">
-            <span>Equipo (opcional si eliges ubicación)</span>
-            <select value={assetId} onChange={(e) => setAssetId(e.target.value)}>
-              <option value="">— ninguno —</option>
-              {activos.map((a: any) => (
-                <option key={a.id} value={a.id}>
-                  {a.assetCode}{a.referencePlace ? ` — ${a.referencePlace}` : ''}
-                </option>
-              ))}
-            </select>
-          </label>
+          <SelectorDeActivo
+            etiqueta="Equipo (opcional si eliges ubicación)"
+            opciones={activos}
+            valor={assetId}
+            onChange={setAssetId}
+            vacio="— ninguno —"
+          />
 
           <label className="campo">
             <span>Ubicación (opcional si eliges equipo)</span>
