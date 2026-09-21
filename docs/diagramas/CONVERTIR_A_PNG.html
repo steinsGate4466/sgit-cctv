@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>SVG → PNG · SGIT-CCTV</title>
+<style>
+  body{font-family:Segoe UI,Calibri,Arial,sans-serif;background:#F4F6F8;color:#1A1A1A;margin:0;padding:32px}
+  .caja{max-width:900px;margin:0 auto;background:#fff;border:1px solid #D6DBE0;border-radius:12px;padding:28px 32px}
+  h1{margin:0 0 4px;font-size:24px}
+  p.sub{margin:0 0 22px;color:#666;font-size:14px}
+  #zona{border:3px dashed #2E75B6;border-radius:12px;background:#F0F5FC;padding:44px 20px;text-align:center;cursor:pointer;transition:.15s}
+  #zona:hover,#zona.on{background:#E1ECFA;border-color:#1F5FA8}
+  #zona b{font-size:17px;color:#1F5FA8}
+  #zona span{display:block;margin-top:6px;color:#5A6570;font-size:13.5px}
+  .fila{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px;align-items:center}
+  button{font-family:inherit;font-size:14px;font-weight:600;padding:11px 18px;border-radius:8px;border:2px solid #2E75B6;background:#E4EAF6;color:#1F5FA8;cursor:pointer}
+  button:hover:not(:disabled){background:#D2E0F4}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  button.destacado{background:#2E75B6;color:#fff}
+  #nombre{margin-top:18px;font-size:14px;color:#1E5B1E;font-weight:600;min-height:20px}
+  #vista{margin-top:20px;border:1px solid #D6DBE0;border-radius:8px;max-width:100%;display:none}
+  .nota{margin-top:26px;padding:16px 18px;background:#F5F9F4;border-left:5px solid #3B7D3B;border-radius:6px;font-size:13.5px;line-height:1.6}
+  .nota b{color:#1E5B1E}
+  code{background:#EDF1F5;padding:2px 6px;border-radius:4px;font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="caja">
+  <h1>SVG → PNG</h1>
+  <p class="sub">Arrastra aquí <code>BPMN_AS_IS_proceso_antiguo.svg</code> o <code>BPMN_TO_BE_con_sgit_cctv.svg</code> y descárgalo en la resolución que necesites. Todo ocurre en tu navegador: no sube nada a ningún sitio.</p>
+
+  <div id="zona">
+    <b>Arrastra el archivo .svg aquí</b>
+    <span>…o pulsa para elegirlo</span>
+    <input type="file" id="fich" accept=".svg,image/svg+xml" hidden>
+  </div>
+
+  <div id="nombre"></div>
+
+  <div class="fila">
+    <button id="b1" class="destacado" disabled>Full HD · 1920 × 1080</button>
+    <button id="b2" disabled>2K · 2560 × 1440</button>
+    <button id="b3" disabled>4K · 3840 × 2160</button>
+    <button id="b4" disabled>8K · 7680 × 4320</button>
+  </div>
+
+  <img id="vista" alt="">
+
+  <div class="nota">
+    <b>Antes de convertir, léete esto:</b> PowerPoint <b>importa SVG directamente</b> desde Office 2016
+    (<i>Insertar → Imágenes → Este dispositivo</i>). Si lo insertas así, el diagrama se queda
+    <b>vectorial</b>: se ve perfecto en cualquier proyector y a cualquier zoom, sin pixelar nunca.
+    <br><br>
+    <b>Un PNG sólo hace falta</b> si vas a subirlo a Word antiguo, a un portal, o a un sitio que no
+    acepte SVG. En ese caso, con <b>4K</b> vas sobrado para proyectar.
+  </div>
+</div>
+
+<script>
+const zona = document.getElementById('zona');
+const fich = document.getElementById('fich');
+const vista = document.getElementById('vista');
+const nombreEl = document.getElementById('nombre');
+const botones = [...document.querySelectorAll('.fila button')];
+let svgTexto = null, base = 'diagrama';
+
+zona.addEventListener('click', () => fich.click());
+zona.addEventListener('dragover', e => { e.preventDefault(); zona.classList.add('on'); });
+zona.addEventListener('dragleave', () => zona.classList.remove('on'));
+zona.addEventListener('drop', e => {
+  e.preventDefault(); zona.classList.remove('on');
+  if (e.dataTransfer.files[0]) cargar(e.dataTransfer.files[0]);
+});
+fich.addEventListener('change', () => { if (fich.files[0]) cargar(fich.files[0]); });
+
+function cargar(f) {
+  base = f.name.replace(/\.svg$/i, '');
+  const lector = new FileReader();
+  lector.onload = () => {
+    svgTexto = lector.result;
+    // El SVG lleva width/height fijos; se quitan para que escale al tamaño pedido.
+    svgTexto = svgTexto.replace(/\swidth="\d+"/, '').replace(/\sheight="\d+"/, '');
+    nombreEl.textContent = '✔ Cargado: ' + f.name;
+    vista.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgTexto);
+    vista.style.display = 'block';
+    botones.forEach(b => b.disabled = false);
+  };
+  lector.readAsText(f, 'utf-8');
+}
+
+function exportar(ancho, alto) {
+  if (!svgTexto) return;
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement('canvas');
+    c.width = ancho; c.height = alto;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, ancho, alto);          // fondo blanco, no transparente
+    ctx.drawImage(img, 0, 0, ancho, alto);
+    c.toBlob(b => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(b);
+      a.download = base + '_' + ancho + 'x' + alto + '.png';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    }, 'image/png');
+  };
+  img.onerror = () => alert('No se pudo leer ese SVG. ¿Es el archivo correcto?');
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgTexto);
+}
+
+document.getElementById('b1').onclick = () => exportar(1920, 1080);
+document.getElementById('b2').onclick = () => exportar(2560, 1440);
+document.getElementById('b3').onclick = () => exportar(3840, 2160);
+document.getElementById('b4').onclick = () => exportar(7680, 4320);
+</script>
+</body>
+</html>

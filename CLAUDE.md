@@ -5470,3 +5470,320 @@ inconsistente hace dudar de los datos que enseña, por buenos que sean.
 
 Mientras no se diga lo contrario: **primero el pulido visual, después
 funcionalidad nueva.**
+
+---
+
+## §57 · EL PASEO DEL 20/09/2026 Y LA REGLA QUE SALIÓ DE ÉL
+
+El usuario recorrió el software como **administrador completo / Jefe de
+Mantenimiento** y reportó lo que vio. Instrucción expresa: **«No programes nada
+todavía. Anótalo para los bloques.»** Cumplida.
+
+Detalle completo, con sus palabras textuales:
+`docs/PASEO_20260920_HALLAZGOS.md`. Bloques **123 a 127**.
+
+### 57.1 · La regla transversal — ningún dato resaltado se queda en el aire
+
+Es lo más importante que dijo, y no es un bloque: es una condición de todo lo
+que se programe de aquí en adelante.
+
+> «No pueden ser solamente cosas así al aire. Un dato así que yo tengo que
+> buscar todo hasta abajo del software para poder verlo… no. Tiene que
+> sintetizar el problema para poder yo gestionar el problema dentro del módulo
+> donde se va a resolver.»
+>
+> «Cada cosa que esté resaltada en negrita tiene que tener o un desplegable con
+> información valiosa, o un botón que me lleve directamente —y estrictamente—
+> al proceso que se tiene que hacer. El mismo botón que abra "generar OM
+> rápido". Un mismo botón, pum, ahí, hacerlo todo de frente.»
+
+**Un número resaltado es una acusación. Si acusa, ofrece el remedio en el mismo
+sitio.** Tres niveles: desplegable (pocos elementos) · botón que lleva al módulo
+**ya filtrado** · botón que **ejecuta** la acción. El nivel 3 es el objetivo, el
+2 el mínimo. **Un número suelto deja de existir.**
+
+Regla corta: *si está en negrita, se puede tocar; si se puede tocar, lleva a
+donde se arregla; y si se sabe cómo se arregla, lo arregla.*
+
+Hace falta un **verificador** que impida pintar una cifra destacada sin destino.
+Se escribe con el primer lote y se prueba reintroduciendo el fallo.
+
+### 57.2 · Para qué son los cuatro menús principales — confirmado por él
+
+Mi bandeja · Mis cámaras · Mis activos · Mi cobertura **no son informes: son
+puertas a la gestión.** Sus palabras: *«me imagino que está así para poder ver
+qué está pasando y para que yo me redirija al problema en sí, para poder
+gestionarlo y resolverlo»*, y *«cuando yo me levanto de un nuevo día de trabajo
+y veo esto, ¿qué es lo que quiero revisar primero para saber el estatus
+actual?»*
+
+Son la portada del sistema. Si no se leen en tres segundos, da igual lo que haya
+detrás.
+
+### 57.3 · «Fuera de plazo» se retira — se pide extensión
+
+Etiquetar una orden como fuera de plazo es acusar sin escuchar, y casi siempre
+mal: la orden se retrasó porque **arrancó la parada**. Entra la **solicitud de
+extensión con motivo escrito, aprobada por el supervisor**. Es la primera pieza
+real del **doble visto bueno**: lo que el técnico declara no es final hasta que
+el supervisor lo confirma. *Nadie se salta un paso.*
+
+### 57.4 · Los activos son de Gestión de mantenimiento, no del técnico
+
+> «Ojo, los activos son para gestión de mantenimiento, no para el tema técnico.
+> El tema técnico es para campo.»
+> «Producción no puede ver el tema de estructura de activos.»
+
+Y el bug de fondo: **«declarar cómo se llega» existe en dos pantallas**. Dos
+puertas al mismo dato es la definición de dato poco fehaciente — dos personas lo
+cambian y nadie sabe cuál vale. **Una sola puerta.**
+
+### 57.5 · Corrección del usuario a los bloques 125 y 126 (misma fecha)
+
+**Los cuatro menús principales los ve TODO EL MUNDO, Producción incluida.** No
+son la bandeja del jefe. Por tanto: **nada confidencial en ellos.**
+
+**«Mis activos» es informativo, no declarativo.** Cuadro general de qué activos
+hay en mi tren y **dónde van** —gabinete, sala de equipos, a qué switch—, con
+tipo, marca, modelo y **si hay OM y si se está trabajando** (*«esa información
+es vital para Producción»*). **Sin IP, sin credenciales.**
+
+**«Declarar cómo se llega» sale de ahí y se va a Estructura de activos**, con
+los chips *exigen manlift / sin declarar*. Motivo dicho por él: **es información
+confidencial y sólo la modifica Mantenimiento, que es quien la proporciona.**
+
+**«Mis cámaras» = las fallas.** **«Mi cobertura» se renombra «Zonas críticas»**:
+qué zona vital está ciega, ordenado por criticidad, con botón de gestión rápida
+en la propia tarjeta.
+
+### 57.6 · «Mis activos» = resumen de dependencias, acotado por tren
+
+Segunda corrección, la definitiva: **no es una lista, es un árbol.** Tren →
+sitio (púlpito, gabinete) → equipo padre → lo que cuelga de él. Y lo que aporta
+es **la causa arriba**: si la antena cayó, los de abajo no están averiados,
+están **sin servicio por ella**. Una falla, no cinco — justo lo que Producción
+necesita antes de reportar cinco cámaras muertas.
+
+**Acotado por tren, sin excepción:** el jefe de línea del Tren 2 no ve el árbol
+del Tren 1 (ámbito del bloque 4C).
+
+**No se construye de cero:** «Impacto de una caída» (bloque 7) ya calcula y
+dibuja esa dependencia. Aquélla es el análisis del ingeniero; ésta es el resumen
+diario que se lee en tres segundos y desde el que se gestiona.
+
+### 57.7 · Detalle del árbol, el aviso y la bandeja
+
+**Alcance:** Jefe de Mantenimiento y **TI ven todo**; Producción sólo su tren.
+
+**El árbol tiene área dentro del tren** (eléctrica, salas, zonas): se despliega
+por nivel, arranca **cerrado**, con el recuento en la cabecera.
+
+**El aviso de avería: «masticadito, no una chanfaina».** Una línea, **dónde +
+qué**, sin jerga — *«Sala 1 — antena caída, 4 equipos sin imagen»*. El detalle
+está un clic abajo, nunca en el aviso.
+
+**Y la pantalla tiene que dejar resolver:** sin OM → **botón generar OM**; con
+OM → botón que la abre, con su avance. Ver el problema y resolverlo sin cambiar
+de pantalla. Es la regla transversal en su forma más pura.
+
+**Mi bandeja:** el concepto le vale («está bien»), falla el diseño. Es *lo mío y
+lo que espera por mí*, con **descarga de informes desde ahí** (PDF del técnico,
+hoja de ruta, informe de reemplazo) y la solicitud de extensión.
+
+---
+
+## §58 · LA CAPA DE RESUMEN — principio de arquitectura, corregido por el usuario
+
+Me lo tuvo que decir dos veces. Queda escrito para no volver a fallar.
+
+### 58.1 · Qué son los cuatro menús principales
+
+**Mi bandeja · Mis cámaras · Mis activos · Zonas críticas** son una **capa de
+resumen**. Nada más, y nada menos.
+
+> «Esos cuatro, si aparecen, es para poder hacer un **resumen masticado de todo
+> lo que está sucediendo en planta**.»
+
+### 58.2 · La regla: la capa de resumen NO tiene funcionalidad
+
+Palabras suyas, textuales:
+
+> «Mi bandeja es para lo que es: **para ver la información**. Desde ahí no se
+> descarga nada, **ni un PDF ni nada**. Es solamente **un mensajero**.»
+> «**Ahí no tiene que haber ninguna funcionalidad. Ahí tiene que mandarte a
+> donde está la funcionalidad**, porque son **procesos que tienen que hacerse de
+> acuerdo al módulo**.»
+
+**En las cuatro pantallas de resumen no se ejecuta ningún proceso.** No se
+genera una OM, no se descarga un informe, no se declara nada, no se cierra
+nada. Se **ve** y se **va**.
+
+El proceso vive en su módulo, y **sólo** en su módulo. Un proceso que se puede
+lanzar desde dos sitios es un proceso con dos verdades — el mismo error que
+«declarar cómo se llega» en dos pantallas (§57.4).
+
+### 58.3 · Cómo encaja con la regla transversal de §57.1 — me equivoqué
+
+En §57.1 escribí tres niveles y puse como objetivo el **nivel 3: «botón que
+ejecuta la acción ahí mismo»**. **Eso está mal para estas cuatro pantallas.**
+
+Lo corregido:
+
+| Nivel | Qué hace | ¿Vale en la capa de resumen? |
+|---|---|---|
+| 1 · Desplegable | Enseña el detalle sin salir | **Sí** — sigue siendo ver |
+| 2 · Botón que lleva | Abre el módulo **ya filtrado / ya cargado con el contexto** | **Sí — y es el objetivo aquí** |
+| 3 · Botón que ejecuta | Hace el proceso sin salir | **No.** Sólo dentro del propio módulo |
+
+Lo que él pidió con *«un mismo botón, pum, generar OM rápido»* **no es ejecutar
+en el resumen**: es que el botón te deje **dentro del módulo de OM con el
+formulario ya cargado** —activo, tren, avería, todo puesto— para que sólo haya
+que confirmar. Rápido **y** en su sitio. Sus dos frases son la misma:
+
+> «Un botón que me lleve directamente **y estrictamente al proceso que se tiene
+> que hacer**.»
+
+**Al proceso**, no *en lugar del* proceso.
+
+### 58.4 · Por qué importa, más allá de la pantalla
+
+La capa de resumen es la **portada** y la ven las tres áreas. Si además
+ejecutara procesos, cada área acabaría lanzando trabajo desde una vista que no
+es la suya, sin los permisos, las validaciones ni las guardas que su módulo
+sí tiene. **El resumen enseña; el módulo decide.** Eso es lo que sostiene el
+«nadie se salta un paso».
+
+### 58.5 · Consecuencia inmediata — corrijo lo que escribí ayer
+
+- **Fuera** de Mi bandeja: la descarga de informes (PDF del técnico, hoja de
+  ruta, informe de reemplazo). Cada informe se descarga **en su módulo**; la
+  bandeja sólo dice que existe y lleva allí.
+- **Fuera** de Mis activos / Zonas críticas: «generar OM» como acción. Queda
+  como **enlace al alta de OM con el contexto ya cargado**.
+- **Dentro**, en las cuatro: desplegables con información, y enlaces que dejan
+  el módulo destino **ya filtrado por el problema que se estaba mirando**.
+
+### 58.6 · Todo lo interactivo manda al módulo — y por eso hay que pulir el módulo
+
+> «Los botones, o texto, **lo que sea interactivo**, tiene que mandarte **al
+> mismo módulo**. Por eso tenemos que **pulir bien cada cosa**.»
+
+Dos cosas, y la segunda es la importante:
+
+1. **No sólo los botones.** Cualquier elemento pulsable de la capa de resumen
+   —un nombre de activo, un chip, una cifra, una fila entera— tiene **un solo
+   destino: su módulo**. Nada abre ventanas ni hace cosas por su cuenta.
+
+2. **El destino es ahora la cara del sistema.** La capa de resumen es una puerta
+   de entrada a los módulos: **la calidad del resumen la termina pagando el
+   módulo al que lleva**. Llevar rápido a una pantalla fea, lenta o sin filtrar
+   es peor que no llevar — porque ahora el resumen promete y el módulo falla.
+
+**Consecuencia para el orden de trabajo:** un enlace del resumen no se da por
+hecho hasta que **su pantalla destino está pulida y llega ya filtrada por el
+problema del que se venía**. El bloque no se cierra con el enlace puesto; se
+cierra con el destino en condiciones.
+
+---
+
+## §59 · TERCER PASEO — GESTIÓN DEL MANTENIMIENTO (20/09/2026)
+
+Detalle completo: `docs/PASEO_20260920_HALLAZGOS.md`.
+
+**Arreglado en el momento (bloque 129):** el menú lateral se apagaba al abrir
+una pestaña —estando en «Indicadores» no marcaba «Dashboard»—. `NavLink`
+compara rutas y la relación padre-pestaña sólo vivía en `pestanas.ts`. Ahora el
+menú lee esa misma tabla. **El menú es el mapa: si se apaga, el usuario no sabe
+dónde está.**
+
+**Decisiones suyas que quedan fijadas:**
+
+- **Producción crea incidencias, sólo de su tren.**
+- **El formulario de «convertir en OM» se parte en dos:** quien reporta describe
+  el síntoma; el técnico completa equipo, materiales y duración **después**.
+  *«Responsabilidad del técnico, colocarlo después.»*
+- **Ventanas de parada sobra como módulo:** las paradas las decide Producción y
+  cambian todo el tiempo; al técnico se lo dice su planner. **El dato de parada
+  se mueve DENTRO de la OM** («empezó parada / estamos empezando a tal hora»),
+  donde nace del trabajo real en vez de ser una previsión que nadie actualiza.
+- **Inventario pasa a llamarse «Repuestos»** — hoy se confunde con Estructura de
+  activos, y son dos inventarios distintos.
+- **Predictivo no va** en tipo de trabajo (se decidió y sigue apareciendo).
+  **«Mapeo de activos» hay que decidirlo:** o es un preventivo más, o es tipo
+  propio **y entonces sus OM alimentan el mapeo**.
+- **Falta un interruptor para la generación automática de preventivos** — se
+  generan según la disponibilidad del personal.
+- **Cámaras de grúa está separado a propósito** (fallan distinto), pero **sus
+  inspecciones deben generar OM**, sus equipos —cámaras, grabadores y antenas—
+  deben entrar en Criticidad, y falta **QR de cámara de grúa**.
+- **Mejoras propuestas:** formulario del técnico → lo leen las tres áreas →
+  **PDF detallado** con propuesta, imagen y razón.
+- **Todos los buscadores buscan al escribir**, sin pulsar «Buscar».
+
+**Lo que él da por bueno y no se toca:** Criticidad de activos, Hojas de ruta
+(con la condición de que salgan **idénticas al Excel**), Indicadores, y el
+apartado visual de Incidencias.
+
+**Pendiente para la exposición:** explicarle cómo funciona hoy la **generación
+automática del preventivo** (frecuencia por equipo, hoja de ruta, zona crítica).
+
+---
+
+## §60 · CUARTO PASEO — GESTIÓN TÉCNICA (21/09/2026)
+
+Detalle: `docs/PASEO_20260920_HALLAZGOS.md`. Él pidió **analizar y guardar**,
+sin programar, para reestructurar de golpe en la siguiente sesión.
+
+### 60.1 · El formulario que se adapta al subtipo — la idea que ordena todo
+
+> *«El OM lo seleccionamos Preventivo y luego que aparezca otro buscador que
+> diga qué va a hacer —mapeo, toda esa vaina— para que **el formulario cambie**
+> y se vaya **autocompletando según los criterios** de esa OM.»*
+> *«El objetivo: automatizar, reducir tiempo, reducir el estrés. Que el software
+> sea un apoyo, no al contrario. **No nos vamos a perder en el software.**»*
+
+**Predictivo y «Mapeo de activos» no son tipos de OM: son SUBTIPOS.** Tipo =
+Preventivo · Correctivo · Mejora (ISO 14224: clases del mismo evento). Subtipo =
+el trabajo concreto, y **es el subtipo el que arma el formulario**.
+
+Regla que sale de aquí: **el software rellena lo que ya sabe; el técnico sólo
+pone lo que sólo él puede saber.**
+
+### 60.2 · Los nombres se repiten y el concepto está partido
+
+Mi cobertura · Zonas vitales · Ubicaciones · Etapas del proceso son **cuatro
+entradas para hablar de dónde está y qué importa**. También chocan «Estructura
+de activos» y «Criticidad de activos». Es el trabajo de reestructuración.
+
+Aclarado con él y **pendiente de aplicar**:
+
+- **Ubicaciones** = árbol físico (Empresa→Planta→Tren→Etapa/Gabinete). Se queda.
+- **Etapas del proceso** = tramos del recorrido con **ambiente, criticidad
+  mínima y frecuencia de preventivo**. **No es una ubicación: es una regla de
+  mantenimiento.** Hay que renombrarla por lo que hace.
+- **Catálogos** (corto, falla eléctrica, conector) = síntoma/causa/acción del
+  cierre de OM. **No pinta nada en Ubicaciones** → sale de ahí, a Gestión del
+  mantenimiento, con nombre propio («Catálogo de problemas»).
+- **Calidad de datos** → se mueve a **Gestión del mantenimiento**: la propia
+  pantalla ya reparte los huecos entre campo, mantenimiento y red. *Un informe
+  va donde está quien decide con él* (§56.3).
+- **Campañas de mapeo se elimina**: *«el mapeo debe ser sólo una OM»*.
+
+### 60.3 · Otras decisiones suyas
+
+- **Etiquetas QR: segmentar la impresión** por tren o zona. *«Imagínate cuánto
+  papel… no hay que hacer una chanfaina al imprimir los QR.»*
+- **Instalaciones:** **Producción solicita**, el técnico completa **en campo,
+  desde el teléfono**. Formulario con materiales, zona, manlift, alimentación
+  220 V, caja de paso, tuberías y canalización.
+- **Accesibilidad:** la ve también **el técnico**, columnas más juntas, y la
+  pantalla debe **enseñar el orden** (activo → marcar inaccesible → solicitud →
+  visto bueno).
+- **Riesgo de activos:** no lo entiende **y sus cinco recuadros dicen «pulsa
+  para ver sólo estos» y no llevan a ninguna parte.** Regla transversal sin
+  aplicar, en la pantalla que más la necesita.
+- **Gabinetes** está vacío: faltan **dependencias**, filtro por tren y un
+  buscador que hable de tren/ubicación/referencia.
+- **Equipos retirados:** el buscador no busca.
+- **Manuales y planos** le gusta: quiere **subida de plano**, **subida de
+  manual** y **un formulario que genere el procedimiento**.

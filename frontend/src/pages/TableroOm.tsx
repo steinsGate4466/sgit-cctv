@@ -170,9 +170,16 @@ export default function TableroOm() {
       apoyo: r.porAcabar ? `${r.porAcabar} por acabar.` : undefined,
     };
   }
-  const tit = titular();
+  /* EL ORDEN DE ESTAS TRES LÍNEAS ES EL ARREGLO, no un detalle de estilo.
+     `titular()` LEE `r`. Cuando `const tit = titular()` estaba ESCRITO ANTES
+     de `const r`, la llamada entraba en la zona muerta temporal del `const` y
+     reventaba con «Cannot access 'r' before initialization».
+     En desarrollo no se veía; en el build de producción, con los nombres
+     minificados, salía como «Cannot access 'B' before initialization» y tumbaba
+     la pantalla entera. Los datos van SIEMPRE antes que quien los lee. */
   const filas: any[] = d?.data ?? [];
   const r = d?.resumen;
+  const tit = titular();
 
   return (
     <div className="page">

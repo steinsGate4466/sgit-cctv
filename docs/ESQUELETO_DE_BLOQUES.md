@@ -841,9 +841,43 @@ de `Roles` y `Rotulado`, y la fila de `Assets` pulsable con el teclado.
 
 ## Lo que queda ⏳
 
+### Regla transversal, antes que cualquier bloque
+
+**Ningún dato resaltado se queda en el aire.** Si una pantalla destaca una cifra
+—«3 activos sin ubicación»— tiene que ofrecer el remedio ahí mismo: desplegable,
+botón que lleva al módulo YA FILTRADO, o botón que ejecuta la acción (*generar
+OM rápida*). Dicha por el usuario el 20/09/2026.
+Detalle: `docs/PASEO_20260920_HALLAZGOS.md`.
+
+> Si está en negrita, se puede tocar. Si se puede tocar, lleva a donde se
+> arregla. Y si se sabe cómo se arregla, lo arregla.
+
+### Del paseo del 20/09/2026 — administrador / Jefe de Mantenimiento
+
+Detalle completo y palabras del usuario: `docs/PASEO_20260920_HALLAZGOS.md`.
+
+| Bloque | Qué es | Estado |
+|---|---|---|
+| **123** | **Mi bandeja:** se retira «fuera de plazo»; entra la **solicitud de extensión** con motivo escrito, aprobada por el supervisor. Primera piedra del doble visto bueno | Anotado |
+| **124** | **Mis cámaras:** barra de avance en vez de «0 %» suelto · botón que lleva a la OM · **deslizamiento** entre cámaras en vez de pila | Anotado |
+| **125** | **Mis activos:** «cómo se llega» en **un solo sitio** (hoy en dos) · la estructura de activos es de **Gestión de mantenimiento**, no de Producción · renombrar a «Activos por completar» | Anotado |
+| **126** | **Mi cobertura:** hoy es un cascarón vacío. Rediseño — necesita que el usuario defina qué es «cobertura» | Anotado · falta decisión |
+| **127** | **Suciedad visible en demo:** imagen rota del campo de visión · activo de prueba «waeawe» a la vista · columna ACTIVIDAD ilegible en Órdenes | Anotado |
+
+Orden propuesto: **127 → 124 → 125 → 126 → 123**. Lo decide el usuario.
+
+### De antes
+
 | Bloque | Qué es | Bloqueado por |
 |---|---|---|
-| **109-B** | Informe de estandarización de switches para Producción (qué modelos hay, cuáles conviene unificar) | — |
-| **111** | Módulo de correo (hoy cero líneas) | — |
+| **109-B** | Informe de estandarización de switches (qué modelos hay, cuáles conviene unificar) — **para Mantenimiento** | — |
+| **111** | Módulo de correo (hoy cero líneas) | **Autorización de Aceros Arequipa** |
 | **112-B** | Pulido visual de Producción y tableros por audiencia (la fecha del dato ya está, bloque 112) | — |
 | **114** | Reincidencia por agregados, para quitar del todo la consulta más cara | — |
+| **Switch capa 2/3** | Campos de capa, gestionable y VLAN en el formulario de switch y antena | Migración + `prisma generate` en su máquina |
+
+### A propuesta, no a código
+
+Zabbix y el enlace agente→incidencia · correo · mensajería interna como
+**derivaciones con estado** (nunca chat). Cada uno con qué aporta, qué exige y
+quién lo tiene que aprobar.

@@ -8,8 +8,40 @@ import RestaurarScroll from './RestaurarScroll';
 import AvisoRed from './AvisoRed';
 import FechaDelDato from './FechaDelDato';
 import Pestanas from './Pestanas';
+import { padreDe } from '../pestanas';
 import AvisoPendientes from './AvisoPendientes';
 import ErrorBoundary from './ErrorBoundary';
+
+/**
+ * EL MENÚ SE APAGABA AL ABRIR UNA PESTAÑA — bloque 129.
+ *
+ * Lo vio el usuario: estando en «Indicadores» —que es una PESTAÑA de Dashboard—
+ * el menú lateral no marcaba «Dashboard». Sólo se encendía al volver a
+ * «Análisis». Lo mismo con Preventivo, Correctivo y Mejora respecto de
+ * «Órdenes (OM)».
+ *
+ * El motivo es que `NavLink` compara rutas, y `/indicadores` no empieza por
+ * `/dashboard`: para React Router son dos pantallas sin relación. La relación
+ * existe sólo en `pestanas.ts` (bloque 118), y el menú no la estaba leyendo.
+ *
+ * No es cosmético. El menú es el mapa: si se apaga, el usuario deja de saber
+ * dónde está, y en una pantalla de pestañas eso pasa cada vez que cambia de
+ * pestaña. Aquí se enciende también cuando la pantalla actual es HIJA de este
+ * enlace, usando la MISMA tabla que dibuja las pestañas — una sola verdad, no
+ * dos listas que mantener a la par.
+ */
+function EnlaceDeMenu({ to, children }: { to: string; children: ReactNode }) {
+  const { pathname } = useLocation();
+  const porPestana = padreDe(pathname) === to;
+  return (
+    <NavLink
+      to={to}
+      className={({ isActive }) => (isActive || porPestana ? 'active' : undefined)}
+    >
+      {children}
+    </NavLink>
+  );
+}
 import { MarcaSGIT } from './Ilustraciones';
 
 const TITLES: Record<string, string> = {
@@ -249,14 +281,14 @@ export default function Layout() {
     {
       titulo: '',
       items: [
-        can('dashboard.read') && <NavLink key="bd" to="/bandeja"><Icono n="bandeja" /> Mi bandeja</NavLink>,
+        can('dashboard.read') && <EnlaceDeMenu key="bd" to="/bandeja"><Icono n="bandeja" /> Mi bandeja</EnlaceDeMenu>,
         /* «Mi tren» sólo si el usuario TIENE ámbito. A quien lo ve todo no le
            aporta nada: ya tiene Estado por Tren con los tres. */
         (user?.ambitoTrenes?.length ?? 0) > 0 && can('dashboard.read') &&
-          <NavLink key="mt" to="/mi-tren"><Icono n="mitren" /> Mi tren</NavLink>,
-        can('om.mirar') && <NavLink key="mcam" to="/mis-camaras"><Icono n="alerta" /> Mis cámaras</NavLink>,
-        can('activos.mirar') && <NavLink key="apt" to="/mis-activos"><Icono n="acceso" /> Mis activos</NavLink>,
-        can('cobertura.mirar') && <NavLink key="cob" to="/cobertura"><Icono n="camara" /> Mi cobertura</NavLink>,
+          <EnlaceDeMenu key="mt" to="/mi-tren"><Icono n="mitren" /> Mi tren</EnlaceDeMenu>,
+        can('om.mirar') && <EnlaceDeMenu key="mcam" to="/mis-camaras"><Icono n="alerta" /> Mis cámaras</EnlaceDeMenu>,
+        can('activos.mirar') && <EnlaceDeMenu key="apt" to="/mis-activos"><Icono n="acceso" /> Mis activos</EnlaceDeMenu>,
+        can('cobertura.mirar') && <EnlaceDeMenu key="cob" to="/cobertura"><Icono n="camara" /> Mi cobertura</EnlaceDeMenu>,
       ].filter(Boolean) as ReactNode[],
     },
 
@@ -272,15 +304,15 @@ export default function Layout() {
       titulo: 'Producción',
       rutas: ['/por-tren', '/tablero-om', '/vista-general', '/trains', '/dependencias', '/zonas'],
       items: [
-        can('om.mirar') && <NavLink key="pt" to="/por-tren"><Icono n="tren" /> Por tren</NavLink>,
+        can('om.mirar') && <EnlaceDeMenu key="pt" to="/por-tren"><Icono n="tren" /> Por tren</EnlaceDeMenu>,
         /* BLOQUE 113. Va justo después de «Por tren» porque es la misma
            pregunta con un día de diferencia: «qué tengo» y «cómo va lo que
            pedí». Con `om.mirar`, que es la llave de lectura de Producción. */
-        can('om.mirar') && <NavLink key="tom" to="/tablero-om"><Icono n="parada" /> Avance de órdenes</NavLink>,
-        can('om.mirar') && <NavLink key="vg" to="/vista-general"><Icono n="tablero" /> Resumen de planta</NavLink>,
-        can('dashboard.read') && <NavLink key="t" to="/trains"><Icono n="tren" /> Estado por Tren</NavLink>,
-        can('om.mirar') && <NavLink key="dep" to="/dependencias"><Icono n="mapeo" /> Impacto de una caída</NavLink>,
-        can('location.read') && <NavLink key="zn" to="/zonas"><Icono n="zonaVital" /> Zonas vitales</NavLink>,
+        can('om.mirar') && <EnlaceDeMenu key="tom" to="/tablero-om"><Icono n="parada" /> Avance de órdenes</EnlaceDeMenu>,
+        can('om.mirar') && <EnlaceDeMenu key="vg" to="/vista-general"><Icono n="tablero" /> Resumen de planta</EnlaceDeMenu>,
+        can('dashboard.read') && <EnlaceDeMenu key="t" to="/trains"><Icono n="tren" /> Estado por Tren</EnlaceDeMenu>,
+        can('om.mirar') && <EnlaceDeMenu key="dep" to="/dependencias"><Icono n="mapeo" /> Impacto de una caída</EnlaceDeMenu>,
+        can('location.read') && <EnlaceDeMenu key="zn" to="/zonas"><Icono n="zonaVital" /> Zonas vitales</EnlaceDeMenu>,
       ].filter(Boolean) as ReactNode[],
     },
 
@@ -299,7 +331,7 @@ export default function Layout() {
         '/preventive', '/corrective', '/improvements', '/gruas',
         '/mejoras-procedimiento', '/inventory', '/dashboard', '/indicadores'],
       items: [
-        can('incident.read') && <NavLink key="i" to="/incidents"><Icono n="incidencia" /> Incidencias</NavLink>,
+        can('incident.read') && <EnlaceDeMenu key="i" to="/incidents"><Icono n="incidencia" /> Incidencias</EnlaceDeMenu>,
         /* ÓRDENES Y PARADAS, TAMBIÉN PARA PRODUCCIÓN (bloque 83).
            Palabras del usuario: «ellos SÍ deben ver cierta parte de gestión
            para poder enviar las OM o incidencias».
@@ -314,11 +346,11 @@ export default function Layout() {
            Es LECTURA: los botones de escribir siguen mirando `wo.update` y
            `wo.approve`, y ninguno de los dos se ha movido. */
         (can('wo.read') || can('om.mirar'))
-          && <NavLink key="m" to="/maintenance"><Icono n="orden" /> Órdenes (OM)</NavLink>,
+          && <EnlaceDeMenu key="m" to="/maintenance"><Icono n="orden" /> Órdenes (OM)</EnlaceDeMenu>,
         // Las paradas van con las órdenes: es CUÁNDO se puede trabajar. Y las
         // apunta Producción, que es quien se entera por radio (bloque 16).
         (can('wo.read') || can('om.mirar'))
-          && <NavLink key="pa" to="/paradas"><Icono n="parada" /> Ventanas de parada</NavLink>,
+          && <EnlaceDeMenu key="pa" to="/paradas"><Icono n="parada" /> Ventanas de parada</EnlaceDeMenu>,
         /* CRITICIDAD A/B/C (bloque 76). Va ANTES de las hojas de ruta y del
            preventivo porque es lo primero de la cadena: la letra decide CADA
            CUÁNTO se toca el equipo, la hoja de ruta dice QUÉ hacer y el
@@ -329,11 +361,11 @@ export default function Layout() {
            bloque 68: cerrarlo sólo con el permiso fuerte dejaría al Jefe de
            Tren sin poder ver cada cuánto se revisa su propio equipo. */
         (can('asset.read') || can('activos.mirar'))
-          && <NavLink key="crit" to="/criticidad"><Icono n="alerta" /> Criticidad de activos</NavLink>,
+          && <EnlaceDeMenu key="crit" to="/criticidad"><Icono n="alerta" /> Criticidad de activos</EnlaceDeMenu>,
         /* HOJAS DE RUTA (bloque 75). Va justo antes del preventivo porque es
            lo que le da contenido: el preventivo dice CUÁNDO tocar el equipo y
            la hoja de ruta dice QUÉ hacer. */
-        can('wo.read') && <NavLink key="hr" to="/hojas-de-ruta"><Icono n="nota" /> Hojas de ruta</NavLink>,
+        can('wo.read') && <EnlaceDeMenu key="hr" to="/hojas-de-ruta"><Icono n="nota" /> Hojas de ruta</EnlaceDeMenu>,
         /* PREDICTIVO FUERA DEL MENÚ (bloque 80).
            Decisión del usuario, y con razón de planta: ¿qué se va a predecir
            en una cámara o en un switch? El predictivo tiene sentido donde hay
@@ -346,18 +378,18 @@ export default function Layout() {
            (está en EXENTAS del verificador del menú, con este motivo). */
         // Las grúas fallan distinto: cable fatigado, antena desalineada, y no
         // se llega sin manlift. Por eso tienen su propio mantenimiento.
-        can('wo.read') && <NavLink key="gr2" to="/gruas"><Icono n="grua" /> Cámaras de grúa</NavLink>,
+        can('wo.read') && <EnlaceDeMenu key="gr2" to="/gruas"><Icono n="grua" /> Cámaras de grúa</EnlaceDeMenu>,
         (can('procedimiento.manage') || can('wo.update'))
-          && <NavLink key="mej" to="/mejoras-procedimiento"><Icono n="nota" />
+          && <EnlaceDeMenu key="mej" to="/mejoras-procedimiento"><Icono n="nota" />
             {can('procedimiento.manage') ? ' Mejoras propuestas' : ' Mis propuestas'}
-          </NavLink>,
+          </EnlaceDeMenu>,
         /* ALMACÉN: el usuario lo pidió expresamente para Producción —«verificar
            almacén»—. Va con `inventory.read` O con `om.mirar`: quien supervisa
            las órdenes de su tren necesita saber si hay repuesto antes de pedir
            el trabajo. Es LECTURA; retirar material sigue pidiendo su permiso. */
         (can('inventory.read') || can('om.mirar'))
-          && <NavLink key="inv" to="/inventory"><Icono n="inventario" /> Inventario</NavLink>,
-        can('dashboard.read') && <NavLink key="d" to="/dashboard"><Icono n="tablero" /> Dashboard</NavLink>,
+          && <EnlaceDeMenu key="inv" to="/inventory"><Icono n="inventario" /> Inventario</EnlaceDeMenu>,
+        can('dashboard.read') && <EnlaceDeMenu key="d" to="/dashboard"><Icono n="tablero" /> Dashboard</EnlaceDeMenu>,
       ].filter(Boolean) as ReactNode[],
     },
 
@@ -381,20 +413,20 @@ export default function Layout() {
       rutas: ['/assets', '/retirados', '/locations', '/cabinets', '/instalaciones', '/campanas',
         '/mapeo', '/access', '/riesgo', '/salud-de-datos', '/documentos'],
       items: [
-        can('asset.read') && <NavLink key="a" to="/assets"><Icono n="activos" /> Estructura de activos</NavLink>,
+        can('asset.read') && <EnlaceDeMenu key="a" to="/assets"><Icono n="activos" /> Estructura de activos</EnlaceDeMenu>,
         /* BLOQUE 107. Justo debajo de la estructura de activos: es la misma
            lista un paso después. Con `activos.mirar` además de `asset.read`,
            porque el técnico y el jefe de tren también preguntan qué se cambió
            — y la respuesta no lleva ni una credencial. */
         (can('asset.read') || can('activos.mirar'))
-          && <NavLink key="ret" to="/retirados"><Icono n="activos" /> Equipos retirados</NavLink>,
-        can('asset.read') && <NavLink key="u" to="/locations"><Icono n="ubicacion" /> Ubicaciones</NavLink>,
-        can('asset.read') && <NavLink key="g" to="/cabinets"><Icono n="gabinete" /> Gabinetes</NavLink>,
+          && <EnlaceDeMenu key="ret" to="/retirados"><Icono n="activos" /> Equipos retirados</EnlaceDeMenu>,
+        can('asset.read') && <EnlaceDeMenu key="u" to="/locations"><Icono n="ubicacion" /> Ubicaciones</EnlaceDeMenu>,
+        can('asset.read') && <EnlaceDeMenu key="g" to="/cabinets"><Icono n="gabinete" /> Gabinetes</EnlaceDeMenu>,
         // Una instalación terminada CREA el activo: es la puerta de entrada.
-        can('asset.read') && <NavLink key="ins" to="/instalaciones"><Icono n="instalar" /> Instalaciones</NavLink>,
-        can('asset.read') && <NavLink key="cmp" to="/campanas"><Icono n="ok" /> Campañas de mapeo</NavLink>,
-        can('asset.read') && <NavLink key="mp" to="/mapeo"><Icono n="mapeo" /> Avance del mapeo</NavLink>,
-        can('access.read') && <NavLink key="ac" to="/access"><Icono n="acceso" /> Accesibilidad</NavLink>,
+        can('asset.read') && <EnlaceDeMenu key="ins" to="/instalaciones"><Icono n="instalar" /> Instalaciones</EnlaceDeMenu>,
+        can('asset.read') && <EnlaceDeMenu key="cmp" to="/campanas"><Icono n="ok" /> Campañas de mapeo</EnlaceDeMenu>,
+        can('asset.read') && <EnlaceDeMenu key="mp" to="/mapeo"><Icono n="mapeo" /> Avance del mapeo</EnlaceDeMenu>,
+        can('access.read') && <EnlaceDeMenu key="ac" to="/access"><Icono n="acceso" /> Accesibilidad</EnlaceDeMenu>,
         /* EQUIPOS CONOCIDOS — el menú decía `asset.read` y el endpoint exige
            `user.manage`. DIEZ roles veían la entrada y la pantalla salía
            vacía: es el mismo fallo de los bloques 68, 77 y 83, encontrado
@@ -415,9 +447,9 @@ export default function Layout() {
            Gestión del mantenimiento y no es trabajo: es el estado del PARQUE.
            ISO 55000 lo trata como gestión de activos, y es la entrada natural
            al informe de reemplazo del bloque 108. */
-        can('infra.read') && <NavLink key="rg" to="/riesgo"><Icono n="alerta" /> Riesgo de activos</NavLink>,
-        can('asset.update') && <NavLink key="sdd" to="/salud-de-datos"><Icono n="ok" /> Calidad de datos</NavLink>,
-        can('document.read') && <NavLink key="dc" to="/documentos"><Icono n="etiqueta" /> Manuales y planos</NavLink>,
+        can('infra.read') && <EnlaceDeMenu key="rg" to="/riesgo"><Icono n="alerta" /> Riesgo de activos</EnlaceDeMenu>,
+        can('asset.update') && <EnlaceDeMenu key="sdd" to="/salud-de-datos"><Icono n="ok" /> Calidad de datos</EnlaceDeMenu>,
+        can('document.read') && <EnlaceDeMenu key="dc" to="/documentos"><Icono n="etiqueta" /> Manuales y planos</EnlaceDeMenu>,
       ].filter(Boolean) as ReactNode[],
     },
 
@@ -465,19 +497,19 @@ export default function Layout() {
            o hay que comprar un switch? Con `asset.read` además de las llaves
            de red, porque quien decide con este informe es Mantenimiento. */
         (can('red.read') || can('infra.read') || can('asset.read'))
-          && <NavLink key="cap" to="/capacidad"><Icono n="ok" /> Capacidad de red</NavLink>,
-        can('red.read') && <NavLink key="cx" to="/conexiones"><Icono n="puertos" /> Conexiones</NavLink>,
-        can('red.read') && <NavLink key="mred" to="/mapa-de-red"><Icono n="gabinete" /> Mapa de red</NavLink>,
-        can('red.read') && <NavLink key="tp" to="/topologia"><Icono n="critico" /> Puntos críticos</NavLink>,
-        can('red.read') && <NavLink key="gr" to="/grabadores"><Icono n="grabador" /> Grabadores</NavLink>,
-        can('red.read') && <NavLink key="ip" to="/ipam"><Icono n="ipam" /> Direccionamiento IP</NavLink>,
+          && <EnlaceDeMenu key="cap" to="/capacidad"><Icono n="ok" /> Capacidad de red</EnlaceDeMenu>,
+        can('red.read') && <EnlaceDeMenu key="cx" to="/conexiones"><Icono n="puertos" /> Conexiones</EnlaceDeMenu>,
+        can('red.read') && <EnlaceDeMenu key="mred" to="/mapa-de-red"><Icono n="gabinete" /> Mapa de red</EnlaceDeMenu>,
+        can('red.read') && <EnlaceDeMenu key="tp" to="/topologia"><Icono n="critico" /> Puntos críticos</EnlaceDeMenu>,
+        can('red.read') && <EnlaceDeMenu key="gr" to="/grabadores"><Icono n="grabador" /> Grabadores</EnlaceDeMenu>,
+        can('red.read') && <EnlaceDeMenu key="ip" to="/ipam"><Icono n="ipam" /> Direccionamiento IP</EnlaceDeMenu>,
         /* ROTULADO — la norma de colores del cableado. Vive junto al cable que
            rige, no en la ficha del activo: es una norma, no un equipo. */
-        can('infra.read') && <NavLink key="rt" to="/rotulado"><Icono n="etiqueta" /> Rotulado</NavLink>,
-        can('infra.read') && <NavLink key="cb" to="/cableado"><Icono n="cableado" /> Cableado</NavLink>,
-        can('infra.read') && <NavLink key="el" to="/electricidad"><Icono n="electricidad" /> Electricidad</NavLink>,
+        can('infra.read') && <EnlaceDeMenu key="rt" to="/rotulado"><Icono n="etiqueta" /> Rotulado</EnlaceDeMenu>,
+        can('infra.read') && <EnlaceDeMenu key="cb" to="/cableado"><Icono n="cableado" /> Cableado</EnlaceDeMenu>,
+        can('infra.read') && <EnlaceDeMenu key="el" to="/electricidad"><Icono n="electricidad" /> Electricidad</EnlaceDeMenu>,
         // Cierra la sección: es lo que dice si la cadena de arriba está viva.
-        can('monitor.read') && <NavLink key="mo" to="/monitoreo"><Icono n="reloj" /> Monitoreo</NavLink>,
+        can('monitor.read') && <EnlaceDeMenu key="mo" to="/monitoreo"><Icono n="reloj" /> Monitoreo</EnlaceDeMenu>,
       ].filter(Boolean) as ReactNode[],
     },
 
@@ -489,32 +521,32 @@ export default function Layout() {
       rutas: ['/users', '/sesiones', '/roles', '/audit', '/equipos', '/exportar',
         '/avisos', '/limpieza', '/mi-cuenta'],
       items: [
-        can('user.manage') && <NavLink key="us" to="/users"><Icono n="usuarios" /> Usuarios</NavLink>,
+        can('user.manage') && <EnlaceDeMenu key="us" to="/users"><Icono n="usuarios" /> Usuarios</EnlaceDeMenu>,
         /* QUIÉN ESTÁ DENTRO (bloque 82). Va JUSTO detrás de Usuarios: la
            pregunta «¿quién está trabajando ahora?» se hace mirando la lista de
            gente, y desde aquí se le corta el acceso a alguien en dos pulsaciones.
 
            `user.manage` y no `user.read`: la lista dice desde qué IP y qué
            aparato entra cada persona. Eso es seguridad, no directorio. */
-        can('user.manage') && <NavLink key="se" to="/sesiones"><Icono n="candado" /> Sesiones activas</NavLink>,
-        can('role.manage') && <NavLink key="ro" to="/roles"><Icono n="candado" /> Roles y permisos</NavLink>,
+        can('user.manage') && <EnlaceDeMenu key="se" to="/sesiones"><Icono n="candado" /> Sesiones activas</EnlaceDeMenu>,
+        can('role.manage') && <EnlaceDeMenu key="ro" to="/roles"><Icono n="candado" /> Roles y permisos</EnlaceDeMenu>,
         /* EQUIPOS CONOCIDOS — desde qué PC entra cada persona. Estaba en
            Gestión técnica, pero no es un activo de planta: es control de
            acceso, y pide `user.manage`. ISO 27001, no ISO 14224. */
-        can('user.manage') && <NavLink key="eq" to="/equipos"><Icono n="pc" /> Equipos conocidos</NavLink>,
+        can('user.manage') && <EnlaceDeMenu key="eq" to="/equipos"><Icono n="pc" /> Equipos conocidos</EnlaceDeMenu>,
         /* EXPORTAR — saca activos, ubicaciones, órdenes, red y almacén. No es
            de un área: es transversal, y cada tema pide el permiso de SU
            pantalla. Estaba bajo Gestión del mantenimiento, que es sólo uno de
            los cinco temas que exporta. */
-        can('dashboard.read') && <NavLink key="xl" to="/exportar"><Icono n="exportar" /> Exportar</NavLink>,
-        can('audit.read') && <NavLink key="au" to="/audit"><Icono n="auditoria" /> Auditoría</NavLink>,
+        can('dashboard.read') && <EnlaceDeMenu key="xl" to="/exportar"><Icono n="exportar" /> Exportar</EnlaceDeMenu>,
+        can('audit.read') && <EnlaceDeMenu key="au" to="/audit"><Icono n="auditoria" /> Auditoría</EnlaceDeMenu>,
         // Avisos lo ve CUALQUIERA: todo el mundo puede vincular su Telegram.
-        <NavLink key="av" to="/avisos"><Icono n="alerta" /> Avisos</NavLink>,
+        <EnlaceDeMenu key="av" to="/avisos"><Icono n="alerta" /> Avisos</EnlaceDeMenu>,
         // Mi cuenta lo ve CUALQUIERA: son sus propias sesiones. Ahí está el
         // botón de «me robaron el teléfono», que revoca de verdad.
-        <NavLink key="mc" to="/mi-cuenta"><Icono n="usuarios" /> Mi cuenta</NavLink>,
+        <EnlaceDeMenu key="mc" to="/mi-cuenta"><Icono n="usuarios" /> Mi cuenta</EnlaceDeMenu>,
         // Borrado definitivo. Último de todo.
-        can('asset.delete') && <NavLink key="li" to="/limpieza"><Icono n="escoba" /> Limpieza de datos</NavLink>,
+        can('asset.delete') && <EnlaceDeMenu key="li" to="/limpieza"><Icono n="escoba" /> Limpieza de datos</EnlaceDeMenu>,
       ].filter(Boolean) as ReactNode[],
     },
   ];

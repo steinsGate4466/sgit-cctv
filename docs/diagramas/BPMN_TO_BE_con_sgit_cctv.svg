@@ -1,0 +1,224 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080" font-family="Segoe UI, Calibri, Arial, sans-serif">
+<defs>
+  <marker id="a" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M0,0 L10,5 L0,10 z" fill="#000000"/>
+  </marker>
+  <style>
+    .task  { fill:#E4EAF6; stroke:#2E75B6; stroke-width:2.4; }
+    .taskG { fill:#DDEFDC; stroke:#3B7D3B; stroke-width:3;   }
+    .taskS { fill:#DCE9F7; stroke:#1F5FA8; stroke-width:2.6; }
+    .taskW { fill:#FDEBD0; stroke:#B9770E; stroke-width:3.2; }
+    .gw    { fill:#FBF8C8; stroke:#A09A2E; stroke-width:2.4; }
+    .txt   { font-size:14px; fill:#1A1A1A; }
+    .txtg  { font-size:14px; fill:#1E5B1E; font-weight:600; }
+    .lbl   { font-size:12.5px; fill:#3A3A3A; }
+    .lblg  { font-size:12.5px; fill:#2E7D32; font-style:italic; }
+    .lblu  { font-size:12px;  fill:#1F5FA8; font-weight:600; }
+    .lane  { font-size:17px; fill:#2A2A2A; font-weight:700; letter-spacing:.6px; }
+    .sub   { font-size:12px; fill:#6A6A6A; }
+  </style>
+</defs>
+
+<rect width="1920" height="1080" fill="#FFFFFF"/>
+
+<!-- ===== CABECERA ===== -->
+<text x="46" y="44" font-size="26" font-weight="700" fill="#1A1A1A">Proceso CON SGIT-CCTV (TO-BE)</text>
+<text x="46" y="70" font-size="15" fill="#6A6A6A">Cada punto rojo del proceso anterior, cerrado — y el sistema OBLIGA a cerrarlo</text>
+<rect x="1512" y="24" width="362" height="50" rx="6" fill="#DDEFDC" stroke="#3B7D3B" stroke-width="2"/>
+<text x="1693" y="45" text-anchor="middle" font-size="13.5" font-weight="700" fill="#1E5B1E">🔒 lo EXIGE el sistema, no se puede saltar</text>
+<text x="1693" y="63" text-anchor="middle" font-size="13.5" font-weight="700" fill="#1F5FA8">⚙ lo hace el sistema solo</text>
+
+<!-- ===== PISCINA ===== -->
+<rect x="40" y="96" width="1840" height="890" fill="none" stroke="#8A8A8A" stroke-width="2"/>
+<rect x="40" y="96" width="52" height="890" fill="#F2F2F2" stroke="#8A8A8A" stroke-width="2"/>
+<text class="lane" transform="translate(70,541) rotate(-90)" text-anchor="middle" font-size="18">CON SGIT-CCTV</text>
+
+<rect x="92" y="96" width="92" height="890" fill="#FAFAFA" stroke="#8A8A8A" stroke-width="1.4"/>
+<line x1="184" y1="96"  x2="1880" y2="96"  stroke="#8A8A8A" stroke-width="2"/>
+<line x1="184" y1="286" x2="1880" y2="286" stroke="#8A8A8A" stroke-width="1.4"/>
+<line x1="184" y1="576" x2="1880" y2="576" stroke="#8A8A8A" stroke-width="1.4"/>
+<line x1="184" y1="806" x2="1880" y2="806" stroke="#8A8A8A" stroke-width="1.4"/>
+<line x1="92"  y1="286" x2="184"  y2="286" stroke="#8A8A8A" stroke-width="1.4"/>
+<line x1="92"  y1="576" x2="184"  y2="576" stroke="#8A8A8A" stroke-width="1.4"/>
+<line x1="92"  y1="806" x2="184"  y2="806" stroke="#8A8A8A" stroke-width="1.4"/>
+
+<text class="lane" transform="translate(138,191) rotate(-90)" text-anchor="middle">Producción</text>
+<text class="sub"  transform="translate(138,191) rotate(-90)" text-anchor="middle" dy="18">púlpito</text>
+<text class="lane" transform="translate(138,431) rotate(-90)" text-anchor="middle">Mantenimiento</text>
+<text class="lane" transform="translate(138,691) rotate(-90)" text-anchor="middle">Tercería</text>
+<text class="sub"  transform="translate(138,691) rotate(-90)" text-anchor="middle" dy="18">contratista externo</text>
+<text class="lane" transform="translate(138,896) rotate(-90)" text-anchor="middle">Jefatura</text>
+
+<!-- ============ CARRIL 1 · PRODUCCIÓN  (cy 191) ============ -->
+<circle cx="232" cy="191" r="19" fill="#FFFFFF" stroke="#5B9B47" stroke-width="2.4"/>
+<text class="lbl" x="232" y="230" text-anchor="middle">No veo la cámara</text>
+<line x1="251" y1="191" x2="288" y2="191" stroke="#000" stroke-width="1.6" marker-end="url(#a)"/>
+
+<rect class="task" x="290" y="151" width="176" height="80" rx="12"/>
+<text class="txt" x="378" y="185" text-anchor="middle">Detecta que una</text>
+<text class="txt" x="378" y="203" text-anchor="middle">cámara no da imagen</text>
+<line x1="466" y1="191" x2="506" y2="191" stroke="#000" stroke-width="1.6" marker-end="url(#a)"/>
+
+<rect class="taskG" x="508" y="143" width="222" height="96" rx="12"/>
+<text class="txtg" x="619" y="172" text-anchor="middle" font-size="14.5">UN SOLO BOTÓN:</text>
+<text class="txtg" x="619" y="191" text-anchor="middle" font-size="14.5">«Reportar cámara caída»</text>
+<text class="lblg" x="619" y="212" text-anchor="middle">queda con su nombre y la hora</text>
+<text class="lblg" x="619" y="228" text-anchor="middle">no se le pide adivinar la causa</text>
+<line x1="730" y1="191" x2="770" y2="191" stroke="#000" stroke-width="1.6" marker-end="url(#a)"/>
+
+<!-- evento de mensaje del sistema -->
+<circle cx="794" cy="191" r="21" fill="#FFFFFF" stroke="#1F5FA8" stroke-width="2.6"/>
+<circle cx="794" cy="191" r="16.5" fill="#FFFFFF" stroke="#1F5FA8" stroke-width="2"/>
+<rect x="785" y="185" width="18" height="12" fill="none" stroke="#1F5FA8" stroke-width="1.6"/>
+<path d="M785,185 L794,193 L803,185" fill="none" stroke="#1F5FA8" stroke-width="1.6"/>
+<text class="lblu" x="794" y="232" text-anchor="middle">⚙ AVISO POR TELEGRAM</text>
+<text class="lbl"  x="794" y="249" text-anchor="middle">al instante, a quien corresponde</text>
+
+<rect x="860" y="140" width="470" height="102" rx="10" fill="#F5F9F4" stroke="#3B7D3B" stroke-width="1.6"/>
+<text class="txtg" x="1095" y="166" text-anchor="middle">Producción mira un monitor y sabe UNA cosa: que no está viendo.</text>
+<text class="lbl"  x="1095" y="188" text-anchor="middle">Su formulario es un BOTÓN. Pedirle la categoría es pedirle que adivine,</text>
+<text class="lbl"  x="1095" y="207" text-anchor="middle">y una categoría adivinada ensucia para siempre la estadística</text>
+<text class="lbl"  x="1095" y="226" text-anchor="middle">de qué falla más — que es la que justifica el presupuesto.</text>
+
+<line x1="794" y1="212" x2="794" y2="268" stroke="#000" stroke-width="1.6"/>
+<path d="M794,268 L378,268 L378,326" fill="none" stroke="#000" stroke-width="1.6" marker-end="url(#a)"/>
+
+<!-- ============ CARRIL 2 · MANTENIMIENTO  (cy 431) ============ -->
+<rect class="taskG" x="290" y="391" width="188" height="80" rx="12"/>
+<text class="txtg" x="384" y="418" text-anchor="middle">Entra en MI BANDEJA</text>
+<text class="lblg" x="384" y="438" text-anchor="middle">ordenada por prioridad,</text>
+<text class="lblg" x="384" y="454" text-anchor="middle">lo suyo primero y marcado</text>
+<line x1="478" y1="431" x2="518" y2="431" stroke="#000" stroke-width="1.6" marker-end="url(#a)"/>
+
+<rect class="taskG" x="520" y="391" width="196" height="80" rx="12"/>
+<text class="txtg" x="618" y="418" text-anchor="middle">Se convierte en ORDEN</text>
+<text class="lblg" x="618" y="438" text-anchor="middle">con fecha y con solicitante</text>
+<text class="lblu" x="618" y="456" text-anchor="middle">⚙ la incidencia la sigue sola</text>
+<line x1="716" y1="431" x2="756" y2="431" stroke="#000" stroke-width="1.6" marker-end="url(#a)"/>
+
+<rect class="taskS" x="758" y="391" width="176" height="80" rx="12"/>
+<text class="txt" x="846" y="418" text-anchor="middle" font-weight="600">ESCANEA EL QR</text>
+<text class="lbl" x="846" y="438" text-anchor="middle">con su propio teléfono,</text>
+<text class="lbl" x="846" y="454" text-anchor="middle">sin instalar nada</text>
+<line x1="934" y1="431" x2="974" y2="431" stroke="#000" stroke-width="1.6" marker-end="url(#a)"/>
+
+<rect class="taskW" x="976" y="383" width="236" height="96" rx="12"/>
+<text x="1094" y="410" text-anchor="middle" font-size="14.5" font-weight="700" fill="#8A5000">⚠ ARRIBA DEL TODO:</text>
+<text x="1094" y="430" text-anchor="middle" font-size="14.5" font-weight="700" fill="#8A5000">«EXIGE PARADA DE TREN»</text>
+<text class="lbl" x="1094" y="450" text-anchor="middle">firmado, con nombre y fecha</text>
+<text class="lbl" x="1094" y="467" text-anchor="middle">sin firma → el caso más restrictivo</text>
+<line x1="1212" y1="431" x2="1252" y2="431" stroke="#000" stroke-width="1.6" marker-end="url(#a)"/>
+
+<rect class="taskG" x="1254" y="391" width="188" height="80" rx="12"/>
+<text class="txtg" x="1348" y="415" text-anchor="middle">Ve su HOJA DE RUTA</text>
+<text class="lblg" x="1348" y="435" text-anchor="middle">los pasos, el EPP y el</text>
+<text class="lblg" x="1348" y="451" text-anchor="middle">bloqueo de energía (LOTO)</text>
+<line x1="1442" y1="431" x2="1482" y2="431" stroke="#000" stroke-width="1.6" marker-end="url(#a)"/>
+
+<rect class="taskG" x="1484" y="391" width="186" height="80" rx="12"/>
+<text class="txtg" x="1577" y="415" text-anchor="middle">Anota el avance</text>
+<text class="lblg" x="1577" y="435" text-anchor="middle">desde el poste, con su</text>
+<text class="lblg" x="1577" y="451" text-anchor="middle">nombre y la hora</text>
+<line x1="1670" y1="431" x2="1706" y2="431" stroke="#000" stroke-width="1.6" marker-end="url(#a)"/>
+
+<rect class="taskG" x="1708" y="391" width="136" height="80" rx="12"/>
+<text class="txtg" x="1776" y="415" text-anchor="middle" font-size="13">🔒 EL JEFE</text>
+<text class="txtg" x="1776" y="433" text-anchor="middle" font-size="13">CIERRA Y FIRMA</text>
+<text class="lblg" x="1776" y="452" text-anchor="middle" font-size="11">sólo él puede</text>
+<line x1="1844" y1="431" x2="1848" y2="431" stroke="#000" stroke-width="1.6"/>
+<circle cx="1866" cy="431" r="16" fill="#DDEFDC" stroke="#2E7D32" stroke-width="4"/>
+
+<rect x="976" y="496" width="868" height="58" rx="10" fill="#F5F9F4" stroke="#3B7D3B" stroke-width="1.6"/>
+<text class="lbl" x="1410" y="518" text-anchor="middle" font-size="13">🔒 Un técnico NO puede cerrar una orden. Abrir una de más se anula; una orden CERRADA de más lleva firma y materiales retirados:</text>
+<text class="lbl" x="1410" y="538" text-anchor="middle" font-size="13">afirma que un trabajo se hizo. La causa sale de CATÁLOGO, no de texto libre — con texto libre no se puede contar después qué falla más.</text>
+
+<!-- ============ CARRIL 3 · TERCERÍA  (cy 691) ============ -->
+<circle cx="232" cy="691" r="19" fill="#FFFFFF" stroke="#5B9B47" stroke-width="2.4"/>
+<text class="lbl" x="232" y="730" text-anchor="middle">Instalación nueva</text>
+<line x1="251" y1="691" x2="288" y2="691" stroke="#000" stroke-width="1.6" marker-end="url(#a)"/>
+
+<rect class="taskG" x="290" y="651" width="196" height="80" rx="12"/>
+<text class="txtg" x="388" y="678" text-anchor="middle" font-size="14.5">🔒 VISITA TÉCNICA</text>
+<text class="txtg" x="388" y="697" text-anchor="middle" font-size="14.5">OBLIGATORIA</text>
+<text class="lblg" x="388" y="717" text-anchor="middle">no se aprueba nada sin medir</text>
+<line x1="486" y1="691" x2="526" y2="691" stroke="#000" stroke-width="1.6" marker-end="url(#a)"/>
+
+<rect class="taskG" x="528" y="651" width="204" height="80" rx="12"/>
+<text class="txtg" x="630" y="675" text-anchor="middle">El formulario CAMBIA</text>
+<text class="txtg" x="630" y="693" text-anchor="middle">según el sitio</text>
+<text class="lblg" x="630" y="713" text-anchor="middle">y pide lo que hay que medir ahí</text>
+<line x1="732" y1="691" x2="772" y2="691" stroke="#000" stroke-width="1.6" marker-end="url(#a)"/>
+
+<path class="gw" d="M812,653 L850,691 L812,729 L774,691 Z"/>
+<path d="M802,681 L822,701 M822,681 L802,701" stroke="#A09A2E" stroke-width="2.6" fill="none"/>
+<text class="lbl" x="812" y="640" text-anchor="middle">¿Están todas las medidas?</text>
+<path d="M812,729 L812,762 L630,762 L630,735" fill="none" stroke="#000" stroke-width="1.6" marker-end="url(#a)"/>
+<text class="lbl" x="770" y="757" text-anchor="middle" fill="#B02A37">No — 🔒 NO SE PUEDE CERRAR</text>
+<line x1="850" y1="691" x2="888" y2="691" stroke="#000" stroke-width="1.6" marker-end="url(#a)"/>
+<text class="lbl" x="869" y="682" text-anchor="middle">Sí</text>
+
+<rect class="taskG" x="890" y="643" width="248" height="96" rx="12"/>
+<text class="txtg" x="1014" y="670" text-anchor="middle" font-size="14.5">🔒 LAS CREDENCIALES</text>
+<text class="txtg" x="1014" y="689" text-anchor="middle" font-size="14.5">SE GUARDAN CIFRADAS</text>
+<text class="lblg" x="1014" y="709" text-anchor="middle">son de la PLANTA, no del contratista</text>
+<text class="lblg" x="1014" y="726" text-anchor="middle">nunca más resetear una antena</text>
+<line x1="1138" y1="691" x2="1178" y2="691" stroke="#000" stroke-width="1.6" marker-end="url(#a)"/>
+
+<rect class="taskS" x="1180" y="643" width="228" height="96" rx="12"/>
+<text class="lblu" x="1294" y="668" text-anchor="middle">⚙ AL CERRAR LA VISITA</text>
+<text class="txt"  x="1294" y="689" text-anchor="middle" font-weight="600">NACE EL ACTIVO</text>
+<text class="lbl"  x="1294" y="709" text-anchor="middle">con su QR, su ficha, su criticidad</text>
+<text class="lbl"  x="1294" y="726" text-anchor="middle">y su plan — en la MISMA transacción</text>
+<line x1="1408" y1="691" x2="1444" y2="691" stroke="#000" stroke-width="1.6" marker-end="url(#a)"/>
+
+<circle cx="1466" cy="691" r="19" fill="#DDEFDC" stroke="#2E7D32" stroke-width="4"/>
+<text class="lblg" x="1466" y="731" text-anchor="middle">con plano, medidas,</text>
+<text class="lblg" x="1466" y="747" text-anchor="middle">credenciales y acta</text>
+
+<rect x="1540" y="643" width="320" height="96" rx="10" fill="#3A3A3A"/>
+<text x="1700" y="678" text-anchor="middle" font-size="17" font-weight="700" fill="#FFFFFF">El contratista se va.</text>
+<text x="1700" y="704" text-anchor="middle" font-size="17" font-weight="700" fill="#A5D6A7">Lo que sabía, NO.</text>
+<text x="1700" y="726" text-anchor="middle" font-size="12.5" fill="#C8C8C8">Ese conocimiento se queda en la planta.</text>
+
+<!-- ============ CARRIL 4 · JEFATURA  (cy 896) ============ -->
+<rect class="taskG" x="290" y="856" width="230" height="80" rx="12"/>
+<text class="txtg" x="405" y="882" text-anchor="middle">Abre INDICADORES</text>
+<text class="lblg" x="405" y="902" text-anchor="middle">MTTR · MTBF · Backlog · SLA</text>
+<text class="lblg" x="405" y="918" text-anchor="middle">Cumplimiento · Normativa</text>
+<line x1="520" y1="896" x2="560" y2="896" stroke="#000" stroke-width="1.6" marker-end="url(#a)"/>
+
+<rect class="taskG" x="562" y="856" width="230" height="80" rx="12"/>
+<text class="txtg" x="677" y="882" text-anchor="middle">Descarga el EXCEL</text>
+<text class="lblg" x="677" y="902" text-anchor="middle">con los MISMOS números</text>
+<text class="lblg" x="677" y="918" text-anchor="middle">de la pantalla, sin recalcular</text>
+<line x1="792" y1="896" x2="832" y2="896" stroke="#000" stroke-width="1.6" marker-end="url(#a)"/>
+
+<rect class="taskG" x="834" y="848" width="292" height="96" rx="12"/>
+<text class="txtg" x="980" y="877" text-anchor="middle" font-size="15">EL PRESUPUESTO SE PIDE</text>
+<text class="txtg" x="980" y="896" text-anchor="middle" font-size="15">CON CIFRAS MEDIDAS</text>
+<text class="lblg" x="980" y="917" text-anchor="middle">«6,2 semanas de cuadrilla para 3 técnicos»</text>
+<text class="lblg" x="980" y="933" text-anchor="middle">y no «necesitamos más gente»</text>
+<line x1="1126" y1="896" x2="1166" y2="896" stroke="#000" stroke-width="1.6" marker-end="url(#a)"/>
+
+<circle cx="1188" cy="896" r="19" fill="#DDEFDC" stroke="#2E7D32" stroke-width="4"/>
+
+<rect x="1240" y="848" width="620" height="96" rx="10" fill="#1E5B1E"/>
+<text x="1550" y="878" text-anchor="middle" font-size="16.5" font-weight="700" fill="#FFFFFF">Y si mañana viene una auditoría, HAY QUÉ ENSEÑAR:</text>
+<text x="1550" y="903" text-anchor="middle" font-size="14" fill="#C8E6C9">informe PDF firmado · quién pidió, quién arrancó y quién cerró</text>
+<text x="1550" y="925" text-anchor="middle" font-size="14" fill="#C8E6C9">causa de catálogo · fotos · cada avance con su nombre y su hora</text>
+
+<!-- ===== LEYENDA ===== -->
+<rect x="40" y="1004" width="26" height="19" rx="6" fill="#E4EAF6" stroke="#2E75B6" stroke-width="2.2"/>
+<text x="76" y="1019" font-size="13" fill="#3A3A3A">Actividad</text>
+<rect x="168" y="1004" width="26" height="19" rx="6" fill="#DDEFDC" stroke="#3B7D3B" stroke-width="2.8"/>
+<text x="204" y="1019" font-size="13" fill="#3A3A3A">🔒 El sistema lo EXIGE — no se puede saltar</text>
+<rect x="530" y="1004" width="26" height="19" rx="6" fill="#DCE9F7" stroke="#1F5FA8" stroke-width="2.4"/>
+<text x="566" y="1019" font-size="13" fill="#3A3A3A">⚙ Lo hace el sistema solo</text>
+<rect x="790" y="1004" width="26" height="19" rx="6" fill="#FDEBD0" stroke="#B9770E" stroke-width="3"/>
+<text x="826" y="1019" font-size="13" fill="#3A3A3A">Aviso de seguridad — va SIEMPRE arriba del todo</text>
+<path d="M1180,1013 L1196,1002 L1212,1013 L1196,1024 Z" fill="#FBF8C8" stroke="#A09A2E" stroke-width="2.2"/>
+<text x="1222" y="1019" font-size="13" fill="#3A3A3A">Compuerta exclusiva</text>
+<circle cx="1390" cy="1013" r="11" fill="#DDEFDC" stroke="#2E7D32" stroke-width="3.4"/>
+<text x="1408" y="1019" font-size="13" fill="#3A3A3A">Fin — con registro, firma y evidencia</text>
+<text x="1874" y="1019" font-size="12.5" fill="#8A8A8A" text-anchor="end">SGIT-CCTV · BPMN del proceso CON el sistema (TO-BE)</text>
+</svg>
