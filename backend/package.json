@@ -33,6 +33,7 @@
     "prisma:seed": "prisma db seed",
     "demo:cargar": "ts-node --project prisma/tsconfig.demo.json prisma/demo.ts",
     "demo:infra": "ts-node --project prisma/tsconfig.demo.json prisma/demo-infra.ts",
+    "demo:borrar": "ts-node --project prisma/tsconfig.demo.json prisma/demo-borrar.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "jest",
     "test:watch": "jest --watch",
