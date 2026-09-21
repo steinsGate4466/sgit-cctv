@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { api } from '../api/client';
 import { EsqueletoTablero } from '../components/Esqueleto';
-import CamaraCaida from '../components/CamaraCaida';
+import CamarasEnCarrusel from '../components/CamarasEnCarrusel';
 import { Cifras, ComoSeCalcula, Titular, Tono } from '../components/Patron';
 import {
   useVolverALaPantalla, useRefrescoDePulpito, useEdadDelDato,
@@ -197,7 +197,11 @@ export default function MisCamaras() {
             </p>
           )}
 
-          {d.camaras.map((c: any) => <CamaraCaida key={c.id} c={c} />)}
+          {/* UNA A LA VEZ A PARTIR DE CUATRO — bloque 124.
+              «Hay cuatro cámaras sin imagen y deslizando, con toda la
+              información» (usuario). La tarjeta es alta a propósito; diez
+              apiladas son una columna que nadie termina de leer. */}
+          <CamarasEnCarrusel camaras={d.camaras} />
         </div>
       )}
 

@@ -54,6 +54,24 @@ const EXENTAS = {
   '/predictive': 'Bloque 80: retirado del menú. En CCTV no hay nada que predecir '
     + '—una cámara da imagen o no la da—. La ruta se queda para poder consultar '
     + 'las órdenes viejas cargadas como predictivas, que no se borran.',
+
+  /* --------------------------------------------------- BLOQUE 130 (21/09/2026)
+     Las tres salen del menú por decisión del usuario, en su paseo por el
+     software. Ninguna se borra: los enlaces que llevan a ellas siguen
+     funcionando, y por eso van aquí y no a la papelera. */
+  '/trains': 'Bloque 130: «Estado por Tren» repetía las cifras de «Resumen de '
+    + 'planta» y de «Por tren». Palabras del usuario: «¿cuál es el objetivo de '
+    + 'Estado por Tren? Ni siquiera yo sé cómo sustentarlo». La ruta sigue viva '
+    + 'porque varios enlaces llevan a ella.',
+  '/paradas': 'Bloque 130: las paradas las decide Producción y cambian solas; al '
+    + 'técnico se lo dice su planner, no el software. Un módulo que hay que '
+    + 'mantener a mano con un dato que caduca en horas invita a confiar en una '
+    + 'hora que ya cambió. El dato de parada se mueve DENTRO de la orden '
+    + '(bloque 138, pendiente). Hasta entonces la ruta se consulta.',
+  '/campanas': 'Bloque 130: «el mapeo debe ser sólo una OM» (usuario). Era un '
+    + 'segundo sistema de reparto de trabajo en paralelo al de las órdenes, y '
+    + 'con dos sistemas nadie sabe cuál manda. La ruta queda para ver las '
+    + 'campañas ya cargadas.',
 };
 
 const leer = (f) => fs.readFileSync(path.join(SRC, f), 'utf8');

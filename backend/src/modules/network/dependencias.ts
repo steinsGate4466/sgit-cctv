@@ -247,8 +247,14 @@ function fraseSiCae(
 ): string {
   if (!camaras.length) {
     if (salvadoPorAnillo) {
-      return 'Si se cae, no se deja de ver ninguna cámara: la red da la vuelta '
-        + 'por el otro lado del anillo de fibra. Para eso se puso el anillo.';
+      /* SIN LA PALABRA «ANILLO» — bloque 134.
+         Esta frase la lee Producción, y el usuario lo dijo leyendo esta misma
+         pantalla: «yo soy Producción, ¿qué coño es anillo?». El anillo de
+         fibra es topología —cosa de TI— y aquí lo que hace falta es el EFECTO:
+         que no se pierde ninguna cámara porque la red tiene otro camino.
+         Quien quiera el detalle técnico lo tiene en «Mapa de red». */
+      return 'Si se cae, no se deja de ver ninguna cámara: la red tiene otro '
+        + 'camino hasta el grabador y la imagen sigue llegando.';
     }
     return `Ahora mismo no hay ninguna cámara que dependa de este ${NOMBRE[papel]}.`;
   }
@@ -558,9 +564,14 @@ export function resumirDependencias(soportes: Soporte[]): string {
   const caidos = soportes.filter((s) => s.estado !== 'OPERATIVO' && s.camaras.length > 0);
   if (caidos.length) {
     const cams = caidos.reduce((n, s) => n + s.camaras.length, 0);
-    return `${nCosas(caidos.length, 'equipo está fallando', 'equipos están fallando')} `
-      + `y de ${caidos.length === 1 ? 'él' : 'ellos'} ${
-        nCosas(cams, 'cámara depende', 'cámaras dependen')}.`;
+    /* EL EFECTO PRIMERO, LA CAUSA DESPUÉS — bloque 134.
+       Decía: «1 equipo está fallando y de él 1 cámara depende». El usuario,
+       leyéndolo: «a veces es confuso… hay que ver otra forma de colocarlo».
+       Tenía razón: la frase obliga a sostener dos ideas y a desenredar el
+       «de él» para llegar a lo único que importa — cuántas cámaras se pierden.
+       Se dice primero lo que se pierde, que es lo que hace actuar. */
+    return `${nCosas(cams, 'cámara sin servicio', 'cámaras sin servicio')} por `
+      + `${nCosas(caidos.length, 'un equipo caído', 'equipos caídos')}.`;
   }
   const top = soportes[0];
   if (!top.camaras.length) {

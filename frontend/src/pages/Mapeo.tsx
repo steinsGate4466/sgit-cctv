@@ -70,7 +70,7 @@ export default function Mapeo() {
 
   return (
     <div>
-      <h1 className="page-title">Avance del mapeo</h1>
+      <h1 className="page-title">Estado de la información</h1>
       <p className="page-sub">
         Estado del levantamiento de activos en planta. La lista de pendientes está
         ordenada por criticidad: es el orden en que conviene mandar a los técnicos.

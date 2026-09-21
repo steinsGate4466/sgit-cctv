@@ -10,7 +10,6 @@ import {
 } from '../useVolverALaPantalla';
 import { plural } from '../formato';
 import { elegirTren, trenPedido } from '../trenes';
-import DeclararAcceso from '../components/DeclararAcceso';
 
 /**
  * QUÉ HAY EN MI TREN Y CÓMO SE LLEGA — bloque 41.
@@ -51,7 +50,6 @@ const LETRA_COLOR: Record<string, string> = { A: '#991b1b', B: '#9a3412', C: '#3
 
 export default function MisActivos() {
   const { can } = useAuth();
-  const puedeDeclarar = can('asset.update');
 
   const [trenes, setTrenes] = useState<any[]>([]);
   const [code, setCode] = useState('');
@@ -64,7 +62,6 @@ export default function MisActivos() {
      son decenas de filas: pedirlo otra vez por cada casilla sería más lento y
      encima haría bailar las cifras de arriba con cada clic. */
   const [filtro, setFiltro] = useState<'' | 'ELEVADOR' | 'SIN_DECLARAR' | 'CAIDOS'>('');
-  const [editando, setEditando] = useState<any>(null);
   /* Bloque 42. Cuándo se cargó de verdad, para poder decir la edad del dato.
      En el PC del púlpito esta pantalla lleva ocho horas abierta. */
   const [cargadoEn, setCargadoEn] = useState<number | null>(null);
@@ -131,7 +128,7 @@ export default function MisActivos() {
   if (!trenes.length) {
     return (
       <div className="page">
-        <h1 className="page-title">Mis activos y cómo se llega a ellos</h1>
+        <h1 className="page-title">Mis activos</h1>
         <div className="card vacio">
           <h3>Todavía no hay trenes en el árbol de planta</h3>
           <p>En cuanto se creen, aquí aparece todo lo que cuelga de cada uno.</p>
@@ -269,19 +266,9 @@ export default function MisActivos() {
               <p>Prueba con «Todo» para ver el tren completo.</p>
             </div>
           ) : grupos.map((g: any) => (
-            <Grupo key={g.clave} g={g}
-              puedeDeclarar={puedeDeclarar}
-              alDeclarar={setEditando} />
+            <Grupo key={g.clave} g={g} />
           ))}
         </>
-      )}
-
-      {editando && (
-        <DeclararAcceso
-          activo={editando}
-          alCerrar={() => setEditando(null)}
-          alGuardar={() => { setEditando(null); cargar(); }}
-        />
       )}
 
       <ComoSeCalcula>
@@ -337,8 +324,8 @@ const ICONO_MONTAJE: Record<string, string> = {
  * los grupos cerrados, lo que tiene equipos caídos o exige manlift se ve en la
  * primera pantalla.
  */
-function Grupo({ g, puedeDeclarar, alDeclarar }: {
-  g: any; puedeDeclarar: boolean; alDeclarar: (a: any) => void;
+function Grupo({ g }: {
+  g: any;
 }) {
   const abrir = g.caidos > 0 || g.exigenElevador > 0;
 
@@ -362,7 +349,7 @@ function Grupo({ g, puedeDeclarar, alDeclarar }: {
 
       <div className="activos-lista">
         {g.activos.map((a: any) => (
-          <Fila key={a.id} a={a} puedeDeclarar={puedeDeclarar} alDeclarar={alDeclarar} />
+          <Fila key={a.id} a={a} />
         ))}
       </div>
     </Detalle>
@@ -390,8 +377,8 @@ const ETIQUETA_ACCESO: Record<string, string> = {
  * una tabla de siete columnas no se lee, y esta pantalla se abre tanto en el PC
  * del púlpito como de pie delante del gabinete.
  */
-function Fila({ a, puedeDeclarar, alDeclarar }: {
-  a: any; puedeDeclarar: boolean; alDeclarar: (x: any) => void;
+function Fila({ a }: {
+  a: any;
 }) {
   const acc = a.acceso;
   return (
@@ -448,19 +435,43 @@ function Fila({ a, puedeDeclarar, alDeclarar }: {
       )}
 
       <div className="activo-pie">
+        {/* LA ORDEN, Y SI SE ESTÁ TRABAJANDO — bloque 131.
+            El usuario: «acá debería salir si la OM ya se está trabajando o no
+            se está trabajando. Esa información es vital para Producción»,
+            porque el púlpito no sabe que hay una orden abierta.
+
+            Y el código de la orden deja de ser un texto muerto: lleva a ella,
+            ya filtrada. Ver el problema y poder seguirlo sin buscar. */}
         {a.pendiente && (
-          <span className="activo-om">
-            <Icono n="llaveInglesa" size={13} />{' '}
-            {a.pendiente.om
-              ? `${a.pendiente.om} · ${etiquetaOm(a.pendiente.estado)}`
-              : 'Incidencia abierta'}
-          </span>
+          a.pendiente.om
+            ? (
+              <a className="activo-om" href={`/maintenance?om=${encodeURIComponent(a.pendiente.om)}`}
+                title="Abrir esta orden">
+                <Icono n="llaveInglesa" size={13} />{' '}
+                {a.pendiente.om} · {etiquetaOm(a.pendiente.estado)}
+              </a>
+            )
+            : (
+              <span className="activo-om">
+                <Icono n="llaveInglesa" size={13} /> Incidencia abierta, sin orden
+              </span>
+            )
         )}
-        {puedeDeclarar && (
-          <button type="button" className="btn-mini" onClick={() => alDeclarar(a)}>
-            {acc.declarado ? 'Corregir acceso' : 'Declarar cómo se llega'}
-          </button>
-        )}
+        {/* «DECLARAR CÓMO SE LLEGA» YA NO VIVE AQUÍ — bloque 131.
+            Palabras del usuario, 20/09/2026:
+
+            > «¿Por qué eso le aparece a Producción? Esto no está bien… Declarar
+            >  cómo se llega debe estar en Estructura de activos. Ahí tiene que
+            >  estar eso, no acá, porque esta es una información confidencial:
+            >  eso solamente lo puede modificar el área de mantenimiento, porque
+            >  mantenimiento es quien proporciona esa información.»
+
+            Y había un segundo motivo, más grave que el permiso: el mismo dato
+            se podía cambiar desde DOS pantallas. Dos puertas al mismo dato es
+            la definición de dato poco fehaciente — dos personas lo tocan y
+            nadie sabe cuál vale. Ahora la puerta es una: «Activos de planta».
+
+            Esta pantalla ENSEÑA lo declarado; no lo declara (§58). */}
       </div>
     </div>
   );

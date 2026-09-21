@@ -169,7 +169,11 @@ function Soporte({ s }: { s: any }) {
             </span>
           )
           : s.salvadoPorAnillo
-            ? <span className="badge OPERATIVO">protegido por el anillo</span>
+            /* «PROTEGIDO POR EL ANILLO» NO SE LE DICE A PRODUCCIÓN — bloque 134.
+               El usuario, leyendo esta misma pantalla: «yo soy Producción,
+               ¿qué coño es anillo?». El anillo de fibra es topología; lo que
+               él necesita saber es el EFECTO. Se dice el efecto. */
+            ? <span className="badge OPERATIVO">se ve igual si se cae</span>
             : <span className="badge sindatos">sin cámaras enlazadas</span>}
       </span>
     </>

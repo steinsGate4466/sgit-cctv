@@ -132,7 +132,7 @@ export default function Zonas() {
 
   return (
     <div className="page">
-      <h1 className="page-title">Zonas vitales para la producción</h1>
+      <h1 className="page-title">Declarar zonas vitales</h1>
 
       <Titular tono={tit.tono} texto={tit.texto} apoyo={tit.apoyo} />
 

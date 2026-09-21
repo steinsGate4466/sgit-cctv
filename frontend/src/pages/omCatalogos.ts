@@ -15,6 +15,24 @@ export const WO_TYPE_ES: Record<string, string> = {
 };
 
 /** Por dónde llegó el pedido de Producción. */
+/**
+ * EL ESTADO SE ESCRIBE EN CASTELLANO — bloque 133.
+ *
+ * La tabla pintaba el valor crudo de la base: `EN_PROCESO`. Lo vio el usuario:
+ * «¿por qué hay una barra abajo en proceso? Tiene que ser solamente "en
+ * proceso"». Y no era sólo feo: el guion bajo no rompe línea como un espacio,
+ * así que la celda se ensanchaba o el navegador partía la palabra.
+ *
+ * Un nombre interno de la base de datos no es un texto para una persona.
+ */
+export const WO_STATUS_ES: Record<string, string> = {
+  ABIERTA: 'Abierta',
+  EN_PROCESO: 'En proceso',
+  EN_ESPERA: 'En espera',
+  CERRADA: 'Cerrada',
+  CANCELADA: 'Cancelada',
+};
+
 export const CANAL_ES: Record<string, string> = {
   SAP: 'SAP',
   WHATSAPP: 'WhatsApp',

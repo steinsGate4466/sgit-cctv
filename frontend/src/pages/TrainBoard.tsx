@@ -192,8 +192,25 @@ export default function TrainBoard() {
      no todo indicador es una tarea. «Gabinetes: 12» no hay que hacer nada con
      ello; «3 gabinetes sin foto», sí. */
   const pendientes: Accion[] = [];
+  /* EL CLIC QUE PARECÍA NO HACER NADA — bloque 132.
+
+     Estas filas ya cambiaban la pestaña de abajo. El problema es que la
+     pestaña está fuera de la pantalla: el usuario pulsaba «1 cámara sin
+     imagen», no veía moverse nada y concluía —con toda la razón— que «los
+     desplegables ni siquiera funcionan».
+
+     Un cambio que ocurre donde no se está mirando es, para quien lo pulsa,
+     un botón roto. Ahora la vista acompaña al clic. */
+  const irA = (vista: Vista) => {
+    setVista(vista);
+    setTimeout(() => {
+      document.getElementById('detalle-del-tren')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 0);
+  };
+
   const suma = (cond: any, marca: string, tono: Tono, texto: string, vista: Vista) => {
-    if (cond) pendientes.push({ id: vista + texto, marca, tono, texto, alPulsar: () => setVista(vista) });
+    if (cond) pendientes.push({ id: vista + texto, marca, tono, texto, alPulsar: () => irA(vista) });
   };
   if (r) {
     suma(r.camarasCaidas, String(r.camarasCaidas), 'grave',
@@ -326,51 +343,53 @@ export default function TrainBoard() {
               Los ocho indicadores se quedan: cada uno abre su lista y eso es
               lo que hace que la pantalla sirva para trabajar. Lo que cambia es
               que ya no son lo PRIMERO que se ve. */}
-          <div className="bloque-titulo">Explorar el tren</div>
+          {/* El ancla del bloque 132: aquí es donde aterriza el clic de
+              arriba, para que se vea que ha pasado algo. */}
+          <div className="bloque-titulo" id="detalle-del-tren">Explorar el tren</div>
           <div className="kpi-grid">
             <Kpi label="Cámaras funcionando" value={`${r.camaras - r.camarasCaidas}/${r.camaras}`}
                  cls={r.camarasCaidas ? 'warn' : 'ok'}
                  hint={r.camarasCaidas ? `${r.camarasCaidas} sin imagen o con falla` : 'Todas operativas'}
-                 onClick={() => setVista('atencion')} />
+                 onClick={() => irA('atencion')} />
 
             <Kpi label="Avance del mapeo" value={`${r.avanceMapeoPct}%`}
                  cls={r.avanceMapeoPct >= 90 ? 'ok' : r.avanceMapeoPct >= 40 ? 'warn' : 'crit'}
                  hint={`${r.fichasCompletas} de ${r.total} fichas completas`}
-                 onClick={() => setVista('etapas')} />
+                 onClick={() => irA('etapas')} />
 
             <Kpi label={`Tramos sobre ${d.limiteTramoM} m`} value={cab?.fueraNorma ?? 0}
                  cls={cab?.fueraNorma ? 'crit' : 'ok'}
                  hint={cab?.fueraNorma
                    ? `${cab.fueraNormaMedidos} medidos de verdad`
                    : `${cab?.tramos ?? 0} tramos, ${cab?.metros ?? 0} m`}
-                 onClick={() => setVista('cableado')} />
+                 onClick={() => irA('cableado')} />
 
             <Kpi label="Canales libres" value={can?.canalesLibres ?? 0}
                  cls={can?.sobreasignados ? 'crit' : 'ok'}
                  hint={can?.sinCapacidadDeclarada
                    ? `${can.sinCapacidadDeclarada} grabador(es) sin capacidad declarada`
                    : `${can?.canalesOcupados ?? 0} ocupados de ${can?.canalesTotales ?? 0}`}
-                 onClick={() => setVista('grabadores')} />
+                 onClick={() => irA('grabadores')} />
 
             <Kpi label="Gabinetes" value={r.gabinetes?.total ?? 0}
                  cls={r.gabinetes?.sinFoto ? 'warn' : 'ok'}
                  hint={r.gabinetes?.sinFoto ? `${r.gabinetes.sinFoto} sin foto` : 'Todos con foto'}
-                 onClick={() => setVista('gabinetes')} />
+                 onClick={() => irA('gabinetes')} />
 
             <Kpi label="Trabajos pendientes" value={r.omAbiertas}
                  cls={r.omVencidas ? 'crit' : r.omAbiertas ? 'warn' : 'ok'}
                  hint={r.omVencidas ? `${r.omVencidas} fuera de plazo` : 'Dentro de plazo'}
-                 onClick={() => setVista('trabajos')} />
+                 onClick={() => irA('trabajos')} />
 
             <Kpi label="Incidencias abiertas" value={r.incidenciasAbiertas}
                  cls={r.incidenciasCriticas ? 'crit' : r.incidenciasAbiertas ? 'warn' : 'ok'}
                  hint={r.incidenciasCriticas ? `${r.incidenciasCriticas} de prioridad alta` : 'Sin urgencias'}
-                 onClick={() => setVista('incidencias')} />
+                 onClick={() => irA('incidencias')} />
 
             <Kpi label="Accesos por aprobar" value={r.accesosPendientes}
                  cls={r.accesosPendientes ? 'warn' : 'ok'}
                  hint={r.accesosPendientes ? 'Sin esto no se sube al tren' : 'Nada pendiente'}
-                 onClick={() => setVista('accesos')} />
+                 onClick={() => irA('accesos')} />
           </div>
 
           {/* --------------------------------------------------- barra de estado */}

@@ -2917,8 +2917,18 @@ a.ta-fila:focus-visible { outline: 2px solid #1f4e79; outline-offset: 2px; }
   display: flex; justify-content: space-between; align-items: baseline;
   margin-bottom: 7px; font-size: 13px;
 }
-.barra { height: 8px; background: #eef2f7; border-radius: 4px; overflow: hidden; }
-.barra-relleno { height: 8px; background: #1d9e75; transition: width .3s ease; }
+.barra { height: 8px; background: var(--ok-fondo); border-radius: 4px; overflow: hidden; }
+.barra-relleno { height: 8px; background: var(--ok); transition: width .3s ease; }
+
+/* EL AVANCE SE VE DESDE LA PUERTA — bloque 124.
+   «En avance debe salir el porcentaje… tiene que ser más resaltante, debe
+   salir como una especie de barrita» (usuario). La barra fina servía para
+   acompañar un número; aquí el número ES la noticia. */
+.barra-grande { height: 16px; border-radius: 8px; }
+.barra-grande .barra-relleno { height: 16px; }
+.cam-avance-cifra { display: flex; align-items: baseline; gap: 3px; margin: 6px 0 8px; }
+.cam-avance-cifra b { font-size: 34px; line-height: 1; font-weight: 700; }
+.cam-avance-cifra span { font-size: 16px; color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { .barra-relleno { transition: none; } }
 .cam-nota { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; line-height: 1.5; }
 
@@ -4264,3 +4274,83 @@ input::-webkit-datetime-edit { padding: 0; }
   border-top: 1px solid var(--border);
 }
 .mc-nota { font-size: 12px; color: var(--muted); line-height: 1.4; }
+
+/* ===========================================================================
+   MENÚ DE ACCIONES DE UNA FILA — bloque 133.
+
+   Siete botones en una fila no son siete opciones: son una pared. El usuario,
+   mirando la tabla de órdenes: «los botones, esto está feo. Tiene que haber
+   algo más bonito… imagínate cómo sale en una laptop».
+
+   Delante se quedan las dos acciones del día a día; el resto vive aquí. Se usa
+   <details>, que abre y cierra SIN JavaScript y funciona con el teclado sin
+   que haya que escribir nada — un menú hecho a mano se rompe en cuanto alguien
+   navega con tabulador, y aquí eso importa: media aplicación se usa con
+   guantes o con el teclado.
+   =========================================================================== */
+.acciones-fila { display: inline-block; position: relative; }
+.acciones-fila > summary { list-style: none; user-select: none; }
+.acciones-fila > summary::-webkit-details-marker { display: none; }
+.acciones-fila[open] > summary { border-color: var(--acento); color: var(--acento); }
+
+.acciones-fila-menu {
+  position: absolute;
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 150px;
+  padding: 8px;
+  background: var(--panel);
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .12);
+}
+.acciones-fila-menu .btn-mini { width: 100%; text-align: left; }
+
+/* En el móvil no flota: se despliega debajo. Un menú flotante en una pantalla
+   de 320 px se sale por el borde, y el técnico no puede alcanzarlo. */
+@media (max-width: 640px) {
+  .acciones-fila-menu { position: static; box-shadow: none; min-width: 0; }
+}
+
+/* ===========================================================================
+   CARRUSEL DE CÁMARAS CAÍDAS — bloque 124.
+   «Debe haber un botón de traslado, un botón de deslizamiento: cámara dos,
+   cámara tres… hay cuatro cámaras sin imagen y deslizando, con toda la
+   información» (usuario).
+   =========================================================================== */
+/* El contenedor escucha las flechas del teclado, así que necesita existir
+   como clase aunque no pinte casi nada. */
+.carrusel { outline: none; }
+
+.carrusel-barra {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.carrusel-cuenta { font-size: 13px; }
+.carrusel-cuenta b { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.carrusel-todas { margin-left: auto; }
+
+.carrusel-puntos { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+.carrusel-punto {
+  width: 9px; height: 9px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--card);
+  cursor: pointer;
+}
+.carrusel-punto.act { background: var(--steel); border-color: var(--steel); }
+/* El punto es diminuto: sin un foco visible no hay forma de saber dónde se
+   está al navegar con el teclado. */
+.carrusel-punto:focus-visible { outline: 2px solid var(--steel); outline-offset: 2px; }
+
+/* Los pasos de un estado vacío: qué falta para que esta pantalla sirva.
+   Numerados a propósito — es un orden, no una lista de opciones. */
+.vacio-pasos { margin: 12px 0 10px; padding-left: 20px; text-align: left; }
+.vacio-pasos li { margin-bottom: 8px; line-height: 1.5; }

@@ -5787,3 +5787,131 @@ Aclarado con él y **pendiente de aplicar**:
 - **Equipos retirados:** el buscador no busca.
 - **Manuales y planos** le gusta: quiere **subida de plano**, **subida de
   manual** y **un formulario que genere el procedimiento**.
+
+---
+
+## §61 · BLOQUES 130 · 132 · 133 · 134 — LA REESTRUCTURACIÓN (21/09/2026)
+
+Hechos y verdes. Detalle en `docs/PLAN_NOCHE_21092026.md`.
+
+### 130 · Un nombre, un sitio
+
+**Renombrado:** Estructura de activos → **Activos de planta** · Inventario →
+**Repuestos** · Avance del mapeo → **Estado de la información** · Mi cobertura →
+**Zonas críticas** · Zonas vitales → **Declarar zonas vitales** · Riesgo de
+activos → **Repuestos y obsolescencia** · Accesibilidad → **Accesibilidad y
+altura** · Etapas del proceso → **Etapas y frecuencia**.
+
+**Movido:** **Catálogo de fallas** sale de Ubicaciones y pasa a Gestión del
+mantenimiento, en pantalla propia (`/catalogos`). **Calidad de datos** baja de
+Gestión técnica a Gestión del mantenimiento.
+
+**Fuera del menú, con su motivo escrito en EXENTAS:** `/trains`, `/paradas`,
+`/campanas`. **Ninguna ruta se borró:** los enlaces que llevan a ellas siguen
+funcionando. El menú pasa de 50 entradas a 48 y ya no repite concepto.
+
+### 132 · El clic que parecía no hacer nada
+
+En «Estado por Tren» las filas y los ocho indicadores **ya** cambiaban la
+pestaña de abajo — pero la pestaña queda fuera de la pantalla, así que el
+usuario pulsaba y no veía moverse nada: *«los desplegables ni siquiera
+funcionan»*. **Un cambio que ocurre donde no se está mirando es un botón roto.**
+Ahora la vista acompaña al clic.
+
+*Nota: en «Repuestos y obsolescencia» los cinco recuadros SÍ filtraban ya. Lo
+que él vio fue que estaban todos a cero, así que filtrar no cambiaba nada.*
+
+### 133 · Que las tablas se lean
+
+- **El estado deja de ser el valor crudo de la base:** `EN_PROCESO` → **«En
+  proceso»** (`WO_STATUS_ES`). *«¿Por qué hay una barra abajo en proceso?»*
+- **La actividad se resume** en la tabla —primera frase— y se despliega entera
+  al pulsar. La hoja de ruta de catorce pasos dejaba la tabla ilegible.
+- **Los siete botones por fila pasan a dos + un menú `⋯`** (`.acciones-fila`,
+  con `<details>`: abre con teclado sin JavaScript, y en móvil no flota).
+- **Repuestos busca al escribir**, con el gancho `useBusquedaEnVivo` **que ya
+  existía** — Incidencias y Órdenes ya lo tenían. *Casi escribo un segundo
+  gancho igual: dos temporizadores distintos harían que dos buscadores del
+  mismo sistema se sintieran distintos.*
+
+### 134 · Que no se vea suciedad, y que se entienda
+
+- **La foto que no carga** ya no deja el recuadro roto del navegador: cae al
+  aviso, y distingue **«no hay foto»** (trabajo de campo) de **«la foto ya no
+  está en el almacén»** (archivo perdido). Son dos tareas distintas.
+- **Fuera la jerga de red.** «protegido por el anillo» → **«se ve igual si se
+  cae»**, y la frase larga ahora dice el efecto: *«la red tiene otro camino
+  hasta el grabador y la imagen sigue llegando»*. Palabras suyas: *«yo soy
+  Producción, ¿qué coño es anillo?»*
+- **El titular dice primero lo que se pierde:** era *«1 equipo está fallando y
+  de él 1 cámara depende»* —*«a veces es confuso»*—, ahora es **«1 cámara sin
+  servicio por un equipo caído»**. Dos pruebas actualizadas: comprueban lo que
+  el usuario tiene que entender, no la palabra que usa TI.
+
+### Lo que NO entra aquí y por qué
+
+El **activo de prueba «waeaweaw»** sigue a la vista. No se borra nada en este
+proyecto, y marcarlo como dato de prueba exige un campo nuevo —migración— la
+víspera de una presentación. **Lo retira él desde la propia pantalla** en dos
+minutos, que es lo correcto: es su dato y su criterio.
+
+---
+
+## §62 · BLOQUES 124 · 126 · 131 — LAS PANTALLAS QUE SE ENSEÑAN (21/09/2026)
+
+### 124 · Mis cámaras
+
+- **El avance, grande.** *«En avance debe salir el porcentaje… tiene que ser
+  más resaltante, debe salir como una especie de barrita.»* Estaba, pero en
+  cuerpo pequeño con una barra de ocho píxeles. Ahora la cifra es la noticia.
+  **Un «0 %» pequeño se lee como «no hay dato»; una barra vacía y grande se lee
+  como «no ha empezado»**, que es la verdad y es lo que hace preguntar.
+- **Botón «Ver la orden».** *«Debería haber un botón que te envíe a dónde va.»*
+  El dato estaba y el camino no. Lleva a Órdenes **ya filtrado por ese código**
+  (`/maintenance?om=…`): aquí se mira, allí se trabaja (§58).
+- **Deslizamiento a partir de cuatro cámaras** (`CamarasEnCarrusel`). En una
+  pantalla de planta **manda un objeto a la vez**: lo que se amontona no se lee,
+  se ojea, y lo que se ojea se equivoca. Con menos de cuatro NO se activa
+  —obligar a pasar de una en una perdería la comparación de un vistazo— y hay
+  botón «Ver todas». Arriba, «3 de 10»: **es la diferencia entre resumir y
+  esconder.** No gira solo: un temporizador cambiaría la tarjeta mientras
+  alguien apunta un código.
+
+### 126 · Zonas críticas — el cascarón
+
+*«Esto es penoso porque muestra como si fuese una entidad vacía.»* El motivo no
+era el diseño: **sin cámaras cargadas la pantalla se quedaba en el título y una
+frase**, y eso se lee como «software vacío» en medio de una demostración.
+
+Ahora, cuando no hay datos, dice las tres cosas que hay que decir: **qué
+contestaría** si las tuviera, **por qué no las tiene** y **cuál es el siguiente
+paso, con el enlace puesto** — no con el nombre de la pantalla escrito para que
+el usuario la busque en el menú.
+
+### 131 · Mis activos — informa, no declara
+
+- **La orden lleva a la orden**, y dice si se está trabajando. *«Acá debería
+  salir si la OM ya se está trabajando o no. Esa información es vital para
+  Producción»* — el púlpito no sabe que hay una orden abierta.
+- **«Declarar cómo se llega» se mudó a «Activos de planta».** Motivo suyo: *«es
+  información confidencial; sólo lo puede modificar el área de mantenimiento,
+  porque mantenimiento es quien proporciona esa información»*. Y un segundo
+  motivo, más grave que el permiso: **el mismo dato se cambiaba desde dos
+  pantallas**, que es la definición de dato poco fehaciente.
+- **Se movió ANTES de quitarlo.** Un botón que desaparece sin destino no es una
+  mudanza: es una función perdida. El componente es el mismo —no una copia— y
+  la traducción de nombres de campo se hace en el borde, no dentro.
+- La línea base de densidad de `Assets.tsx` sube de 243 a 244 palabras, con su
+  motivo escrito: **la pantalla ganó una función, no un párrafo.**
+
+### Y en Gabinetes
+
+La cuenta de equipos **lleva a la ficha del gabinete** —la misma que se abre con
+su QR delante del armario—, que ya lista lo que tiene dentro. *«Debe salir una
+opción de ver dependencias… esto está muy vacío.»* No se construyó pantalla
+nueva: se enlazó la que existe.
+
+### Comprobado y NO tocado
+
+**Equipos retirados ya filtraba al escribir** (en el navegador, sin botón). Lo
+que él vio —«no hay un botón que dice buscar»— era correcto: no hace falta.

@@ -108,7 +108,7 @@ export default function Riesgo() {
 
   return (
     <div className="page">
-      <h1 className="page-title">Dónde no vamos a poder arreglar</h1>
+      <h1 className="page-title">Repuestos y obsolescencia</h1>
 
       <div className="card explica">
         <b>Esta pantalla no dice qué está roto: dice qué no se va a poder arreglar.</b>

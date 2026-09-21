@@ -1,7 +1,6 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { api } from '../api/client';
 import BotonPurgar from '../components/BotonPurgar';
-import CatalogosEditables from '../components/CatalogosEditables';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
 import { useDialogos } from '../components/Dialogos';
@@ -18,7 +17,10 @@ const CRIT_ES: Record<string, string> = {
 export default function Locations() {
   const { confirmar, avisar } = useDialogos();
   const { can } = useAuth();
-  const [tab, setTab] = useState<'ubic' | 'etapas' | 'catalogos'>('ubic');
+  /* Sin «catalogos»: los catálogos de falla se fueron a su propia pantalla en
+     Gestión del mantenimiento (bloque 130). Una ubicación es un sitio; un
+     catálogo de fallas es el vocabulario del cierre de una orden. */
+  const [tab, setTab] = useState<'ubic' | 'etapas'>('ubic');
 
   // ---- Ubicaciones ----
   const [rows, setRows] = useState<any[]>([]);
@@ -167,15 +169,8 @@ export default function Locations() {
 
       <div className="tabs" style={{ margin: '14px 0' }}>
         <button className={tab === 'ubic' ? 'tab active' : 'tab'} onClick={() => setTab('ubic')}>Ubicaciones</button>
-        <button className={tab === 'etapas' ? 'tab active' : 'tab'} onClick={() => setTab('etapas')}>Etapas del proceso</button>
-        {/* Los catálogos viven aquí, junto a las etapas: son la misma clase de
-            decisión —cómo se llaman las cosas en esta planta— y la toma la
-            misma gente. */}
-        <button className={tab === 'catalogos' ? 'tab active' : 'tab'} onClick={() => setTab('catalogos')}>Catálogos</button>
+        <button className={tab === 'etapas' ? 'tab active' : 'tab'} onClick={() => setTab('etapas')}>Etapas y frecuencia</button>
       </div>
-
-      {/* --------------------------------------------------------- CATÁLOGOS */}
-      {tab === 'catalogos' && <CatalogosEditables />}
 
       {/* ------------------------------------------------------- UBICACIONES */}
       {tab === 'ubic' && (

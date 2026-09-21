@@ -107,7 +107,7 @@ export default function Cobertura() {
 
   return (
     <div className="page">
-      <h1 className="page-title">Mi cobertura</h1>
+      <h1 className="page-title">Zonas críticas</h1>
 
       {/* ---------- 1. LA RESPUESTA ---------- */}
       <Titular
@@ -119,6 +119,44 @@ export default function Cobertura() {
             : undefined
         }
       />
+
+      {/* ---------- 1-B. CUANDO NO HAY NADA QUE ENSEÑAR ----------
+          «Mi cobertura, esto es penoso porque esto muestra como si fuese una
+          entidad vacía. Esto no debería estar así» (usuario, 20/09/2026).
+
+          Tenía razón, y el motivo no era el diseño: sin cámaras cargadas esta
+          pantalla se quedaba en el título y una frase, y eso se lee como
+          «software vacío», no como «todavía no hay datos». La diferencia
+          importa mucho cuando lo que se está haciendo es una demostración.
+
+          Una pantalla sin datos tiene que decir tres cosas: qué contestaría si
+          las tuviera, por qué no las tiene, y cuál es el siguiente paso —con
+          el enlace puesto, no con el nombre de la pantalla escrito. */}
+      {d.camaras === 0 && (
+        <div className="card vacio">
+          <h3>Todavía no hay cámaras en tu ámbito</h3>
+          <p>
+            Esta pantalla contesta una sola pregunta: <b>qué zona vital se ha
+            quedado a ciegas ahora mismo</b>. Para poder contestarla necesita
+            dos cosas cargadas.
+          </p>
+          <ol className="vacio-pasos">
+            <li>
+              <b>Las cámaras, colgando de su zona.</b> Se dan de alta en{' '}
+              <a href="/assets">Activos de planta</a>.
+            </li>
+            <li>
+              <b>Qué se pierde si esa zona se queda sin vista.</b> Lo declara
+              Producción en <a href="/zonas">Declarar zonas vitales</a>: de ahí
+              sale la prioridad de todo lo demás.
+            </li>
+          </ol>
+          <p className="muted">
+            Mientras falte lo primero no se dice ni 0 % ni 100 % de cobertura:
+            los dos serían mentira.
+          </p>
+        </div>
+      )}
 
       {/* ---------- 2. LO QUE HAY QUE HACER ---------- */}
       <LoQueHayQueHacer
@@ -143,7 +181,11 @@ export default function Cobertura() {
         <p className="nada-que-hacer">
           <b>{d.sinDeclarar}</b> {d.sinDeclarar === 1 ? 'zona tiene cámaras' : 'zonas tienen cámaras'} y
           nadie ha dicho cuánto {d.sinDeclarar === 1 ? 'importa' : 'importan'}. Mientras
-          tanto todas pesan igual. Se declara en <b>Zonas vitales</b>.
+          tanto todas pesan igual.{' '}
+          {/* Nivel 2 de la regla transversal (§57.1): no se escribe el nombre
+              de la pantalla para que el usuario la busque en el menú — se le
+              lleva. */}
+          <a href="/zonas">Declararlas ahora</a>.
         </p>
       )}
 

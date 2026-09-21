@@ -47,7 +47,7 @@ import { MarcaSGIT } from './Ilustraciones';
 const TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard Ejecutivo',
   '/trains': 'Estado por Tren',
-  '/assets': 'Estructura de activos',
+  '/assets': 'Activos de planta',
   '/cabinets': 'Gabinetes',
   '/locations': 'Ubicaciones',
   '/access': 'Accesibilidad y Trabajo en Altura',
@@ -57,21 +57,21 @@ const TITLES: Record<string, string> = {
   '/corrective': 'Mantenimiento Correctivo',
   '/predictive': 'Mantenimiento Predictivo',
   '/improvements': 'Mantenimiento de Mejora',
-  '/inventory': 'Inventario de Repuestos',
+  '/inventory': 'Repuestos',
   '/audit': 'Auditoría',
   '/users': 'Usuarios',
   '/sesiones': 'Sesiones activas',
   '/roles': 'Roles y permisos',
   '/mi-tren': 'Mi tren',
   '/topologia': 'Puntos críticos de la red',
-  '/riesgo': 'Dónde no vamos a poder arreglar',
+  '/riesgo': 'Repuestos y obsolescencia',
   '/mis-camaras': 'Mis cámaras',
   '/vista-general': 'Resumen de planta',
   '/dependencias': 'Impacto de una caída',
   '/mapa-de-red': 'Mapa de red por gabinete y tablero',
   '/por-tren': 'Por tren',
   '/salud-de-datos': 'Calidad de datos',
-  '/mis-activos': 'Mis activos y cómo se llega a ellos',
+  '/mis-activos': 'Mis activos',
   '/rotulado': 'Estándar de rotulado',
   '/monitoreo': 'Monitoreo de red',
   '/grabadores': 'Grabadores y canales',
@@ -87,8 +87,8 @@ const TITLES: Record<string, string> = {
   '/campanas': 'Campañas de mapeo',
   '/electricidad': 'Electricidad',
   '/ipam': 'Direccionamiento IP',
-  '/zonas': 'Zonas vitales para la producción',
-  '/cobertura': 'Mi cobertura',
+  '/zonas': 'Declarar zonas vitales',
+  '/cobertura': 'Zonas críticas',
   '/mi-cuenta': 'Mi cuenta',
   '/indicadores': 'Indicadores de gestión',
   '/exportar': 'Exportar a Excel',
@@ -97,8 +97,11 @@ const TITLES: Record<string, string> = {
   // pantalla tenía que repetir su propio título para que se supiera dónde
   // estabas. Con esto el título vive en UN solo sitio.
   '/bandeja': 'Mi bandeja',
-  '/mapeo': 'Avance del mapeo',
+  '/mapeo': 'Estado de la información',
   '/cableado': 'Cableado',
+  /* Bloque 130: los catálogos de falla salen de «Ubicaciones». Una ubicación
+     es un sitio; esto es el vocabulario con el que se cierra una orden. */
+  '/catalogos': 'Catálogo de fallas',
 };
 
 /**
@@ -288,7 +291,7 @@ export default function Layout() {
           <EnlaceDeMenu key="mt" to="/mi-tren"><Icono n="mitren" /> Mi tren</EnlaceDeMenu>,
         can('om.mirar') && <EnlaceDeMenu key="mcam" to="/mis-camaras"><Icono n="alerta" /> Mis cámaras</EnlaceDeMenu>,
         can('activos.mirar') && <EnlaceDeMenu key="apt" to="/mis-activos"><Icono n="acceso" /> Mis activos</EnlaceDeMenu>,
-        can('cobertura.mirar') && <EnlaceDeMenu key="cob" to="/cobertura"><Icono n="camara" /> Mi cobertura</EnlaceDeMenu>,
+        can('cobertura.mirar') && <EnlaceDeMenu key="cob" to="/cobertura"><Icono n="zonaVital" /> Zonas críticas</EnlaceDeMenu>,
       ].filter(Boolean) as ReactNode[],
     },
 
@@ -302,7 +305,12 @@ export default function Layout() {
        todo lo demás. */
     {
       titulo: 'Producción',
-      rutas: ['/por-tren', '/tablero-om', '/vista-general', '/trains', '/dependencias', '/zonas'],
+      rutas: ['/por-tren', '/tablero-om', '/vista-general', '/dependencias', '/zonas'],
+      /* «Estado por Tren» YA NO tiene entrada propia (bloque 130): sus cifras
+         estaban repetidas en «Resumen de planta» y en «Por tren». Palabras del
+         usuario: «¿cuál es el objetivo de Estado por Tren? Ni siquiera yo sé
+         cómo sustentarlo». La ruta sigue viva —los enlaces que llevan a ella
+         no se rompen— pero deja de ocupar un sitio en el mapa. */
       items: [
         can('om.mirar') && <EnlaceDeMenu key="pt" to="/por-tren"><Icono n="tren" /> Por tren</EnlaceDeMenu>,
         /* BLOQUE 113. Va justo después de «Por tren» porque es la misma
@@ -310,9 +318,10 @@ export default function Layout() {
            pedí». Con `om.mirar`, que es la llave de lectura de Producción. */
         can('om.mirar') && <EnlaceDeMenu key="tom" to="/tablero-om"><Icono n="parada" /> Avance de órdenes</EnlaceDeMenu>,
         can('om.mirar') && <EnlaceDeMenu key="vg" to="/vista-general"><Icono n="tablero" /> Resumen de planta</EnlaceDeMenu>,
-        can('dashboard.read') && <EnlaceDeMenu key="t" to="/trains"><Icono n="tren" /> Estado por Tren</EnlaceDeMenu>,
         can('om.mirar') && <EnlaceDeMenu key="dep" to="/dependencias"><Icono n="mapeo" /> Impacto de una caída</EnlaceDeMenu>,
-        can('location.read') && <EnlaceDeMenu key="zn" to="/zonas"><Icono n="zonaVital" /> Zonas vitales</EnlaceDeMenu>,
+        /* DECLARAR es una acción, y las acciones viven en su módulo (§58).
+           «Zonas críticas», en los cuatro menús de arriba, sólo RESUME. */
+        can('location.read') && <EnlaceDeMenu key="zn" to="/zonas"><Icono n="zonaVital" /> Declarar zonas vitales</EnlaceDeMenu>,
       ].filter(Boolean) as ReactNode[],
     },
 
@@ -327,9 +336,10 @@ export default function Layout() {
        ingeniero justifica el presupuesto, no una sección de adorno. */
     {
       titulo: 'Gestión del mantenimiento',
-      rutas: ['/incidents', '/maintenance', '/paradas', '/criticidad', '/hojas-de-ruta',
-        '/preventive', '/corrective', '/improvements', '/gruas',
-        '/mejoras-procedimiento', '/inventory', '/dashboard', '/indicadores'],
+      rutas: ['/incidents', '/maintenance', '/criticidad', '/hojas-de-ruta',
+        '/preventive', '/corrective', '/improvements', '/gruas', '/catalogos',
+        '/mejoras-procedimiento', '/inventory', '/dashboard', '/indicadores',
+        '/salud-de-datos'],
       items: [
         can('incident.read') && <EnlaceDeMenu key="i" to="/incidents"><Icono n="incidencia" /> Incidencias</EnlaceDeMenu>,
         /* ÓRDENES Y PARADAS, TAMBIÉN PARA PRODUCCIÓN (bloque 83).
@@ -347,10 +357,17 @@ export default function Layout() {
            `wo.approve`, y ninguno de los dos se ha movido. */
         (can('wo.read') || can('om.mirar'))
           && <EnlaceDeMenu key="m" to="/maintenance"><Icono n="orden" /> Órdenes (OM)</EnlaceDeMenu>,
-        // Las paradas van con las órdenes: es CUÁNDO se puede trabajar. Y las
-        // apunta Producción, que es quien se entera por radio (bloque 16).
-        (can('wo.read') || can('om.mirar'))
-          && <EnlaceDeMenu key="pa" to="/paradas"><Icono n="parada" /> Ventanas de parada</EnlaceDeMenu>,
+        /* VENTANAS DE PARADA sale del menú (bloque 130). Razonamiento del
+           usuario, que es de planta y no de software: «las paradas siempre
+           varían de acuerdo a Producción. ¿Quién le avisa al técnico que hay
+           ventana? Su mismo planner». Un módulo que hay que mantener a mano
+           con un dato que caduca en horas es un módulo desperdiciado — y peor:
+           invita a confiar en una hora que ya cambió.
+
+           Lo que sí quiere conservar es el dato de parada DENTRO de la orden
+           —«empezó parada, estamos empezando a tal hora»—, donde nace del
+           trabajo real. Eso es el bloque 138 y toca modelo, así que no es de
+           esta noche. La ruta sigue viva mientras tanto. */
         /* CRITICIDAD A/B/C (bloque 76). Va ANTES de las hojas de ruta y del
            preventivo porque es lo primero de la cadena: la letra decide CADA
            CUÁNTO se toca el equipo, la hoja de ruta dice QUÉ hacer y el
@@ -388,7 +405,18 @@ export default function Layout() {
            las órdenes de su tren necesita saber si hay repuesto antes de pedir
            el trabajo. Es LECTURA; retirar material sigue pidiendo su permiso. */
         (can('inventory.read') || can('om.mirar'))
-          && <EnlaceDeMenu key="inv" to="/inventory"><Icono n="inventario" /> Inventario</EnlaceDeMenu>,
+          && <EnlaceDeMenu key="inv" to="/inventory"><Icono n="inventario" /> Repuestos</EnlaceDeMenu>,
+        /* CATÁLOGO DE FALLAS (bloque 130). Estaba escondido como pestaña de
+           «Ubicaciones» y el usuario no entendía qué hacía ahí: «corto, falla
+           eléctrica, conector… ¿por qué eso va en Ubicaciones?». Es el
+           vocabulario del CIERRE de una orden, así que vive con las órdenes. */
+        can('location.manage') && <EnlaceDeMenu key="cat" to="/catalogos"><Icono n="nota" /> Catálogo de fallas</EnlaceDeMenu>,
+        /* CALIDAD DE DATOS baja desde Gestión técnica (bloque 130). El usuario:
+           «eso debería estar en gestión del mantenimiento». Y es coherente con
+           §56.3 —un informe va donde está quien decide con él—: la propia
+           pantalla reparte cada hueco entre «Técnico de campo», «Mantenimiento»
+           y «Técnico de red», y quien organiza ese trabajo está aquí. */
+        can('asset.update') && <EnlaceDeMenu key="sdd" to="/salud-de-datos"><Icono n="ok" /> Calidad de datos</EnlaceDeMenu>,
         can('dashboard.read') && <EnlaceDeMenu key="d" to="/dashboard"><Icono n="tablero" /> Dashboard</EnlaceDeMenu>,
       ].filter(Boolean) as ReactNode[],
     },
@@ -410,10 +438,14 @@ export default function Layout() {
        y la energía, que es lo que se consulta en el gabinete. */
     {
       titulo: 'Gestión técnica',
-      rutas: ['/assets', '/retirados', '/locations', '/cabinets', '/instalaciones', '/campanas',
-        '/mapeo', '/access', '/riesgo', '/salud-de-datos', '/documentos'],
+      rutas: ['/assets', '/retirados', '/locations', '/cabinets', '/instalaciones',
+        '/mapeo', '/access', '/riesgo', '/documentos'],
       items: [
-        can('asset.read') && <EnlaceDeMenu key="a" to="/assets"><Icono n="activos" /> Estructura de activos</EnlaceDeMenu>,
+        /* «Estructura de activos» se llamaba casi igual que «Criticidad de
+           activos» y el usuario se perdía entre las dos: «¿por qué hay siempre
+           repetición de títulos? Es confuso». Esta pantalla es el inventario
+           de lo que hay montado en planta, así que se llama por eso. */
+        can('asset.read') && <EnlaceDeMenu key="a" to="/assets"><Icono n="activos" /> Activos de planta</EnlaceDeMenu>,
         /* BLOQUE 107. Justo debajo de la estructura de activos: es la misma
            lista un paso después. Con `activos.mirar` además de `asset.read`,
            porque el técnico y el jefe de tren también preguntan qué se cambió
@@ -424,9 +456,13 @@ export default function Layout() {
         can('asset.read') && <EnlaceDeMenu key="g" to="/cabinets"><Icono n="gabinete" /> Gabinetes</EnlaceDeMenu>,
         // Una instalación terminada CREA el activo: es la puerta de entrada.
         can('asset.read') && <EnlaceDeMenu key="ins" to="/instalaciones"><Icono n="instalar" /> Instalaciones</EnlaceDeMenu>,
-        can('asset.read') && <EnlaceDeMenu key="cmp" to="/campanas"><Icono n="ok" /> Campañas de mapeo</EnlaceDeMenu>,
-        can('asset.read') && <EnlaceDeMenu key="mp" to="/mapeo"><Icono n="mapeo" /> Avance del mapeo</EnlaceDeMenu>,
-        can('access.read') && <EnlaceDeMenu key="ac" to="/access"><Icono n="acceso" /> Accesibilidad</EnlaceDeMenu>,
+        /* CAMPAÑAS DE MAPEO sale del menú (bloque 130). Palabras del usuario:
+           «¿cuál es la necesidad de hacer una campaña de mapeo? El mapeo debe
+           ser sólo una OM». Es un segundo sistema de reparto de trabajo en
+           paralelo al de las órdenes, y con dos sistemas nadie sabe cuál manda.
+           La ruta queda viva; la entrada, no. */
+        can('asset.read') && <EnlaceDeMenu key="mp" to="/mapeo"><Icono n="mapeo" /> Estado de la información</EnlaceDeMenu>,
+        can('access.read') && <EnlaceDeMenu key="ac" to="/access"><Icono n="acceso" /> Accesibilidad y altura</EnlaceDeMenu>,
         /* EQUIPOS CONOCIDOS — el menú decía `asset.read` y el endpoint exige
            `user.manage`. DIEZ roles veían la entrada y la pantalla salía
            vacía: es el mismo fallo de los bloques 68, 77 y 83, encontrado
@@ -447,8 +483,11 @@ export default function Layout() {
            Gestión del mantenimiento y no es trabajo: es el estado del PARQUE.
            ISO 55000 lo trata como gestión de activos, y es la entrada natural
            al informe de reemplazo del bloque 108. */
-        can('infra.read') && <EnlaceDeMenu key="rg" to="/riesgo"><Icono n="alerta" /> Riesgo de activos</EnlaceDeMenu>,
-        can('asset.update') && <EnlaceDeMenu key="sdd" to="/salud-de-datos"><Icono n="ok" /> Calidad de datos</EnlaceDeMenu>,
+        /* Se llamaba «Riesgo de activos» y el usuario no sabía qué contenía:
+           «esto sí no entiendo para nada, para qué está». No mide el riesgo de
+           un activo: dice dónde NO habrá con qué arreglar —repuesto agotado u
+           modelo descatalogado—. El nombre ahora lo dice. */
+        can('infra.read') && <EnlaceDeMenu key="rg" to="/riesgo"><Icono n="alerta" /> Repuestos y obsolescencia</EnlaceDeMenu>,
         can('document.read') && <EnlaceDeMenu key="dc" to="/documentos"><Icono n="etiqueta" /> Manuales y planos</EnlaceDeMenu>,
       ].filter(Boolean) as ReactNode[],
     },

@@ -1,6 +1,7 @@
 import { useEffect, useState, FormEvent, ReactNode } from 'react';
 import SelectorDeActivo from '../components/SelectorDeActivo';
 import { api } from '../api/client';
+import { useBusquedaEnVivo } from '../useBusquedaEnVivo';
 import { mensajeDeError } from '../avisos';
 import Paginacion from '../components/Paginacion';
 import Modal from '../components/Modal';
@@ -104,6 +105,12 @@ export default function Inventory() {
   // bloque 9. Lo que no se hace es apagar la regla entera del linter.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [fCat, onlyLow, pagina]);
+  /* BUSCAR MIENTRAS SE ESCRIBE — bloque 133.
+     «Si yo voy a escribir algo, tiene que buscarse automáticamente» (usuario).
+     Incidencias y Órdenes ya lo hacían desde antes; Repuestos se había quedado
+     fuera. Se usa el MISMO gancho, no uno nuevo: un segundo temporizador con
+     otro retardo haría que dos buscadores del sistema se sintieran distintos. */
+  useBusquedaEnVivo(fq, load);
 
   const categories = Array.from(new Set(rows.map((r) => r.category).filter(Boolean)));
 
@@ -182,7 +189,7 @@ export default function Inventory() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 className="page-title">Inventario de Repuestos</h1>
+          <h1 className="page-title">Repuestos</h1>
           <p className="page-sub">
             {tab === 'repuestos'
               ? 'Repuestos que se consumen · disponibilidad frente al parque en campo'

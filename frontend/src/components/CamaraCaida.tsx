@@ -54,6 +54,9 @@ export default function CamaraCaida({ c }: { c: any }) {
      CSS, no aquí: saber el ancho de pantalla en JavaScript obliga a mantener
      dos verdades y una acaba desincronizándose de la otra. */
   const [verTodo, setVerTodo] = useState(false);
+  /* Bloque 134: si el archivo no responde, se enseña el aviso en vez del
+     recuadro roto del navegador. */
+  const [fotoRota, setFotoRota] = useState(false);
   const inter = NIVEL_INTERVENCION[c.intervencion?.nivel] ?? NIVEL_INTERVENCION.SIN_CLASIFICAR;
 
   return (
@@ -75,16 +78,30 @@ export default function CamaraCaida({ c }: { c: any }) {
         </span>
       </header>
 
-      {/* ---------- 2. A QUÉ APUNTA ---------- */}
-      {c.foto ? (
+      {/* ---------- 2. A QUÉ APUNTA ----------
+          LA FOTO QUE NO CARGA NO DEJA UN HUECO ROTO — bloque 134.
+
+          Salía en las capturas del usuario: el recuadro gris del navegador con
+          la imagen partida, justo en la pantalla que más se enseña. Que la
+          ficha tenga una URL no significa que el archivo siga ahí: se borró
+          del almacén, cambió el bucket, o la red de planta no llega a MinIO.
+
+          Cuando falla, se cae al mismo aviso que ya existía para cuando no hay
+          foto. «No hay foto» y «la foto no carga» se parecen en la pantalla,
+          pero el texto lo distingue: la primera es trabajo de campo, la
+          segunda es un archivo perdido, y son dos tareas distintas. */}
+      {c.foto && !fotoRota ? (
         <figure className="cam-foto">
-          <img src={c.foto.url} alt={`Campo de visión de ${c.codigo}`} loading="lazy" />
+          <img src={c.foto.url} alt={`Campo de visión de ${c.codigo}`} loading="lazy"
+            onError={() => setFotoRota(true)} />
           <figcaption>{c.foto.pie || c.queSeVigila || 'A qué apunta esta cámara'}</figcaption>
         </figure>
       ) : (
         <p className="cam-sinfoto">
           <Icono n="camara" size={15} />
-          Nadie ha subido a qué apunta esta cámara.
+          {fotoRota
+            ? 'La foto de esta cámara ya no está en el almacén.'
+            : 'Nadie ha subido a qué apunta esta cámara.'}
           {c.queSeVigila && <> Según la ficha, cubre: {c.queSeVigila}.</>}
         </p>
       )}
@@ -113,13 +130,34 @@ export default function CamaraCaida({ c }: { c: any }) {
       {/* ---------- 4. CÓMO VA ---------- */}
       {c.orden ? (
         <div className="cam-bloque">
+          {/* EL AVANCE, GRANDE — bloque 124.
+              El usuario, mirando esta tarjeta: «en avance debe salir el
+              porcentaje… tiene que ser más resaltante, debe salir como una
+              especie de barrita».
+
+              Estaba, pero en cuerpo pequeño y con una barra de ocho píxeles
+              perdida entre el resto. Y un «0 %» en gris pequeño se lee como
+              «no hay dato»; una barra vacía y grande se lee como «no ha
+              empezado», que es la verdad y es lo que hace preguntar. */}
           <div className="cam-avance-cabeza">
             <span className="bloque-titulo" style={{ margin: 0 }}>
               Avance de {c.orden.code}
             </span>
-            <b>{c.orden.avance} %</b>
+            {/* Y EL BOTÓN QUE LLEVA A LA ORDEN — bloque 124.
+                «Esto de orden abierta y asignada debería haber un botón que te
+                envíe a dónde va.» El dato estaba y el camino no: modelo +
+                endpoint ≠ función. Lleva al módulo YA FILTRADO por este código:
+                aquí se mira, allí se trabaja (§58). */}
+            <a className="btn-mini" href={`/maintenance?om=${encodeURIComponent(c.orden.code)}`}>
+              Ver la orden
+            </a>
           </div>
-          <div className="barra"><div className="barra-relleno" style={{ width: `${c.orden.avance}%` }} /></div>
+          <div className="cam-avance-cifra">
+            <b>{c.orden.avance}</b><span>%</span>
+          </div>
+          <div className="barra barra-grande">
+            <div className="barra-relleno" style={{ width: `${c.orden.avance}%` }} />
+          </div>
           {c.orden.ultimaNota ? (
             <p className="cam-nota">
               Última nota, hace {c.orden.ultimaNota.hace}

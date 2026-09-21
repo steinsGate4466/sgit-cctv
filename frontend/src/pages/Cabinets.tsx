@@ -139,7 +139,24 @@ export default function Cabinets() {
                 <td>{g.name}</td>
                 <td className="muted">{g.location?.name || '—'}</td>
                 <td className="muted" style={{ fontSize: 12 }}>{g.referencePlace || '—'}</td>
-                <td>{g.assetCount ?? 0}</td>
+                {/* QUÉ HAY MONTADO AQUÍ — bloque 132.
+                    El usuario: «en el gabinete debe salir también una opción de
+                    ver dependencias… esto está muy vacío». La cifra estaba y no
+                    llevaba a ninguna parte: para saber QUÉ equipos son había
+                    que ir a buscarlos a otra pantalla y filtrar a mano.
+
+                    Lleva a la ficha del gabinete —la misma que se abre con su
+                    QR delante del armario—, que ya lista lo que tiene dentro.
+                    No se construye pantalla nueva: se enlaza la que existe. */}
+                <td>
+                  {g.assetCount
+                    ? (
+                      <a href={`/g/${g.id}`} title="Ver los equipos montados en este gabinete">
+                        {g.assetCount}
+                      </a>
+                    )
+                    : <span className="muted">0</span>}
+                </td>
                 <td>{g.hasPhoto ? <button className="btn-mini" onClick={() => viewPhoto(g)}>Ver</button> : <span className="muted" style={{ fontSize: 12 }}>—</span>}</td>
                 {can('asset.update') && (
                   <td style={{ whiteSpace: 'nowrap' }}>

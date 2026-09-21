@@ -134,7 +134,12 @@ describe('el anillo de fibra', () => {
     const a = soportesDeCamaras(NODOS, ANILLO).find(buscar('SW-A'))!;
     expect(a.camaras).toHaveLength(0);
     expect(a.salvadoPorAnillo).toBe(true);
-    expect(a.siCae).toContain('anillo');
+    /* Bloque 134: la frase ya no dice «anillo» —es jerga de red y esta
+       pantalla la lee Producción—, dice el efecto. La prueba comprueba lo
+       que el usuario tiene que entender, no la palabra que usa TI. */
+    expect(a.siCae).toContain('no se deja de ver ninguna cámara');
+    expect(a.siCae).toContain('otro camino');
+    expect(a.siCae).not.toContain('anillo');
   });
 
   it('el switch del que cuelga la cámara sí se la lleva, anillo o no', () => {
@@ -230,8 +235,11 @@ describe('el titular de la pantalla', () => {
   it('si hay un soporte caído con cámaras, ése es el titular', () => {
     const rota = PLANTA.map((e) => (e.id === 'ANT' ? { ...e, estado: 'FUERA_SERVICIO' } : e));
     const t = resumirDependencias(soportesDeCamaras(rota, CABLES));
-    expect(t).toContain('1 equipo está fallando');
-    expect(t).toContain('3 cámaras dependen');
+    /* Bloque 134: el titular dice primero lo que se pierde. Antes era
+       «1 equipo está fallando y de él 3 cámaras dependen», y el usuario dijo
+       que se leía confuso. */
+    expect(t).toContain('3 cámaras sin servicio');
+    expect(t).toContain('un equipo caído');
   });
 
   it('con todo operativo señala el equipo más crítico', () => {

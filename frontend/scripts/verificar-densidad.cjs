@@ -91,7 +91,12 @@ const LINEA_BASE = {
   'Equipos.tsx':           [305, 7, 0],
   'Limpieza.tsx':          [350, 7, 0],
   'Instalaciones.tsx':     [227, 7, 0],
-  'Assets.tsx':            [243, 11, 0],
+  /* 243 -> 244 en el bloque 131. La pantalla no se llenó de texto: GANÓ una
+     función. «Declarar cómo se llega» se mudó aquí desde «Mis activos»,
+     porque es información que sólo Mantenimiento puede tocar, y su botón
+     cuesta una palabra —«Acceso»—. Subir la línea base por una función que
+     llega es legítimo; subirla por un párrafo de más, no. */
+  'Assets.tsx':            [244, 11, 0],
   'Paradas.tsx':           [246, 10, 0],
   'Ipam.tsx':              [187, 7, 0],
   'Maintenance.tsx':      [223, 7, 0],

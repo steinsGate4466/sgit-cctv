@@ -37,6 +37,7 @@ const Topologia = lazyConReintento(() => import('./pages/Topologia'));
 const Riesgo = lazyConReintento(() => import('./pages/Riesgo'));
 const MisCamaras = lazyConReintento(() => import('./pages/MisCamaras'));
 const TableroOm = lazyConReintento(() => import('./pages/TableroOm'));
+const CatalogoDeFallas = lazyConReintento(() => import('./pages/CatalogoDeFallas'));
 const EquiposRetirados = lazyConReintento(() => import('./pages/EquiposRetirados'));
 const Capacidad = lazyConReintento(() => import('./pages/Capacidad'));
 const MisActivos = lazyConReintento(() => import('./pages/MisActivos'));
@@ -117,6 +118,7 @@ export default function App() {
           <Route path="/riesgo" element={<Riesgo />} />
           <Route path="/mis-camaras" element={<MisCamaras />} />
           <Route path="/tablero-om" element={<TableroOm />} />
+          <Route path="/catalogos" element={<CatalogoDeFallas />} />
           <Route path="/retirados" element={<EquiposRetirados />} />
           <Route path="/capacidad" element={<Capacidad />} />
           <Route path="/mis-activos" element={<MisActivos />} />

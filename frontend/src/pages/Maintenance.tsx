@@ -12,7 +12,7 @@ import AsignarOm from '../components/AsignarOm';
 import DetallarOm from '../components/DetallarOm';
 import OmMateriales from '../components/OmMateriales';
 import { hoyParaInput } from '../fechas';
-import { WO_TYPES, WO_TYPE_ES, CANALES, CANAL_ES, CAUSA_ES } from './omCatalogos';
+import { WO_TYPES, WO_TYPE_ES, WO_STATUS_ES, CANALES, CANAL_ES, CAUSA_ES } from './omCatalogos';
 import Icono from '../components/Iconos';
 import { useDialogos } from '../components/Dialogos';
 import { useVolverALaPantalla } from '../useVolverALaPantalla';
@@ -22,6 +22,37 @@ import { useBusquedaEnVivo } from '../useBusquedaEnVivo';
 const TYPES = WO_TYPES; // incluye MAPEO: el levantamiento también es una OM
 // Estados que el técnico puede fijar al registrar la intervención (el cierre lo hace el Jefe).
 const WORK_STATES = ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'];
+
+/** Cuánto de la actividad cabe en una fila sin que la tabla deje de leerse. */
+const TOPE_ACTIVIDAD = 140;
+
+/**
+ * La actividad de la orden: lo justo en la tabla, todo al desplegar.
+ *
+ * Corta por el final de la primera frase cuando la hay —así el resumen es una
+ * idea completa y no media palabra— y si no, por el último espacio antes del
+ * tope, que nunca parte una palabra por la mitad.
+ */
+function Actividad({ texto }: { texto?: string | null }) {
+  const t = (texto || '').trim();
+  if (!t) return <>—</>;
+  if (t.length <= TOPE_ACTIVIDAD) return <>{t}</>;
+
+  const punto = t.indexOf('. ');
+  const corte = punto > 40 && punto < TOPE_ACTIVIDAD
+    ? punto + 1
+    : t.lastIndexOf(' ', TOPE_ACTIVIDAD);
+
+  return (
+    <details>
+      <summary style={{ cursor: 'pointer', listStyle: 'none' }}>
+        {t.slice(0, corte > 40 ? corte : TOPE_ACTIVIDAD)}
+        <span className="muted" style={{ fontSize: 11 }}> …</span>
+      </summary>
+      <div style={{ marginTop: 6, whiteSpace: 'pre-line' }}>{t}</div>
+    </details>
+  );
+}
 // Estado efectivo del activo (coherente con el módulo de Activos).
 const ASSET_STATUS_ES: Record<string, string> = {
   OPERATIVO: 'Operativo', FUERA_SERVICIO: 'Fuera de servicio', MANTENIMIENTO: 'En mantenimiento',
@@ -56,7 +87,13 @@ export default function Maintenance() {
   const [loading, setLoading] = useState(true);
 
   // Buscador documental (registro para análisis de recurrencias).
-  const [fq, setFq] = useState('');
+  /* LLEGAR YA FILTRADO — bloque 124/132.
+     Desde «Mis cámaras» se pulsa «Ver la orden» y se aterriza aquí con el
+     código puesto en el buscador. Es la regla transversal del usuario: el
+     enlace no deja el módulo a secas, lo deja **filtrado por el problema del
+     que se venía**. Si llegara sin filtro habría que buscar a mano la orden
+     que ya se estaba mirando, que es el trabajo que el software debe quitar. */
+  const [fq, setFq] = useState(() => new URLSearchParams(window.location.search).get('om') || '');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [fType, setFType] = useState('');
@@ -409,8 +446,18 @@ export default function Maintenance() {
                   </div>
                   {w.incident && <div className="muted" style={{ fontSize: 10 }}>◦ {w.incident.code}</div>}
                 </td>
-                <td style={{ fontSize: 12 }}>
-                  {w.activity || '—'}
+                <td style={{ fontSize: 12, maxWidth: 340 }}>
+                  {/* LA ACTIVIDAD SE RESUME — bloque 133.
+                      Una orden preventiva trae la hoja de ruta entera: los
+                      catorce pasos con sus claves. Volcados en una celda, la
+                      tabla dejaba de leerse. Palabras del usuario: «acá se ve
+                      la actividad, eso está muy bien» —le gusta que esté— pero
+                      «los botones, esto está feo… imagínate cómo sale en una
+                      laptop».
+
+                      Así que se queda, RESUMIDA: la primera frase en la tabla y
+                      el resto al desplegar. Nada se esconde; deja de estorbar. */}
+                  <Actividad texto={w.activity} />
                   {w.zone && <div className="muted" style={{ fontSize: 11 }}>{w.zone}</div>}
                   {/* QUIÉN LA PIDIÓ — bloque 94.
                       SE AGRUPA, NO SE AÑADE COLUMNA. La tabla ya está en siete
@@ -431,7 +478,9 @@ export default function Maintenance() {
                   )}
                 </td>
                 <td>
-                  <span className={'badge ' + woBadge(w.status)}>{w.status}</span>
+                  <span className={'badge ' + woBadge(w.status)} style={{ whiteSpace: 'nowrap' }}>
+                    {WO_STATUS_ES[w.status] || w.status}
+                  </span>
                   {w.isRecurrent && <div className="muted" style={{ fontSize: 10 }}>reincidente</div>}
                 </td>
                 <td style={{ minWidth: 90 }}>
@@ -501,13 +550,33 @@ export default function Maintenance() {
                   {w.status !== 'CERRADA' && w.status !== 'CANCELADA' && can('wo.update') && (
                     <button className="btn-mini" onClick={() => openIntervention(w)}>Registrar</button>
                   )}
-                  {w.status !== 'CERRADA' && w.status !== 'CANCELADA' && can('wo.update') && (
-                    <button className="btn-mini" onClick={() => openPhotos(w.id)}>Fotos</button>
-                  )}
-                  {w.status !== 'CERRADA' && w.status !== 'CANCELADA' && can('wo.update') && !w.startedAt && (
-                    <button className="btn-mini"
-                      onClick={() => setCampo({ wo: w, accion: 'abrir' })}>Abrir</button>
-                  )}
+                  {/* ------------------------------------------- LOS DEMÁS
+                      SIETE BOTONES EN UNA FILA NO SON SIETE OPCIONES: SON UNA
+                      PARED (bloque 133). El usuario, mirando esta tabla: «los
+                      botones, esto está feo. Tiene que haber algo más bonito…
+                      imagínate cómo sale en una laptop».
+
+                      Delante se quedan los dos que se usan a diario —detallar
+                      y registrar avance— y el resto entra aquí. No se quita
+                      nada: se deja de pedir al ojo que elija entre siete cosas
+                      a la vez en cada una de las filas. */}
+                  <details className="acciones-fila">
+                    {/* Sin palabra: los tres puntos son el signo de «aquí hay
+                        más» en cualquier interfaz, y el nombre va en
+                        `aria-label` para quien navega con lector. Así el menú
+                        no gasta las palabras que la pantalla necesita para
+                        decir algo útil (verificador de densidad). */}
+                    <summary className="btn-mini" style={{ cursor: 'pointer' }}
+                      aria-label="Más acciones de esta orden"
+                      title="Más acciones">⋯</summary>
+                    <div className="acciones-fila-menu">
+                      {w.status !== 'CERRADA' && w.status !== 'CANCELADA' && can('wo.update') && (
+                        <button className="btn-mini" onClick={() => openPhotos(w.id)}>Fotos</button>
+                      )}
+                      {w.status !== 'CERRADA' && w.status !== 'CANCELADA' && can('wo.update') && !w.startedAt && (
+                        <button className="btn-mini"
+                          onClick={() => setCampo({ wo: w, accion: 'abrir' })}>Abrir</button>
+                      )}
                   {w.status !== 'CERRADA' && w.status !== 'CANCELADA' && can('wo.update') && w.startedAt && (
                     <button className="btn-mini"
                       onClick={() => setCampo({ wo: w, accion: 'avance' })}>Avance</button>
@@ -516,22 +585,24 @@ export default function Maintenance() {
                       registrar equipos sin tener que navegar a otra parte:
                       es el flujo natural estando en campo. Los activos que
                       registre quedan ligados a esta orden. */}
-                  {w.type === 'MAPEO' && w.startedAt && w.status !== 'CERRADA'
-                    && w.status !== 'CANCELADA' && can('asset.create') && (
-                    <button className="btn-mini" style={{ fontWeight: 600 }}
-                      title="Registrar un activo dentro de esta orden de mapeo"
-                      onClick={() => navegar(`/assets?om=${w.id}&codigo=${encodeURIComponent(w.code)}`)}>
-                      + Registrar activo
-                    </button>
-                  )}
-                  {w.status !== 'CERRADA' && w.status !== 'CANCELADA' && can('wo.approve') && (
-                    <button className="btn-mini"
-                      onClick={() => setCampo({ wo: w, accion: 'cerrar' })}>Cerrar</button>
-                  )}
-                  <button className="btn-mini"
-                    title="Materiales previstos/usados y reemplazo de equipo"
-                    onClick={() => setMatsFor(w)}><Icono n="inventario" size={14} /> Materiales</button>
-                  <button className="btn-mini" onClick={() => downloadReport(w)}>Informe</button>
+                      {w.type === 'MAPEO' && w.startedAt && w.status !== 'CERRADA'
+                        && w.status !== 'CANCELADA' && can('asset.create') && (
+                        <button className="btn-mini" style={{ fontWeight: 600 }}
+                          title="Registrar un activo dentro de esta orden de mapeo"
+                          onClick={() => navegar(`/assets?om=${w.id}&codigo=${encodeURIComponent(w.code)}`)}>
+                          + Registrar activo
+                        </button>
+                      )}
+                      {w.status !== 'CERRADA' && w.status !== 'CANCELADA' && can('wo.approve') && (
+                        <button className="btn-mini"
+                          onClick={() => setCampo({ wo: w, accion: 'cerrar' })}>Cerrar</button>
+                      )}
+                      <button className="btn-mini"
+                        title="Materiales previstos/usados y reemplazo de equipo"
+                        onClick={() => setMatsFor(w)}><Icono n="inventario" size={14} /> Materiales</button>
+                      <button className="btn-mini" onClick={() => downloadReport(w)}>Informe</button>
+                    </div>
+                  </details>
                   {/* «ELIMINAR» YA NO VIVE EN LA FILA — bloque 91.
                       -----------------------------------------------------------
                       Es la misma decisión del bloque 80-D, que sacó «Dar de

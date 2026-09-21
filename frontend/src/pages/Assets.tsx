@@ -18,6 +18,13 @@ import CriticidadActivo from '../components/CriticidadActivo';
 import RepuestosDelActivo from '../components/RepuestosDelActivo';
 import BorrarDefinitivo from '../components/BorrarDefinitivo';
 import Icono from '../components/Iconos';
+/* CÓMO SE LLEGA VIVE AQUÍ DESDE EL BLOQUE 131.
+   Estaba en «Mis activos», que ve Producción, y el usuario lo cortó en seco:
+   «esta es una información confidencial; eso solamente lo puede modificar el
+   área de mantenimiento, porque mantenimiento es quien proporciona esa
+   información». Antes de quitarlo de allí hubo que traerlo aquí: un botón que
+   desaparece sin destino no es una mudanza, es una función perdida. */
+import DeclararAcceso from '../components/DeclararAcceso';
 import { useDialogos } from '../components/Dialogos';
 import { useOcultarAlSalir } from '../useVolverALaPantalla';
 import { fecha, plural } from '../formato';
@@ -148,6 +155,8 @@ export default function Assets() {
 
   // Solicitud de acceso especial (activo inaccesible)
   const [accessFor, setAccessFor] = useState<any>(null);
+  /* Bloque 131: el equipo cuyo «cómo se llega» se está declarando. */
+  const [accesoDe, setAccesoDe] = useState<any>(null);
   // Contraseñas reveladas en la tabla (bajo demanda, auditado)
   const [rowPass, setRowPass] = useState<Record<string, string>>({});
   // Filtros y paginación — AHORA EN EL SERVIDOR.
@@ -653,7 +662,7 @@ export default function Assets() {
               paso ① y se llama «Estructura de activos» — y el nombre importa
               porque describe lo que hay que hacer con la pantalla: no mirar
               una lista, sino ver cómo está REPARTIDA la planta. */}
-          <h1 className="page-title">Estructura de activos</h1>
+          <h1 className="page-title">Activos de planta</h1>
           <p className="page-sub">
             {hayFiltro
               ? `${meta.total} equipos encontrados`
@@ -869,6 +878,33 @@ export default function Assets() {
                       dentro de la ficha y nadie sabía que estaba. */}
                   <button className="btn-mini" title="Informe del equipo en PDF"
                     onClick={(e) => { e.stopPropagation(); descargarInforme(a); }}><Icono n="pdf" size={14} /> PDF</button>
+                  {can('asset.update') && (
+                    <button className="btn-mini" style={{ marginLeft: 4 }}
+                      title="Cómo se llega a este equipo: a pie, escalera o manlift"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        /* El formulario lo comparten dos pantallas que llaman a
+                           los campos de forma distinta —aquí `assetCode`, allá
+                           `codigo`—, así que se traduce AQUÍ, en el borde, y no
+                           dentro del componente: si cada pantalla le añadiera su
+                           dialecto, el formulario acabaría con cinco nombres
+                           para el mismo dato. */
+                        setAccesoDe({
+                          id: a.id,
+                          codigo: a.assetCode,
+                          tipo: a.type,
+                          equipo: [a.brand, a.model].filter(Boolean).join(' ') || null,
+                          ubicacion: a.location?.name || null,
+                          acceso: {
+                            medio: a.medioAcceso || '',
+                            alturaMetros: a.alturaMetros ?? null,
+                            nota: a.accesoNota || '',
+                          },
+                        });
+                      }}>
+                      <Icono n="acceso" size={14} /> Acceso
+                    </button>
+                  )}
                   {can('credential.read') && (
                     <button className="btn-mini" style={{ marginLeft: 4 }}
                       onClick={(e) => { e.stopPropagation(); openQuickEdit(a); }}>Editar</button>
@@ -1397,6 +1433,18 @@ export default function Assets() {
             </a>
           )}
         </Modal>
+      )}
+
+      {/* DECLARAR CÓMO SE LLEGA — bloque 131. Viene de «Mis activos», donde
+          no debía estar: lo declara Mantenimiento, no Producción. El
+          componente es el MISMO, no una copia: un segundo formulario para el
+          mismo dato acabaría pidiendo cosas distintas en cada pantalla. */}
+      {accesoDe && (
+        <DeclararAcceso
+          activo={accesoDe}
+          alCerrar={() => setAccesoDe(null)}
+          alGuardar={() => { setAccesoDe(null); loadAssets(); }}
+        />
       )}
 
       {accessFor && (
