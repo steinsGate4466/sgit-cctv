@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Ip, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Ip, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
+import { Response } from 'express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ElectricidadService } from './electricidad.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -27,6 +28,31 @@ export class ElectricidadController {
   crearTablero(@Body() dto: any, @CurrentUser() u: any, @Ip() ip: string) {
     return this.e.crearTablero(dto, u?.userId, ip);
   }
+
+  /* EL QR DEL TABLERO Y SU FICHA — bloque 146.
+
+     Van con `infra.read`, el mismo permiso con el que se lee el resto de la
+     eléctrica. Y `@SinAmbito()` porque la etiqueta se escanea DELANTE del
+     tablero: quien está mirando la puerta ya tiene el acceso físico, y
+     negarle la ficha por ámbito sólo consigue que la abra a ciegas.
+
+     Es la misma decisión que se tomó con el QR del gabinete en el bloque 5c.
+     La ficha NO lleva credenciales, por si la escanea alguien de paso. */
+  @SinAmbito()
+  @Get('tableros/:id/qr.png')
+  @RequirePermissions('infra.read')
+  async qrTablero(@Param('id') id: string, @Res() res: Response) {
+    const { buffer, filename } = await this.e.qrTablero(id);
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    res.send(buffer);
+  }
+
+  /** Lo que se ve al escanear la etiqueta del tablero. */
+  @SinAmbito()
+  @Get('tableros/:id/ficha')
+  @RequirePermissions('infra.read')
+  fichaTablero(@Param('id') id: string) { return this.e.fichaTablero(id); }
 
   @SinAmbito()  // el tablero declara su tren; el ámbito se aplica al listar
   @Get('tableros/:id')

@@ -6025,3 +6025,57 @@ npx.cmd tsc --noEmit
 Su orden: **energía → dispositivos → cableado → lo que depende → gabinete.**
 La energía es el primer eslabón y es el que falta (§63.2): tablero → circuito →
 switch PoE → cámara, con **QR de tablero eléctrico**.
+
+---
+
+## §65 · BLOQUE 146 — EL QR DEL TABLERO ELÉCTRICO (21/09/2026)
+
+### De dónde sale
+
+> «Si el switch pierde electricidad, pierde el 220, ¿cómo lo restauramos?
+> **Ni siquiera sabemos dónde está el tablero.** Ese tablero eléctrico también
+> tiene que estar segmentado para poder generarle un QR y saber dónde está
+> ubicado.»
+
+Es el **tercer QR** del sistema y el **primero de la cadena**: el del activo
+(bloque 5a) sirve cuando ya sabes qué equipo es; el del gabinete (5c) sirve
+para llegar al armario; éste sirve para el eslabón del que dependen los dos.
+**Sin corriente no hay switch, y sin switch no hay cámara.**
+
+### Se escanea para la pregunta CONTRARIA
+
+Los otros dos QR contestan *«¿qué es esto?»*. Éste se escanea casi siempre con
+la mano ya en la llave, y contesta:
+
+> **¿QUÉ SE APAGA SI BAJO ESTA LLAVE?**
+
+Por eso el orden de la pantalla no es el de una ficha técnica:
+
+1. **Qué es y dónde está** — bajar la llave equivocada para una nave.
+2. **Los riesgos, ANTES que ningún dato técnico.** Un aviso que se lee después
+   de abrir la puerta no es un aviso.
+3. **Cada llave y lo que cuelga de ella, con nombre.** «3 equipos» no sirve
+   delante del tablero: hace falta saber si uno es el switch que sostiene medio
+   tren.
+
+**Sin credenciales**, como el PDF del técnico desde el bloque 5a: una etiqueta
+pegada en una puerta la lee cualquiera que pase por la sala eléctrica.
+
+### Detalles que se decidieron por algo
+
+- **`@SinAmbito()`** en la ficha y en el QR: quien está delante de la puerta ya
+  tiene el acceso físico. Negarle la ficha por ámbito sólo consigue que abra a
+  ciegas. Misma decisión que el QR del gabinete (5c).
+- **Un tablero sin circuitos NO se calla:** la ficha dice *«nadie los ha
+  levantado todavía»*. No es lo mismo que no tenerlos.
+- **La etiqueta se descarga con el cliente, no con un `<a href>`.** Mi primer
+  intento fue un enlace directo al endpoint, y estaba mal: un `href` no manda
+  la cabecera de autorización, así que habría dado 401 y quien lo pulsara
+  habría visto una imagen rota sin saber por qué.
+
+### Lo que falta de la cadena eléctrica
+
+El modelo ya estaba entero —`TableroElectrico`, `CircuitoElectrico`,
+`AlimentacionActivo`, impacto de tablero y de circuito—. Lo que falta no es
+modelo: es **levantar los datos en planta**. La pantalla ya lo está diciendo:
+«6 equipos sin saber de qué llave cuelgan».

@@ -28,5 +28,5 @@
   },
   // `cliente.ts` desde el bloque 52: es donde se arma el cliente con el
   // adaptador que Prisma 7 exige. Sin incluirlo, ts-node no lo resuelve.
-  "include": ["demo.ts", "seed.ts", "cliente.ts"]
+  "include": ["demo.ts", "demo-infra.ts", "seed.ts", "cliente.ts"]
 }

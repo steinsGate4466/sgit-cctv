@@ -8,7 +8,7 @@ import { useDialogos } from '../components/Dialogos';
 const TYPES = ['EMPRESA', 'PLANTA', 'TREN', 'AREA', 'SALA', 'ZONA', 'RACK'];
 const TYPE_ES: Record<string, string> = {
   EMPRESA: 'Empresa', PLANTA: 'Planta', TREN: 'Tren', AREA: 'Área',
-  SALA: 'Sala', ZONA: 'Zona', RACK: 'Gabinete/Rack', ETAPA: 'Etapa del proceso',
+  SALA: 'Sala', ZONA: 'Zona', RACK: 'Gabinete/Rack', ETAPA: 'Área del tren',
 };
 const CRIT_ES: Record<string, string> = {
   BAJA: 'Baja', MEDIA: 'Media', ALTA: 'Alta', CRITICA: 'Crítica',

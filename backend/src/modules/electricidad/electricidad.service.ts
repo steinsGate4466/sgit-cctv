@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import * as QRCode from 'qrcode';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { resolverContextoDePlanta } from '../../common/plant-context';
@@ -92,6 +93,133 @@ export class ElectricidadService {
     // Cuántos equipos de CCTV dependen de este tablero, en total.
     const equiposCctv = t.circuitos.reduce((s, c) => s + c.alimenta.length, 0);
     return { ...t, equiposCctv };
+  }
+
+  /* =========================================================================
+     EL QR DEL TABLERO — bloque 146.
+
+     Pedido por el usuario con el caso de planta delante:
+
+     > «Si el switch pierde electricidad, pierde el 220, ¿cómo lo restauramos?
+     >  **Ni siquiera sabemos dónde está el tablero.** Ese tablero eléctrico
+     >  también tiene que estar segmentado para poder generarle un QR y saber
+     >  dónde está ubicado.»
+
+     Hasta hoy el QR existía para el activo (bloque 5a) y para el gabinete
+     (5c) — los dos sitios donde el técnico llega y necesita saber qué tiene
+     delante. El tablero es el tercero, y es el PRIMERO de la cadena: sin
+     corriente no hay switch, sin switch no hay cámara.
+
+     La etiqueta va pegada en la puerta del tablero. Se escanea CON EL TABLERO
+     DELANTE, casi siempre para lo contrario de lo habitual: no para saber qué
+     es esto, sino para saber **qué se apaga si bajo esta llave**.
+     ========================================================================= */
+
+  private urlTablero(id: string): string {
+    const base = (process.env.APP_URL || process.env.FRONTEND_URL || '')
+      .trim().replace(/\/$/, '');
+    return `${base}/t/${id}`;
+  }
+
+  /** QR individual del tablero, en PNG. */
+  async qrTablero(id: string): Promise<{ buffer: Buffer; filename: string }> {
+    const t = await this.prisma.tableroElectrico.findUnique({
+      where: { id }, select: { codigo: true },
+    });
+    if (!t) throw new NotFoundException('Ese tablero no existe.');
+    const buffer: Buffer = await QRCode.toBuffer(this.urlTablero(id), {
+      type: 'png', width: 512, margin: 1,
+      color: { dark: '#16233bff', light: '#ffffffff' },
+      /* Tolerancia media, igual que activos y gabinetes. La etiqueta de un
+         tablero se ensucia MÁS que las otras: vive en sala eléctrica, con
+         polvo de laminación, y se toca con guante. */
+      errorCorrectionLevel: 'M',
+    });
+    return { buffer, filename: `qr-tablero-${t.codigo}.png` };
+  }
+
+  /**
+   * LO QUE SE VE AL ESCANEAR LA ETIQUETA DE UN TABLERO.
+   *
+   * No es la ficha entera: es lo que sirve estando delante, con la puerta
+   * abierta y sin cobertura. Tres cosas, en este orden:
+   *
+   *   1. QUÉ ES y DÓNDE ESTÁ — para confirmar que es el tablero correcto
+   *      antes de tocar nada. Bajar la llave equivocada para en una nave.
+   *   2. LOS RIESGOS — antes que ningún dato técnico. Si exige permiso
+   *      eléctrico o bloqueo, eso se lee ANTES de abrir, no después.
+   *   3. QUÉ SE APAGA con cada llave — que es la pregunta real.
+   *
+   * NO lleva credenciales. Igual que el PDF del técnico desde el bloque 5a:
+   * una etiqueta pegada en una puerta la lee cualquiera que pase.
+   */
+  async fichaTablero(id: string) {
+    const t = await this.prisma.tableroElectrico.findUnique({
+      where: { id },
+      include: {
+        location: { select: { name: true, path: true } },
+        alimentadoDe: { select: { id: true, codigo: true, nombre: true } },
+        circuitos: {
+          orderBy: { numero: 'asc' },
+          include: {
+            alimenta: {
+              include: {
+                asset: { select: { id: true, assetCode: true, type: true, status: true } },
+              },
+            },
+          },
+        },
+        equiposMontados: {
+          where: { deletedAt: null },
+          select: { assetCode: true, type: true },
+          orderBy: { assetCode: 'asc' },
+        },
+      },
+    });
+    if (!t) throw new NotFoundException('Ese tablero no existe.');
+
+    const circuitos = t.circuitos.map((c) => ({
+      id: c.id,
+      numero: c.numero,
+      designacion: c.designacion,
+      amperajeA: c.amperajeA,
+      estado: c.estado,
+      esCctv: c.esCctv,
+      /* Lo que cuelga de ESTA llave, con nombre. «3 equipos» no sirve
+         delante del tablero: hace falta saber si uno de ellos es el switch
+         que sostiene medio tren. */
+      alimenta: c.alimenta.map((a) => ({
+        assetCode: a.asset?.assetCode ?? null,
+        tipo: a.asset?.type ?? null,
+        estado: a.asset?.status ?? null,
+        viaPoe: a.viaPoe,
+      })),
+    }));
+
+    const equiposCctv = circuitos.reduce((n, c) => n + c.alimenta.length, 0);
+
+    return {
+      id: t.id,
+      codigo: t.codigo,
+      nombre: t.nombre,
+      tipo: t.tipo,
+      tren: t.tren,
+      donde: t.location?.name ?? null,
+      rama: t.location?.path ?? null,
+      referencia: t.referencia,
+      comoLlegar: t.comoLlegar,
+      tensionV: t.tensionV,
+      fases: t.fases,
+      corrienteNominalA: t.corrienteNominalA,
+      riesgos: t.riesgos,
+      alimentadoDe: t.alimentadoDe,
+      circuitos,
+      equiposMontados: t.equiposMontados,
+      equiposCctv,
+      /* Se dice en la ficha, no se calla: un tablero sin circuitos cargados
+         no es un tablero sin circuitos — es uno que nadie ha levantado. */
+      sinLevantar: circuitos.length === 0,
+    };
   }
 
   async crearTablero(dto: any, userId?: string | null, ip?: string | null) {

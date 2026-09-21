@@ -1060,7 +1060,7 @@ export default function Assets() {
           } />
           <Frow k="Firmware" v={detail.firmware} />
           <Frow k="Tren" v={detail.planta?.tren} />
-          <Frow k="Etapa del proceso" v={
+          <Frow k="Área del tren" v={
             detail.planta?.etapa || (detail.planta?.etapaPendiente ? 'Falta asignar' : null)
           } />
           <Frow k="Ambiente" v={AMBIENTE_ES[detail.planta?.ambiente] || null} />

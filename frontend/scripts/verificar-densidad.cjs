@@ -87,7 +87,12 @@ const EXENTAS = {
    texto no pueda volver a crecer. */
 const LINEA_BASE = {
   // pantalla:            [palabras, columnas, indicadores]
-  'Electricidad.tsx':      [304, 6, 0],
+  /* 304 -> 305 en el bloque 146: la pantalla GANÓ el botón «QR» de cada
+     tablero, una palabra. Es la etiqueta que el usuario pidió para pegar en la
+     puerta —«ese tablero también tiene que estar segmentado para poder
+     generarle un QR y saber dónde está ubicado»—. Subir la línea base por una
+     función que llega es legítimo; por un párrafo de más, no. */
+  'Electricidad.tsx':      [305, 6, 0],
   'Equipos.tsx':           [305, 7, 0],
   'Limpieza.tsx':          [350, 7, 0],
   'Instalaciones.tsx':     [227, 7, 0],

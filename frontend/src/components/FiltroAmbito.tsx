@@ -72,7 +72,18 @@ export default function FiltroAmbito({ valor, onChange }: {
       </div>
 
       <div>
-        <label>Etapa del proceso
+        {/* «ETAPA DEL PROCESO» NO SE ENTENDÍA — 21/09/2026.
+            El usuario abrió este desplegable y preguntó: «¿a qué te refieres
+            con etapa del proceso, amigo? ¿Qué es eso?». Y las opciones que le
+            salían eran «Púlpito de control» y «Sala eléctrica / MCC», que no
+            son etapas de nada: son SITIOS.
+
+            El nombre venía del modelo —el recorrido del material por el tren—
+            y es correcto dentro de la base de datos. En pantalla no: un filtro
+            se llama por lo que el usuario ve dentro, no por cómo se llama la
+            tabla. */}
+        <label title="Dónde, dentro del tren: púlpito, sala eléctrica, lecho de enfriamiento…">
+          Área del tren
           <select
           value={valor.etapa}
           onChange={(e) => onChange({ ...valor, etapa: e.target.value })}

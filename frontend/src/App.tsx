@@ -80,6 +80,7 @@ const Locations = lazyConReintento(() => import('./pages/Locations'));
 const Access = lazyConReintento(() => import('./pages/Access'));
 const AssetScan = lazyConReintento(() => import('./pages/AssetScan'));
 const CabinetScan = lazyConReintento(() => import('./pages/CabinetScan'));
+const TableroScan = lazyConReintento(() => import('./pages/TableroScan'));
 const Inventory = lazyConReintento(() => import('./pages/Inventory'));
 const Audit = lazyConReintento(() => import('./pages/Audit'));
 const Users = lazyConReintento(() => import('./pages/Users'));
@@ -165,6 +166,8 @@ export default function App() {
               con guantes y con prisa. /a/ activo · /g/ gabinete. */}
           <Route path="/a/:id" element={<AssetScan />} />
           <Route path="/g/:id" element={<CabinetScan />} />
+          {/* Bloque 146: el QR del tablero eléctrico, el primer eslabón. */}
+          <Route path="/t/:id" element={<TableroScan />} />
           <Route path="/inventory" element={<Inventory />} />
           <Route path="/audit" element={<Audit />} />
           <Route path="/users" element={<Users />} />

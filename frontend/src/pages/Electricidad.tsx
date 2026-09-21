@@ -6,6 +6,7 @@ import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
 import { useDialogos } from '../components/Dialogos';
 import { plural } from '../formato';
+import Icono from '../components/Iconos';
 import { fecha } from '../fechas';
 import BotonConMotivo from '../components/BotonConMotivo';
 import { mensajeDeError, queFalta } from '../avisos';
@@ -158,6 +159,32 @@ export default function Electricidad() {
     } catch (e: any) { setError(mensajeDeError(e, 'quitar')); }
   }
 
+  /**
+   * LA ETIQUETA DEL TABLERO — bloque 146.
+   *
+   * «Ese tablero eléctrico también tiene que estar segmentado para poder
+   * generarle un QR y saber dónde está ubicado» (usuario, 21/09/2026).
+   *
+   * SE DESCARGA CON EL CLIENTE, NO CON UN `href`. El primer intento fue un
+   * enlace directo al endpoint y estaba mal: un `<a href>` no manda la
+   * cabecera de autorización, así que habría devuelto un 401 y quien lo
+   * pulsara habría visto una imagen rota sin saber por qué. Es el mismo patrón
+   * que usan las etiquetas de gabinete desde el bloque 5c.
+   */
+  async function descargarQr(t: any) {
+    try {
+      const { data } = await api.get(`/electricidad/tableros/${t.id}/qr.png`, { responseType: 'blob' });
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `qr-tablero-${t.codigo}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setError('No se pudo generar la etiqueta de este tablero.');
+    }
+  }
+
   return (
     <div className="page">
       <div className="card explica"
@@ -245,6 +272,20 @@ export default function Electricidad() {
                 <td className="muted" style={{ fontSize: 12 }}>{t.location?.name || '—'}</td>
                 <td className="num">{t._count.circuitos}</td>
                 <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                  {/* LA ETIQUETA DEL TABLERO — bloque 146.
+                      «Ese tablero eléctrico también tiene que estar segmentado
+                      para poder generarle un QR y saber dónde está ubicado»
+                      (usuario). Se abre en otra pestaña para imprimirla sin
+                      perder la lista, que es como se etiquetan veinte seguidos.
+
+                      Va con `ver` y no con un icono a secas: es la primera vez
+                      que aparece en esta pantalla y nadie sabe todavía que
+                      existe. */}
+                  <button className="btn-mini" style={{ marginRight: 4 }}
+                    onClick={() => descargarQr(t)}
+                    title="Etiqueta QR para pegar en la puerta del tablero">
+                    <Icono n="mapeo" size={14} /> QR
+                  </button>
                   <button className="btn-mini" onClick={() => abrir(t.id)}>Abrir</button>
                 </td>
               </tr>
