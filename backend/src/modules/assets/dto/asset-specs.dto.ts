@@ -3,7 +3,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import {
-  SwitchRole, WirelessMode, MgmtNetwork, ScreenLayout, ScreenSource,
+  SwitchRole, WirelessMode, MgmtNetwork, ScreenLayout, ScreenSource, CapaDeRed,
 } from '../../../generated/prisma/client';
 
 /**
@@ -72,6 +72,20 @@ export class SwitchSpecDto {
   @IsOptional() @IsEnum(MgmtNetwork) mgmtNetwork?: MgmtNetwork;
   @IsOptional() @IsString() @MaxLength(60) vendor?: string;
   @IsOptional() @IsEnum(SwitchRole) switchRole?: SwitchRole;
+
+  /* LA CAPA Y LO QUE SE PUEDE HACER CON ELLA — bloque 145.
+
+     Los tres son opcionales y nacen vacíos. Vacío significa «todavía no se ha
+     declarado», que NO es lo mismo que «no es gestionable»: dar por hecho que
+     un switch no se puede configurar es enviar a alguien a cambiar una caja
+     que sólo necesitaba una VLAN.
+
+     Y NO se deduce de la marca. «Es Fortinet, luego capa 3» acierta casi
+     siempre y falla el día que hay un FortiSwitch pequeño trabajando plano.
+     Un dato de planta se declara mirándolo, no adivinándolo. */
+  @IsOptional() @IsEnum(CapaDeRed) capa?: CapaDeRed;
+  @IsOptional() @IsBoolean() gestionable?: boolean;
+  @IsOptional() @IsBoolean() soportaVlan?: boolean;
 }
 
 export class WirelessSpecDto {

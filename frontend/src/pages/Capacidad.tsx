@@ -80,11 +80,38 @@ export default function Capacidad() {
           + 'y no sirve para decidir una instalación.',
       };
     }
+    /* «CERO LIBRES» NO SIEMPRE SIGNIFICA «LLENO» — corregido el 21/09/2026.
+
+       Lo cazó el usuario mirando esta pantalla con un switch de 24 puertos:
+       decía «No queda ni un puerto libre» y al lado ponía «0 ocupados · 24 sin
+       mapear». Las dos cosas no pueden ser verdad a la vez, y la que mentía era
+       el titular.
+
+       El motivo: `libres = mapeados − ocupados`. Si NADIE ha registrado qué hay
+       enchufado en cada puerto, `mapeados` es cero, y cero menos cero da cero
+       libres. La cuenta estaba bien; la FRASE estaba mal, porque «cero libres»
+       se leyó como «lleno» cuando en realidad era «no se sabe».
+
+       Y la diferencia cuesta dinero: «lleno» significa comprar un switch;
+       «no se sabe» significa ir al gabinete y mirar. Es la regla del proyecto:
+       un recorte que no se dice es una mentira.
+
+       Por eso este caso va ANTES: mientras haya puertos sin registrar, no se
+       afirma que no quede sitio. */
+    if (!r.libres && r.sinMapear) {
+      return {
+        tono: 'sindatos',
+        texto: `${r.sinMapear} puertos declarados y ninguno registrado`,
+        apoyo: 'No se puede decir cuántos quedan libres hasta que alguien anote '
+          + 'qué hay enchufado en cada puerto. Se hace en Conexiones.',
+      };
+    }
     if (!r.libres) {
       return {
         tono: 'grave',
         texto: 'No queda ni un puerto libre',
-        apoyo: 'Cualquier instalación nueva necesita un switch antes.',
+        apoyo: 'Todos los puertos registrados tienen algo enchufado. Una '
+          + 'instalación nueva necesita un switch antes.',
       };
     }
     return {
@@ -137,8 +164,9 @@ export default function Capacidad() {
               <table className="tabla">
                 <thead>
                   <tr>
-                    <th>Switch</th><th>Dónde</th><th>Libres</th>
-                    <th>Con PoE</th><th>Ocupados</th><th>Sin mapear</th>
+                    <th>Switch</th><th>Dónde</th><th>Puertos</th>
+                    <th>Libres</th><th>Con PoE</th><th>Ocupados</th>
+                    <th>Sin registrar</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -153,11 +181,36 @@ export default function Capacidad() {
                       <td>
                         {f.gabinete || f.ubicacion || '—'}
                         <div className="muted">{f.rol || ''}</div>
+                        {/* LA CAPA, JUNTO AL SITIO — bloque 145.
+                            Quien lee esta tabla está decidiendo si una
+                            instalación cabe, y «hay puertos» no siempre
+                            significa «se puede instalar aquí»: un capa 2 plano
+                            no segmenta lo nuevo. */}
+                        {f.capa && (
+                          <span className="chip" title={f.capa === 'CAPA_3'
+                            ? 'Enruta entre redes; se puede configurar una VLAN'
+                            : 'Conmuta y reparte; normalmente no se configura'}>
+                            {f.capa === 'CAPA_3' ? 'capa 3' : 'capa 2'}
+                          </span>
+                        )}
+                        {f.gestionable === false && <span className="chip">plano</span>}
                       </td>
+                      {/* De dónde sale cada número, que es lo que el usuario
+                          preguntó: PUERTOS es lo que dice la ficha del switch;
+                          LIBRES y OCUPADOS salen de lo registrado en Conexiones.
+                          Enseñar los tres juntos evita el malentendido de leer
+                          «0 libres» como «lleno» cuando no hay nada registrado. */}
                       <td>
                         {f.puertosDeclarados === null
                           ? <span className="muted">sin declarar</span>
-                          : <b>{f.libres}</b>}
+                          : f.puertosDeclarados}
+                      </td>
+                      <td>
+                        {f.puertosDeclarados === null
+                          ? <span className="muted">—</span>
+                          : f.sinMapear && !f.puertosMapeados
+                            ? <span className="muted">sin saber</span>
+                            : <b>{f.libres}</b>}
                       </td>
                       <td>
                         {f.libresPoe}
@@ -166,7 +219,7 @@ export default function Capacidad() {
                       <td>{f.ocupados}</td>
                       <td>
                         {f.sinMapear
-                          ? <span className="chip">{f.sinMapear}</span>
+                          ? <span className="chip" title="Puertos que la ficha declara pero que nadie ha registrado en Conexiones">{f.sinMapear}</span>
                           : <span className="muted">—</span>}
                       </td>
                     </tr>
@@ -221,12 +274,15 @@ export default function Capacidad() {
 
       <ComoSeCalcula>
         <p>
-          Un puerto libre es un puerto mapeado sin equipo conectado. Si el
-          switch no declara sus puertos, no se cuenta.
+          <b>De dónde sale cada número.</b> <b>Puertos</b> es lo que dice la
+          ficha del switch, en Activos de planta. <b>Ocupados</b> y{' '}
+          <b>libres</b> salen de lo registrado en <b>Conexiones</b>, puerto por
+          puerto.
         </p>
         <p>
-          <b>«Sin declarar» no es «lleno».</b> Cero libres significa comprar un
-          switch; sin declarar significa ir a medirlo.
+          <b>«Sin registrar» no es «lleno».</b> Un switch puede declarar 24
+          puertos y no tener ninguno registrado: entonces no se sabe cuántos
+          quedan, y la pantalla lo dice así en vez de inventar un cero.
         </p>
         <p>
           <b>El presupuesto PoE no se estima.</b> O está declarado o se dice que

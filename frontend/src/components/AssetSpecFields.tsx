@@ -24,6 +24,20 @@ const ROL_SWITCH: Record<string, string> = {
   AJENO: 'De terceros, colgado del Fortinet (TP-Link)',
 };
 
+/**
+ * LA CAPA DEL SWITCH, EN PALABRAS DE PLANTA — bloque 145.
+ *
+ * Los nombres no son «capa 2» y «capa 3» a secas: el rótulo dice lo que el
+ * técnico va a encontrarse cuando llegue, que es la razón por la que este
+ * campo existe. Dicho por el usuario: «la idea es evitar errores de
+ * información por parte de los técnicos, porque ellos se pueden confundir al
+ * momento de elevar esa información».
+ */
+const CAPA_SWITCH: Record<string, string> = {
+  CAPA_2: 'Capa 2 — conmuta y reparte (TP-Link, Hikvision de tablero)',
+  CAPA_3: 'Capa 3 — además enruta entre redes (Fortinet del anillo)',
+};
+
 const MODO_ANTENA: Record<string, string> = {
   PMP_BASE: 'AP principal (base punto-multipunto)',
   SUSCRIPTOR: 'Suscriptora (cuelga del AP)',
@@ -213,6 +227,54 @@ export default function AssetSpecFields({ tipo, spec, onChange, opciones }: Prop
           <label>Fabricante
             <input value={v.vendor || ''} onChange={txt('vendor')} placeholder="Fortinet, TP-Link, Hikvision" />
           </label>
+
+          {/* ------------------------------------------------- LA CAPA
+              Va justo detrás del fabricante porque es la pregunta que sigue
+              naturalmente, y DELANTE de los puertos porque es la que decide
+              qué se puede hacer con el equipo. */}
+          <label>¿En qué capa trabaja?
+            <select value={v.capa || ''} onChange={txt('capa')}>
+              <option value="">— sin declarar —</option>
+              {Object.entries(CAPA_SWITCH).map(([k, t]) => <option key={k} value={k}>{t}</option>)}
+            </select>
+          </label>
+          <Nota>
+            Decide a qué va el técnico: en un capa 3 se entra y se corrige una
+            configuración; en un capa 2 plano se revisa el cable y se cambia la
+            caja. <b>Si no se sabe, se deja sin declarar</b> — es mejor que
+            suponerlo por la marca.
+          </Nota>
+
+          <label>¿Se puede entrar a configurarlo?
+            <select value={v.gestionable === true ? 'si' : v.gestionable === false ? 'no' : ''}
+              onChange={(e) => set('gestionable', e.target.value === '' ? undefined : e.target.value === 'si')}>
+              <option value="">— sin declarar —</option>
+              <option value="si">Sí, tiene acceso de gestión</option>
+              <option value="no">No, es plano</option>
+            </select>
+          </label>
+
+          {/* SÓLO SI ES GESTIONABLE. Preguntar por VLAN en un switch plano es
+              invitar a rellenar un dato que no existe — y un dato inventado es
+              peor que un hueco. Se pregunta aparte de «gestionable» porque hay
+              equipos que se configuran y NO segmentan: suponerlo es como se
+              acaban mezclando dos redes. */}
+          {v.gestionable === true && (
+            <>
+              <label>¿Admite VLAN?
+                <select value={v.soportaVlan === true ? 'si' : v.soportaVlan === false ? 'no' : ''}
+                  onChange={(e) => set('soportaVlan', e.target.value === '' ? undefined : e.target.value === 'si')}>
+                  <option value="">— sin declarar —</option>
+                  <option value="si">Sí, se puede segmentar</option>
+                  <option value="no">No segmenta</option>
+                </select>
+              </label>
+              <Nota>
+                Sin VLAN, todo lo que cuelga comparte el mismo dominio: una
+                cámara ruidosa afecta a las demás.
+              </Nota>
+            </>
+          )}
 
           <label>Cantidad de puertos
             <input type="number" min={1} value={v.portCount ?? ''} onChange={num('portCount')} placeholder="Ej: 24" />

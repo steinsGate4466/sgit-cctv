@@ -827,3 +827,89 @@ concreto.
 
 Es la frase que cierra la presentación: **el software rellena lo que ya sabe;
 el técnico sólo pone lo que sólo él puede saber.**
+
+---
+
+# Quinto paseo · Dependencias y Sistema (21/09/2026)
+
+## ARREGLADO YA · «No queda ni un puerto libre» era mentira
+
+Él lo cazó leyendo la pantalla: decía **«No queda ni un puerto libre»** y al
+lado, en la misma tabla, **«0 ocupados · 24 sin mapear»**. Las dos cosas no
+pueden ser verdad a la vez.
+
+**El fallo era mío, y de lógica:** `libres = mapeados − ocupados`. Si nadie ha
+registrado qué hay enchufado en cada puerto, `mapeados` es cero, y cero menos
+cero da cero libres. **La cuenta estaba bien; la frase mentía**, porque leyó
+«cero libres» como «lleno» cuando la verdad era «no se sabe».
+
+**Y la diferencia cuesta dinero:** «lleno» significa comprar un switch; «no se
+sabe» significa ir al gabinete y mirar.
+
+Arreglado: mientras queden puertos sin registrar, la pantalla **no afirma que
+no haya sitio**. Y se añadió la columna **Puertos** para que se vea de dónde
+sale cada número.
+
+### La respuesta a su pregunta, «¿en qué te basas?»
+
+| Número | De dónde sale |
+|---|---|
+| **Puertos** | La **ficha del switch** en Activos de planta (`portCount`) |
+| **Ocupados** y **Libres** | Lo registrado **puerto por puerto en Conexiones** |
+| **Sin registrar** | La resta: lo que la ficha declara menos lo que hay anotado |
+| **Con PoE** | Sólo si el presupuesto PoE está declarado. **No se estima**: un PoE supuesto es como se quema una fuente |
+
+*Por eso «Conexiones» enseña 24 puertos y «Capacidad» decía 0: la primera
+dibuja los huecos que la ficha declara, la segunda contaba sólo lo registrado.*
+
+## Lo que pidió y queda anotado
+
+### Electricidad — el bloque más crítico que falta
+
+> «Cada cámara tiene que tener un punto de alimentación —el PoE— y el switch,
+> ¿en qué está alimentado? Si el switch pierde el 220, ¿cómo lo restauramos?
+> **Ni siquiera sabemos dónde está el tablero.** Ese tablero también tiene que
+> estar segmentado para generarle un QR y saber dónde está ubicado.»
+
+**Lo que hay que construir:** tabla de tableros por zona · qué alimenta cada
+llave · la cadena completa `tablero → circuito → switch PoE → cámara` · y
+**QR de tablero eléctrico**, como el de activo y el de gabinete.
+
+Hoy la pantalla dice «6 equipos sin saber de qué llave cuelgan», que es
+exactamente el problema.
+
+### Cableado — certificación
+
+Pide aplicar la metodología de **certificación de cableado y fibra**
+(ANSI/TIA-568, pruebas de canal/enlace permanente, OTDR para fibra) y que el
+resultado de la certificación viva en la ficha del tramo.
+
+### Nomenclatura y funcionalidad, módulo por módulo
+
+> «Quiero que entiendas que **cada funcionalidad de cada módulo se tiene que
+> determinar por qué**. Porque así podemos especificar a qué rol vamos a ponerle
+> cada cosa.»
+
+Es la misma regla que ya rige el resto: **cada pantalla dice qué contesta y
+para quién**. Falta aplicarla en Dependencias, que es donde más se nota.
+
+| Pantalla | Qué pide |
+|---|---|
+| **Conexiones** | Mejor nomenclatura al declarar la dependencia |
+| **Mapa de red** | *«¿Qué significa esto? Un equipo sin dirección que revisar, no entiendo.»* Explicar «fuera del plan de direcciones» sin jerga |
+| **Puntos críticos** | Confirmar que funciona y para quién es |
+| **Grabadores** | *«¿Qué te dijeron por radio? Eso no significa nada»* — el rótulo del buscador no se entiende fuera de contexto |
+| **Direccionamiento IP** | Pulir; «Declarar subred» y el estado vacío no se entienden |
+| **Rotulado** | *«Esta metodología está bien como la has detallado»* — sólo mejorar lo visual |
+| **Equipos conocidos** | *«¿Cómo vas a ponerme 13 direcciones de esa forma?»* Las direcciones en tabla con **IP y MAC**, y los registrados en otro apartado |
+| **Auditoría y Exportar** | Pulir |
+| **Monitoreo** | **No se toca.** Va a la PPT como **plus vendible** |
+| **Usuarios · Sesiones · Roles** | Le parecen bien; sólo repaso visual |
+| **Limpieza de datos** | Confirmado: sirve para detectar datos absurdos. *Ahí es donde retira el activo «waeaweaw»* |
+
+### El rol de cada dato — lo que él quiere poder decidir
+
+> «Al técnico tiene que ver estas cosas: los canales, los puertos libres,
+> cuántos canales tiene.»
+
+Cuando cada módulo declare **qué contesta**, el permiso sale solo.

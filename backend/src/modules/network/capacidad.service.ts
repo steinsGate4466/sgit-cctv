@@ -70,6 +70,7 @@ export class CapacidadService {
           select: {
             portCount: true, poePorts: true, poeBudgetW: true,
             switchRole: true, vendor: true,
+            capa: true, gestionable: true, soportaVlan: true,
             /* Los puertos REALES, no el número declarado. Un switch puede
                decir 24 y tener 18 filas: la diferencia es lo que nadie ha
                mapeado todavía, y se dice en vez de disimularla. */
@@ -100,6 +101,13 @@ export class CapacidadService {
         marca: s.brand || d?.vendor || null,
         modelo: s.model || null,
         rol: d?.switchRole ?? null,
+        /* LA CAPA VIAJA CON EL SWITCH — bloque 145.
+           Quien mira esta pantalla está decidiendo si una instalación cabe. Un
+           capa 2 plano no admite segmentar lo nuevo, así que «hay puertos» no
+           siempre significa «se puede instalar aquí». */
+        capa: d?.capa ?? null,
+        gestionable: d?.gestionable ?? null,
+        soportaVlan: d?.soportaVlan ?? null,
         gabinete: s.cabinet ? `${s.cabinet.code} — ${s.cabinet.name}` : null,
         ubicacion: s.location?.name ?? null,
         puertosDeclarados: declarados,

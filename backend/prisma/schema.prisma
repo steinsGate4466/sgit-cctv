@@ -1007,9 +1007,40 @@ model AssetSwitch {
   mgmtNetwork MgmtNetwork?
   vendor     String?      // Fortinet / FortiSwitch / TP-Link
   switchRole SwitchRole   @default(DISTRIBUCION)
+
+  /// EN QUÉ CAPA TRABAJA — bloque 145.
+  ///
+  /// Dicho por el usuario, que es quien los tiene delante: «existen dos tipos
+  /// de switch, el capa 2 y el capa 3. El capa 3 son los Fortinet; los capa 2
+  /// vendrían siendo los TP-Link, los que reparten power, los que están
+  /// dispersados en los tableros o en los pequeños gabinetes».
+  ///
+  /// No es una etiqueta académica: cambia POR COMPLETO qué se puede hacer con
+  /// el equipo en una intervención. En un capa 3 se entra, se mira una VLAN y
+  /// se corrige; en un capa 2 plano no hay nada que mirar —se comprueba el
+  /// cable y se cambia la caja—. Sin este dato, el técnico va a campo sin
+  /// saber si lo que le espera es una configuración o un reemplazo.
+  capa        CapaDeRed?
+  /// ¿Tiene forma de entrar a configurarlo? Muchos capa 2 de planta no la
+  /// tienen, y ésa es justo la información que hay que llevar puesta.
+  gestionable Boolean?
+  /// ¿Admite VLAN? Se pregunta aparte de `gestionable` porque hay equipos
+  /// gestionables que NO segmentan, y suponerlo es como se mezclan dos redes.
+  soportaVlan Boolean?
+
   ports      SwitchPort[]
 
   @@map("asset_switches")
+}
+
+/// LA CAPA EN LA QUE TRABAJA UN SWITCH.
+/// CAPA_2 conmuta por MAC dentro de un dominio; CAPA_3 además enruta entre
+/// redes. En planta: los Fortinet del anillo son capa 3; los TP-Link y los
+/// Hikvision que reparten PoE en los tableros son capa 2, y muchos ni siquiera
+/// se pueden configurar.
+enum CapaDeRed {
+  CAPA_2
+  CAPA_3
 }
 
 enum SwitchRole {

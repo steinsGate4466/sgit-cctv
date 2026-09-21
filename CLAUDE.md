@@ -5915,3 +5915,113 @@ nueva: se enlazó la que existe.
 
 **Equipos retirados ya filtraba al escribir** (en el navegador, sin botón). Lo
 que él vio —«no hay un botón que dice buscar»— era correcto: no hace falta.
+
+---
+
+## §63 · QUINTO PASEO — DEPENDENCIAS (21/09/2026)
+
+### 63.1 · Arreglado: la capacidad de red mentía
+
+«No queda ni un puerto libre» con «0 ocupados · 24 sin mapear» al lado. El
+fallo era de lógica: `libres = mapeados − ocupados`, y sin nada registrado eso
+da cero. **La cuenta estaba bien; la frase mentía.** «Cero libres» se leyó como
+«lleno» cuando era **«no se sabe»** — y la diferencia cuesta dinero: lleno
+significa comprar un switch, no se sabe significa ir a mirar.
+
+Añadida la columna **Puertos** para que se vea de dónde sale cada número:
+**Puertos** = ficha del switch · **Ocupados/Libres** = lo registrado en
+Conexiones · **Sin registrar** = la resta.
+
+Es la regla del proyecto otra vez: **un recorte que no se dice es una mentira.**
+
+### 63.2 · Electricidad es el bloque crítico que falta
+
+Palabras suyas: *«si el switch pierde el 220, ¿cómo lo restauramos? Ni siquiera
+sabemos dónde está el tablero»*. Hace falta la cadena completa **tablero →
+circuito → switch PoE → cámara**, y **QR de tablero eléctrico** como el de
+activo y el de gabinete.
+
+### 63.3 · La regla que él formuló, y que vale para todo
+
+> «Cada funcionalidad de cada módulo se tiene que determinar **por qué**. Porque
+> así podemos especificar a qué rol vamos a ponerle cada cosa.»
+
+**Primero qué contesta la pantalla; el permiso sale solo.** Es lo que falta
+aplicar en Dependencias.
+
+### 63.4 · Monitoreo no se toca
+
+Va a la presentación como **plus vendible**, no a código.
+
+---
+
+## §64 · BLOQUE 145 — LA CAPA DEL SWITCH (21/09/2026)
+
+### Lo que él explicó, y que es el eje de todo
+
+> «Todo está interconectado. No podemos saltarnos un proceso: empezamos por lo
+> más básico — **primero la energía, luego los dispositivos, luego el cableado,
+> luego los dispositivos que dependen de ese dispositivo, el gabinete** que
+> tiene que estar estructurado para el NVR y para el switch.»
+>
+> «Existen dos tipos de switch: el **capa 2** y el **capa 3**. El capa 3 son los
+> **Fortinet**; los capa 2 vendrían siendo los **TP-Link**, los que reparten
+> power, los que están dispersados en los tableros o en los pequeños gabinetes.»
+>
+> «Hay que estandarizarlo de forma correcta y **lineal, que no se pueda salir**.
+> La idea es **evitar errores de información por parte de los técnicos**, porque
+> ellos se pueden confundir al momento de elevar esa información.»
+>
+> «La idea de esto es **apoyar, no arruinar**.»
+
+### Por qué la capa no es una etiqueta académica
+
+**Cambia a qué va el técnico.** En un capa 3 se entra, se mira una VLAN y se
+corrige. En un capa 2 plano no hay nada que mirar: se comprueba el cable y se
+cambia la caja. Sin este dato, alguien sale a campo sin saber si le espera una
+configuración o un reemplazo.
+
+### Lo construido
+
+- **`schema.prisma`:** `enum CapaDeRed { CAPA_2 CAPA_3 }` y tres campos en
+  `AssetSwitch`: **`capa`**, **`gestionable`**, **`soportaVlan`**.
+- **Migración idempotente** `20260921000000_switch_capa` — se puede lanzar dos
+  veces sin romper nada, como todas desde el bloque 110-A.
+- **`SwitchSpecDto`** con los tres campos, opcionales.
+- **El formulario guía, no interroga:** la capa va detrás del fabricante y
+  delante de los puertos, porque es la pregunta que decide el resto. **«¿Admite
+  VLAN?» sólo aparece si el switch es gestionable** — preguntarlo en un switch
+  plano es invitar a rellenar un dato que no existe, y un dato inventado es peor
+  que un hueco.
+- **«Capacidad de red»** enseña la capa junto al sitio: *«hay puertos» no
+  siempre significa «se puede instalar aquí»*.
+
+### Dos decisiones que se sostienen
+
+**Nada se rellena solo.** Los tres campos nacen NULL, y NULL significa «no se ha
+declarado», que **no** es «no es gestionable». Dar por hecho que un switch no se
+configura es mandar a alguien a cambiar una caja que sólo necesitaba una VLAN.
+
+**La capa NO se deduce de la marca.** «Es Fortinet, luego capa 3» acierta casi
+siempre y falla el día que haya un FortiSwitch pequeño trabajando plano. Un dato
+de planta se declara mirándolo.
+
+### Lo que tiene que correr ÉL
+
+`prisma generate` no funciona desde el entorno de trabajo de Claude: el proxy
+devuelve 403 al descargar los binarios de Prisma. Por eso el typecheck del
+backend falla aquí hasta que él regenere el cliente. **No es un error del
+código:** son los tipos generados, que todavía no conocen los campos nuevos.
+
+```
+cd backend
+npm.cmd run prisma:generate
+npm.cmd run prisma:migrate
+npx.cmd tsc --noEmit
+```
+
+### Lo que sigue en la cadena, y NO está hecho
+
+Su orden: **energía → dispositivos → cableado → lo que depende → gabinete.**
+La energía es el primer eslabón y es el que falta (§63.2): tablero → circuito →
+switch PoE → cámara, con **QR de tablero eléctrico**.
