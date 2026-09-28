@@ -29,6 +29,7 @@ export default function Preventive() {
   const [loading, setLoading] = useState(true);
   const [vista, setVista] = useState<'plan' | 'rutinas'>('plan');
   const [generating, setGenerating] = useState(false);
+  const [cambiandoAuto, setCambiandoAuto] = useState(false);
 
   const [form, setForm] = useState<any>(null);
   const [saving, setSaving] = useState(false);
@@ -78,6 +79,23 @@ export default function Preventive() {
       const m = err?.response?.data?.message;
       await avisar(Array.isArray(m) ? m.join(', ') : m || 'No se pudo generar.');
     } finally { setGenerating(false); }
+  }
+
+  /* Bloque 143 · el interruptor. Apagar pide confirmación porque deja de
+     programarse trabajo en toda la planta; encender no, porque sólo vuelve a
+     lo normal. Lo que responde el servidor ES el estado nuevo: no se supone. */
+  async function alternarAuto() {
+    if (!auto) return;
+    const encender = !auto.enabled;
+    if (!encender && !(await confirmar('¿Apagar los preventivos automáticos? Dejarán de crearse solos hasta que alguien los encienda.'))) return;
+    setCambiandoAuto(true);
+    try {
+      const r = await api.post('/preventive/autogen', { activo: encender });
+      setAuto(r.data);
+    } catch (err: any) {
+      const m = err?.response?.data?.message;
+      await avisar(Array.isArray(m) ? m.join(', ') : m || 'No se pudo cambiar.');
+    } finally { setCambiandoAuto(false); }
   }
 
   function openNew() {
@@ -143,20 +161,31 @@ export default function Preventive() {
       <>
 
       {auto && (
-        <div className="sign-note" style={{ marginBottom: 16 }}>
-          {auto.enabled ? (
-            <>
-              <Icono n="automatico" size={15} /> <b>Generación automática activa</b> — el sistema crea solo las OM <b>preventivas</b> vencidas cada día a las {String(auto.hour).padStart(2, '0')}:00 (hora de planta).
-              {auto.lastRunAt
-                ? <> Última ejecución: {fechaHora(auto.lastRunAt)} ({auto.lastRunGenerated ?? 0} generadas).</>
-                : <> Aún sin ejecuciones registradas.</>}
-              {/* La aclaración de qué NO se genera solo vive en «Cómo se
-                  calcula esto», al final de la pantalla: es metodología, y
-                  aquí competía por el sitio con el dato de la última
-                  ejecución, que es lo que se viene a mirar. */}
-            </>
-          ) : (
-            <><Icono n="pausa" size={15} /> Generación automática desactivada. Las OM preventivas se crean con el botón “Generar OM vencidas”.</>
+        <div className="sign-note" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ flex: '1 1 320px' }}>
+            {auto.enabled ? (
+              <>
+                <Icono n="automatico" size={15} /> <b>Preventivos automáticos: encendidos.</b> Cada día a las {String(auto.hour).padStart(2, '0')}:00.
+                {auto.lastRunAt
+                  ? <> Última vez: {fechaHora(auto.lastRunAt)} ({auto.lastRunGenerated ?? 0} OM).</>
+                  : <> Aún no ha corrido.</>}
+              </>
+            ) : (
+              <>
+                <Icono n="pausa" size={15} /> <b>Preventivos automáticos: apagados</b>
+                {auto.apagadaPorEntorno
+                  ? ' en el despliegue.'
+                  : auto.cambiadaPor ? ` por ${auto.cambiadaPor}, ${fechaHora(auto.cambiadaEn)}.` : '.'}
+                {' '}Se crean con «Generar OM vencidas».
+              </>
+            )}
+          </span>
+          {/* Sólo quien aprueba trabajo lo cambia (wo.approve). Si lo apagó el
+              despliegue, no hay botón: la pantalla no puede encenderlo. */}
+          {can('wo.approve') && !auto.apagadaPorEntorno && (
+            <button className="btn-mini" disabled={cambiandoAuto} onClick={alternarAuto}>
+              {auto.enabled ? 'Apagar' : 'Encender'}
+            </button>
           )}
         </div>
       )}

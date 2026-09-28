@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { WorkOrderStatus } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -382,8 +382,74 @@ export class PreventiveService {
    * Estado de la generación automática (para mostrarlo en el tablero de Preventivo):
    * si está activa, a qué hora corre y cuándo fue la última ejecución automática.
    */
+  /* ===========================================================================
+     EL INTERRUPTOR DE LOS PREVENTIVOS AUTOMÁTICOS — bloque 143
+     ---------------------------------------------------------------------------
+     Antes sólo se apagaba con la variable PREVENTIVE_AUTOGEN=off, es decir,
+     tocando el despliegue. Mantenimiento no puede pedirle a TI un redespliegue
+     para parar la generación en una parada de planta.
+
+     DOS LLAVES, Y MANDA LA MÁS RESTRICTIVA:
+       · la variable de entorno APAGA y nadie la enciende desde la pantalla
+         (es la decisión de quien despliega);
+       · la pantalla apaga y enciende dentro de lo que el despliegue permite.
+     Se guarda en `configuracion_sistema`, se audita quién lo cambió, y el
+     programador lo lee EN CADA CICLO: no hace falta reiniciar nada.
+     =========================================================================== */
+  private static readonly CLAVE_AUTOGEN = 'preventivo.autogen';
+
+  private apagadaPorEntorno(): boolean {
+    return (process.env.PREVENTIVE_AUTOGEN || 'on').toLowerCase() === 'off';
+  }
+
+  /** ¿Toca generar? Falso si la apaga el entorno O la pantalla. */
+  async autogenEncendida(): Promise<boolean> {
+    if (this.apagadaPorEntorno()) return false;
+    const fila = await this.prisma.configuracionSistema
+      .findUnique({ where: { clave: PreventiveService.CLAVE_AUTOGEN } })
+      .catch(() => null);
+    return fila?.valor !== 'off';
+  }
+
+  async cambiarAutogen(activo: boolean, userId: string | null, ip?: string) {
+    if (activo && this.apagadaPorEntorno()) {
+      throw new BadRequestException(
+        'La generación automática está apagada en el despliegue (PREVENTIVE_AUTOGEN=off). '
+        + 'Sólo quien despliega puede encenderla.',
+      );
+    }
+    const antes = await this.autogenEncendida();
+    await this.prisma.configuracionSistema.upsert({
+      where: { clave: PreventiveService.CLAVE_AUTOGEN },
+      create: {
+        clave: PreventiveService.CLAVE_AUTOGEN,
+        valor: activo ? 'on' : 'off',
+        descripcion: 'Generación automática diaria de OM preventivas (bloque 143)',
+        actualizadoPor: userId,
+      },
+      update: { valor: activo ? 'on' : 'off', actualizadoEn: new Date(), actualizadoPor: userId },
+    });
+    await this.audit.record({
+      userId,
+      action: activo ? 'PREVENTIVE_AUTOGEN_ON' : 'PREVENTIVE_AUTOGEN_OFF',
+      entity: 'configuracion_sistema',
+      entityId: PreventiveService.CLAVE_AUTOGEN,
+      ip,
+      before: { encendida: antes },
+      after: { encendida: activo },
+    });
+    return this.autoGenStatus();
+  }
+
   async autoGenStatus() {
-    const enabled = (process.env.PREVENTIVE_AUTOGEN || 'on').toLowerCase() !== 'off';
+    const apagadaPorEntorno = this.apagadaPorEntorno();
+    const enabled = await this.autogenEncendida();
+    const cambio = await this.prisma.configuracionSistema
+      .findUnique({ where: { clave: PreventiveService.CLAVE_AUTOGEN } })
+      .catch(() => null);
+    const quien = cambio?.actualizadoPor
+      ? await this.prisma.user.findUnique({ where: { id: cambio.actualizadoPor }, select: { fullName: true } }).catch(() => null)
+      : null;
     const hour = Number(process.env.PREVENTIVE_AUTOGEN_HOUR ?? 6);
     const lookaheadDays = Number(process.env.PREVENTIVE_LOOKAHEAD_DAYS ?? 0);
     const last = await this.prisma.auditLog.findFirst({
@@ -393,6 +459,9 @@ export class PreventiveService {
     });
     return {
       enabled,
+      apagadaPorEntorno,
+      cambiadaEn: cambio?.actualizadoEn ?? null,
+      cambiadaPor: quien?.fullName ?? null,
       hour,
       lookaheadDays,
       lastRunAt: last?.createdAt || null,

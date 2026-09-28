@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api } from '../api/client';
+import { api, motivoDelError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { useDialogos } from '../components/Dialogos';
 import { EsqueletoTablero } from '../components/Esqueleto';
@@ -90,6 +90,17 @@ export default function Mejoras() {
   useEffect(() => { cargar(); }, [cargar]);
   // Bloque 37: al volver de otra pestaña, los datos pueden haber cambiado.
   useVolverALaPantalla(cargar);
+
+  /* Bloque 141 · la propuesta en PDF: propuesta + procedimiento de hoy + un
+     «leído» por área, para llevarla a la reunión de las tres áreas. */
+  async function descargarPdf(m: any) {
+    try {
+      const r = await api.get(`/procedimientos-mejoras/${m.id}/pdf`, { responseType: 'blob' });
+      const url = URL.createObjectURL(new Blob([r.data], { type: 'application/pdf' }));
+      const a = document.createElement('a'); a.href = url; a.download = 'propuesta-de-mejora.pdf';
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    } catch (err) { await avisar(await motivoDelError(err, 'No se pudo generar el PDF.')); }
+  }
 
   async function decidir(id: string, aceptada: boolean) {
     if (!aceptada && !motivo.trim()) {
@@ -206,6 +217,12 @@ export default function Mejoras() {
                 <Icono n="nota" size={14} />
                 <span className="mejora-proc">{m.procedimiento?.titulo || 'Procedimiento'}</span>
                 {m.workOrder?.code && <span className="mejora-om">desde {m.workOrder.code}</span>}
+                {/* Bloque 141: en papel, para que la lean las tres áreas. */}
+                <button type="button" className="btn-mini" style={{ marginLeft: 'auto' }}
+                  title="PDF con la propuesta, el procedimiento de hoy y un «leído» por área"
+                  onClick={() => descargarPdf(m)}>
+                  <Icono n="pdf" size={13} /> PDF
+                </button>
               </header>
 
               {/* --- LO QUE ESCRIBIÓ, ENTERO. Es lo único que importa aquí,

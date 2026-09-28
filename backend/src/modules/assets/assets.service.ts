@@ -10,6 +10,7 @@ import { computeEffectiveStatuses, computeEffectiveStatus, motivoDelEstado } fro
 import { resolverContextoDePlanta } from '../../common/plant-context';
 import { evaluarFicha, resumenPendiente } from '../../common/asset-completeness';
 import { filtroDeUbicaciones } from '../../common/ambito-planta';
+import { filtroConAmbito } from '../../common/ambito-usuario';
 import { fichaParaCrear, fichaParaActualizar, sinFichas } from './asset-spec.util';
 import { evaluarReincidencia, severidadGlobal } from '../../common/reincidencia';
 // PDF y QR: require para no depender de @types en el build.
@@ -151,14 +152,11 @@ export class AssetsService {
    * el filtro se traduce a un conjunto de ubicaciones y se aplica sobre
    * locationId, que sí está indexado. Ver src/common/ambito-planta.ts.
    */
-  async findAll(q: QueryAssetDto, sensitive = false) {
-    const ambito = await filtroDeUbicaciones(this.prisma, { tren: q.tren, etapa: q.etapa });
-    const page = Math.max(1, Number(q.page) || 1);
-    // Tope de 200 por página: protege al servidor de una petición como
-    // ?pageSize=100000 que traería todo y anularía la paginación.
-    const pageSize = Math.min(200, Math.max(1, Number(q.pageSize) || 50));
-
-    const where = {
+  /* La MISMA consulta para el listado y para la hoja de etiquetas (bloque
+     142): si fueran dos, la hoja acabaría imprimiendo algo distinto de lo que
+     enseña la pantalla y nadie lo notaría hasta pegar los rótulos. */
+  private whereDeListado(q: QueryAssetDto, ambito: { in: string[] } | null) {
+    return {
       deletedAt: null,
       /* Bloque 45. Los COMPONENTES (la fuente PoE de una antena, el calefactor
          de una cámara) NO salen en el listado: trescientas fuentes sueltas y
@@ -184,6 +182,16 @@ export class AssetsService {
           }
         : {}),
     };
+  }
+
+  async findAll(q: QueryAssetDto, sensitive = false) {
+    const ambito = await filtroDeUbicaciones(this.prisma, { tren: q.tren, etapa: q.etapa });
+    const page = Math.max(1, Number(q.page) || 1);
+    // Tope de 200 por página: protege al servidor de una petición como
+    // ?pageSize=100000 que traería todo y anularía la paginación.
+    const pageSize = Math.min(200, Math.max(1, Number(q.pageSize) || 50));
+
+    const where = this.whereDeListado(q, ambito);
 
     // Cuenta y página en paralelo: una sola ida a la base.
     const [total, rows] = await Promise.all([
@@ -845,18 +853,49 @@ export class AssetsService {
    * Hoja de etiquetas en PDF lista para imprimir y pegar en los equipos.
    * Cada etiqueta lleva el QR, el código del activo y su ubicación.
    */
-  async qrSheet(ids?: string[]): Promise<{ buffer: Buffer; filename: string }> {
+  /* ===========================================================================
+     HOJA DE ETIQUETAS QR POR TREN O ZONA — bloque 142
+     ---------------------------------------------------------------------------
+     Palabras del usuario: «imagínate cuánto papel». Antes la hoja salía con
+     TODA la planta. Ahora imprime LO QUE FILTRA LA PANTALLA —tren, área, tipo,
+     estado, búsqueda— con la misma consulta que el listado.
+
+     DOS COSAS QUE ESTABAN MAL Y SE CIERRAN AQUÍ:
+       · El ÁMBITO del usuario no se aplicaba: un Jefe de Tren (activos.mirar)
+         recibía los códigos y ubicaciones de los tres trenes. Ahora se cruza
+         con `filtroConAmbito`, que manda siempre lo más restrictivo.
+       · Había un `take: 200` callado: con 400 activos, la mitad no salía y
+         nadie se enteraba. Un recorte que no se dice es una mentira. Ahora,
+         si pasa del tope, se dice cuántas son y que se filtre.
+     =========================================================================== */
+  static readonly TOPE_ETIQUETAS = 480; // 40 hojas A4 de 12
+
+  async qrSheet(
+    filtro: QueryAssetDto & { ids?: string[] },
+    userId?: string | null,
+  ): Promise<{ buffer: Buffer; filename: string }> {
+    const ambito = await filtroConAmbito(this.prisma, userId, { tren: filtro.tren, etapa: filtro.etapa });
+    const where = {
+      ...this.whereDeListado(filtro, ambito),
+      ...(filtro.ids && filtro.ids.length ? { id: { in: filtro.ids } } : {}),
+    };
+    const total = await this.prisma.asset.count({ where });
+    if (!total) throw new NotFoundException('No hay equipos con ese filtro para imprimir etiquetas.');
+    if (total > AssetsService.TOPE_ETIQUETAS) {
+      throw new BadRequestException(
+        `Son ${total} etiquetas y el máximo por archivo es ${AssetsService.TOPE_ETIQUETAS}. `
+        + 'Filtra por tren, área o tipo.',
+      );
+    }
     const assets = await this.prisma.asset.findMany({
-      where: { deletedAt: null, ...(ids && ids.length ? { id: { in: ids } } : {}) },
+      where,
       select: {
         id: true, assetCode: true, type: true,
         location: { select: { name: true } },
         cabinet: { select: { code: true } },
       },
       orderBy: { assetCode: 'asc' },
-      take: 200,
     });
-    if (!assets.length) throw new NotFoundException('No hay activos para generar etiquetas');
 
     const doc = new PDFDocument({ size: 'A4', margin: 28 });
     const chunks: Buffer[] = [];
@@ -895,7 +934,9 @@ export class AssetsService {
 
     doc.end();
     const buffer = await done;
-    return { buffer, filename: `etiquetas-qr-${new Date().toISOString().slice(0, 10)}.pdf` };
+    const parte = [filtro.tren, filtro.etapa, filtro.type].filter(Boolean).join('-');
+    const nombre = parte ? `etiquetas-qr-${parte}` : 'etiquetas-qr';
+    return { buffer, filename: `${nombre.replace(/[^\w-]/g, '')}-${new Date().toISOString().slice(0, 10)}.pdf` };
   }
 
   // ---------- Informe del equipo (PDF): ficha técnica + fotos + historial ----------

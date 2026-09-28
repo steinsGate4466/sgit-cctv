@@ -101,28 +101,26 @@ const LINEA_BASE = {
      porque es información que sólo Mantenimiento puede tocar, y su botón
      cuesta una palabra —«Acceso»—. Subir la línea base por una función que
      llega es legítimo; subirla por un párrafo de más, no. */
-  'Assets.tsx':            [244, 11, 0],
+  'Assets.tsx':            [244, 10, 0],
   'Paradas.tsx':           [246, 10, 0],
   'Ipam.tsx':              [187, 7, 0],
-  'Maintenance.tsx':      [223, 7, 0],
+  'Maintenance.tsx':      [202, 7, 0],
   'Campanas.tsx':          [180, 7, 0],
-  'Incidents.tsx':         [177, 8, 0],
   'Topologia.tsx':         [218, 6, 0],
   // Convertida a medias en el bloque 38: el titular y las acciones ya están
   // arriba, pero dentro lleva OCHO vistas con su propio texto. Bajar de aquí
   // exige repasar las ocho, y eso es un bloque propio.
-  'TrainBoard.tsx':        [177, 4, 9],
+  'TrainBoard.tsx':        [171, 4, 9],
   'Gruas.tsx':             [216, 8, 0],
-  'Locations.tsx':         [196, 8, 0],
-  'Zonas.tsx':             [179, 8, 2],
+  'Locations.tsx':         [194, 8, 0],
   'Monitoreo.tsx':         [196, 4, 5],
   'Conexiones.tsx':        [185, 6, 0],
-  'Indicadores.tsx':       [173, 6, 0],
+  'Indicadores.tsx':       [172, 6, 1],
   'Grabadores.tsx':        [137, 6, 0],
   'Avisos.tsx':            [152, 4, 5],
   // Recién hecha en el bloque 36 y ya pasa de columnas. Es la prueba de que
   // esto se degrada solo aunque quien escriba tenga la regla en la cabeza.
-  'Riesgo.tsx':            [160, 12, 1],
+  'Riesgo.tsx':            [157, 12, 1],
   // Quince indicadores. Es EL tablero, y aun así quince no se leen.
 };
 

@@ -87,6 +87,8 @@ export class BandejaService {
           id: true, code: true, type: true, activity: true, scheduledDate: true,
           progressPct: true, asset: { select: { assetCode: true } },
           technician: { select: { id: true, fullName: true } },
+          // Bloque 135: si ya pidió prórroga, se dice en la fila.
+          prorrogas: { where: { estado: 'PENDIENTE' }, select: { fechaPedida: true }, take: 1 },
         },
         orderBy: { scheduledDate: 'asc' },
         take: 50,
@@ -288,12 +290,28 @@ export class BandejaService {
     }));
     const vencidasOrdenadas = loMioArriba(vencidas).map((o: any) => ({
       ...o, esMia: userId ? o?.technician?.id === userId : false,
+      prorrogaPedida: o.prorrogas?.[0]?.fechaPedida ?? null,
     }));
+
+    /* BLOQUE 135 · PRÓRROGAS ESPERANDO VISTO BUENO. Un técnico que pidió más
+       plazo está esperando una respuesta para organizar su semana. La bandeja
+       sólo AVISA: se aprueba dentro de la orden (§58). */
+    const prorrogas = await this.prisma.prorrogaDeOm.findMany({
+      where: { estado: 'PENDIENTE', workOrder: { status: abiertas } },
+      orderBy: { pedidaEn: 'asc' },
+      take: 50,
+      select: {
+        id: true, fechaAnterior: true, fechaPedida: true, motivo: true, pedidaEn: true,
+        pedidaPor: { select: { fullName: true } },
+        workOrder: { select: { id: true, code: true, activity: true } },
+      },
+    });
 
     return {
       sinDetallar: sinDetallarOrdenadas,
       enEspera,
       vencidas: vencidasOrdenadas,
+      prorrogas,
       firmasPendientes,
       accesos,
       incidenciasCriticas,
@@ -314,6 +332,7 @@ export class BandejaService {
         // de verdad hay que mirar: que haya órdenes en espera es normal.
         esperaExcedida: enEspera.filter((e) => e.excedida).length,
         vencidas: vencidas.length,
+        prorrogas: prorrogas.length,
         firmasPendientes: firmasPendientes.length,
         accesos: accesos.length,
         incidenciasCriticas: incidenciasCriticas.length,
@@ -323,7 +342,7 @@ export class BandejaService {
         sobrantes: sobrantes.length,
         // Total de cosas que esperan a alguien. Si es cero, la bandeja está
         // vacía y eso es una buena noticia que merece decirse.
-        total: sinDetallar.length + vencidas.length + firmasPendientes.length
+        total: sinDetallar.length + vencidas.length + prorrogas.length + firmasPendientes.length
           + accesos.length + incidenciasCriticas.length + incidenciasNormales.length
           + mejorasPropuestas.length + bajoMinimo.length + sobrantes.length,
       },

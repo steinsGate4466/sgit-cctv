@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, FormEvent } from 'react';
 import Icono from '../components/Iconos';
-import { api } from '../api/client';
+import { api, motivoDelError } from '../api/client';
 import BotonPurgar from '../components/BotonPurgar';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, AvisoAmbito } from '../components/FiltroAmbito';
 import Modal from '../components/Modal';
@@ -89,15 +89,19 @@ export default function Cabinets() {
    */
   async function descargarEtiquetas() {
     try {
-      const { data } = await api.get('/cabinets/qr/sheet', { responseType: 'blob' });
+      // Bloque 142: por tren o área, lo mismo que enseña la lista.
+      const params: any = {};
+      if (ambito.tren) params.tren = ambito.tren;
+      if (ambito.etapa) params.etapa = ambito.etapa;
+      const { data } = await api.get('/cabinets/qr/sheet', { params, responseType: 'blob' });
       const url = URL.createObjectURL(data);
       const a = document.createElement('a');
       a.href = url;
       a.download = 'etiquetas-gabinetes.pdf';
       a.click();
       URL.revokeObjectURL(url);
-    } catch {
-      await avisar('No se pudieron generar las etiquetas.');
+    } catch (err) {
+      await avisar(await motivoDelError(err, 'No se pudieron generar las etiquetas.'));
     }
   }
 

@@ -3,6 +3,7 @@ import SelectorDeActivo from '../components/SelectorDeActivo';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, AvisoAmbito } from '../components/FiltroAmbito';
+import ParadaYPlazo from '../components/ParadaYPlazo';
 import Modal from '../components/Modal';
 import EquiposDeLaOm from '../components/EquiposDeLaOm';
 import { useAuth } from '../auth/AuthContext';
@@ -106,6 +107,8 @@ export default function Maintenance() {
   // 4A: asignar (ingeniero) y detallar (técnico de red) son dos actos distintos.
   const [asignando, setAsignando] = useState(false);
   const [detallando, setDetallando] = useState<any>(null);
+  // Bloques 135/138: parada real y prórroga, dentro de la orden.
+  const [plazoDe, setPlazoDe] = useState<any>(null);
   const [soloSinDetallar, setSoloSinDetallar] = useState(false);
   /* «SÓLO LAS QUE HE PEDIDO YO» — bloque 94.
      ---------------------------------------------------------------------------
@@ -124,6 +127,10 @@ export default function Maintenance() {
      otra cara: se ORDENA por persona, no se esconde lo demás. */
   const soloMiasPorDefecto = can('wo.create') && !can('wo.update');
   const [soloMias, setSoloMias] = useState(soloMiasPorDefecto);
+  /* «MIS TRABAJOS» — bloque 148. El técnico entra al sistema por aquí
+     (`/maintenance?asignadas=1`, ver `inicioPara` en modulos.ts): sus órdenes
+     vivas, no las de toda la planta. Lo resuelve el SERVIDOR, como «las mías». */
+  const [aMiCargo, setAMiCargo] = useState(() => parametros.get('asignadas') === '1');
 
   // Alta de OM (solo Jefe). El código es MANUAL (número que genera SAP).
   const [showForm, setShowForm] = useState(false);
@@ -172,6 +179,7 @@ export default function Maintenance() {
        enseñando tres. Una cifra así no se puede creer, y con ella deja de
        creerse el resto de la pantalla. */
     if (soloMias) params.set('mias', '1');
+    if (aMiCargo) params.set('asignadas', '1');
     const [wo, ast, inc, loc] = await Promise.all([
       api.get('/work-orders?' + params.toString()).then((r) => r.data).catch(() => ({ data: [] })),
       api.get('/assets/options').then((r) => r.data).catch(() => []),
@@ -195,7 +203,7 @@ export default function Maintenance() {
      resuelve el SERVIDOR, así que cambiarlo obliga a volver a preguntar. Los
      que se aplican al pulsar «Buscar» no van aquí. */
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [ambito, soloMias]);
+  useEffect(() => { load(); }, [ambito, soloMias, aMiCargo]);
 
   /* Se busca MIENTRAS SE ESCRIBE, con 350 ms de espera. El botón «Buscar»
      se queda: quien teclea un código completo lo pulsa por costumbre y
@@ -329,7 +337,7 @@ export default function Maintenance() {
     }
   }
 
-  if (loading) return <div className="loading">Cargando órdenes de mantenimiento…</div>;
+  if (loading) return <div className="loading">Cargando órdenes…</div>;
 
   const openIncidents = incidents.filter((i) => i.status !== 'CERRADA');
 
@@ -410,6 +418,13 @@ export default function Maintenance() {
             <input type="checkbox" checked={soloMias} style={{ width: 'auto' }}
               onChange={(e) => setSoloMias(e.target.checked)} />
             Las mías
+          </label>
+        )}
+        {can('wo.update') && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, alignSelf: 'flex-end', paddingBottom: 6 }}>
+            <input type="checkbox" checked={aMiCargo} style={{ width: 'auto' }}
+              onChange={(e) => setAMiCargo(e.target.checked)} />
+            Mis trabajos
           </label>
         )}
         <button className="btn-mini" onClick={clearFilters}>Limpiar</button>
@@ -601,6 +616,9 @@ export default function Maintenance() {
                         title="Materiales previstos/usados y reemplazo de equipo"
                         onClick={() => setMatsFor(w)}><Icono n="inventario" size={14} /> Materiales</button>
                       <button className="btn-mini" onClick={() => downloadReport(w)}>Informe</button>
+                      {/* Bloques 135/138: la parada real y la prórroga viven
+                          dentro de la orden, no en un módulo aparte. */}
+                      <button className="btn-mini" onClick={() => setPlazoDe(w)}>Parada y plazo</button>
                     </div>
                   </details>
                   {/* «ELIMINAR» YA NO VIVE EN LA FILA — bloque 91.
@@ -631,6 +649,10 @@ export default function Maintenance() {
           un bloque que nadie llama compila, pasa el lint y no existe.
           La purga de órdenes vive en «Limpieza de datos». */}
 
+      {plazoDe && (
+        <ParadaYPlazo wo={plazoDe} onClose={() => setPlazoDe(null)} onHecho={load} />
+      )}
+
       {showForm && (
         <Modal title="Nueva orden de mantenimiento" onClose={() => setShowForm(false)}>
           <form onSubmit={create}>
@@ -651,7 +673,7 @@ export default function Maintenance() {
                 </select>
                 </label>
                 <div className="muted" style={{ fontSize: 11, marginTop: -6, marginBottom: 10 }}>
-                  Una orden de mapeo cubre una zona: el técnico levantará todos los
+                  Una orden de mapeo cubre una zona: el técnico levanta todos los
                   equipos que encuentre allí.
                 </div>
               </>
@@ -681,7 +703,7 @@ export default function Maintenance() {
               placeholder="Ej: columna 14, junto a la escalera norte, poste de la izquierda" />
             </label>
             <div className="muted" style={{ fontSize: 11, marginTop: -6, marginBottom: 10 }}>
-              El detalle que ayuda a encontrar el punto exacto en planta.
+              Para encontrar el punto exacto en planta.
             </div>
             <label>Incidencia relacionada (opcional)
               <select value={form.incidentId} onChange={(e) => setForm({ ...form, incidentId: e.target.value })}>
@@ -701,7 +723,7 @@ export default function Maintenance() {
             <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
               <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Recepción del pedido</div>
               <div className="muted" style={{ fontSize: 11, marginBottom: 8 }}>
-                Registrar el origen evita que la solicitud se pierda.
+                Así la solicitud no se pierde.
               </div>
               <label>¿Quién la pidió?
                 <input value={form.requestedBy} onChange={(e) => setForm({ ...form, requestedBy: e.target.value })}
@@ -722,7 +744,7 @@ export default function Maintenance() {
             <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
               <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Parada estimada</div>
               <div className="muted" style={{ fontSize: 11, marginBottom: 8 }}>
-                Es tentativa. El técnico confirmará por radio la hora real cuando esté en campo.
+                Es tentativa: el técnico confirma la hora real en campo.
               </div>
               <label>Hora estimada de parada
                 <input type="datetime-local" value={form.plannedStopAt}
@@ -749,7 +771,7 @@ export default function Maintenance() {
               diagnóstico viene después y se refiere a eso. */}
           <EquiposDeLaOm workOrderId={intId} cerrada={false} />
           <form onSubmit={submitIntervention}>
-            <div className="sign-note">Registra qué se está interviniendo en el equipo. El cierre definitivo lo realiza el Jefe de Mantenimiento.</div>
+            <div className="sign-note">Qué se está haciendo en el equipo. Cierra el Jefe de Mantenimiento.</div>
             <label>Zona de intervención
               <input value={intForm.zone} onChange={(e) => setIntForm({ ...intForm, zone: e.target.value })} placeholder="Ej: Horno, Tren 1, Púlpito…" />
             </label>
@@ -813,7 +835,7 @@ export default function Maintenance() {
       {photoId && (
         <Modal title="Fotografías de la intervención" onClose={() => setPhotoId(null)}>
           <form onSubmit={uploadPhoto}>
-            <div className="sign-note">Sube fotos del trabajo realizado. Se incrustarán en el informe PDF de la OM.</div>
+            <div className="sign-note">Fotos del trabajo. Van al informe PDF.</div>
             <label>Imagen (JPG / PNG)
               <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
             </label>

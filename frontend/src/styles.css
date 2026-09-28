@@ -4354,3 +4354,16 @@ input::-webkit-datetime-edit { padding: 0; }
    Numerados a propósito — es un orden, no una lista de opciones. */
 .vacio-pasos { margin: 12px 0 10px; padding-left: 20px; text-align: left; }
 .vacio-pasos li { margin-bottom: 8px; line-height: 1.5; }
+
+/* Bloque 147 · las pantallas del módulo, arriba del contenido. El menú
+   lateral tiene una entrada por módulo; aquí se elige la pantalla. */
+.barra-modulo { padding: 0 26px; }
+.barra-modulo .subtabs { margin: 14px 0 0; }
+.barra-modulo .train-tabs { margin: 12px 0 0; }
+.barra-modulo .subtab { text-decoration: none; }
+@media (max-width: 780px) { .barra-modulo { padding: 0 12px; } }
+
+/* Bloques 135/138 · pares dato-valor en «Parada y plazo». */
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 13px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; }

@@ -1,5 +1,5 @@
 import {
-  BadRequestException, ConflictException, Injectable, NotFoundException,
+  BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client';
 import * as argon2 from 'argon2';
@@ -264,6 +264,16 @@ export class MaintenanceService {
        que venga en la consulta: con eso cualquiera vería «las mías» de otro. */
     if (q.mias && userId) where.createdById = userId;
 
+    /* «A MI CARGO» — bloque 148. Las del técnico asignado = el de la SESIÓN,
+       igual que `mias`: nunca un identificador que llegue en la consulta.
+       Sin estado pedido, sólo las VIVAS: una lista de trabajo que arrastra
+       las cerradas de hace un año no es una lista de trabajo. Si pide un
+       estado concreto (p. ej. CERRADA, para repasar lo que hizo), manda él. */
+    if (q.asignadas && userId) {
+      where.technicianId = userId;
+      if (!q.status) where.status = { notIn: ['CERRADA', 'CANCELADA'] };
+    }
+
     // Ámbito de planta. Una OM puede colgar de un ACTIVO o solo de una
     // UBICACIÓN (una campaña de barrido, por ejemplo), así que se aceptan las
     // dos vías. Si no, las campañas desaparecerían al filtrar por tren.
@@ -511,11 +521,23 @@ export class MaintenanceService {
     return wo;
   }
 
-  async update(id: string, dto: UpdateWorkOrderDto) {
+  async update(id: string, dto: UpdateWorkOrderDto, puedeMoverFecha = true) {
     const cur = await this.prisma.workOrder.findUnique({ where: { id } });
     if (!cur) throw new NotFoundException('Orden de mantenimiento no encontrada');
     const data: any = { ...dto };
-    if (dto.scheduledDate) data.scheduledDate = new Date(dto.scheduledDate);
+    if (dto.scheduledDate) {
+      data.scheduledDate = new Date(dto.scheduledDate);
+      const cambia = !cur.scheduledDate || cur.scheduledDate.getTime() !== data.scheduledDate.getTime();
+      /* BLOQUE 135 · LA FECHA NO SE MUEVE POR LA PUERTA DE ATRÁS. Con `wo.update`
+         cualquiera podía cambiar la fecha aquí y la orden dejaba de salir
+         fuera de plazo sin que nadie lo aprobara. Ahora eso es una prórroga:
+         se pide con motivo y la aprueba el supervisor. */
+      if (cambia && !puedeMoverFecha) {
+        throw new ForbiddenException('Mover la fecha es una prórroga: pídela con su motivo y la aprueba el supervisor.');
+      }
+      // Quien sí puede moverla deja la fecha original guardada, una sola vez.
+      if (cambia && cur.scheduledDate && !cur.fechaOriginal) data.fechaOriginal = cur.scheduledDate;
+    }
     if (dto.status === 'CERRADA' && !cur.executedDate) data.executedDate = new Date();
     const actualizada = await this.prisma.workOrder.update({ where: { id }, data, include: inc });
 

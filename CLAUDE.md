@@ -6079,3 +6079,160 @@ El modelo ya estaba entero —`TableroElectrico`, `CircuitoElectrico`,
 `AlimentacionActivo`, impacto de tablero y de circuito—. Lo que falta no es
 modelo: es **levantar los datos en planta**. La pantalla ya lo está diciendo:
 «6 equipos sin saber de qué llave cuelgan».
+
+---
+
+## §66 · PARA LA PRESENTACIÓN — LEER ESTO PRIMERO (21/09/2026)
+
+**Si mañana hay que preparar la presentación, el documento es
+`docs/PARA_LA_PRESENTACION.md`.** Está todo ahí: la tesis, las cuatro
+preguntas de apertura, el argumento de gobernanza, las tres áreas, la cadena
+energía→red→cámara, qué se enseña en vivo, las propuestas y cómo cerrar.
+
+### Lo que no se puede perder de vista
+
+Esto lo diseñó **Cristhian Rondón** desde el campo, no desde un manual. Cada
+decisión del sistema tiene una frase suya detrás, y están citadas en el
+documento. **Su conocimiento de planta es el activo; el software solo lo
+ordenó.**
+
+Se juega quedarse en la empresa y poder liderar este proyecto. Lo dijo así:
+*«hay mucho trabajo por hacer, hay muchas propuestas; quiero quedarme, quiero
+trabajar»*. La presentación tiene que transmitir eso sin decirlo: que quien
+habla conoce la planta, que el sistema contesta preguntas que hoy nadie
+contesta, y que hay un plan detrás.
+
+### Las tres frases que sostienen todo
+
+1. **«¿Quién nos proporciona esa información?»** — la apertura.
+2. **«Que nadie pueda saltar un paso importante.»** — la gobernanza.
+3. **«Que el software sea un apoyo, no al contrario.»** — el diseño.
+
+### El argumento más fuerte, y el que menos se espera la sala
+
+**El sistema dice lo que NO sabe.** Distingue «lleno» de «no se sabe»,
+«sin declarar» de «cero», «no hay foto» de «la foto se perdió». Cualquiera
+enseña un tablero en verde; esto enseña dónde falta información **y a quién le
+toca levantarla**. Eso es lo que lo hace fiable para decidir una compra.
+
+---
+
+## §67 · BLOQUE 147 — UNA ENTRADA POR MÓDULO (28/09/2026)
+
+Tras la presentación, Producción, Mantenimiento y Técnica: **«demasiados
+módulos, marean»**. El menú tenía 48 entradas en cinco secciones.
+
+**Ahora:** 9 entradas —Estado de planta · Trabajo · Equipos · Red y energía ·
+Ubicaciones · Repuestos · Documentos · Indicadores · Ajustes— y las pantallas de
+cada módulo salen como **pestañas arriba del contenido**. Dentro de una pantalla
+siguen las pestañas del bloque 118 (Todas / Preventivo / Correctivo / Mejora).
+
+- **Fuente única: `frontend/src/modulos.ts`.** El menú y las pestañas leen de
+  ahí. Nunca un `<NavLink to=…>` escrito a mano en `Layout.tsx`.
+- **Ninguna pantalla se borró y ninguna ruta cambió.** Los enlaces viejos siguen.
+- **Los permisos son exactamente los de antes**, entrada por entrada.
+- Un módulo sin pantallas visibles no se pinta: cada rol ve sólo lo suyo.
+- «Estado de planta» se llamará **Mapa** cuando exista el plano (bloque 152).
+  Hasta entonces no se llama Mapa, porque no lo es.
+- `verificar:menu` reescrito: toda ruta tiene sitio, toda pantalla de un
+  módulo existe, ninguna está en dos módulos, y el menú lee de `MODULOS`.
+  Probado reintroduciendo los cuatro fallos.
+
+Plan completo de lo que sigue: `docs/PLAN_REESTRUCTURA_28092026.md`.
+
+---
+
+## §68 · BLOQUE 148 — CADA UNO ENTRA A LO SUYO (28/09/2026)
+
+Antes todos entraban al Dashboard; quien no tenía `dashboard.read` aterrizaba
+en una pantalla vacía. Ahora `/` pasa por `inicioPara` (`frontend/src/modulos.ts`):
+
+| Puede… | Es… | Entra a |
+|---|---|---|
+| `om.mirar` sin `wo.update` | Producción | `/mi-tren` (si tiene tren y `dashboard.read`) o `/vista-general` |
+| `wo.update` sin `wo.approve` | Técnico | `/maintenance?asignadas=1` — **Mis trabajos** |
+| `dashboard.read` | Mantenimiento | `/bandeja` |
+| otro | — | la primera pantalla que pueda abrir |
+
+- **Por capacidad, nunca por nombre de rol** (regla del bloque 62-A).
+- **Mis trabajos** es un filtro NUEVO del servidor: `asignadas=1` → órdenes cuyo
+  técnico asignado es el usuario de la SESIÓN, sólo vivas (sin CERRADA ni
+  CANCELADA) salvo que pida un estado. Casilla «Mis trabajos» en Órdenes.
+- La ruta que no existe (`*`) ya no manda al Dashboard: vuelve a `/`, que decide.
+- `verificar:menu` (E): toda ruta de `inicioPara` está en un módulo.
+- Simulado con los roles de la semilla: Jefe de Mantenimiento → Bandeja ·
+  Técnico y Supervisor TI → Mis trabajos · Jefe de línea → Mi tren / Resumen ·
+  Jefe de tren → Resumen · Operador de púlpito → Incidencias.
+
+---
+
+## §69 · BLOQUE 143 — EL INTERRUPTOR DE LOS PREVENTIVOS (28/09/2026)
+
+Antes sólo se apagaba con `PREVENTIVE_AUTOGEN=off` (tocar el despliegue). Ahora
+Mantenimiento lo apaga y enciende desde **Órdenes › Preventivo** (`wo.approve`).
+
+- **Dos llaves, manda la más restrictiva**: la variable de entorno APAGA y la
+  pantalla no puede encender lo que apagó el despliegue.
+- Se guarda en `configuracion_sistema` (`preventivo.autogen`), queda en
+  auditoría (`PREVENTIVE_AUTOGEN_ON/OFF`) y el programador lo lee **en cada
+  ciclo**: no hace falta reiniciar.
+- `POST /preventive/autogen {activo}`. Pruebas: `test/preventive.service.spec.ts`.
+
+## §70 · BLOQUE 142 — ETIQUETAS QR POR TREN O ZONA (28/09/2026)
+
+«Imagínate cuánto papel». La hoja de etiquetas imprime **lo que filtra la
+pantalla** (tren, área, tipo, estado, búsqueda) con la MISMA consulta que el
+listado (`whereDeListado`). Gabinetes igual, por tren o área.
+
+Dos fallos cerrados de paso:
+- **Fuga de ámbito**: un Jefe de Tren recibía las etiquetas —códigos y
+  ubicaciones— de los tres trenes. Ahora se cruza con `filtroConAmbito`.
+- **Recorte callado**: `take: 200` / `take: 120` dejaban fuera equipos sin
+  decirlo. Ahora, si pasa del tope (480 / 240), se dice cuántas son y que se filtre.
+- `motivoDelError` (api/client.ts): el mensaje del servidor llega dentro de un
+  Blob en las descargas; ahora se lee y se enseña.
+- Prueba: `test/etiquetas-qr-por-tren.spec.ts`, verificada quitando el cruce de ámbito.
+
+## §71 · BLOQUES 138 y 135 — PARADA Y PLAZO DENTRO DE LA OM (28/09/2026)
+
+Migración **aditiva e idempotente** `20260928000000_parada_y_prorroga`.
+
+**138 · Parada real.** `paradaInicioReal` / `paradaFinReal` en la orden.
+«Empezó la parada / terminó la parada», con la hora de la radio. Distinto de
+`startedAt` (el técnico puede empezar 20 min después de que pare el tren).
+No acepta horas futuras (margen 5 min) ni fin antes de inicio.
+
+**135 · Prórroga con visto bueno.** Tabla `prorrogas_om`. El técnico la PIDE con
+motivo; el supervisor (`wo.approve`) aprueba o rechaza (rechazar exige motivo).
+- **Dos llaves**: quien la pidió no la resuelve, aunque tenga el permiso.
+- Sólo al aprobar cambia `scheduledDate`, y `fechaOriginal` guarda la de antes
+  UNA vez: el indicador distingue «a tiempo» de «a tiempo gracias a prórroga».
+- **Puerta de atrás cerrada**: `PATCH /work-orders/:id` ya no deja mover la
+  fecha sin `wo.approve` («mover la fecha es una prórroga»).
+- Bandeja: bloque «Prórrogas por aprobar» y «prórroga pedida» en las vencidas.
+  Se aprueba DENTRO de la orden (§58): botón «Parada y plazo» en el menú `⋯`.
+- Reglas puras en `maintenance/parada-prorroga.ts`, probadas en
+  `test/parada-prorroga.spec.ts`.
+
+## §72 · BLOQUE 139 — REPORTAR SIN INVENTAR (28/09/2026)
+
+- `POST /incidents` ahora **guarda quién reportó** (del token; antes quedaba
+  vacío y la bandeja no decía a quién llamar) y **comprueba el tren**: el
+  activo va en el cuerpo, el guard no lo veía. Prueba: `test/incidencia-en-su-tren.spec.ts`.
+- **El formulario se parte**: quien no tiene `incident.update` sólo cuenta
+  «¿Qué pasa?», zona, equipo y descripción. Categoría y prioridad las completa
+  el técnico en «Propuesta».
+
+## §73 · BLOQUE 149 — MENOS LETRAS (en curso)
+
+Zonas vitales e Incidencias ya bajo el tope de 130 palabras (salen de la línea
+base); Órdenes de 219 a 202. La explicación larga va plegada en `<ComoSeCalcula>`.
+
+## §74 · BLOQUE 141 — LA MEJORA EN PAPEL (28/09/2026)
+
+`GET /procedimientos-mejoras/:id/pdf`: la propuesta entera, el procedimiento de
+hoy con sus pasos, el tiempo real contra el estimado, la decisión si la hay y un
+**«leído por» Producción · Mantenimiento · Técnica** para la reunión.
+La sacan quien la propuso o quien decide (`procedimiento.manage`); nadie más.
+Auditado (`MEJORA_PDF`). Botón «PDF» en cada tarjeta de Mejoras.
+Prueba: `test/mejora-pdf.spec.ts`.

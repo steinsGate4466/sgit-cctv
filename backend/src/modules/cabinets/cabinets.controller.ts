@@ -31,9 +31,15 @@ export class CabinetsController {
   // que ya se sigue en Activos y en Usuarios.
   @Get('qr/sheet')
   @RequirePermissions('asset.read')
-  async qrSheet(@Query('ids') ids: string, @Res() res: Response) {
+  async qrSheet(
+    @Res() res: Response,
+    @Query('ids') ids?: string,
+    @Query('tren') tren?: string,
+    @Query('etapa') etapa?: string,
+  ) {
     const lista = (ids || '').split(',').map((x) => x.trim()).filter(Boolean);
-    const { buffer, filename } = await this.cabinets.qrSheet(lista);
+    // Bloque 142: por tren o área, como la lista de la pantalla.
+    const { buffer, filename } = await this.cabinets.qrSheet(lista, { tren, etapa });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);

@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { lazyConReintento } from './lazy-con-reintento';
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import Login from './pages/Login';
+import Inicio from './components/Inicio';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import { EsqueletoTablero } from './components/Esqueleto';
@@ -97,7 +98,9 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        {/* Bloque 148: cada uno entra a lo suyo (`inicioPara`), no todos al
+            Dashboard — quien no podía verlo aterrizaba en una pantalla vacía. */}
+        <Route path="/" element={<Inicio />} />
         {/* El Suspense envuelve TODAS las rutas de dentro, no cada una:
             así el armazón (menú y cabecera) no parpadea al cambiar de
             pantalla. Sólo se reemplaza el contenido. */}
@@ -174,7 +177,8 @@ export default function App() {
           <Route path="/roles" element={<Roles />} />
         </Route>
       </Route>
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      {/* Lo que no existe vuelve al inicio de cada uno, que ya decide. */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

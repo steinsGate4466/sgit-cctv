@@ -230,17 +230,34 @@ export class CabinetsService {
    * el rótulo MUCHO más grande. Una etiqueta de gabinete se lee de pie, a dos
    * metros, en una nave con poca luz. La del activo se lee a un palmo.
    */
-  async qrSheet(ids?: string[]): Promise<{ buffer: Buffer; filename: string }> {
+  /* Bloque 142 · la hoja sale POR TREN O ZONA, igual que la lista de la
+     pantalla, y sin el `take: 120` callado: si pasa del tope se dice. */
+  static readonly TOPE_ETIQUETAS = 240;
+
+  async qrSheet(
+    ids?: string[],
+    q?: { tren?: string; etapa?: string },
+  ): Promise<{ buffer: Buffer; filename: string }> {
+    const ambito = await filtroDeUbicaciones(this.prisma, { tren: q?.tren, etapa: q?.etapa });
+    const where = {
+      ...(ambito ? { locationId: ambito } : {}),
+      ...(ids && ids.length ? { id: { in: ids } } : {}),
+    };
+    const total = await this.prisma.cabinet.count({ where });
+    if (!total) throw new NotFoundException('No hay gabinetes con ese filtro para imprimir etiquetas.');
+    if (total > CabinetsService.TOPE_ETIQUETAS) {
+      throw new BadRequestException(
+        `Son ${total} etiquetas y el máximo por archivo es ${CabinetsService.TOPE_ETIQUETAS}. Filtra por tren o área.`,
+      );
+    }
     const gabinetes = await this.prisma.cabinet.findMany({
-      where: ids && ids.length ? { id: { in: ids } } : undefined,
+      where,
       select: {
         id: true, code: true, name: true, referencePlace: true,
         location: { select: { name: true } },
       },
       orderBy: { code: 'asc' },
-      take: 120,
     });
-    if (!gabinetes.length) throw new NotFoundException('No hay gabinetes para generar etiquetas');
 
     const doc = new PDFDocument({ size: 'A4', margin: 28 });
     const chunks: Buffer[] = [];

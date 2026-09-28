@@ -55,6 +55,9 @@ function statusBadge(s: string) {
 export default function Incidents() {
   const { avisar } = useDialogos();
   const { can, user } = useAuth();
+  /* Bloque 139: quien puede actualizar incidencias es quien las clasifica.
+     Los demás (Producción, púlpito) sólo cuentan qué pasa. */
+  const completaTecnico = can('incident.update');
   const [rows, setRows] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -138,7 +141,11 @@ export default function Incidents() {
     e.preventDefault();
     setSaving(true);
     try {
-      const body: any = { title: form.title, category: form.category, priority: form.priority };
+      /* Bloque 139: quien sólo reporta no clasifica. Categoría y prioridad las
+         pone el técnico después; mandarlas con el valor por defecto diría que
+         alguien las eligió. */
+      const body: any = { title: form.title };
+      if (completaTecnico) { body.category = form.category; body.priority = form.priority; }
       if (form.assetId) body.assetId = form.assetId;
       if (form.zone) body.zone = form.zone.trim();
       if (form.description) body.description = form.description;
@@ -182,6 +189,7 @@ export default function Incidents() {
   function openProposal(i: any) {
     setPropId(i.id);
     setProp({
+      category: i.category || 'GENERAL', priority: i.priority || 'MEDIA',
       proposal: i.proposal || '', proposalCost: i.proposalCost || '',
       proposalRisk: i.proposalRisk || '', requiresThirdParty: !!i.requiresThirdParty,
     });
@@ -191,6 +199,9 @@ export default function Incidents() {
     setPropSaving(true);
     try {
       await api.patch('/incidents/' + propId, {
+        // Bloque 139: aquí el técnico completa lo que quien reportó no sabía.
+        category: prop.category || undefined,
+        priority: prop.priority || undefined,
         proposal: prop.proposal || undefined,
         proposalCost: prop.proposalCost || undefined,
         proposalRisk: prop.proposalRisk || undefined,
@@ -439,16 +450,24 @@ export default function Incidents() {
       {showForm && (
         <Modal title="Nueva incidencia" onClose={() => setShowForm(false)}>
           <form onSubmit={create}>
-            <div className="sign-note">Registra la falla, haya o no orden. Alimenta el análisis.</div>
-            <label>Título
-              <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required minLength={3} />
+            {/* BLOQUE 139 · EL FORMULARIO SE PARTE. Quien reporta cuenta qué ve;
+                el técnico clasifica después. Pedirle a un operador la
+                categoría y la prioridad es pedirle que invente. */}
+            <div className="sign-note">
+              {completaTecnico ? 'Registra la falla, haya o no orden.' : 'Cuenta qué pasa. El técnico completa el resto.'}
+            </div>
+            <label>{completaTecnico ? 'Título' : '¿Qué pasa?'}
+              <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required minLength={3}
+                placeholder={completaTecnico ? undefined : 'Ej.: la cámara del lecho se ve negra'} />
             </label>
+            {completaTecnico && (
             <div style={{ display: 'flex', gap: 10 }}>
               <div style={{ flex: 1 }}><label>Categoría<select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>{CATEGORY_GROUPS.map((g) => <optgroup key={g.label} label={g.label}>{g.items.map((c) => <option key={c} value={c}>{catEs(c)}</option>)}</optgroup>)}</select></label></div>
               <div style={{ flex: 1 }}><label>Prioridad<select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>{PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}</select></label></div>
             </div>
-            <label>Zona / área (Horno, Laminación, Púlpito…)
-              <input value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value })} />
+            )}
+            <label>Zona o área
+              <input value={form.zone} placeholder="Horno, laminación, púlpito…" onChange={(e) => setForm({ ...form, zone: e.target.value })} />
             </label>
             {/* BLOQUE 121 · agrupado por tipo y con su ubicación. Una
                 incidencia puede ser de cualquier equipo, así que NO se filtra:
@@ -463,9 +482,11 @@ export default function Incidents() {
             <label>Descripción del problema
               <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} style={{ width: '100%', resize: 'vertical' }} />
             </label>
+            {completaTecnico && (
             <label>Cámaras afectadas (opcional)
               <input type="number" value={form.affectedCameras} onChange={(e) => setForm({ ...form, affectedCameras: e.target.value })} />
             </label>
+            )}
             <button className="btn" disabled={saving}>{saving ? 'Guardando…' : 'Crear incidencia'}</button>
           </form>
         </Modal>
@@ -475,8 +496,13 @@ export default function Incidents() {
         <Modal title="Propuesta técnica de solución" onClose={() => setPropId(null)}>
           <form onSubmit={submitProposal}>
             <div className="sign-note">
-              Documenta <b>qué se propone hacer</b> para resolverlo de fondo. Esta información
-              sustenta el pedido ante Jefatura y queda en el informe de la incidencia.
+              <b>Qué se propone hacer</b> para resolverlo de fondo. Va al informe.
+            </div>
+            {/* Bloque 139 · la clasificación la completa el técnico, no quien
+                reportó. Va primero: es lo que ordena la bandeja. */}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <div style={{ flex: 1 }}><label>Categoría<select value={prop.category} onChange={(e) => setProp({ ...prop, category: e.target.value })}>{CATEGORY_GROUPS.map((g) => <optgroup key={g.label} label={g.label}>{g.items.map((c) => <option key={c} value={c}>{catEs(c)}</option>)}</optgroup>)}</select></label></div>
+              <div style={{ flex: 1 }}><label>Prioridad<select value={prop.priority} onChange={(e) => setProp({ ...prop, priority: e.target.value })}>{PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}</select></label></div>
             </div>
             <label>Propuesta de solución
               <textarea value={prop.proposal} onChange={(e) => setProp({ ...prop, proposal: e.target.value })}
@@ -496,7 +522,7 @@ export default function Incidents() {
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400, marginTop: 10 }}>
               <input type="checkbox" checked={!!prop.requiresThirdParty}
                 onChange={(e) => setProp({ ...prop, requiresThirdParty: e.target.checked })} style={{ width: 'auto' }} />
-              Requiere apoyo de terceros (área eléctrica, contratista)
+              Necesita a terceros (eléctricos, contratista)
             </label>
             <button className="btn" disabled={propSaving}>{propSaving ? 'Guardando…' : 'Guardar propuesta'}</button>
           </form>
@@ -506,7 +532,7 @@ export default function Incidents() {
       {photoId && (
         <Modal title="Fotografías de campo" onClose={() => setPhotoId(null)}>
           <form onSubmit={uploadPhoto}>
-            <div className="sign-note">Sube fotos de lo que ocurre en campo. Se incrustan en el informe PDF de la incidencia.</div>
+            <div className="sign-note">Fotos de campo. Van al informe PDF.</div>
             <label>Imagen (JPG / PNG)
               <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
             </label>
@@ -530,7 +556,7 @@ export default function Incidents() {
       {resolveId && (
         <Modal title="Resolver incidencia (firmado)" onClose={() => setResolveId(null)}>
           <form onSubmit={submitResolve}>
-            <div className="sign-note">Registra cómo se resolvió para el análisis de planta. Confirma tu identidad al final (firma auditada).</div>
+            <div className="sign-note">Cómo se resolvió. Al final firmas con tu contraseña.</div>
             <label>¿Qué se hizo para resolverlo?
               <textarea value={rf.solution} onChange={(e) => setRf({ ...rf, solution: e.target.value })} rows={2} style={{ width: '100%', resize: 'vertical' }} />
             </label>
@@ -555,7 +581,7 @@ export default function Incidents() {
             </div>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400, marginTop: 8 }}>
               <input type="checkbox" checked={!!rf.lineManagerNotified} onChange={(e) => setRf({ ...rf, lineManagerNotified: e.target.checked })} style={{ width: 'auto' }} />
-              El jefe de línea está enterado del problema
+              El jefe de línea ya lo sabe
             </label>
             <h4 style={{ marginTop: 12, marginBottom: 4 }}><Icono n="firma" size={15} /> Firma</h4>
             <label>Correo

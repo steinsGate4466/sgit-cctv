@@ -41,3 +41,9 @@ export class QueryAssetDto {
      cuatrocientas filas no la contesta. */
   @IsOptional() @IsString() orden?: string;
 }
+
+/** Bloque 142 · la hoja de etiquetas acepta los MISMOS filtros que el listado,
+ *  más una lista de ids separada por comas (etiquetas sueltas). */
+export class QrSheetQueryDto extends QueryAssetDto {
+  @IsOptional() @IsString() ids?: string;
+}

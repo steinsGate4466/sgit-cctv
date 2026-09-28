@@ -14,7 +14,7 @@ import { SignedUpdateAssetDto } from './dto/update-asset-signed.dto';
 import { UpdateAssetStatusDto } from './dto/update-asset-status.dto';
 import { UpdateNetworkDto } from './dto/update-network.dto';
 import { InstalarAparatoDto, RetirarAparatoDto, CorregirAparatoDto } from './dto/aparato.dto';
-import { QueryAssetDto } from './dto/query-asset.dto';
+import { QueryAssetDto, QrSheetQueryDto } from './dto/query-asset.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequireAlguno, RequirePermissions } from '../../common/decorators/permissions.decorator';
@@ -207,12 +207,17 @@ export class AssetsController {
 
      Quien tiene `activos.mirar` ya recibe los equipos de su tren en lista:
      imprimir su rótulo no le da ningún dato nuevo. Y `@AmbitoDe('asset')`
-     sigue limitando a su tren. */
+     sigue limitando a su tren.
+
+     Bloque 142: ese «sigue limitando» NO era verdad para la hoja —no lleva
+     :id que comprobar—. Ahora el servicio cruza con `filtroConAmbito`. */
   @Get('qr/sheet')
   @RequireAlguno('asset.read', 'activos.mirar')
-  async qrSheet(@Res() res: Response, @Query('ids') ids?: string) {
+  async qrSheet(@Res() res: Response, @Query() q: QrSheetQueryDto, @CurrentUser() user: any) {
+    // Bloque 142: los mismos filtros que el listado + el ámbito del usuario.
+    const { ids, ...filtro } = q;
     const list = ids ? ids.split(',').map((s) => s.trim()).filter(Boolean) : undefined;
-    const { buffer, filename } = await this.assets.qrSheet(list);
+    const { buffer, filename } = await this.assets.qrSheet({ ...filtro, ids: list }, user?.userId);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);

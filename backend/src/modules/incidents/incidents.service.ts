@@ -7,6 +7,7 @@ import * as argon2 from 'argon2';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { filtroDeUbicaciones } from '../../common/ambito-planta';
+import { filtroConAmbito } from '../../common/ambito-usuario';
 import { AuditService } from '../audit/audit.service';
 import { StorageService } from '../storage/storage.service';
 import { CreateIncidentDto } from './dto/create-incident.dto';
@@ -106,7 +107,20 @@ export class IncidentsService {
     return d;
   }
 
-  async create(dto: CreateIncidentDto) {
+  async create(dto: CreateIncidentDto, userId?: string | null) {
+    /* BLOQUE 139 · CADA UNO REPORTA EN SU TREN. La puerta de Producción
+       (`reporte/:assetId`) ya lo comprobaba con el guard de ámbito; ésta, que
+       lleva el activo en el CUERPO, no: el jefe del Tren 2 podía abrir una
+       incidencia sobre un equipo del Tren 1 copiando su identificador. */
+    if (dto.assetId && userId) {
+      const ambito = await filtroConAmbito(this.prisma, userId, {});
+      if (ambito) {
+        const activo = await this.prisma.asset.findUnique({ where: { id: dto.assetId }, select: { locationId: true } });
+        if (!activo || !activo.locationId || !ambito.in.includes(activo.locationId)) {
+          throw new ForbiddenException('Ese equipo no es de tu tren: repórtalo a quien lo tiene a cargo.');
+        }
+      }
+    }
     const inc = await this.prisma.incident.create({
       data: {
         code: await this.nextCode(),
@@ -120,6 +134,10 @@ export class IncidentsService {
         affectedCameras: dto.affectedCameras,
         visionDownMin: dto.visionDownMin,
         occurredAt: this.cuandoOcurrio(dto.occurredAt),
+        /* Bloque 139: QUIÉN lo reportó, del token y nunca del cuerpo. Antes
+           no se guardaba en esta puerta y la bandeja decía «—» donde tenía
+           que decir a quién llamar. */
+        reportedById: userId ?? null,
         /* Nunca se repite el principal dentro de la lista: contarlo dos veces
            haría que «con cuántas cosas suele venir esta falla» saliera
            inflado en uno para todas. */
@@ -156,7 +174,7 @@ export class IncidentsService {
           ocurrioEsEstimado: !inc.occurredAt,
           incidentId: inc.id,
           categoria: inc.category,
-          registradoPorId: (dto as any).reportedById ?? null,
+          registradoPorId: userId ?? null,
         },
       }).catch(() => null);
     }

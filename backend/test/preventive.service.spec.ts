@@ -137,3 +137,62 @@ describe('PreventiveService — generación automática de OM', () => {
     expect(created[0].code).toMatch(/^OM-\d{4}-\d{4}$/);
   });
 });
+
+/**
+ * BLOQUE 143 · el interruptor de los preventivos automáticos.
+ * Dos llaves: la variable de entorno APAGA y manda; la pantalla apaga y
+ * enciende dentro de lo que el despliegue permite.
+ */
+describe('PreventiveService — interruptor de la generación automática', () => {
+  const ENV = process.env.PREVENTIVE_AUTOGEN;
+  afterEach(() => {
+    if (ENV === undefined) delete process.env.PREVENTIVE_AUTOGEN;
+    else process.env.PREVENTIVE_AUTOGEN = ENV;
+  });
+
+  function build(valorGuardado: string | null) {
+    const prisma: any = {
+      configuracionSistema: {
+        findUnique: jest.fn().mockResolvedValue(valorGuardado === null ? null : { valor: valorGuardado }),
+        upsert: jest.fn().mockResolvedValue({}),
+      },
+      auditLog: { findFirst: jest.fn().mockResolvedValue(null) },
+      user: { findUnique: jest.fn().mockResolvedValue(null) },
+    };
+    const audit: any = { record: jest.fn().mockResolvedValue(undefined) };
+    return { service: new PreventiveService(prisma, audit, {} as any), prisma, audit };
+  }
+
+  it('sin nada guardado, está encendida (como siempre)', async () => {
+    delete process.env.PREVENTIVE_AUTOGEN;
+    expect(await build(null).service.autogenEncendida()).toBe(true);
+  });
+
+  it('apagada desde la pantalla, no genera', async () => {
+    delete process.env.PREVENTIVE_AUTOGEN;
+    expect(await build('off').service.autogenEncendida()).toBe(false);
+  });
+
+  it('la variable de entorno manda aunque la pantalla diga «on»', async () => {
+    process.env.PREVENTIVE_AUTOGEN = 'off';
+    expect(await build('on').service.autogenEncendida()).toBe(false);
+  });
+
+  it('no se puede encender desde la pantalla lo que apagó el despliegue', async () => {
+    process.env.PREVENTIVE_AUTOGEN = 'off';
+    const { service, prisma } = build(null);
+    await expect(service.cambiarAutogen(true, 'u1')).rejects.toThrow(/despliegue/);
+    expect(prisma.configuracionSistema.upsert).not.toHaveBeenCalled();
+  });
+
+  it('apagar guarda «off» y deja traza de quién lo hizo', async () => {
+    delete process.env.PREVENTIVE_AUTOGEN;
+    const { service, prisma, audit } = build(null);
+    await service.cambiarAutogen(false, 'u1', '10.0.0.1');
+    expect(prisma.configuracionSistema.upsert.mock.calls[0][0].update.valor).toBe('off');
+    const traza = audit.record.mock.calls[0][0];
+    expect(traza.action).toBe('PREVENTIVE_AUTOGEN_OFF');
+    expect(traza.userId).toBe('u1');
+    expect(traza.before).toEqual({ encendida: true });
+  });
+});

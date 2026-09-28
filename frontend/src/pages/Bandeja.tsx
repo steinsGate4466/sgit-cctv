@@ -68,6 +68,7 @@ export default function Bandeja() {
   pon(r.accesos, 'grave', r.accesos === 1 ? 'permiso de altura sin resolver' : 'permisos de altura sin resolver', '/access');
   pon(r.sinDetallar, 'atender', r.sinDetallar === 1 ? 'orden asignada sin detallar' : 'órdenes asignadas sin detallar', '/maintenance');
   pon(r.firmasPendientes, 'atender', r.firmasPendientes === 1 ? 'orden esperando material' : 'órdenes esperando material', '/maintenance');
+  pon(r.prorrogas ?? 0, 'atender', r.prorrogas === 1 ? 'prórroga esperando tu visto bueno' : 'prórrogas esperando tu visto bueno', '/maintenance');
   pon(r.vencidas, 'atender', r.vencidas === 1 ? 'orden fuera de plazo' : 'órdenes fuera de plazo', '/maintenance');
 
   /* El titular nombra LO PRIMERO, no el total. «7 cosas pendientes» no dice por
@@ -185,6 +186,24 @@ export default function Bandeja() {
             textoAccion="Ir a accesibilidad"
           />
 
+          {/* BLOQUE 135 · el técnico pidió más plazo y espera respuesta. Se
+              aprueba DENTRO de la orden: la bandeja sólo avisa (§58). */}
+          <Bloque
+            titulo="Prórrogas por aprobar"
+            porque="El técnico pidió más plazo. Se aprueba o rechaza dentro de la orden."
+            n={r.prorrogas ?? 0}
+            filas={d.prorrogas ?? []}
+            columnas={['Orden', 'Motivo', 'Pide', 'Quién']}
+            fila={(p: any) => [
+              <b>{p.workOrder?.code}</b>,
+              <span style={{ fontSize: 12 }}>{p.motivo}</span>,
+              <span style={{ whiteSpace: 'nowrap' }}>{fecha(p.fechaAnterior)} → <b>{fecha(p.fechaPedida)}</b></span>,
+              p.pedidaPor?.fullName || '—',
+            ]}
+            accion={() => navegar('/maintenance')}
+            textoAccion="Ir a órdenes"
+          />
+
           {/* -------------------------------------------------------- CORRE PRISA */}
           <Bloque
             titulo="Órdenes vencidas"
@@ -198,7 +217,9 @@ export default function Bandeja() {
               w.asset?.assetCode || '—',
               fecha(w.scheduledDate),
               <b style={{ color: 'var(--crit)' }}>{diasDesde(w.scheduledDate)}</b>,
-              (w.progressPct ?? 0) + '%',
+              w.prorrogaPedida
+                ? <span style={{ fontSize: 12 }}>{(w.progressPct ?? 0) + '%'} · prórroga pedida</span>
+                : (w.progressPct ?? 0) + '%',
             ]}
             accion={() => navegar('/maintenance')}
             textoAccion="Ir a órdenes"

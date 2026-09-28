@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Ip, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Ip, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { ProcedimientosService } from './procedimientos.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -87,6 +88,18 @@ export class ProcedimientosController {
   @SinAmbito()
   @Get('procedimientos-mejoras/mias')
   mias(@CurrentUser() u: any) { return this.svc.misMejoras(u?.userId); }
+
+  /* Bloque 141 · la propuesta en PDF, para que la lean las tres áreas.
+     Sin permiso en el decorador: la puede sacar quien la propuso (se comprueba
+     dentro, con el usuario de la sesión) o quien decide. */
+  @SinAmbito()
+  @Get('procedimientos-mejoras/:id/pdf')
+  async pdf(@Param('id') id: string, @CurrentUser() u: any, @Ip() ip: string, @Res() res: Response) {
+    const { buffer, filename } = await this.svc.pdfDeMejora(id, u?.userId ?? null, u?.permissions ?? [], ip);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
+  }
 
   @SinAmbito()
   @Patch('procedimientos-mejoras/:id')

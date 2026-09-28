@@ -9,7 +9,7 @@ import { enviarConRespaldo } from '../envio-seguro';
 import { fecha } from '../formato';
 import BotonConMotivo from '../components/BotonConMotivo';
 import { mensajeDeError, queFalta } from '../avisos';
-import { Titular, Tono } from '../components/Patron';
+import { ComoSeCalcula, Titular, Tono } from '../components/Patron';
 
 /**
  * ZONAS VITALES PARA LA PRODUCCIÓN — bloque 26.
@@ -136,22 +136,23 @@ export default function Zonas() {
 
       <Titular tono={tit.tono} texto={tit.texto} apoyo={tit.apoyo} />
 
-      <div className="card explica">
-        <b>Esta pantalla la llena Producción, y la leen las tres áreas.</b> La
-        pregunta no es qué cámara es cara: es <b>qué se pierde si esa zona se
-        queda a ciegas</b>. Eso sólo lo sabe quien conoce el proceso.
-        <div style={{ marginTop: 8 }}>
+      {/* BLOQUE 149 · MENOS LETRAS. Arriba, una línea: qué hace esto. El
+          porqué va plegado en «Cómo se calcula esto»; no se pierde, deja de
+          tapar la respuesta. */}
+      <p className="muted" style={{ margin: '0 0 12px' }}>
+        Producción dice qué zonas no pueden quedarse ciegas. <b>Alta</b> y <b>Crítica</b> piden el porqué.
+      </p>
+      <ComoSeCalcula>
+        <p>
+          <b>Esta pantalla la llena Producción, y la leen las tres áreas.</b> La
+          pregunta no es qué cámara es cara: es <b>qué se pierde si esa zona se
+          queda a ciegas</b>. Eso sólo lo sabe quien conoce el proceso.
+        </p>
+        <p>
           Lo que se declara aquí <b>sube sola la prioridad</b> de todas las
           cámaras de la zona y de las que cuelgan por debajo.
-        </div>
-        <div style={{ marginTop: 8 }}>
-          {/* Recortado en el bloque 77 para hacer sitio a la declaración de
-              seguridad, que es más importante que esta explicación: la regla
-              se aplica igual aunque no se lea aquí — el formulario no deja
-              guardar sin el motivo y lo dice al pulsar. */}
-          <b>Alta</b> y <b>Crítica</b> obligan a escribir el porqué.
-        </div>
-      </div>
+        </p>
+      </ComoSeCalcula>
 
       {resumen && (
         <div className="kpi-grid">
@@ -165,14 +166,14 @@ export default function Zonas() {
             <div className="value">{resumen.vencidas.length}</div>
             <div className="hint">
               {resumen.vencidas.length
-                ? 'Pasó su fecha de revisión. Se siguen aplicando, pero hay que confirmarlas.'
+                ? 'Pasó su revisión. Siguen valiendo; hay que confirmarlas.'
                 : 'Ninguna caducada.'}
             </div>
           </div>
           <div className={'kpi' + (resumen.sinDeclarar.length ? ' warn' : '')}>
             <div className="label">Con equipos y sin valorar</div>
             <div className="value">{resumen.sinDeclarar.length}</div>
-            <div className="hint">Zonas que tienen cámaras y nadie ha dicho cuánto importan</div>
+            <div className="hint">Tienen cámaras y nadie dijo cuánto importan</div>
           </div>
         </div>
       )}

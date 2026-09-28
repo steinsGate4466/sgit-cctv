@@ -2,6 +2,7 @@ import { Body, Controller, Get, Ip, Post, Query, UseGuards } from '@nestjs/commo
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PreventiveService } from './preventive.service';
 import { UpsertPreventivePlanDto } from './dto/upsert-plan.dto';
+import { CambiarAutogenDto } from './dto/autogen.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
@@ -38,6 +39,15 @@ export class PreventiveController {
   @RequirePermissions('wo.read')
   autoGenStatus() {
     return this.preventive.autoGenStatus();
+  }
+
+  /* Bloque 143 · prender / apagar la generación automática desde la pantalla.
+     Con `wo.approve`: es la llave del Jefe de Mantenimiento, el que decide
+     cuándo se programa trabajo. Queda en auditoría quién y cuándo. */
+  @Post('autogen')
+  @RequirePermissions('wo.approve')
+  cambiarAutogen(@Body() dto: CambiarAutogenDto, @CurrentUser() user: any, @Ip() ip: string) {
+    return this.preventive.cambiarAutogen(dto.activo, user?.userId ?? null, ip);
   }
 
   // Generación manual (además de la automática diaria). SOLO crea OM PREVENTIVAS.

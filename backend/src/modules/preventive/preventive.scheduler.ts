@@ -17,6 +17,7 @@ import { PreventiveService } from './preventive.service';
  *
  * Configuración por variables de entorno:
  *   PREVENTIVE_AUTOGEN=off        -> desactiva la generación automática (por defecto: activa)
+ *                                    (además, Mantenimiento la apaga y enciende desde Preventivo — bloque 143)
  *   PREVENTIVE_AUTOGEN_HOUR=6     -> hora local de planta a partir de la cual corre (0-23)
  *   PREVENTIVE_LOOKAHEAD_DAYS=0   -> también genera las que vencen en N días
  *   PLANT_UTC_OFFSET=-5           -> huso horario de la planta (Perú = -5)
@@ -78,6 +79,10 @@ export class PreventiveScheduler implements OnModuleInit, OnModuleDestroy {
       const startHour = Number(process.env.PREVENTIVE_AUTOGEN_HOUR ?? 6);
       const now = this.plantNow();
       if (now.getUTCHours() < startHour) return; // aún no es la hora de planta
+
+      /* Bloque 143: el interruptor de la pantalla se lee en CADA ciclo, así
+         que apagarlo surte efecto sin reiniciar el servicio. */
+      if (!(await this.preventive.autogenEncendida())) return;
 
       const r = await conCandado(this.prisma, CANDADO.PREVENTIVO, async () => {
         if (await this.alreadyRanToday()) return null;

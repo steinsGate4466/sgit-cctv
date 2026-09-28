@@ -3,40 +3,34 @@
    -----------------------------------------------------------------------------
    DE DÓNDE SALE
 
-   Bloque 69. El usuario dijo que los módulos «están hechos mierda» y había que
-   reagruparlos por oficio. Reagrupar 44 entradas a mano es exactamente el tipo
-   de tarea donde se cae una por el camino, y una entrada que se cae **no
-   rompe nada**: la ruta sigue existiendo, la pantalla sigue funcionando, y
-   simplemente no hay forma de llegar a ella desde el menú.
+   Bloque 69: reagrupar 44 entradas a mano es la tarea donde se cae una por el
+   camino, y una entrada que se cae NO ROMPE NADA: la ruta sigue, la pantalla
+   funciona, y simplemente no hay forma de llegar. *Ruta + pantalla ≠ función.
+   Sin forma de llegar, no existe.*
 
-   Es el mismo fallo que ya está escrito tres veces en CLAUDE.md con otras
-   palabras: *modelo + endpoint ≠ función. Sin pantalla, no existe.* Aquí es
-   *ruta + pantalla ≠ función. Sin entrada en el menú, no existe.*
+   BLOQUE 147: el menú pasa a ser UNA ENTRADA POR MÓDULO y las pantallas salen
+   como pestañas. La fuente única es `src/modulos.ts`; este verificador la lee.
 
    -----------------------------------------------------------------------------
-   COMPRUEBA DOS COSAS
+   COMPRUEBA
 
-   A) TODA RUTA DE `App.tsx` TIENE ENTRADA EN EL MENÚ.
-      Salvo las exentas de abajo, que están exentas por un motivo escrito.
+   A) TODA RUTA DE `App.tsx` TIENE SITIO: está en un módulo, o es pestaña de
+      una pantalla que está en un módulo (`pestanas.ts`), o está EXENTA con su
+      motivo escrito.
+   B) TODA PANTALLA DE UN MÓDULO EXISTE en `App.tsx` (una pestaña que lleva a
+      «no existe» es peor que no tenerla).
+   C) NINGUNA RUTA ESTÁ EN DOS MÓDULOS (el menú encendería dos a la vez).
+   D) EL MENÚ Y LAS PESTAÑAS LEEN DE `modulos.ts`. Si alguien vuelve a escribir
+      enlaces a mano en `Layout.tsx`, la lista y el menú dejan de coincidir.
+   E) (bloque 148) TODO INICIO DE `inicioPara` LLEVA A UNA PANTALLA DE UN MÓDULO.
 
-   B) TODA ENTRADA ESTÁ EN LA LISTA `rutas` DE SU SECCIÓN.
-      `rutas` es lo que abre la sección cuando estás dentro de ella. Si una
-      entrada falta ahí, al navegar a esa pantalla la sección se queda plegada
-      y el usuario no ve dónde está. Es un fallo pequeño y muy fácil de
-      cometer al mover una entrada de sección: se mueve el `<NavLink>` y se
-      olvida la lista.
+   POR QUÉ LEE EL ARCHIVO Y NO EJECUTA EL COMPONENTE: los permisos se prueban
+   aparte; aquí importa que el SITIO existe, con el permiso que sea.
 
-   -----------------------------------------------------------------------------
-   POR QUÉ LEE EL ARCHIVO Y NO EJECUTA EL COMPONENTE
-
-   Los elementos del menú van detrás de `can('permiso')`. Para ejecutarlo
-   habría que montar React con una sesión falsa por cada rol, y entonces lo
-   que se estaría probando es el juego de permisos, no la agrupación. Lo que
-   aquí importa es que la ENTRADA EXISTE en el código, con el permiso que sea.
-
-   PROBADO REINTRODUCIENDO EL FALLO, las dos comprobaciones: se borra una
-   entrada del menú y sale (A); se quita una ruta de su lista `rutas` y sale
-   (B). En los dos casos código 1, diciendo cuál y dónde.
+   PROBADO REINTRODUCIENDO EL FALLO, los cinco: se quita una pantalla de
+   `modulos.ts` (A), se añade una ruta inventada (B), se repite una ruta en
+   otro módulo (C), se escribe un `<NavLink to="/x">` en el menú (D), y se
+   hace que `inicioPara` devuelva una ruta inventada (E).
 ============================================================================= */
 const fs = require('fs');
 const path = require('path');
@@ -79,153 +73,109 @@ const EXENTAS = {
 
 const leer = (f) => fs.readFileSync(path.join(SRC, f), 'utf8');
 
-/* Los comentarios se vacían antes de buscar. Un ejemplo dentro de un
-   comentario no es código: contarlo fue la causa de los falsos positivos del
-   verificador 9. */
+/* Los comentarios se vacían antes de buscar: un ejemplo dentro de un
+   comentario no es código (falsos positivos del verificador 9). */
 const sinComentarios = (s) =>
   s.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
     .replace(/^\s*\/\/.*$/gm, '');
 
 // --------------------------------------------------------------- 1. las rutas
 const app = sinComentarios(leer('App.tsx'));
-// Sin repetidos: una misma ruta puede declararse dos veces (envoltorios).
 const rutasApp = [...new Set([...app.matchAll(/path="([^"]+)"/g)].map((m) => m[1]))];
 
-// --------------------------------------------------- 2. las secciones del menú
-const layout = sinComentarios(leer(path.join('components', 'Layout.tsx')));
-/* Se empieza DESPUÉS del `= [`, no en `const secciones`. La declaración de
-   tipo que va en medio —`{ titulo: string; items: ... }`— contiene la palabra
-   `titulo:` y el troceado de abajo la contaba como una sección más, vacía.
-   Una sección fantasma en el informe es un verificador que miente, y a un
-   verificador que miente se le deja de hacer caso. */
-const decl = layout.indexOf('const secciones');
-const desde = layout.indexOf('= [', decl);
-const hasta = layout.indexOf('\n  ];', desde);
-if (decl === -1 || desde === -1 || hasta === -1) {
-  console.log('Menú: no encuentro el array `secciones` en Layout.tsx.');
+// -------------------------------------------------------------- 2. los módulos
+const mod = sinComentarios(leer('modulos.ts'));
+const ini = mod.indexOf('export const MODULOS');
+const fin = mod.indexOf('\n];', ini);
+if (ini === -1 || fin === -1) {
+  console.log('Menú: no encuentro `export const MODULOS` en src/modulos.ts.');
   process.exit(2);
 }
-const cuerpo = layout.slice(desde, hasta);
+const trozos = mod.slice(ini, fin).split(/titulo:\s*/).slice(1);
+const modulos = trozos.map((t) => ({
+  titulo: (t.match(/^'([^']*)'/) || [, '?'])[1],
+  rutas: [...t.matchAll(/ruta:\s*'([^']+)'/g)].map((m) => m[1]),
+}));
+const enModulo = new Map();   // ruta -> módulo
+const repetidas = [];
+for (const m of modulos) {
+  for (const r of m.rutas) {
+    if (enModulo.has(r)) repetidas.push({ ruta: r, a: enModulo.get(r), b: m.titulo });
+    else enModulo.set(r, m.titulo);
+  }
+}
 
-/* Se parte por `titulo:` para quedarse con cada sección entera. El primer
-   trozo es la cabecera del array y se descarta. */
-const trozos = cuerpo.split(/titulo:\s*/).slice(1);
-const secciones = trozos.map((t) => {
-  const titulo = (t.match(/^'([^']*)'/) || [, ''])[1];
-  const listaRutas = (t.match(/rutas:\s*\[([\s\S]*?)\]/) || [, ''])[1];
-  return {
-    titulo,
-    declaradas: [...listaRutas.matchAll(/'([^']+)'/g)].map((m) => m[1]),
-    enlaces: [...t.matchAll(/to="([^"]+)"/g)].map((m) => m[1]),
-  };
-});
-
-const enElMenu = new Set(secciones.flatMap((s) => s.enlaces));
-
-/* =============================================================================
-   PANTALLAS QUE SON PESTAÑA DE OTRA — bloque 118
-   -----------------------------------------------------------------------------
-   El bloque 118 quitó del menú «Preventivo», «Correctivo», «Mejora» e
-   «Indicadores»: no desaparecieron, pasaron a ser PESTAÑAS de la pantalla que
-   las contiene. La declaración vive en `src/pestanas.ts`.
-
-   NO SE METEN EN `EXENTAS`, y la diferencia importa. Una exención dice «a esta
-   no se llega desde el menú y ya». Aquí sí se llega, por un camino declarado y
-   comprobable: **su padre tiene que estar en el menú**. Si alguien quitara el
-   padre, estas cuatro se quedarían sin forma de llegar y este verificador
-   tiene que decirlo — cosa que una exención no haría nunca.
-
-   Y sus rutas SIGUEN en la lista `rutas` de la sección a propósito: estando en
-   una pestaña, la sección del padre tiene que quedarse abierta.
-============================================================================= */
+// ------------------------------------------- 3. pestañas de una pantalla (118)
 const pestanas = sinComentarios(leer('pestanas.ts'));
 const hijas = new Map();   // ruta hija -> ruta padre
 {
   const cuerpo = pestanas.slice(pestanas.indexOf('PESTANAS'));
-  const bloques = [...cuerpo.matchAll(/'(\/[\w-]+)':\s*\[([\s\S]*?)\]/g)];
-  for (const b of bloques) {
+  for (const b of cuerpo.matchAll(/'(\/[\w-]+)':\s*\[([\s\S]*?)\]/g)) {
     const padre = b[1];
     for (const r of b[2].matchAll(/ruta:\s*'(\/[\w-]+)'/g)) {
       if (r[1] !== padre) hijas.set(r[1], padre);
     }
   }
 }
-const huerfanasPorPadre = [];
-for (const [hija, padre] of hijas) {
-  if (!enElMenu.has(padre)) huerfanasPorPadre.push({ hija, padre });
+
+// ---------------------------------------------------------------- 4. hallazgos
+const errores = [];
+
+const huerfanasPorPadre = [...hijas].filter(([, padre]) => !enModulo.has(padre));
+for (const [hija, padre] of huerfanasPorPadre) {
+  errores.push(`${hija} es pestaña de ${padre}, y ${padre} no está en ningún módulo.`);
 }
 
-// ---------------------------------------------------------------- 3. hallazgos
-const huerfanas = rutasApp.filter((r) => !EXENTAS[r] && !enElMenu.has(r) && !hijas.has(r));
+const huerfanas = rutasApp.filter((r) => !EXENTAS[r] && !enModulo.has(r) && !hijas.has(r));
+for (const r of huerfanas) {
+  errores.push(`${r} no está en ningún módulo: la ruta funciona pero no hay forma de llegar. `
+    + 'Si es a propósito, añádela a EXENTAS con su motivo.');
+}
 
-const sinDeclarar = [];
-for (const s of secciones) {
-  // La sección sin título no se pliega nunca, así que no necesita `rutas`.
-  if (!s.titulo) continue;
-  for (const e of s.enlaces) {
-    if (!s.declaradas.includes(e)) sinDeclarar.push({ seccion: s.titulo, ruta: e });
+const setApp = new Set(rutasApp);
+for (const [r, m] of enModulo) {
+  if (!setApp.has(r)) errores.push(`«${m}» tiene la pantalla ${r}, que no existe en App.tsx.`);
+}
+
+for (const x of repetidas) {
+  errores.push(`${x.ruta} está en «${x.a}» y en «${x.b}»: el menú encendería los dos.`);
+}
+
+const layout = sinComentarios(leer(path.join('components', 'Layout.tsx')));
+if (!/MODULOS/.test(layout) || !/<EnlaceDeModulo\b/.test(layout)) {
+  errores.push('Layout.tsx ya no pinta el menú desde `MODULOS`.');
+}
+const aMano = [...layout.matchAll(/<NavLink[^>]*\bto="(\/[^"]+)"/g)].map((m) => m[1]);
+for (const r of aMano) {
+  errores.push(`Layout.tsx tiene un enlace escrito a mano a ${r}. Va en src/modulos.ts.`);
+}
+const barra = sinComentarios(leer(path.join('components', 'Pestanas.tsx')));
+if (!/pantallasVisibles/.test(barra)) {
+  errores.push('Pestanas.tsx ya no pinta las pantallas del módulo.');
+}
+
+/* E) BLOQUE 148 · CADA INICIO LLEVA A UNA PANTALLA QUE EXISTE. `inicioPara`
+   decide dónde entra cada uno; si devuelve una ruta que no está en ningún
+   módulo, esa persona entra a «no existe» nada más iniciar sesión. */
+{
+  const i = mod.indexOf('export function inicioPara');
+  if (i === -1) {
+    errores.push('src/modulos.ts ya no tiene `inicioPara`: todos volverían a entrar al mismo sitio.');
+  } else {
+    const cuerpoInicio = mod.slice(i, mod.indexOf('\n}\n', i));
+    for (const m of cuerpoInicio.matchAll(/'(\/[^'?]*)(\?[^']*)?'/g)) {
+      if (!enModulo.has(m[1])) errores.push(`inicioPara manda a ${m[1]}, que no está en ningún módulo.`);
+    }
   }
 }
 
-// Y al revés: una ruta declarada que ya no tiene entrada es basura que
-// abriría la sección equivocada.
-const sobran = [];
-for (const s of secciones) {
-  for (const d of s.declaradas) {
-    // Una hija declarada en la sección de su padre NO sobra: es lo que
-    // mantiene la sección abierta mientras se navega por sus pestañas.
-    if (!s.enlaces.includes(d) && !hijas.has(d)) sobran.push({ seccion: s.titulo, ruta: d });
-  }
-}
-
-if (huerfanasPorPadre.length) {
-  console.error('\nMenú: pestañas cuyo PADRE ya no está en el menú.\n');
-  for (const x of huerfanasPorPadre) {
-    console.error(`   ${x.hija} es pestaña de ${x.padre}, y ${x.padre} no tiene entrada`);
-  }
-  console.error(
-    '\nSin el padre en el menú no hay forma de llegar a la pestaña. O se devuelve'
-    + '\nla entrada del padre, o estas pantallas vuelven al menú por su cuenta.\n',
-  );
+if (errores.length) {
+  console.log(`Menú: ${errores.length} problema(s).\n`);
+  for (const e of errores) console.log(`   · ${e}`);
   process.exit(1);
 }
 
-let fallo = false;
-
-if (huerfanas.length) {
-  fallo = true;
-  console.log(`Menú: ${huerfanas.length} pantalla(s) sin entrada en el menú.\n`);
-  for (const r of huerfanas) console.log(`   ${r}`);
-  console.log(`
-Una pantalla sin entrada en el menu NO EXISTE para el usuario: la ruta
-funciona, pero no hay forma de llegar. Si es a proposito, anadela a EXENTAS
-en este archivo CON SU MOTIVO escrito.`);
-}
-
-if (sinDeclarar.length) {
-  fallo = true;
-  console.log(`\nMenú: ${sinDeclarar.length} entrada(s) fuera de la lista \`rutas\` de su sección.\n`);
-  for (const x of sinDeclarar) console.log(`   ${x.seccion.padEnd(28)} le falta  ${x.ruta}`);
-  console.log(`
-\`rutas\` es lo que ABRE la seccion cuando estas dentro de ella. Sin esto, al
-entrar a esa pantalla la seccion se queda plegada y no se ve donde estas.`);
-}
-
-if (sobran.length) {
-  fallo = true;
-  console.log(`\nMenú: ${sobran.length} ruta(s) declaradas en una sección que ya no las tiene.\n`);
-  for (const x of sobran) console.log(`   ${x.seccion.padEnd(28)} sobra     ${x.ruta}`);
-  console.log(`
-Una ruta declarada de mas abre la seccion EQUIVOCADA al navegar a ella.`);
-}
-
-if (fallo) process.exit(1);
-
-const total = [...enElMenu].length;
-console.log(
-  `Menú: ${secciones.length} secciones, ${total} entradas, `
-  + `${rutasApp.length - Object.keys(EXENTAS).length} pantallas — ninguna huérfana.`,
-);
-for (const s of secciones) {
-  console.log(`   ${(s.titulo || '(lo mío)').padEnd(28)} ${s.enlaces.length}`);
-}
+const total = rutasApp.length - Object.keys(EXENTAS).filter((r) => setApp.has(r)).length;
+console.log(`Menú: ${modulos.length} módulos, ${enModulo.size} pantallas + ${hijas.size} pestañas — `
+  + `${total} rutas con sitio, ninguna huérfana.`);
+for (const m of modulos) console.log(`   ${m.titulo.padEnd(20)} ${m.rutas.length}`);

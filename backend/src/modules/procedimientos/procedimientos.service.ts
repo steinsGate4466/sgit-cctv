@@ -451,6 +451,109 @@ export class ProcedimientosService {
     });
   }
 
+  /* ===========================================================================
+     BLOQUE 141 · LA MEJORA EN PAPEL — «lo leen las tres áreas»
+     ---------------------------------------------------------------------------
+     Una propuesta que sólo vive en una pantalla la lee quien decide. Para que
+     la lean Producción, Mantenimiento y Técnica se lleva impresa a la reunión,
+     con el procedimiento de hoy al lado y un espacio de «leído» por área.
+
+     La pueden sacar quien la propuso y quien decide (`procedimiento.manage`).
+     Nadie más: el texto dice quién propuso qué, y eso no es de todos.
+     =========================================================================== */
+  async pdfDeMejora(id: string, userId: string | null, permisos: string[] = [], ip?: string) {
+    const m = await this.prisma.mejoraProcedimiento.findUnique({
+      where: { id },
+      include: {
+        procedimiento: { select: { titulo: true, pasos: true, minutosEstimados: true, tipoActivo: true, marca: true, modelo: true } },
+        workOrder: { select: { code: true, activity: true } },
+        propuestaPor: { select: { id: true, fullName: true } },
+        decididaPor: { select: { fullName: true } },
+      },
+    });
+    if (!m) throw new NotFoundException('Propuesta no encontrada');
+    const esSuya = !!userId && m.propuestaPor?.id === userId;
+    if (!esSuya && !permisos.includes('procedimiento.manage')) {
+      throw new ForbiddenException('Sólo la puede imprimir quien la propuso o quien decide.');
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const PDFDocument = require('pdfkit');
+    const doc = new PDFDocument({ size: 'A4', margin: 50 });
+    const trozos: Buffer[] = [];
+    doc.on('data', (c: Buffer) => trozos.push(c));
+    const listo = new Promise<Buffer>((res) => doc.on('end', () => res(Buffer.concat(trozos))));
+
+    const NAVY = '#1b2a4a', GRIS = '#555555';
+    const ancho = doc.page.width;
+    const f = (x: any) => (x ? new Date(x).toLocaleDateString('es-PE') : '—');
+    const ESTADO: Record<string, string> = { PROPUESTA: 'Pendiente de decisión', ACEPTADA: 'Aceptada', RECHAZADA: 'Rechazada' };
+
+    doc.rect(0, 0, ancho, 92).fill(NAVY);
+    doc.fillColor('#ffffff').fontSize(17).text('ACEROS AREQUIPA — Planta Pisco', 50, 26);
+    doc.fillColor('#cfd8e3').fontSize(10).text('SGIT-CCTV · Propuesta de mejora a un procedimiento', 50, 50);
+    doc.fillColor('#000000');
+
+    let y = 112;
+    const titulo = (t: string) => {
+      y += 8;
+      if (y > doc.page.height - 120) { doc.addPage(); y = 50; }
+      doc.fontSize(13).fillColor(NAVY).text(t, 50, y); y = doc.y + 6;
+      doc.moveTo(50, y).lineTo(ancho - 50, y).strokeColor('#dddddd').stroke(); y += 8;
+    };
+    const linea = (k: string, v: string) => {
+      if (y > doc.page.height - 90) { doc.addPage(); y = 50; }
+      doc.fontSize(10).fillColor(GRIS).text(k, 50, y);
+      doc.fontSize(11).fillColor('#000000').text(v || '—', 210, y, { width: ancho - 260 });
+      y = doc.y + 5;
+    };
+    const parrafo = (t: string, tam = 11) => {
+      if (y > doc.page.height - 110) { doc.addPage(); y = 50; }
+      doc.fontSize(tam).fillColor('#000000').text(t, 50, y, { width: ancho - 100 });
+      y = doc.y + 6;
+    };
+
+    titulo('La propuesta');
+    parrafo(m.texto, 12);
+    linea('Propuso', `${m.propuestaPor?.fullName ?? '—'} · ${f(m.createdAt)}`);
+    linea('Salió de la orden', m.workOrder ? `${m.workOrder.code}${m.workOrder.activity ? ' — ' + m.workOrder.activity : ''}` : 'sin orden');
+    const est = m.procedimiento?.minutosEstimados;
+    linea('Tiempo', m.minutosReales != null
+      ? `Le llevó ${m.minutosReales} min${est ? ` (el procedimiento dice ${est} min)` : ''}`
+      : 'no se registró');
+    linea('Estado', ESTADO[m.estado] ?? m.estado);
+    if (m.decididaEn) linea('Decidió', `${m.decididaPor?.fullName ?? '—'} · ${f(m.decididaEn)}`);
+    if (m.motivoDecision) linea('Motivo', m.motivoDecision);
+
+    titulo('El procedimiento de hoy');
+    const p = m.procedimiento;
+    linea('Procedimiento', p?.titulo ?? '—');
+    const TIPO: Record<string, string> = { CAMERA: 'Cámara', NVR: 'Grabador', SWITCH: 'Switch', WIRELESS: 'Enlace inalámbrico', DECODER: 'Decodificador', PANTALLA: 'Pantalla', PC: 'PC' };
+    linea('Para', [p?.tipoActivo ? (TIPO[p.tipoActivo] ?? p.tipoActivo) : null, p?.marca, p?.modelo].filter(Boolean).join(' · '));
+    (p?.pasos ?? []).forEach((paso: string, i: number) => parrafo(`${i + 1}. ${paso}`, 10));
+    if (!p?.pasos?.length) parrafo('Todavía no tiene pasos escritos.', 10);
+
+    /* Un «leído» por área, en papel. No es una firma electrónica ni lo
+       pretende: es lo que se hace en la reunión con el papel delante. */
+    titulo('Leído por');
+    for (const area of ['Producción', 'Mantenimiento', 'Técnica']) {
+      if (y > doc.page.height - 80) { doc.addPage(); y = 50; }
+      doc.fontSize(11).fillColor('#000000').text(area, 50, y + 14);
+      doc.moveTo(170, y + 28).lineTo(ancho - 200, y + 28).strokeColor('#999999').stroke();
+      doc.fontSize(9).fillColor(GRIS).text('Nombre y firma', 170, y + 32);
+      doc.moveTo(ancho - 180, y + 28).lineTo(ancho - 50, y + 28).strokeColor('#999999').stroke();
+      doc.fontSize(9).fillColor(GRIS).text('Fecha', ancho - 180, y + 32);
+      y += 56;
+    }
+
+    doc.end();
+    const buffer = await listo;
+    await this.audit.record({
+      userId, ip, action: 'MEJORA_PDF', entity: 'mejoras_procedimiento', entityId: id,
+    });
+    return { buffer, filename: `mejora-${(p?.titulo || 'procedimiento').replace(/[^\w-]+/g, '-').slice(0, 40)}-${f(m.createdAt).replace(/\//g, '-')}.pdf` };
+  }
+
   /** Lo que espera decisión del Jefe. */
   async mejorasPendientes() {
     return this.prisma.mejoraProcedimiento.findMany({

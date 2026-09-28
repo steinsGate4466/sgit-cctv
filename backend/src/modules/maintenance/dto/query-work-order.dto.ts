@@ -18,6 +18,11 @@ export class QueryWorkOrderDto {
      discrepando. `@Transform` corre ANTES de la validación. */
   @IsOptional() @Transform(({ value }) => value === true || value === 'true' || value === '1')
   @IsBoolean() mias?: boolean;
+  /* «A mi cargo» (bloque 148): las órdenes donde el TÉCNICO asignado soy yo.
+     Es la pantalla con la que entra el técnico: sus trabajos, no los 300 de
+     la planta. Se transforma igual que `mias`, por el mismo motivo. */
+  @IsOptional() @Transform(({ value }) => value === true || value === 'true' || value === '1')
+  @IsBoolean() asignadas?: boolean;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) pageSize?: number;
 }

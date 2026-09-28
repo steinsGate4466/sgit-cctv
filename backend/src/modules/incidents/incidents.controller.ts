@@ -22,8 +22,9 @@ export class IncidentsController {
 
   @Post()
   @RequirePermissions('incident.create')
-  create(@Body() dto: CreateIncidentDto) {
-    return this.incidents.create(dto);
+  create(@Body() dto: CreateIncidentDto, @CurrentUser() user: any) {
+    // Bloque 139: quién reporta sale del token; el ámbito se comprueba dentro.
+    return this.incidents.create(dto, user?.userId ?? null);
   }
 
   /**

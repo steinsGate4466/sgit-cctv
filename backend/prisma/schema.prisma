@@ -152,6 +152,8 @@ model User {
   woClosed        WorkOrder[]     @relation("WoClosedBy")
   /// Órdenes que esta persona PIDIÓ (bloque 94). Lado inverso obligatorio.
   woSolicitadas   WorkOrder[]     @relation("WoCreatedBy")
+  prorrogasPedidas    ProrrogaDeOm[] @relation("ProrrogaPedidaPor")
+  prorrogasResueltas  ProrrogaDeOm[] @relation("ProrrogaResueltaPor")
   /// Metas de mantenimiento que esta persona fijó por última vez (bloque 94).
   metasFijadas    MetaMantenimiento[] @relation("MetaFijadaPor")
   slaFijados      AcuerdoServicio[]   @relation("SlaFijadoPor")
@@ -1437,6 +1439,20 @@ model WorkOrder {
   /// radio con Producción a qué hora se detiene de verdad.
   startedAt     DateTime?
   endedAt       DateTime?
+  /// PARADA REAL — bloque 138. «Empezó parada / estamos empezando a tal hora»:
+  /// la parada se declara DENTRO de la orden, donde nace del trabajo real, y
+  /// no en un módulo aparte que había que mantener a mano (bloque 130).
+  /// Distinto de `startedAt`: el tren puede parar a las 08:00 y el técnico
+  /// empezar a las 08:20. Con los dos se mide cuánta parada se aprovechó.
+  /// NULL = no se declaró, que no es lo mismo que «no hubo parada».
+  paradaInicioReal DateTime?
+  paradaFinReal    DateTime?
+  /// PRÓRROGA — bloque 135. La fecha programada ANTES de la primera prórroga
+  /// aprobada. Se guarda una sola vez: con ella el indicador sabe cuántas
+  /// órdenes se cumplieron en su fecha de verdad y cuántas gracias a una
+  /// prórroga. Sin esto, prorrogar sería una forma de borrar un retraso.
+  fechaOriginal    DateTime?
+  prorrogas        ProrrogaDeOm[]
   /// QUIÉN PIDIÓ LA ORDEN — bloque 94.
   /// -------------------------------------------------------------------------
   /// NO es `openedById` ni `requestedBy`, y confundirlos borra un dato:
@@ -1562,6 +1578,44 @@ model WorkOrder {
   /// Listados y exportación ordenan por fecha sin filtrar por activo.
   @@index([createdAt])
   @@map("work_orders")
+}
+
+// =====================================================================
+//  PRÓRROGA DE UNA ORDEN — bloque 135
+//
+//  El técnico no mueve la fecha: la PIDE, con motivo. El supervisor
+//  (`wo.approve`) la aprueba o la rechaza. Sólo al aprobar cambia la fecha
+//  programada, y la orden deja de salir «fuera de plazo».
+//
+//  Es la primera piedra del «doble visto bueno»: quien hace el trabajo no es
+//  quien decide que el plazo se estira.
+// =====================================================================
+enum EstadoProrroga {
+  PENDIENTE
+  APROBADA
+  RECHAZADA
+}
+
+model ProrrogaDeOm {
+  id            String         @id @default(uuid())
+  workOrderId   String
+  workOrder     WorkOrder      @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  fechaAnterior DateTime?
+  fechaPedida   DateTime
+  motivo        String
+  estado        EstadoProrroga @default(PENDIENTE)
+  pedidaPorId   String?
+  pedidaPor     User?          @relation("ProrrogaPedidaPor", fields: [pedidaPorId], references: [id], onDelete: SetNull)
+  pedidaEn      DateTime       @default(now())
+  resueltaPorId String?
+  resueltaPor   User?          @relation("ProrrogaResueltaPor", fields: [resueltaPorId], references: [id], onDelete: SetNull)
+  resueltaEn    DateTime?
+  /// Por qué se rechazó (o una nota al aprobar). Opcional.
+  nota          String?
+
+  @@index([workOrderId])
+  @@index([estado])
+  @@map("prorrogas_om")
 }
 
 // =====================================================================

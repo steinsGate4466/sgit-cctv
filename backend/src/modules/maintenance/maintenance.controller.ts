@@ -199,8 +199,10 @@ export class MaintenanceController {
   @AmbitoDe('workOrder')
   @Patch(':id')
   @RequirePermissions('wo.update')
-  update(@Param('id') id: string, @Body() dto: UpdateWorkOrderDto) {
-    return this.wo.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: UpdateWorkOrderDto, @CurrentUser() user: any) {
+    // Bloque 135: mover la fecha sin `wo.approve` es una prórroga, no una edición.
+    const puedeMoverFecha = (user?.permissions || []).includes('wo.approve');
+    return this.wo.update(id, dto, puedeMoverFecha);
   }
 
   /**

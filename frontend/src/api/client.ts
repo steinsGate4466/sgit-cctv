@@ -263,3 +263,22 @@ api.interceptors.response.use(
     return Promise.reject(err);
   },
 );
+
+/**
+ * EL MOTIVO DE UN ERROR EN UNA DESCARGA — bloque 142.
+ *
+ * Con `responseType: 'blob'`, si el servidor contesta 400 el mensaje llega
+ * DENTRO de un Blob y no en `response.data.message`. Sin esto la pantalla
+ * decía «no se pudo generar» cuando el servidor sí explicaba por qué
+ * («son 612 etiquetas, filtra por tren»).
+ */
+export async function motivoDelError(err: any, porDefecto: string): Promise<string> {
+  const d = err?.response?.data;
+  try {
+    const cuerpo = d instanceof Blob ? JSON.parse(await d.text()) : d;
+    const m = cuerpo?.message;
+    if (Array.isArray(m)) return m.join(', ');
+    if (typeof m === 'string' && m.trim()) return m;
+  } catch { /* no era JSON: se usa el texto por defecto */ }
+  return porDefecto;
+}

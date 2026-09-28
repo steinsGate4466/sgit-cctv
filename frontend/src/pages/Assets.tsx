@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { api } from '../api/client';
+import { api, motivoDelError } from '../api/client';
 import { enviarConRespaldo, TEXTO_PENDIENTE } from '../envio-seguro';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, conAmbito, AvisoAmbito } from '../components/FiltroAmbito';
 import Modal from '../components/Modal';
@@ -465,13 +465,22 @@ export default function Assets() {
       setQrUrl(URL.createObjectURL(res.data));
     } catch { await avisar('No se pudo generar el QR.'); }
   }
+  /* BLOQUE 142 · las etiquetas salen de LO QUE FILTRA LA PANTALLA —tren,
+     área, tipo, estado, búsqueda— y no de toda la planta. La letra A/B/C no
+     se aplica (se calcula aparte), y se dice antes de imprimir. */
   async function downloadQrSheet() {
+    if (fLetra && !(await confirmar('Las etiquetas salen por tren, área, tipo, estado y búsqueda. La letra A/B/C no se aplica. ¿Seguir?'))) return;
+    const params: any = conAmbito({}, ambito);
+    if (fq.trim()) params.search = fq.trim();
+    if (fType) params.type = fType;
+    if (fStatus) params.status = fStatus;
     try {
-      const res = await api.get('/assets/qr/sheet', { responseType: 'blob' });
+      const res = await api.get('/assets/qr/sheet', { params, responseType: 'blob' });
+      const nombre = ['etiquetas-qr', ambito.tren, ambito.etapa, fType].filter(Boolean).join('-');
       const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
-      const a = document.createElement('a'); a.href = url; a.download = 'etiquetas-qr.pdf';
+      const a = document.createElement('a'); a.href = url; a.download = nombre + '.pdf';
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    } catch { await avisar('No se pudo generar la hoja de etiquetas.'); }
+    } catch (err) { await avisar(await motivoDelError(err, 'No se pudo generar la hoja de etiquetas.')); }
   }
 
   async function reveal(credId: string) {
@@ -671,7 +680,9 @@ export default function Assets() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button className="btn-mini" onClick={downloadQrSheet}><Icono n="qr" size={14} /> Etiquetas QR (PDF)</button>
+          <button className="btn-mini" onClick={downloadQrSheet}
+            title="Imprime las etiquetas de lo que filtra esta pantalla: tren, área, tipo, estado y búsqueda">
+            <Icono n="qr" size={14} /> Etiquetas QR (PDF)</button>
           {can('asset.create') && <button className="btn-primary" onClick={openNew}>+ Nuevo activo</button>}
         </div>
       </div>
