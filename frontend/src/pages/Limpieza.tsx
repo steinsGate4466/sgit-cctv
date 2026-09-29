@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client';
 import BorrarDefinitivo from '../components/BorrarDefinitivo';
+import CargaDeDemo from '../components/CargaDeDemo';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
 import { Titular } from '../components/Patron';
@@ -27,7 +28,8 @@ export default function Limpieza() {
   const { can } = useAuth();
   const puedePurgar = can('purga.definitiva');
 
-  const [pestana, setPestana] = useState<'activos' | 'om' | 'usuarios' | 'auditoria' | 'todo'>('activos');
+  const [pestana, setPestana] = useState<'activos' | 'om' | 'usuarios' | 'auditoria' | 'todo' | 'demo'>(
+    () => (new URLSearchParams(window.location.search).get('pestana') === 'demo' ? 'demo' : 'activos'));
   // Bloque 39: dejar la base como el primer día, antes del despliegue real.
   const [operativos, setOperativos] = useState<any>(null);
   const [fraseVaciarTodo, setFraseVaciarTodo] = useState('');
@@ -159,9 +161,15 @@ export default function Limpieza() {
         <button className={pestana === 'todo' ? 'act' : ''} onClick={() => setPestana('todo')}>
           Dejar la base vacía
         </button>
+        {can('asset.delete') && (
+          <button className={pestana === 'demo' ? 'act' : ''} onClick={() => setPestana('demo')}>{'Demostración'}</button>
+        )}
       </div>
 
       {cargando && <EsqueletoTabla filas={4} />}
+
+      {/* Bloque 166 · la demostración, cargada por el servidor (Railway). */}
+      {pestana === 'demo' && can('asset.delete') && <CargaDeDemo />}
 
       {/* ---------- ACTIVOS ---------- */}
       {!cargando && pestana === 'activos' && (

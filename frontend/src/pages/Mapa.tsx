@@ -146,6 +146,8 @@ export default function Mapa() {
         <h3>Todavía no hay un plano publicado</h3>
         <p>El mapa necesita el plano de un área (exportado de AutoCAD a PNG o SVG), calibrado y con sus equipos colocados.</p>
         {can('location.manage') && <Link className="btn-primary" to="/planos">Subir el plano de un área</Link>}
+        {/* Bloque 166: sin plano real todavía, la demostración se carga desde la app (también en Railway). */}
+        {can('asset.delete') && <Link className="btn-mini" to="/limpieza?pestana=demo" style={{ marginLeft: 8 }}>Cargar la demostración</Link>}
         {/* Bloque 160: Producción entra aquí. Sin plano, que no se quede mirando una pantalla vacía. */}
         <div className="accesos-rapidos" style={{ justifyContent: 'center', marginTop: 12 }}>
           {can('om.mirar') && <Link className="acceso-rapido" to="/mi-tren">Mi tren</Link>}

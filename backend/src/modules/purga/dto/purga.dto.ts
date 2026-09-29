@@ -19,3 +19,8 @@ export class PurgarAuditoriaDto {
   @IsISO8601() antesDe!: string;
   @IsString() @MaxLength(60) confirmacion!: string;
 }
+
+/** Bloque 166 · cargar/borrar la demostración: se confirma escribiendo DEMO. */
+export class DemoDto {
+  @IsString() @MaxLength(10) confirmacion!: string;
+}

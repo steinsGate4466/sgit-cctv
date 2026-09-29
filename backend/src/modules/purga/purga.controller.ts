@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Ip, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Ip, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PurgaService } from './purga.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -6,7 +6,8 @@ import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { SinAmbito } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { PurgarDto, PurgarAuditoriaDto } from './dto/purga.dto';
+import { PurgarDto, PurgarAuditoriaDto, DemoDto } from './dto/purga.dto';
+import { DemoEnServidorService } from './demo-en-servidor.service';
 
 /**
  * Todo lo de aquí es IRREVERSIBLE, así que se usa POST incluso para las
@@ -19,7 +20,25 @@ import { PurgarDto, PurgarAuditoriaDto } from './dto/purga.dto';
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('purga')
 export class PurgaController {
-  constructor(private readonly purga: PurgaService) {}
+  constructor(private readonly purga: PurgaService, private readonly demo: DemoEnServidorService) {}
+
+  /* Bloque 166 · cargar / borrar la DEMOSTRACIÓN (todo DEMO-) desde la app,
+     para que quede en la base y el almacén del servidor (Railway). */
+  @SinAmbito()
+  @Post('demo/cargar')
+  @RequirePermissions('asset.delete')
+  demoCargar(@Body() dto: DemoDto, @CurrentUser() u: any, @Ip() ip: string) {
+    if (dto.confirmacion !== 'DEMO') throw new BadRequestException('Falta confirmar.');
+    return this.demo.ejecutar('cargar', u?.userId ?? null, ip);
+  }
+
+  @SinAmbito()
+  @Post('demo/borrar')
+  @RequirePermissions('asset.delete')
+  demoBorrar(@Body() dto: DemoDto, @CurrentUser() u: any, @Ip() ip: string) {
+    if (dto.confirmacion !== 'DEMO') throw new BadRequestException('Falta confirmar.');
+    return this.demo.ejecutar('borrar', u?.userId ?? null, ip);
+  }
 
   /** Literales antes que parámetros, como siempre. */
   @Get('candidatos')

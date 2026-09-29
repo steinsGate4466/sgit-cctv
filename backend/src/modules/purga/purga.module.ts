@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PurgaService } from './purga.service';
 import { PurgaController } from './purga.controller';
+import { DemoEnServidorService } from './demo-en-servidor.service';
 import { AuditModule } from '../audit/audit.module';
 
 /**
@@ -15,7 +16,7 @@ import { AuditModule } from '../audit/audit.module';
 @Module({
   imports: [AuditModule],
   controllers: [PurgaController],
-  providers: [PurgaService],
+  providers: [PurgaService, DemoEnServidorService],
   exports: [PurgaService],
 })
 export class PurgaModule {}

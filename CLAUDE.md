@@ -6522,3 +6522,19 @@ Pedido: «ver por zonas —sala eléctrica y así— en todos lados y para el Tr
 - `LienzoPlano` sólo re-encuadra con un `enfocar.n` nuevo y el Mapa lo monta
   por plano (`key`): al cambiar de plano no se abre en un rincón vacío.
 
+## §88 · BLOQUE 166 — LA DEMOSTRACIÓN SE CARGA DESDE LA APP (29/09/2026)
+
+En Railway el Mapa salía «Todavía no hay un plano publicado»: `npm run demo:*`
+en el PC carga la base y el MinIO LOCALES, no los de Railway.
+- El build compila también `prisma/demo*.ts` a `dist/prisma/` (flags de
+  decoradores por `StorageService`). `npm run demo:todo:prod` / `demo:borrar:prod`
+  los corren sin ts-node.
+- `POST /purga/demo/cargar|borrar` (`asset.delete`, confirmación `DEMO`) los
+  ejecuta como procesos hijos del SERVIDOR (`purga/demo-en-servidor.service.ts`):
+  heredan su base y su almacén. Uno a la vez (409), auditado (DEMO_CARGAR/BORRAR),
+  la salida vuelve a la pantalla sin colores ni pila.
+- Limpieza → pestaña «Demostración» (`components/CargaDeDemo.tsx`). El Mapa vacío
+  enlaza ahí («Cargar la demostración»). Sólo crea/borra DEMO-.
+- Si Railway no tiene almacén (MINIO_*), la salida lo dice: «No se pudo guardar la
+  imagen en el almacén».
+

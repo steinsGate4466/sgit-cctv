@@ -8,7 +8,7 @@
   "author": "Cristhian Rondon Amanqui",
   "license": "UNLICENSED",
   "scripts": {
-    "build": "nest build && tsc prisma/seed.ts --outDir dist --rootDir . --module commonjs --target ES2021 --esModuleInterop --skipLibCheck && npm run verificar:arranque",
+    "build": "nest build && tsc prisma/seed.ts prisma/demo.ts prisma/demo-infra.ts prisma/demo-plano.ts prisma/demo-borrar.ts --outDir dist --rootDir . --module commonjs --target ES2021 --esModuleInterop --skipLibCheck --experimentalDecorators --emitDecoratorMetadata && npm run verificar:arranque",
     "verificar:inyeccion": "node scripts/verificar-inyeccion.js",
     "verificar:filtros": "node scripts/verificar-filtros-prisma.js",
     "verificar:migraciones": "node scripts/verificar-migraciones.js",
@@ -35,6 +35,8 @@
     "demo:infra": "ts-node --project prisma/tsconfig.demo.json prisma/demo-infra.ts",
     "demo:plano": "ts-node --project prisma/tsconfig.demo.json prisma/demo-plano.ts",
     "demo:borrar": "ts-node --project prisma/tsconfig.demo.json prisma/demo-borrar.ts",
+    "demo:todo:prod": "node dist/prisma/demo.js && node dist/prisma/demo-infra.js && node dist/prisma/demo-plano.js",
+    "demo:borrar:prod": "node dist/prisma/demo-borrar.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "jest",
     "test:watch": "jest --watch",

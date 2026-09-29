@@ -4879,3 +4879,6 @@ tbody tr:hover td { background: var(--brillo); }
 .zona-editor-fila { display: flex; align-items: center; gap: 6px; }
 .zona-editor-fila > button:first-child { flex: 1; min-width: 0; }
 .zona-editor-fila > button.btn-mini { flex: none; width: auto; }
+/* Bloque 166 · lo que respondió el servidor al cargar/borrar la demostración */
+.demo-salida { margin: 12px 0 0; padding: 10px 12px; max-height: 320px; overflow: auto; font-size: 12px; line-height: 1.45; white-space: pre-wrap; background: var(--ok-fondo); border: 1px solid var(--ok-borde); border-radius: 8px; }
+.demo-salida.mal { background: var(--crit-fondo); border-color: var(--crit-borde); }
