@@ -2,6 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { evaluarEspera, ordenarPorUrgencia } from '../maintenance/espera';
 import { IncidentStatus, Priority, WorkOrderStatus } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { computeEffectiveStatuses } from '../../common/asset-status';
+import { CargaDeTecnico, inicioDelDiaDePlanta, lineaDeMovimientos, Movimiento, ordenarCarga } from './pulso';
+import { corteDeVencidas } from '../../common/dia-de-planta';
 
 /**
  * LA BANDEJA: lo que espera una decisión, hoy.
@@ -82,7 +85,7 @@ export class BandejaService {
 
       // 2. Vencidas: pasaron de fecha y siguen abiertas.
       this.prisma.workOrder.findMany({
-        where: { status: abiertas, scheduledDate: { lt: ahora } },
+        where: { status: abiertas, scheduledDate: { lt: corteDeVencidas(ahora) } },
         select: {
           id: true, code: true, type: true, activity: true, scheduledDate: true,
           progressPct: true, asset: { select: { assetCode: true } },
@@ -307,7 +310,10 @@ export class BandejaService {
       },
     });
 
+    const pulso = await this.pulso(ahora);
+
     return {
+      pulso,
       sinDetallar: sinDetallarOrdenadas,
       enEspera,
       vencidas: vencidasOrdenadas,
@@ -347,6 +353,106 @@ export class BandejaService {
           + mejorasPropuestas.length + bajoMinimo.length + sobrantes.length,
       },
       generado: ahora.toISOString(),
+    };
+  }
+
+  /**
+   * BLOQUE 158 · CÓMO AMANECIÓ LA PLANTA. Ver `pulso.ts`.
+   * Todo son CUENTAS (count / groupBy): no trae filas enteras, así que no
+   * crece con los años de historial. La línea de movimientos se limita a las
+   * últimas 24 h y a ocho entradas.
+   */
+  private async pulso(ahora: Date) {
+    const hoy = inicioDelDiaDePlanta(ahora);
+    const hace24h = new Date(ahora.getTime() - 24 * 3600_000);
+    const en7dias = new Date(ahora.getTime() + 7 * 86400_000);
+    const ABIERTAS: WorkOrderStatus[] = ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'];
+    const VIVAS: IncidentStatus[] = ['ABIERTA', 'EN_DIAGNOSTICO', 'EN_PROCESO', 'EN_ESPERA'];
+    /* LAS CÁMARAS SE CUENTAN IGUAL QUE EN EL DASHBOARD: con el estado
+       EFECTIVO (una incidencia u OM abierta cuenta) y sin las de baja ni las
+       de almacén. Dos pantallas con dos cifras distintas para «cámaras con
+       problema» es la forma más rápida de que no se crea ninguna. */
+    const camara = { type: 'CAMERA' as const, deletedAt: null, status: { notIn: ['BAJA', 'STOCK'] as any } };
+
+    const [
+      omAbiertas, omEnProceso, omEnEspera, omCerradasHoy, omCreadasHoy,
+      incAbiertas, incHoy, incResueltasHoy,
+      camaras, preventivosSemana,
+      cargaAbiertas, cargaEnProceso, cargaVencidas,
+      recientesInc, recientesOmCreadas, recientesOmCerradas, recientesResueltas,
+    ] = await Promise.all([
+      this.prisma.workOrder.count({ where: { status: 'ABIERTA' } }),
+      this.prisma.workOrder.count({ where: { status: 'EN_PROCESO' } }),
+      this.prisma.workOrder.count({ where: { status: 'EN_ESPERA' } }),
+      this.prisma.workOrder.count({ where: { status: 'CERRADA', executedDate: { gte: hoy } } }),
+      this.prisma.workOrder.count({ where: { createdAt: { gte: hoy } } }),
+      this.prisma.incident.count({ where: { status: { in: VIVAS } } }),
+      this.prisma.incident.count({ where: { reportedAt: { gte: hoy } } }),
+      this.prisma.incident.count({ where: { resolvedAt: { gte: hoy } } }),
+      this.prisma.asset.findMany({ where: camara, select: { id: true, status: true } }),
+      this.prisma.workOrder.count({
+        where: { type: 'PREVENTIVO', status: { in: ABIERTAS }, scheduledDate: { gte: hoy, lte: en7dias } },
+      }),
+      this.prisma.workOrder.groupBy({ by: ['technicianId'], where: { status: { in: ABIERTAS }, technicianId: { not: null } }, _count: { _all: true } }),
+      this.prisma.workOrder.groupBy({ by: ['technicianId'], where: { status: 'EN_PROCESO', technicianId: { not: null } }, _count: { _all: true } }),
+      this.prisma.workOrder.groupBy({ by: ['technicianId'], where: { status: { in: ABIERTAS }, technicianId: { not: null }, scheduledDate: { lt: corteDeVencidas(ahora) } }, _count: { _all: true } }),
+      this.prisma.incident.findMany({
+        where: { reportedAt: { gte: hace24h } }, orderBy: { reportedAt: 'desc' }, take: 8,
+        select: { code: true, title: true, reportedAt: true, reportedBy: { select: { fullName: true } } },
+      }),
+      this.prisma.workOrder.findMany({
+        where: { createdAt: { gte: hace24h } }, orderBy: { createdAt: 'desc' }, take: 8,
+        select: { code: true, activity: true, createdAt: true, technician: { select: { fullName: true } } },
+      }),
+      this.prisma.workOrder.findMany({
+        where: { status: 'CERRADA', executedDate: { gte: hace24h } }, orderBy: { executedDate: 'desc' }, take: 8,
+        select: { code: true, activity: true, executedDate: true, technician: { select: { fullName: true } } },
+      }),
+      this.prisma.incident.findMany({
+        where: { resolvedAt: { gte: hace24h } }, orderBy: { resolvedAt: 'desc' }, take: 8,
+        select: { code: true, title: true, resolvedAt: true },
+      }),
+    ]);
+
+    const eff = await computeEffectiveStatuses(this.prisma, camaras);
+    const estadoDe = (c: { id: string; status: string }) => eff[c.id] || c.status;
+    const camTotal = camaras.length;
+    const camFuera = camaras.filter((c) => estadoDe(c) === 'FUERA_SERVICIO').length;
+    const camMant = camaras.filter((c) => estadoDe(c) === 'MANTENIMIENTO').length;
+    const camConIncidencia = camaras.filter((c) => estadoDe(c) === 'CON_INCIDENCIA').length;
+
+    // La carga por técnico, con nombre.
+    const ids = new Set<string>();
+    [cargaAbiertas, cargaEnProceso, cargaVencidas].forEach((g) => g.forEach((x) => x.technicianId && ids.add(x.technicianId)));
+    const nombres = ids.size
+      ? await this.prisma.user.findMany({ where: { id: { in: [...ids] } }, select: { id: true, fullName: true } })
+      : [];
+    const nombreDe = new Map(nombres.map((u) => [u.id, u.fullName]));
+    const cuenta = (g: any[], id: string) => g.find((x) => x.technicianId === id)?._count?._all ?? 0;
+    const carga: CargaDeTecnico[] = [...ids].map((id) => ({
+      tecnicoId: id,
+      tecnico: nombreDe.get(id) ?? 'sin nombre',
+      abiertas: cuenta(cargaAbiertas, id),
+      enProceso: cuenta(cargaEnProceso, id),
+      vencidas: cuenta(cargaVencidas, id),
+    }));
+
+    const iso = (d: Date | null | undefined) => (d ? d.toISOString() : ahora.toISOString());
+    const movimientos: Movimiento[] = [
+      ...recientesInc.map((i) => ({ cuando: iso(i.reportedAt), tipo: 'INCIDENCIA' as const, codigo: i.code, texto: i.title, quien: i.reportedBy?.fullName ?? null, ruta: `/incidents?q=${encodeURIComponent(i.code)}` })),
+      ...recientesOmCreadas.map((o) => ({ cuando: iso(o.createdAt), tipo: 'OM_CREADA' as const, codigo: o.code, texto: o.activity || '', quien: o.technician?.fullName ?? null, ruta: `/maintenance?om=${encodeURIComponent(o.code)}` })),
+      ...recientesOmCerradas.map((o) => ({ cuando: iso(o.executedDate), tipo: 'OM_CERRADA' as const, codigo: o.code, texto: o.activity || '', quien: o.technician?.fullName ?? null, ruta: `/maintenance?om=${encodeURIComponent(o.code)}` })),
+      ...recientesResueltas.map((i) => ({ cuando: iso(i.resolvedAt), tipo: 'INCIDENCIA_RESUELTA' as const, codigo: i.code, texto: i.title, quien: null, ruta: `/incidents?q=${encodeURIComponent(i.code)}` })),
+    ];
+
+    return {
+      desde: hoy.toISOString(),
+      ordenes: { abiertas: omAbiertas, enProceso: omEnProceso, enEspera: omEnEspera, cerradasHoy: omCerradasHoy, creadasHoy: omCreadasHoy },
+      incidencias: { abiertas: incAbiertas, reportadasHoy: incHoy, resueltasHoy: incResueltasHoy },
+      camaras: { total: camTotal, fueraDeServicio: camFuera, enMantenimiento: camMant, conIncidencia: camConIncidencia },
+      preventivosSemana,
+      carga: ordenarCarga(carga),
+      movimientos: lineaDeMovimientos(movimientos),
     };
   }
 }

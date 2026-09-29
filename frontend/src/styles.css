@@ -51,6 +51,65 @@
   --info-fondo:  #eef4ff;
   --info-borde:  #dbe6fb;
 }
+
+/* =============================================================================
+   BLOQUE 157 · MODO NOCHE — los tokens
+   -----------------------------------------------------------------------------
+   Aquí sólo están los COLORES CON NOMBRE de la noche. Los ~470 colores escritos
+   dentro de las reglas NO se repiten a mano: `scripts/tema-oscuro.mjs` genera su
+   versión oscura en cada build (ver allí por qué). Si añades un token arriba,
+   añade aquí su pareja: `verificar:tema` avisa si falta.
+
+   `--tinta-marca`: el azul de la marca usado como LETRA. En claro es el mismo
+   azul marino; de noche, un azul claro legible sobre negro. El marino se queda
+   para los fondos (menú, botones), donde sí funciona de noche.
+   ========================================================================== */
+:root {
+  --tinta-marca: var(--navy); --acento: #2e5496; --acento-2: #3d6fd1; --brillo: rgba(61,111,209,.18);
+  /* Los tonos de criticidad (A rojo · B naranja · C índigo) y dos neutros que
+     vivían escritos en las pantallas. Con nombre, para que tengan noche. */
+  --naranja-fondo: #ffedd5; --naranja-borde: #fdba74; --naranja-texto: #9a3412;
+  --indigo-fondo: #e0e7ff;  --indigo-borde: #a5b4fc;  --indigo-texto: #3730a3;
+  --suave-fondo: #f1f4f7;   --violeta-fondo: #e8e3fb;
+}
+:root[data-tema="oscuro"] {
+  color-scheme: dark;
+  --navy: #13213d;
+  --navy-2: #1f3563;
+  --steel: #5b8def;
+  --red: #ef4452;
+  --bg: #0a1120;
+  --card: #111b2e;
+  --text: #e4eaf4;
+  --muted: #93a2b9;
+  --border: #22314b;
+  --ok: #22c55e;
+  --warn: #f5a524;
+  --crit: #f25555;
+  --crit-texto: #ffb3b3;
+  --crit-fondo: #34121a;
+  --crit-borde: #65222c;
+  --warn-texto: #fcd18a;
+  --warn-fondo: #30220c;
+  --warn-borde: #634616;
+  --ok-texto: #97e6b5;
+  --ok-fondo: #0e2b1d;
+  --ok-borde: #1d5638;
+  --info: #60a5fa;
+  --info-texto: #bcd5ff;
+  --info-fondo: #12213e;
+  --info-borde: #264271;
+  --tinta-marca: #9cc2ff;
+  --acento: #3b82f6;
+  --acento-2: #60a5fa;
+  --brillo: rgba(96,165,250,.22);
+  --navy-3: #060b16;
+  --naranja-fondo: #33190b; --naranja-borde: #6e3514; --naranja-texto: #fdba74;
+  --indigo-fondo: #1a1c45;  --indigo-borde: #3b3f8c;  --indigo-texto: #b9c2ff;
+  --suave-fondo: #16223a;   --violeta-fondo: #241c45;
+  --tinta: #f1f5fb;
+  --ring: rgba(96,165,250,.28);
+}
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
 body {
@@ -377,12 +436,12 @@ tr:last-child td { border-bottom: none; }
 
 /* Tabla: cabecera fija al hacer scroll + filas más legibles */
 .card table thead th { position: sticky; top: 0; z-index: 1; }
-tbody tr { transition: background .1s ease; }
+tbody tr { transition: background .12s ease; }
 
 /* Título de página con barra de acento (aire ejecutivo) */
 
 /* Botones: foco accesible y transición */
-.btn, .btn-primary, .btn-mini { transition: background .15s ease, box-shadow .15s ease; }
+.btn, .btn-primary, .btn-mini { transition: background .15s ease, box-shadow .15s ease, border-color .15s ease, color .15s ease, transform .12s ease, filter .15s ease; }
 .btn-primary:focus-visible, .btn:focus-visible, .btn-mini:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); }
 
 /* Barra de filtros como tarjeta contenida */
@@ -1067,10 +1126,10 @@ select optgroup { font-weight: 700; color: var(--navy); }
 .kpi .label { font-weight: 600; color: var(--muted); }
 .kpi .value { color: var(--tinta); margin-top: 4px; }
 .kpi .hint { font-size: 11.5px; line-height: 1.45; }
-.kpi:hover { box-shadow: var(--e2); }
+.kpi:hover { box-shadow: var(--sombra-2); }
 
 /* -------------------------------------------------------------- TARJETAS */
-.card, .panel { border-radius: 14px; box-shadow: var(--e1); }
+.card, .panel { border-radius: 14px; box-shadow: var(--sombra-1); }
 .panel { padding: 18px 20px; }
 .panel h3 { font-size: 13px; letter-spacing: .3px; color: var(--tinta); text-transform: none; }
 .panel h3::before { height: 13px; background: var(--red); }
@@ -1104,14 +1163,14 @@ input, select, textarea {
 }
 input:hover, select:hover, textarea:hover { border-color: #cbd5e6; }
 input:focus, select:focus, textarea:focus {
-  background: #fff; border-color: var(--steel); box-shadow: 0 0 0 3.5px rgba(46,84,150,.13);
+  background: #fff; border-color: var(--acento-2); box-shadow: 0 0 0 3px var(--ring);
 }
 input::placeholder, textarea::placeholder { color: #a8b2c4; }
 
 /* --------------------------------------------------------------- BOTONES */
 .btn, .btn-primary {
-  background: linear-gradient(180deg, #35609f, var(--steel));
-  border-radius: 10px; box-shadow: 0 1px 2px rgba(16,24,40,.12);
+  background: linear-gradient(135deg, var(--acento), var(--acento-2));
+  border-radius: 10px; box-shadow: 0 4px 14px var(--brillo), inset 0 1px 0 rgba(255,255,255,.18);
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
 }
 .btn:hover:not(:disabled), .btn-primary:hover:not(:disabled) {
@@ -1123,10 +1182,10 @@ input::placeholder, textarea::placeholder { color: #a8b2c4; }
 .btn:active:not(:disabled), .btn-primary:active:not(:disabled),
 .btn-mini:active { transform: translateY(1px); box-shadow: none; }
 .btn-mini {
-  display: inline-flex; align-items: center; gap: 6px; border-radius: 8px;
+  display: inline-flex; align-items: center; gap: 6px; border-radius: 9px;
   background: #fff; color: var(--steel); border-color: #d8e1f0; font-weight: 600;
 }
-.btn-mini:hover { background: var(--steel); color: #fff; border-color: var(--steel); }
+.btn-mini:hover { background: var(--steel); color: var(--tinta-marca); border-color: var(--acento-2); }
 
 /* Rueda de espera dentro del botón. Sin esto, pulsar "Ingresar" con la red
    de planta lenta parecía no hacer nada y la gente pulsaba tres veces. */
@@ -1489,7 +1548,7 @@ textarea { resize: vertical; }
 .accion-strip { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
 .accion-strip .accion {
   text-align: left; cursor: pointer; border-radius: 10px; padding: 10px 14px;
-  border: 1px solid var(--border, #dfe3ea); background: #fff; min-width: 170px;
+  border: 1px solid var(--border, #dfe3ea); background: var(--card); min-width: 170px;
   display: flex; flex-direction: column; gap: 2px; font-size: 12.5px;
   transition: box-shadow .15s, transform .08s;
 }
@@ -1730,9 +1789,9 @@ button.nav-group-title:hover .chevron { background: rgba(255, 255, 255, .16); op
 .nav a {
   font-size: 13.5px;
   padding: 8px 11px;
-  border-radius: 8px;
+  border-radius: 10px;
   border-left: 3px solid transparent;
-  transition: background .13s, border-color .13s, padding-left .13s;
+  transition: background .15s ease, color .15s ease, box-shadow .15s ease;
 }
 .nav a:hover { padding-left: 14px; }
 .nav a.active {
@@ -2626,7 +2685,7 @@ table td, table th, .kpi .value, .indicador-valor, code {
 
 .acciones {
   background: var(--card); border: 1px solid var(--line);
-  border-radius: 10px; overflow: hidden;
+  border-radius: 14px; overflow: hidden;
 }
 
 /* Acotado a `.acciones` por el mismo motivo explicado en `.accion-strip`:
@@ -2640,7 +2699,7 @@ table td, table th, .kpi .value, .indicador-valor, code {
   color: inherit; text-decoration: none;
 }
 .acciones .accion:first-child { border-top: 0; }
-.acciones a.accion:hover { background: #f6f9fc; }
+.acciones a.accion:hover { background: var(--brillo); }
 .acciones a.accion:focus-visible { outline: 2px solid #1f4e79; outline-offset: -2px; }
 .acciones .accion svg { flex: none; color: var(--muted); }
 
@@ -2674,7 +2733,7 @@ table td, table th, .kpi .value, .indicador-valor, code {
   border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
 }
 .cifra { display: flex; align-items: baseline; gap: 5px; font-size: 13px; }
-.cifra b { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.cifra b { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .cifra-de { font-size: 13px; color: var(--muted); margin-left: -3px; }
 .cifra-et { color: var(--muted); }
 .cifra-sep { color: var(--line); margin-right: 8px; }
@@ -2844,7 +2903,7 @@ a.ta-fila:focus-visible { outline: 2px solid #1f4e79; outline-offset: 2px; }
   cursor: pointer;
 }
 .acciones button.accion:first-child { border-top: 0; }
-.acciones button.accion:hover { background: #f6f9fc; }
+.acciones button.accion:hover { background: var(--brillo); }
 .acciones button.accion:focus-visible { outline: 2px solid #1f4e79; outline-offset: -2px; }
 
 /* =========================================================================
@@ -4367,3 +4426,456 @@ input::-webkit-datetime-edit { padding: 0; }
 .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 13px; }
 .kv dt { color: var(--muted); }
 .kv dd { margin: 0; }
+
+/* Bloque 155 · el expediente de una instalación o de una orden. */
+.expediente { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
+.expediente .section-title { display: flex; align-items: center; gap: 6px; }
+
+/* Bloque 144 · el orden de un proceso, en pasos numerados. */
+.pasos-proceso { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 14px; padding: 0; }
+.pasos-proceso li { flex: 1 1 180px; display: flex; align-items: center; gap: 8px; font-size: 12.5px;
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+.pasos-proceso li > b:first-child { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--navy); color: #fff; font-size: 12px; }
+
+/* =========================================================================
+   Bloque 151 · PLANO VIVO
+   ========================================================================= */
+.mapa-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-bottom: 10px; }
+.mapa-contadores { display: flex; flex-wrap: wrap; gap: 6px; }
+.mapa-contador { display: inline-flex; align-items: center; gap: 6px; background: var(--card); border: 1px solid var(--border);
+  border-radius: 999px; padding: 4px 10px; font-size: 12.5px; cursor: pointer; color: var(--text); }
+.mapa-contador i, .mapa-punto { width: 10px; height: 10px; border-radius: 50%; display: inline-block; background: var(--c-punto); flex: none; }
+.mapa-contador.activo { border-color: var(--navy); box-shadow: 0 0 0 1px var(--navy) inset; }
+.mapa-capa { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; margin: 0; }
+.mapa-capa input { width: auto; }
+.mapa-escenario { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 12px; align-items: start; }
+@media (max-width: 960px) { .mapa-escenario { grid-template-columns: 1fr; } }
+
+.punto-ok { --c-punto: #22a45d; }
+.punto-alerta { --c-punto: #e0a100; }
+.punto-caida { --c-punto: #d93025; }
+.punto-sindato { --c-punto: #8a969c; }
+
+.lienzo-plano { position: relative; background: #0f1a20; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.lienzo-plano svg { width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; user-select: none; }
+.lienzo-fondo { fill: #f4f6f8; }
+.lienzo-controles { position: absolute; top: 10px; right: 10px; display: flex; flex-direction: column; gap: 4px; }
+.lienzo-controles button { width: 34px; height: 34px; border-radius: 6px; border: 1px solid #35505d; background: rgba(15,26,32,.9);
+  color: #fff; font-size: 17px; cursor: pointer; }
+.lienzo-escala { position: absolute; left: 10px; bottom: 10px; background: rgba(15,26,32,.85); color: #d9e4e9;
+  font-size: 11px; padding: 5px 8px; border-radius: 4px; display: flex; flex-direction: column; gap: 3px; }
+.lienzo-escala div { height: 6px; border: 1px solid #d9e4e9; border-top: 0; }
+
+.marcador { cursor: pointer; outline: none; }
+.marcador-cuerpo { fill: var(--c-punto); stroke: #0f1a20; stroke-width: 1.5; }
+.marcador-halo { fill: var(--c-punto); opacity: .18; }
+.marcador-sel { fill: none; stroke: #f5b041; stroke-width: 2; stroke-dasharray: 4 3; }
+.marcador:focus-visible .marcador-halo { opacity: .45; }
+.marcador-letra { fill: #0f1a20; font-size: 10px; font-weight: 700; pointer-events: none; }
+.marcador-etiqueta { fill: #0f1a20; font-size: 11px; font-weight: 600; paint-order: stroke; stroke: #fff; stroke-width: 3px; pointer-events: none; }
+.marcador-pulso { fill: none; stroke: var(--c-punto); stroke-width: 2; transform-box: fill-box; transform-origin: center;
+  animation: pulso-mapa 1.6s ease-out infinite; }
+@keyframes pulso-mapa { from { transform: scale(.8); opacity: .9; } to { transform: scale(2.2); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .marcador-pulso { animation: none; } }
+.cono { fill: var(--c-punto); fill-opacity: .12; stroke: var(--c-punto); stroke-opacity: .45; stroke-width: 1; vector-effect: non-scaling-stroke; pointer-events: none; }
+.punto-calibrar { fill: #f5b041; stroke: #0f1a20; stroke-width: 2; }
+.linea-calibrar { stroke: #f5b041; stroke-dasharray: 6 4; }
+
+.tarjeta-mapa { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+.tarjeta-mapa-cab { position: relative; padding: 12px 14px 10px; border-bottom: 1px solid var(--border);
+  border-left: 5px solid var(--c-punto, var(--navy)); }
+.tarjeta-mapa-cab h2 { margin: 2px 0; font-size: 20px; }
+.tarjeta-mapa-tipo { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.tarjeta-mapa-estado { display: inline-block; margin-top: 4px; font-size: 12px; font-weight: 700; color: #fff;
+  background: var(--c-punto); border-radius: 12px; padding: 2px 9px; }
+.tarjeta-mapa-cerrar { position: absolute; top: 8px; right: 10px; border: 0; background: none; font-size: 20px; cursor: pointer; color: var(--muted); }
+.tarjeta-mapa-cuerpo { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.tarjeta-mapa-cuerpo section h3 { margin: 0 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--navy); }
+.tarjeta-mapa-cuerpo section p { margin: 0; }
+.tarjeta-mapa-acciones { display: flex; flex-wrap: wrap; gap: 6px; }
+.aviso-mapa { font-size: 12.5px; padding: 6px 9px; border-left: 3px solid #e0a100; background: #fff8e1; border-radius: 3px; }
+.aviso-mapa.grave { border-left-color: #d93025; background: #fdecea; }
+.barra-avance { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+.barra-avance div { height: 100%; background: var(--navy); }
+.mapa-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 420px; overflow-y: auto; }
+.mapa-lista button { width: 100%; text-align: left; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  background: var(--bg, #f7f8fa); border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px; cursor: pointer; font-size: 13px; color: var(--text); }
+.mapa-lista button.activo { border-color: var(--navy); box-shadow: 0 0 0 1px var(--navy) inset; }
+.mapa-lista .muted { font-size: 12px; }
+
+.planos-cabecera { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 12px; align-items: start; margin-bottom: 14px; }
+@media (max-width: 960px) { .planos-cabecera { grid-template-columns: 1fr; } }
+.planos-herramientas { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+.planos-herramientas .btn-mini.activo { border-color: var(--navy); color: var(--navy); font-weight: 700; }
+.fila-activa { background: #eef2f9; }
+.mapa { display: flex; flex-direction: column; }
+.mapa-panel { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+
+/* =============================================================================
+   BLOQUE 157 · ASPECTO — más vistoso sin decir menos
+   -----------------------------------------------------------------------------
+   Pedido de Cristhian para la prueba: «súper visual, bonito, llamativo», y un
+   modo oscuro. Las reglas de siempre siguen mandando (44 px con guante, un
+   color = un estado, nada se mueve sin motivo). Lo que cambia es la PIEL:
+
+     · Fondo con dos luces suaves (azul de marca arriba, rojo abajo), como la
+       pantalla de una sala de control. En el modo noche se ven más.
+     · Tarjetas con borde fino y brillo arriba; la fila que se pulsa se eleva.
+     · Botón principal con degradado y brillo; el resto, sobrios.
+     · Menú lateral con la opción activa encendida.
+     · La pantalla entra con un fundido corto (0,2 s). Con «reducir
+       movimiento» activado en el equipo, no se mueve nada.
+     · En el Mapa, de noche, el plano pasa a «plano azul» (tinta clara sobre
+       fondo oscuro) y los puntos brillan.
+   ========================================================================== */
+:root {
+  --line: var(--border);
+  --shadow: var(--sombra-1);
+  --sombra-1: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.06);
+  --sombra-2: 0 4px 10px rgba(16,24,40,.07), 0 10px 24px rgba(16,24,40,.08);
+  --luz-a: rgba(46,84,150,.10);
+  --luz-b: rgba(192,18,31,.05);
+  --tarjeta-brillo: linear-gradient(180deg, rgba(255,255,255,.7), rgba(255,255,255,0) 60px);
+}
+:root[data-tema="oscuro"] {
+  --sombra-1: 0 1px 2px rgba(0,0,0,.45), 0 0 0 1px rgba(148,178,255,.04);
+  --sombra-2: 0 8px 24px rgba(0,0,0,.55), 0 0 0 1px rgba(148,178,255,.07);
+  --luz-a: rgba(59,130,246,.16);
+  --luz-b: rgba(239,68,82,.08);
+  --tarjeta-brillo: linear-gradient(180deg, rgba(148,178,255,.05), rgba(148,178,255,0) 70px);
+  --shadow: var(--sombra-1);
+}
+
+/* ---- Fondo de sala de control ---- */
+.app > div:last-child {
+  background:
+    radial-gradient(1100px 520px at 85% -10%, var(--luz-a), transparent 70%),
+    radial-gradient(900px 500px at -10% 110%, var(--luz-b), transparent 70%);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+/* ---- La pantalla entra con un fundido corto ---- */
+@keyframes sgit-entra { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.content > * { animation: sgit-entra .22s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .content > * { animation: none; } }
+
+/* ---- Menú lateral ---- */
+.sidebar .brand > span { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; text-align: left; }
+.sidebar .brand .logo { line-height: 1.1; font-weight: 800; }
+.sidebar .brand .sub { display: block; white-space: nowrap; }
+.sidebar .brand > svg { filter: drop-shadow(0 0 7px rgba(239,68,82,.55)); }
+.nav a.active { box-shadow: inset 0 0 0 1px rgba(148,178,255,.18), 0 6px 18px rgba(46,84,150,.35); }
+.nav a.active::before { box-shadow: 0 0 10px rgba(239,68,82,.8); }
+
+/* ---- Cabecera ---- */
+.topbar .title::after {
+  content: ''; display: block; width: 34px; height: 3px; margin-top: 4px; border-radius: 3px;
+  background: linear-gradient(90deg, var(--red), var(--acento-2));
+}
+.tema-boton .tema-nombre { font-size: 12.5px; }
+@media (max-width: 780px) { .tema-boton .tema-nombre { display: none; } }
+/* En el celular la cabecera no cabía (ya antes del botón de tema, «Salir» se
+   salía por la derecha). Tema, PIN y Salir quedan como iconos de 40 px: el
+   texto sigue ahí para el lector de pantalla, sólo no se pinta. */
+@media (max-width: 600px) {
+  .topbar .user { gap: 6px; }
+  .topbar .logout { font-size: 0; gap: 0; padding: 0; width: 40px; height: 40px; justify-content: center; flex: none; }
+  .topbar .logout svg { width: 17px; height: 17px; }
+  .topbar .fecha-dato { flex: 1 1 0; min-width: 0; font-size: 11px; line-height: 1.25; white-space: normal; }
+}
+
+/* ---- Pestañas del módulo ---- */
+.subtab { border-radius: 8px 8px 0 0; transition: color .15s ease, background .15s ease; }
+.subtab:hover { background: var(--brillo); }
+.subtab.active { position: relative; }
+.subtab.active::after {
+  content: ''; position: absolute; left: 10%; right: 10%; bottom: -2px; height: 2px;
+  background: var(--red); box-shadow: 0 0 10px rgba(239,68,82,.7); border-radius: 2px;
+}
+
+/* ---- Tarjetas ---- */
+.panel, .acciones { background-image: var(--tarjeta-brillo); }
+.acciones { box-shadow: var(--sombra-1); }
+.panel:hover { box-shadow: var(--sombra-2); }
+.acciones .accion { transition: background .15s ease, transform .15s ease; }
+.acciones .accion:hover svg { color: var(--acento-2); transform: translateX(2px); transition: transform .15s ease; }
+
+/* ---- El titular: la frase que se lee desde la puerta ---- */
+.titular { position: relative; overflow: hidden; border: 1px solid transparent; box-shadow: var(--sombra-1); }
+.titular::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: currentColor; opacity: .85; }
+.titular svg { width: 26px; height: 26px; padding: 5px; border-radius: 50%; background: rgba(127,127,127,.12); box-sizing: content-box; }
+
+/* ---- Cifras ---- */
+.cifra b {
+  background: linear-gradient(135deg, var(--tinta-marca), var(--acento-2));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+
+/* ---- Botones ---- */
+.btn-primary:hover { filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 8px 20px var(--brillo); }
+.btn-primary:active { transform: none; }
+@media (prefers-reduced-motion: reduce) { .btn-primary, .btn-primary:hover { transform: none; transition: none; } }
+
+/* ---- Tablas ---- */
+tbody tr:hover td { background: var(--brillo); }
+
+
+/* ---- Barras de desplazamiento finas ---- */
+* { scrollbar-width: thin; scrollbar-color: rgba(127,140,160,.45) transparent; }
+
+/* ---- Modo noche: detalles que el generador no puede adivinar ---- */
+:root[data-tema="oscuro"] body { background: var(--bg); }
+:root[data-tema="oscuro"] .topbar { background: rgba(10,17,32,.78); box-shadow: 0 1px 0 var(--border), 0 10px 30px rgba(0,0,0,.25); }
+:root[data-tema="oscuro"] .card,
+:root[data-tema="oscuro"] .panel,
+:root[data-tema="oscuro"] .acciones,
+:root[data-tema="oscuro"] .kpi { border-color: #1f2d47; }
+:root[data-tema="oscuro"] th { background: #0e1729; color: #8fa0bb; }
+:root[data-tema="oscuro"] .modal { background: var(--card); }
+:root[data-tema="oscuro"] .modal-head { background: #0e1729; }
+:root[data-tema="oscuro"] .login-formside { background:
+  radial-gradient(700px 420px at 70% 20%, rgba(59,130,246,.14), transparent 70%), var(--bg); }
+:root[data-tema="oscuro"] .login-card { background: rgba(17,27,46,.82); backdrop-filter: blur(8px); box-shadow: 0 20px 60px rgba(0,0,0,.5), 0 0 0 1px rgba(148,178,255,.08); }
+
+/* El plano de noche: «plano azul». La imagen no se toca en el servidor: sólo
+   se ve invertida. Los puntos y conos van encima, con su color de estado. */
+:root[data-tema="oscuro"] .lienzo-imagen { filter: invert(1) sepia(.55) saturate(2.4) hue-rotate(170deg) brightness(.82) contrast(1.1); }
+:root[data-tema="oscuro"] .marcador-cuerpo { filter: drop-shadow(0 0 5px var(--c-punto)); }
+.mapa-contador { transition: transform .12s ease, box-shadow .15s ease; }
+.mapa-contador:hover { transform: translateY(-1px); box-shadow: var(--sombra-2); }
+.mapa-contador b { font-size: 15px; }
+.tarjeta-mapa { box-shadow: var(--sombra-2); }
+
+/* =============================================================================
+   BLOQUE 158 · CÓMO AMANECIÓ LA PLANTA (Mi bandeja)
+   ========================================================================== */
+.pulso { margin: 4px 0 18px; }
+.pulso-tarjetas { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 900px) { .pulso-tarjetas { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.pulso-tarjeta {
+  position: relative; display: flex; flex-direction: column; gap: 2px; min-height: 96px;
+  padding: 14px 16px 12px; border-radius: 14px; border: 1px solid var(--border);
+  background: var(--card); background-image: var(--tarjeta-brillo); box-shadow: var(--sombra-1);
+  color: inherit; text-decoration: none; overflow: hidden;
+  transition: transform .12s ease, box-shadow .15s ease;
+}
+.pulso-tarjeta::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--steel); }
+.pulso-tarjeta:hover { transform: translateY(-2px); box-shadow: var(--sombra-2); }
+.pulso-tarjeta.tono-grave::before { background: var(--crit); box-shadow: 0 0 12px var(--crit); }
+.pulso-tarjeta.tono-atender::before { background: var(--warn); }
+.pulso-tarjeta.tono-bien::before { background: var(--ok); }
+.pulso-et { font-size: 12px; font-weight: 600; color: var(--muted); }
+.pulso-n { font-size: 28px; line-height: 1.1; font-weight: 800; color: var(--tinta); font-variant-numeric: tabular-nums; }
+.tono-grave .pulso-n { color: var(--crit); }
+.pulso-sub { font-size: 12px; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { .pulso-tarjeta, .pulso-tarjeta:hover { transform: none; transition: none; } }
+
+.pulso-columnas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 12px; margin-top: 12px; align-items: start; }
+@media (max-width: 900px) { .pulso-columnas { grid-template-columns: 1fr; } }
+.pulso-panel {
+  padding: 14px 16px; border-radius: 14px; border: 1px solid var(--border);
+  background: var(--card); background-image: var(--tarjeta-brillo); box-shadow: var(--sombra-1);
+}
+.pulso-panel h3 { margin: 0 0 10px; font-size: 13px; color: var(--tinta); }
+.pulso-panel .muted { font-size: 12.5px; margin: 0; }
+
+.carga-fila { display: grid; grid-template-columns: minmax(0, 1fr) 90px auto; align-items: center; gap: 10px; padding: 5px 0; font-size: 13px; }
+.carga-nombre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.carga-barra { height: 8px; border-radius: 4px; background: var(--suave-fondo); overflow: hidden; }
+.carga-barra i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--acento), var(--acento-2)); }
+.carga-n { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.carga-vencidas { font-style: normal; font-weight: 600; color: var(--crit-texto); font-size: 12px; }
+
+.movimientos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.mov { display: flex; align-items: flex-start; gap: 10px; padding: 7px 8px; border-radius: 9px; color: inherit; text-decoration: none; font-size: 13px; line-height: 1.35; }
+.mov:hover { background: var(--brillo); }
+.mov-ico { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; margin-top: 1px; }
+.mov.tono-grave .mov-ico { background: var(--crit-fondo); color: var(--crit-texto); }
+.mov.tono-info .mov-ico { background: var(--info-fondo); color: var(--info-texto); }
+.mov.tono-bien .mov-ico { background: var(--ok-fondo); color: var(--ok-texto); }
+.mov-texto { min-width: 0; }
+.mov-cuando { display: block; font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+
+.sin-partir { white-space: nowrap; }
+
+/* ---- Dashboard · causas raíz como ranking (bloque 158) ----
+   El gráfico de barras horizontales partía la causa en tres renglones de 9 px.
+   Una causa se LEE: va entera, con su barra debajo. */
+.ranking { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.ranking li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; font-size: 13px; }
+.ranking-barra { grid-column: 1 / -1; height: 8px; border-radius: 4px; background: var(--suave-fondo); overflow: hidden; }
+.ranking-barra i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--warn), var(--red)); }
+.ranking b { font-variant-numeric: tabular-nums; }
+
+/* ---- Accesos rápidos (bloque 159) ---- */
+.accesos-rapidos { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+.acceso-rapido {
+  display: inline-flex; align-items: center; gap: 7px; min-height: 40px; padding: 8px 14px;
+  border-radius: 999px; border: 1px solid var(--border); background: var(--card);
+  color: var(--tinta-marca); font-weight: 600; font-size: 13px; text-decoration: none;
+  box-shadow: var(--sombra-1); transition: border-color .15s ease, box-shadow .15s ease, transform .12s ease;
+}
+.acceso-rapido:hover { border-color: var(--acento-2); box-shadow: 0 6px 16px var(--brillo); transform: translateY(-1px); }
+@media (prefers-reduced-motion: reduce) { .acceso-rapido:hover { transform: none; } }
+
+/* Reportar desde la tarjeta del mapa (bloque 159): los formularios del QR,
+   separados del resto de la tarjeta y a todo el ancho. */
+.tarjeta-mapa-reportar { border-top: 1px solid var(--border); padding-top: 10px; }
+.tarjeta-mapa-reportar .av-abrir, .tarjeta-mapa-reportar .reportar-abrir { width: 100%; justify-content: center; }
+.tarjeta-mapa-reportar .av-form { margin: 0; padding: 12px; box-shadow: none; }
+
+/* =============================================================================
+   BLOQUE 161 · EL ÍCONO ES EL DEL DISPOSITIVO
+   El disco lleva el color del estado; el dibujo, en tinta oscura, dice qué es.
+   Tinta oscura y no blanca: sobre el ámbar de «con alerta» el blanco no se lee.
+   ========================================================================== */
+.pict { fill: none; stroke: #0b141a; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.pict-lleno { fill: #0b141a; stroke: none; }
+.icono-equipo { flex: none; vertical-align: middle; overflow: visible; }
+.icono-equipo .marcador-cuerpo { stroke-width: 1; }
+.tarjeta-mapa-tipo { display: inline-flex; align-items: center; gap: 6px; }
+.mapa-lista button .icono-equipo { margin-right: 2px; }
+.mapa-iconos { margin-top: 8px; font-size: 12.5px; }
+.mapa-iconos summary { cursor: pointer; color: var(--tinta-marca); font-weight: 600; min-height: 32px; display: flex; align-items: center; }
+.mapa-iconos ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; grid-template-columns: 1fr; gap: 5px; }
+.mapa-iconos li { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 8px; }
+
+/* =============================================================================
+   BLOQUE 162 · EL APARATO DIBUJADO (DibujoEquipo)
+   Colores del aparato, no del estado: carcasa clara, lente oscura con brillo,
+   leds. No los invierte el modo noche (ver SIEMPRE_OSCURO en tema-oscuro.mjs).
+   ========================================================================== */
+.marcador-fondo { fill: #ffffff; stroke: var(--c-punto); stroke-width: 2.8; }
+.marcador-marca { fill: var(--c-punto); stroke: #ffffff; stroke-width: 1.3; }
+.marcador-marca-t { fill: #ffffff; font-size: 7px; font-weight: 800; pointer-events: none; }
+.icono-equipo .marcador-fondo { stroke-width: 2.2; }
+.eq-cuerpo { fill: #e9eef3; stroke: #2b3640; stroke-width: .9; }
+.eq-oscuro { fill: #2b3a48; stroke: #1b2530; stroke-width: .8; }
+.eq-lente { fill: #12202c; stroke: #5aa9e6; stroke-width: .9; }
+.eq-lente-termica { fill: #3a1208; stroke: #ff7a3d; stroke-width: 1.1; }
+.eq-brillo { fill: #bfe3ff; }
+.eq-reflejo { fill: none; stroke: #8fa6ba; stroke-width: .8; stroke-linecap: round; }
+.eq-visera { fill: #c5ced8; stroke: #2b3640; stroke-width: .8; }
+.eq-soporte { fill: none; stroke: #5c6b78; stroke-width: 1.4; stroke-linecap: round; }
+.eq-caja-oscura { fill: #34414e; stroke: #1b2530; stroke-width: .9; }
+.eq-panel { fill: #46586a; }
+.eq-ranura { fill: none; stroke: #8a9aab; stroke-width: .8; stroke-linecap: round; }
+.eq-puerto { fill: #dfe6ec; stroke: #1b2530; stroke-width: .4; }
+.eq-led-verde { fill: #35d07f; }
+.eq-led-azul { fill: #4aa3ff; }
+.eq-led-rojo { fill: #ff5a5a; }
+.eq-led-ambar { fill: #ffb020; }
+.eq-ladrillo { fill: #d9623b; stroke: #7a2e16; stroke-width: .9; }
+.eq-junta { fill: none; stroke: #7a2e16; stroke-width: .8; }
+.eq-pantalla { fill: #2f6db3; }
+.eq-pantalla-alerta { fill: #b3342f; }
+.eq-texto-pantalla { fill: none; stroke: #cfe3ff; stroke-width: .9; stroke-linecap: round; }
+.eq-onda { fill: none; stroke: #2f8fe0; stroke-width: 1.3; stroke-linecap: round; }
+.eq-enlace { fill: none; stroke: #2f8fe0; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.eq-rayo { fill: #f5c542; stroke: #8a6100; stroke-width: .5; }
+.eq-bateria { fill: #35d07f; }
+.eq-giro { fill: none; stroke: #2f8fe0; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
+.eq-calor { fill: none; stroke: #ff7a3d; stroke-width: .9; stroke-linecap: round; }
+
+.activo-con-icono { display: flex; align-items: center; gap: 9px; }
+.scan-head .icono-equipo { flex: none; }
+
+/* Bloque 163 · la evidencia del cierre */
+.evidencia-cierre { margin-top: 12px; padding: 10px 12px; border-radius: 10px; font-size: 13px; display: flex; flex-direction: column; gap: 8px; }
+.evidencia-cierre.con-foto { background: var(--ok-fondo); border: 1px solid var(--ok-borde); color: var(--ok-texto); }
+.evidencia-cierre.sin-foto { background: var(--warn-fondo); border: 1px solid var(--warn-borde); color: var(--warn-texto); }
+.evidencia-cierre label { color: var(--text); margin: 0; }
+.evidencia-subir { align-self: flex-start; cursor: pointer; }
+
+/* =============================================================================
+   BLOQUE 163 · LÍNEA DE VIDA DEL EQUIPO (historial con fotos)
+   ========================================================================== */
+.linea-vida { margin-top: 14px; }
+.linea-vida-titulo { font-weight: 700; font-size: 13px; margin-bottom: 8px; color: var(--tinta); }
+.linea-vida ol { list-style: none; margin: 0; padding: 0 0 0 14px; border-left: 2px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+.lv { position: relative; padding: 8px 10px; border-radius: 10px; background: var(--card); border: 1px solid var(--border); font-size: 12.5px; }
+.lv::before { content: ''; position: absolute; left: -21px; top: 12px; width: 10px; height: 10px; border-radius: 50%; background: var(--steel); box-shadow: 0 0 0 3px var(--bg); }
+.lv-inc::before { background: var(--crit); }
+.lv-om.lv-cerrada::before { background: var(--ok); }
+.lv-om.lv-abierta::before { background: var(--warn); }
+.lv-cab { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+.lv-estado { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: var(--suave-fondo); color: var(--muted); }
+.lv-fecha { margin-left: auto; font-size: 11.5px; }
+.lv-cuerpo { margin-top: 3px; line-height: 1.45; }
+.lv-quien { font-size: 11.5px; margin-top: 2px; }
+.lv-reincide { color: var(--crit-texto); font-weight: 600; }
+.lv-fotos { display: flex; gap: 6px; margin-top: 7px; flex-wrap: wrap; align-items: center; }
+.lv-foto { width: 64px; height: 48px; padding: 0; border-radius: 7px; overflow: hidden; border: 1px solid var(--border); background: var(--suave-fondo); cursor: zoom-in; display: inline-block; }
+.lv-foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lv-foto-cargando { cursor: default; }
+.lv-foto-grande { position: fixed; inset: 0; z-index: 90; background: rgba(5,10,20,.86); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: #fff; cursor: zoom-out; padding: 20px; }
+.lv-foto-grande img { max-width: 94vw; max-height: 82vh; border-radius: 10px; }
+.lv-sin-foto { margin-top: 6px; font-size: 11.5px; color: var(--warn-texto); }
+.tarjeta-mapa-ultima { margin: 0; font-size: 12.5px; }
+/* La celda del equipo lleva ahora el dibujo: el código no puede perder espacio. */
+.dato-fijo.celda-equipo { max-width: none; min-width: 215px; }
+/* Bloque 163: ni el modelo ni el lugar se parten letra a letra. */
+.celda-modelo { min-width: 150px; }
+.celda-ubicacion { min-width: 170px; }
+
+/* ===== Bloque 164 · de dónde salen las cifras del reparto ===== */
+.origen-reparto { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border); font-size: 12px; color: var(--muted); }
+.origen-reparto p { margin: 0 0 4px; }
+.origen-reparto ul { margin: 0; padding-left: 16px; }
+.origen-reparto li { margin: 2px 0; }
+.origen-reparto a { color: var(--tinta-marca); }
+.origen-reparto .origen-demo { margin-top: 4px; font-style: italic; }
+.franja-reparto {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  margin: 0 0 10px; padding: 8px 12px; border-radius: 8px; font-size: 13px;
+  background: var(--info-fondo); border: 1px solid var(--border);
+}
+
+/* ===== Bloque 165 · zonas del plano y vista de planta ===== */
+.zona { --c-zona: #8a969c; cursor: pointer; }
+.zona-ok { --c-zona: #22a45d; }
+.zona-alerta { --c-zona: #e0a100; }
+.zona-caida { --c-zona: #d93025; }
+.zona-sindato, .zona-vacia { --c-zona: #8a969c; }
+.zona polygon { fill: var(--c-zona); fill-opacity: .12; stroke: var(--c-zona); stroke-opacity: .85; stroke-dasharray: 8 4; transition: fill-opacity .15s ease; }
+.zona:hover polygon { fill-opacity: .22; }
+.zona.elegida polygon { fill-opacity: .06; stroke-dasharray: none; stroke-opacity: 1; }
+.zona.atenuada { opacity: .35; }
+.zona text { /* tema: fijo — va sobre el plano, que es claro de día y de noche */ fill: #1d2a31; font-weight: 700; paint-order: stroke; stroke: #ffffff; stroke-width: 3px; stroke-opacity: .85; pointer-events: none; font-family: inherit; }
+.zona text.zona-hijo { font-weight: 600; fill: #1f4e79; }
+.mapa-migas { display: flex; align-items: center; gap: 6px; font-size: 13px; margin: -4px 0 8px; flex-wrap: wrap; }
+.mapa-migas button { background: none; border: none; padding: 0; color: var(--tinta-marca); cursor: pointer; font: inherit; text-decoration: underline; }
+.mapa-migas span { color: var(--muted); }
+.mapa-zonas { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+.mapa-zonas button { display: inline-flex; align-items: center; gap: 6px; background: var(--card); border: 1px solid var(--border); border-radius: 999px; padding: 5px 11px; font-size: 12.5px; cursor: pointer; color: var(--text); }
+.mapa-zonas button.activo { border-color: var(--navy); box-shadow: 0 0 0 1px var(--navy) inset; font-weight: 600; }
+.mapa-zona-chip i { width: 9px; height: 9px; border-radius: 3px; display: inline-block; background: var(--c-zona, #8a969c); }
+.mapa-zona-chip.estado-ok { --c-zona: #22a45d; }
+.mapa-zona-chip.estado-alerta { --c-zona: #e0a100; }
+.mapa-zona-chip.estado-caida { --c-zona: #d93025; }
+.zona-cuentas { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12.5px; margin-bottom: 8px; }
+.zona-cuentas span, .planta-cuentas span { display: inline-flex; align-items: center; gap: 5px; }
+.zona-cuentas i, .planta-cuentas i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: var(--c-punto); }
+.planta { display: grid; gap: 18px; }
+.planta-tren h2 { font-size: 15px; margin: 0 0 8px; color: var(--tinta-marca); }
+.planta-planos { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.planta-plano {
+  --c-zona: #8a969c;
+  display: grid; gap: 4px; text-align: left; padding: 12px 14px; cursor: pointer; color: var(--text);
+  background: var(--card); border: 1px solid var(--border); border-left: 5px solid var(--c-zona); border-radius: 10px;
+  transition: transform .12s ease, box-shadow .15s ease;
+}
+.planta-plano:hover { transform: translateY(-1px); box-shadow: var(--sombra-2); }
+.planta-plano.estado-ok { --c-zona: #22a45d; }
+.planta-plano.estado-alerta { --c-zona: #e0a100; }
+.planta-plano.estado-caida { --c-zona: #d93025; }
+.planta-plano.hijo { margin-left: 14px; }
+.planta-nombre { font-weight: 700; font-size: 14px; }
+.planta-sub, .planta-pie { font-size: 12px; color: var(--muted); }
+.planta-cuentas { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 13px; font-weight: 600; }
+.zona-borrador { fill: #1f4e79; fill-opacity: .12; stroke: #1f4e79; stroke-dasharray: 6 3; pointer-events: none; }
+.zona-editor-fila { display: flex; align-items: center; gap: 6px; }
+.zona-editor-fila > button:first-child { flex: 1; min-width: 0; }
+.zona-editor-fila > button.btn-mini { flex: none; width: auto; }

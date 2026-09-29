@@ -40,11 +40,11 @@ import { useAuth } from '../auth/AuthContext';
 ============================================================================= */
 
 const COLOR: Record<string, { fondo: string; borde: string; texto: string }> = {
-  A: { fondo: '#fee2e2', borde: '#fca5a5', texto: '#991b1b' },
-  B: { fondo: '#ffedd5', borde: '#fdba74', texto: '#9a3412' },
-  C: { fondo: '#e0e7ff', borde: '#a5b4fc', texto: '#3730a3' },
+  A: { fondo: 'var(--crit-fondo)', borde: 'var(--crit-borde)', texto: 'var(--crit-texto)' },
+  B: { fondo: 'var(--naranja-fondo)', borde: 'var(--naranja-borde)', texto: 'var(--naranja-texto)' },
+  C: { fondo: 'var(--indigo-fondo)', borde: 'var(--indigo-borde)', texto: 'var(--indigo-texto)' },
   // Ámbar: falta un dato, no es un error. El rojo se reserva para lo que falló.
-  SIN_CLASIFICAR: { fondo: '#fef3c7', borde: '#fcd34d', texto: '#92400e' },
+  SIN_CLASIFICAR: { fondo: 'var(--warn-fondo)', borde: 'var(--warn-borde)', texto: 'var(--warn-texto)' },
 };
 
 const QUE_SIGNIFICA: Record<string, string> = {

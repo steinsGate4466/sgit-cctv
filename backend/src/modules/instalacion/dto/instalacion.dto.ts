@@ -15,6 +15,9 @@ export const TIPOS_EQUIPO = [
   'UPS', 'CABINET', 'DECODER', 'PC', 'PANTALLA', 'OTHER',
 ] as const;
 
+/** Bloque 137 · por dónde va el cable. */
+export const CANALIZACIONES = ['TUBERIA', 'BANDEJA', 'CANALETA', 'AEREO', 'ENTERRADO', 'EXISTENTE'] as const;
+
 export const AMBIENTES = [
   'CALOR_RADIANTE', 'VAPOR_AGUA', 'POLVO_METALICO', 'INTEMPERIE_SALINA',
   'EMI_ALTA', 'CLIMATIZADO',
@@ -44,6 +47,21 @@ export class CrearInstalacionDto {
  * servicio exige los que pide el perfil del tipo de sitio, para poder
  * guardar a medias durante la visita y terminar después.
  */
+/**
+ * BLOQUE 137 · LO QUE PIDE PRODUCCIÓN. Cinco datos y ninguno técnico: qué
+ * quiere, dónde, cuántos y por qué. Todo lo demás lo mide el técnico en la
+ * visita. La ubicación es OBLIGATORIA: es con lo que se comprueba que pide
+ * en su tren.
+ */
+export class SolicitarInstalacionDto {
+  @IsIn(TIPOS_SITIO as unknown as string[]) tipoSitio!: string;
+  @IsIn(TIPOS_EQUIPO as unknown as string[]) tipoEquipo!: string;
+  @IsOptional() @IsInt() @Min(1) @Max(50) cantidad?: number;
+  @IsString() locationId!: string;
+  @IsOptional() @IsString() @MaxLength(200) referenciaSitio?: string;
+  @IsString() @MinLength(10) @MaxLength(800) justificacion!: string;
+}
+
 export class EvaluarInstalacionDto {
   @IsOptional() @IsBoolean() hayEnergia?: boolean;
   @IsOptional() @IsString() @MaxLength(60) tipoEnergia?: string;
@@ -51,6 +69,9 @@ export class EvaluarInstalacionDto {
   @IsOptional() @IsString() @MaxLength(80) gabineteCercano?: string;
   @IsOptional() @IsNumber() @Min(0) @Max(5000) metrosCable?: number;
   @IsOptional() @IsString() @MaxLength(400) rutaCable?: string;
+  @IsOptional() @IsIn(CANALIZACIONES as unknown as string[]) canalizacion?: string;
+  @IsOptional() @IsNumber() @Min(0) @Max(5000) metrosTuberia?: number;
+  @IsOptional() @IsInt() @Min(0) @Max(200) cajasDePaso?: number;
   @IsOptional() @IsBoolean() necesitaPoe?: boolean;
   @IsOptional() @IsString() switchDestinoId?: string;
   @IsOptional() @IsString() nvrDestinoId?: string;

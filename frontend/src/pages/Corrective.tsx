@@ -63,7 +63,7 @@ export default function Corrective() {
         </table>
       </div>
 
-      <h3 style={{ margin: '0 0 10px', color: 'var(--navy)', fontSize: 15 }}>Órdenes correctivas</h3>
+      <h3 style={{ margin: '0 0 10px', color: 'var(--tinta-marca)', fontSize: 15 }}>Órdenes correctivas</h3>
       <div className="card">
         <table>
           <thead>

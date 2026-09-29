@@ -47,6 +47,8 @@ export const MODULOS: Modulo[] = [
     titulo: 'Estado de planta',
     icono: 'mapeo',
     pantallas: [
+      /* Bloque 151 · el plano real con cada equipo en su sitio. */
+      { ruta: '/mapa', texto: 'Mapa', puede: alguno('asset.read', 'activos.mirar', 'om.mirar') },
       { ruta: '/vista-general', texto: 'Resumen', puede: con('om.mirar') },
       { ruta: '/mi-tren', texto: 'Mi tren',
         puede: (can, u) => (u?.ambitoTrenes?.length ?? 0) > 0 && can('dashboard.read') },
@@ -56,9 +58,11 @@ export const MODULOS: Modulo[] = [
       { ruta: '/dependencias', texto: 'Impacto de una caída', puede: con('om.mirar') },
     ],
   },
-  /* Qué hay que hacer. La bandeja primero: es lo que hay que vaciar. */
+  /* BLOQUE 155 · DOS ÁREAS DE TRABAJO, como pidió el usuario: «dos pantallas,
+     mantenimiento e instalación, y ahí se almacena todo lo que está
+     haciéndose». Cada orden y cada instalación guarda sus documentos. */
   {
-    titulo: 'Trabajo',
+    titulo: 'Mantenimiento',
     icono: 'orden',
     pantallas: [
       { ruta: '/bandeja', texto: 'Mi bandeja', puede: con('dashboard.read') },
@@ -69,6 +73,17 @@ export const MODULOS: Modulo[] = [
       { ruta: '/gruas', texto: 'Grúas', puede: con('wo.read') },
     ],
   },
+  {
+    titulo: 'Instalaciones',
+    icono: 'instalar',
+    pantallas: [
+      { ruta: '/instalaciones', texto: 'Instalaciones', puede: con('asset.read') },
+      /* Bloque 137 · Producción pide equipo nuevo. Quien ya ve la
+         infraestructura pide desde «Instalaciones», con el formulario entero. */
+      { ruta: '/pedir-instalacion', texto: 'Pedir instalación',
+        puede: (can) => can('om.mirar') && !can('asset.read') },
+    ],
+  },
   /* Qué hay montado en planta y cómo está su ficha. */
   {
     titulo: 'Equipos',
@@ -77,7 +92,6 @@ export const MODULOS: Modulo[] = [
       { ruta: '/assets', texto: 'Activos', puede: con('asset.read') },
       { ruta: '/mis-activos', texto: 'Mis activos', puede: con('activos.mirar') },
       { ruta: '/criticidad', texto: 'Criticidad', puede: alguno('asset.read', 'activos.mirar') },
-      { ruta: '/instalaciones', texto: 'Instalaciones', puede: con('asset.read') },
       { ruta: '/access', texto: 'Acceso y altura', puede: con('access.read') },
       { ruta: '/retirados', texto: 'Retirados', puede: alguno('asset.read', 'activos.mirar') },
       { ruta: '/mapeo', texto: 'Estado de la información', puede: con('asset.read') },
@@ -109,6 +123,8 @@ export const MODULOS: Modulo[] = [
       { ruta: '/locations', texto: 'Árbol de planta', puede: con('asset.read') },
       { ruta: '/cabinets', texto: 'Gabinetes', puede: con('asset.read') },
       { ruta: '/zonas', texto: 'Zonas vitales', puede: con('location.read') },
+      /* Bloque 151 · subir, calibrar y colocar los equipos en el plano. */
+      { ruta: '/planos', texto: 'Planos', puede: con('location.manage') },
     ],
   },
   {
@@ -191,6 +207,11 @@ export function moduloDe(ruta: string): Modulo | null {
  */
 export function inicioPara(can: Can, user: Usuario | null | undefined): string {
   const tieneTren = (user?.ambitoTrenes?.length ?? 0) > 0;
+  /* PRODUCCIÓN ENTRA AL MAPA — bloque 160. Es lo que pidió en la
+     presentación («queremos un mapa») y el plan del 28/09 lo dice así. Si su
+     zona todavía no tiene plano, el Mapa lo dice y ofrece «Mi tren» y
+     «Mis cámaras»: no se queda en una pantalla vacía. */
+  if (!can('wo.update') && (can('om.mirar') || can('activos.mirar'))) return '/mapa';
   if (can('om.mirar') && !can('wo.update')) {
     return tieneTren && can('dashboard.read') ? '/mi-tren' : '/vista-general';
   }

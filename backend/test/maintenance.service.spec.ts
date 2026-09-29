@@ -56,6 +56,8 @@ describe('MaintenanceService — ejecución de OM en campo', () => {
         }),
       },
       user: { findUnique: jest.fn().mockResolvedValue(over.usuario ?? USUARIO('Técnico de Red')) },
+      // Bloque 163: por defecto la orden ya tiene una foto de evidencia.
+      workOrderEvidence: { count: jest.fn().mockResolvedValue(over.fotos ?? 1) },
       workOrderProgress: {
         create: jest.fn().mockImplementation(({ data }: any) => ({ id: 'p1', ...data })),
         findMany: jest.fn().mockResolvedValue(over.avances ?? []),
@@ -321,6 +323,31 @@ describe('MaintenanceService — ejecución de OM en campo', () => {
       expect(d.rootCause).toBe('CABLE_FUERA_NORMA');
       expect(d.isRecurrent).toBe(true);
       expect(d.closedById).toBe('u1');
+    });
+
+    // --------------------------------------- evidencia al cerrar (bloque 163)
+    it('sin foto y sin motivo, NO se cierra', async () => {
+      const { svc, prisma } = build({ wo: enProceso, fotos: 0 });
+      await expect(svc.closeSigned('w1', { email: 'tec@aa.local', password: 'correcta' } as any))
+        .rejects.toThrow(/foto de evidencia/);
+      expect(prisma.__fila.status).not.toBe('CERRADA');
+    });
+
+    it('sin foto pero con el porqué, se cierra y el motivo queda en el diagnóstico', async () => {
+      const { svc, prisma } = build({ wo: enProceso, fotos: 0 });
+      await svc.closeSigned('w1', {
+        email: 'tec@aa.local', password: 'correcta', diagnosis: 'Se cambió la fuente',
+        sinFotoMotivo: 'Zona de grúa: no se permite celular',
+      } as any);
+      expect(prisma.__fila.status).toBe('CERRADA');
+      expect(prisma.__fila.diagnosis).toContain('Se cambió la fuente');
+      expect(prisma.__fila.diagnosis).toContain('Cerrada sin foto de evidencia: Zona de grúa');
+    });
+
+    it('un motivo de dos letras no vale como motivo', async () => {
+      const { svc } = build({ wo: enProceso, fotos: 0 });
+      await expect(svc.closeSigned('w1', { email: 'tec@aa.local', password: 'correcta', sinFotoMotivo: 'no' } as any))
+        .rejects.toThrow(/foto de evidencia/);
     });
 
     // ------------------------------------------------- avisos al cerrar (4F)

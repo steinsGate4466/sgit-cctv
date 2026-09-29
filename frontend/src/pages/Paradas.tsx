@@ -172,7 +172,7 @@ export default function Paradas() {
                 <div key={p.id} className="card" style={{ margin: 0, padding: 12, cursor: 'pointer' }}
                   onClick={() => abrirDetalle(p.id)}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                    <b style={{ fontSize: 17, color: 'var(--navy)' }}>{p.tren}</b>
+                    <b style={{ fontSize: 17, color: 'var(--tinta-marca)' }}>{p.tren}</b>
                     <span className={'badge ' + p.estado}>{ESTADO_ES[p.estado]}</span>
                   </div>
                   <div style={{ fontSize: 14, marginTop: 4 }}>{fh(p.inicioPrevisto)}</div>

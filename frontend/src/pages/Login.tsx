@@ -48,8 +48,12 @@ export default function Login() {
     try {
       await login(email, password);
       setTries(5);
-      // Vuelve a donde iba (ficha del QR, por ejemplo) o al tablero.
-      nav(destino || '/dashboard', { replace: true });
+      /* Vuelve a donde iba (ficha del QR, por ejemplo) o a SU inicio.
+         Bloque 160: aquí decía '/dashboard' para todos, y el inicio por rol
+         del bloque 148 no se usaba nunca al entrar. Un operador de púlpito
+         aterrizaba en un Dashboard que no puede ver, con todo en cero. '/' es
+         <Inicio>, que decide según los permisos. */
+      nav(destino || '/', { replace: true });
     } catch (err: any) {
       /* SIN RESPUESTA NO ES «CONTRASEÑA MAL» — bloque 103.
          ------------------------------------------------------------------

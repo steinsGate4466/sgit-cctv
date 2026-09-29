@@ -144,9 +144,17 @@ export default function AssetSpecFields({ tipo, spec, onChange, opciones }: Prop
             del activo. Sin este dato hay que traducir cada reporte a mano.
           </Nota>
 
+          {/* Bloque 161: lista y no texto libre. De esto sale el ícono del mapa
+              (domo, bala, PTZ…); con texto libre «bulet» o «dommo» se
+              quedaban como cámara genérica. Un valor viejo que no esté en la
+              lista se conserva y se ve. */}
           <label>Tipo de cámara
-            <input value={v.cameraStyle || ''} onChange={txt('cameraStyle')}
-            placeholder="Fija, domo, PTZ, bullet, térmica" />
+            <select value={v.cameraStyle || ''} onChange={txt('cameraStyle')}>
+              <option value="">— sin indicar —</option>
+              {['Domo', 'Bala (bullet)', 'PTZ', 'Térmica', 'Ojo de pez 360°', 'Fija (otra)']
+                .concat(v.cameraStyle && !['Domo', 'Bala (bullet)', 'PTZ', 'Térmica', 'Ojo de pez 360°', 'Fija (otra)'].includes(v.cameraStyle) ? [v.cameraStyle] : [])
+                .map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
           </label>
 
           <label>Resolución

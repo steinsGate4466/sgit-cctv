@@ -24,6 +24,26 @@ export interface NodoUbicacion {
   type: string;
   code: string;
   stageId?: string | null;
+  siglaTren?: string | null;
+}
+
+/**
+ * ¿Este texto nombra a ESTE tren? — bloque 160.
+ *
+ * EL FALLO QUE CIERRA. La pantalla de Usuarios guarda el ámbito con la SIGLA
+ * («T1») y el servicio de roles acepta sigla, código o sufijo. Pero el filtro
+ * del árbol comparaba sólo `code === tren` («AASA-PISCO-T1» contra «T1»): un
+ * operador de púlpito con su tren bien asignado NO VEÍA NADA —ni el mapa, ni
+ * sus cámaras, ni sus incidencias—. Se vio al probar el mapa con ese perfil.
+ *
+ * Ahora vale cualquiera de las tres formas, sin distinguir mayúsculas: el
+ * código completo, la sigla del nodo, o el final del código («…-T1»).
+ */
+export function mismoTren(texto: string | null | undefined, code: string, sigla?: string | null): boolean {
+  const t = (texto || '').trim().toUpperCase();
+  if (!t) return false;
+  const c = (code || '').toUpperCase();
+  return t === c || (!!sigla && t === sigla.toUpperCase()) || c.endsWith(`-${t}`) || t.endsWith(`-${c}`);
 }
 
 /**
@@ -67,7 +87,7 @@ export function raicesDelAmbito(
 
   // Sin etapa: el nodo del tren.
   if (tren && !etapa) {
-    return nodos.filter((n) => n.type === 'TREN' && n.code === tren).map((n) => n.id);
+    return nodos.filter((n) => n.type === 'TREN' && mismoTren(tren, n.code, n.siglaTren)).map((n) => n.id);
   }
 
   const stageId = etapa ? etapaIdPorCodigo?.get(etapa) : undefined;
@@ -79,7 +99,7 @@ export function raicesDelAmbito(
   if (tren) {
     const idsDelTren = descendientes(
       nodos,
-      nodos.filter((n) => n.type === 'TREN' && n.code === tren).map((n) => n.id),
+      nodos.filter((n) => n.type === 'TREN' && mismoTren(tren, n.code, n.siglaTren)).map((n) => n.id),
     );
     etapas = etapas.filter((n) => idsDelTren.has(n.id));
   }
@@ -102,7 +122,7 @@ export async function filtroDeUbicaciones(
   if (!ambito?.tren && !ambito?.etapa) return null;
 
   const nodos = await prisma.location.findMany({
-    select: { id: true, parentId: true, type: true, code: true, stageId: true },
+    select: { id: true, parentId: true, type: true, code: true, stageId: true, siglaTren: true },
   });
 
   let etapaIdPorCodigo: Map<string, string> | undefined;

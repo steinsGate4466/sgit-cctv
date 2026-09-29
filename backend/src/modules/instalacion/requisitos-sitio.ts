@@ -52,7 +52,7 @@ export interface PerfilSitio {
 const ENERGIA_Y_RED: GrupoCampos = {
   titulo: 'Energía y red',
   ayuda: 'Esto se mide en el sitio, no se supone desde la oficina. Es lo que decide si el trabajo son dos horas o dos días.',
-  campos: ['hayEnergia', 'tipoEnergia', 'hayPuntoRed', 'gabineteCercano', 'metrosCable', 'rutaCable', 'necesitaPoe', 'switchDestinoId', 'nvrDestinoId', 'canalNvr'],
+  campos: ['hayEnergia', 'tipoEnergia', 'hayPuntoRed', 'gabineteCercano', 'metrosCable', 'rutaCable', 'canalizacion', 'metrosTuberia', 'cajasDePaso', 'necesitaPoe', 'switchDestinoId', 'nvrDestinoId', 'canalNvr'],
 };
 
 /**
@@ -214,6 +214,9 @@ export const ETIQUETAS: Record<string, string> = {
   gabineteCercano: 'Gabinete más cercano',
   metrosCable: 'Metros de cable estimados',
   rutaCable: 'Por dónde iría el cable',
+  canalizacion: '¿Cómo va el cable? (tubería, bandeja…)',
+  metrosTuberia: 'Metros de tubería o canalización',
+  cajasDePaso: 'Cajas de paso',
   necesitaPoe: '¿Se alimenta por PoE?',
   switchDestinoId: 'Switch al que se conecta',
   nvrDestinoId: 'Grabador (NVR) de destino',

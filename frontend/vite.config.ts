@@ -1,5 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+// Bloque 157: el modo noche sale solo de styles.css en cada build.
+import temaOscuro from './scripts/tema-oscuro.mjs';
 
 /**
  * EL SERVIDOR DE DESARROLLO NO SE ASOMA A LA RED — bloque 51-S.
@@ -37,6 +39,7 @@ import react from '@vitejs/plugin-react';
  */
 export default defineConfig({
   plugins: [react()],
+  css: { postcss: { plugins: [temaOscuro()] } },
   server: {
     port: 5173,
     // Sólo esta máquina. Ver la explicación de arriba antes de cambiarlo.

@@ -48,6 +48,11 @@ export class HistoryService {
           startedAt: true, endedAt: true, executedDate: true, scheduledDate: true,
           diagnosis: true, materials: true,
           technician: { select: { fullName: true } },
+          /* Bloque 163: las fotos de cada orden en el historial del equipo.
+             Sólo los datos (no el archivo): la pantalla pide cada imagen con
+             la sesión, por el mismo endpoint de siempre. Hasta 6 por orden. */
+          evidences: { select: { id: true, caption: true, createdAt: true }, orderBy: { createdAt: 'asc' }, take: 6 },
+          _count: { select: { evidences: true } },
         },
       }),
       this.prisma.incident.findMany({

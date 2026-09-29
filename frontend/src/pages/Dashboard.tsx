@@ -2,6 +2,8 @@ import { useEffect, useState, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { EsqueletoTablero } from '../components/Esqueleto';
+import AccesosRapidos from '../components/AccesosRapidos';
+import OrigenDelReparto from '../components/OrigenDelReparto';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar,
   XAxis, YAxis, Tooltip, CartesianGrid, Legend,
@@ -62,6 +64,7 @@ export default function Dashboard() {
     <div>
       <h1 className="page-title">Dashboard Ejecutivo</h1>
       <p className="page-sub">Estado de la infraestructura de CCTV y redes — Aceros Arequipa, Planta Pisco</p>
+      <AccesosRapidos />
 
       {/* ───────── ¿QUÉ HAGO PRIMERO? ─────────
           Va ANTES que los números. Un tablero que solo describe obliga a
@@ -116,7 +119,7 @@ export default function Dashboard() {
       {criticos.length > 0 && criticos[0]?.camarasAfectadas > 0 && (
         <div className="riesgo-strip" onClick={() => nav('/topologia')} role="button" tabIndex={0}>
           <span className="rs-titulo">Puntos críticos de la red:</span>
-          {criticos.map((c: any) => (
+          {criticos.filter((c: any) => c.camarasAfectadas > 0).map((c: any) => (
             <span key={c.id} className="rs-item">
               <b>{c.code}</b> se llevaría <b>{c.camarasAfectadas}</b> cámaras
             </span>
@@ -213,6 +216,7 @@ export default function Dashboard() {
                 </PieChart>
               </ResponsiveContainer>
               <div className="muted" style={{ fontSize: 12 }}>{reparto.lectura}</div>
+              <OrigenDelReparto r={reparto} dias={90} />
             </>
           ) : (
             /* No se pinta un quesito vacío: sin órdenes no hay reparto, y un
@@ -261,17 +265,20 @@ export default function Dashboard() {
 
         <Panel title="Causas raíz más frecuentes">
           {causes.length ? (
-            <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={causes} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                <XAxis type="number" allowDecimals={false} fontSize={11} />
-                <YAxis type="category" dataKey="name" width={170} fontSize={9} />
-                {/* Aquí lo que se cuenta son VECES QUE APARECIÓ ESA CAUSA, no
-                    equipos. Poner «activo(s)» sería mentir con una unidad. */}
-                <Tooltip formatter={(v: any) => [`${v} vez(ces)`, '']} labelFormatter={(l: any) => String(l)} />
-                <Bar dataKey="value" fill="#d97706" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            /* Ranking y no barras horizontales (bloque 158): la causa es una
+               frase y en el gráfico salía partida en tres renglones de 9 px.
+               Se cuentan VECES QUE APARECIÓ, no equipos. */
+            <ol className="ranking">
+              {causes.slice(0, 6).map((c: any) => (
+                <li key={c.name}>
+                  <span>{c.name}</span>
+                  <b>{c.value} {c.value === 1 ? 'vez' : 'veces'}</b>
+                  <span className="ranking-barra" aria-hidden="true">
+                    <i style={{ width: `${(c.value / Math.max(1, ...causes.map((x: any) => x.value))) * 100}%` }} />
+                  </span>
+                </li>
+              ))}
+            </ol>
           ) : (
             <div className="empty">
               Aún sin causas raíz registradas.<br />

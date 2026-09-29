@@ -45,8 +45,8 @@ import { elegirTren, trenPedido } from '../trenes';
  */
 /* Colores de la letra A/B/C. Los mismos que en Activos, la ficha y Gestión:
    un dato que cambia de color según dónde se mire deja de reconocerse. */
-const LETRA_FONDO: Record<string, string> = { A: '#fee2e2', B: '#ffedd5', C: '#e0e7ff' };
-const LETRA_COLOR: Record<string, string> = { A: '#991b1b', B: '#9a3412', C: '#3730a3' };
+const LETRA_FONDO: Record<string, string> = { A: 'var(--crit-fondo)', B: 'var(--naranja-fondo)', C: 'var(--indigo-fondo)' };
+const LETRA_COLOR: Record<string, string> = { A: 'var(--crit-texto)', B: 'var(--naranja-texto)', C: 'var(--indigo-texto)' };
 
 export default function MisActivos() {
   const { can } = useAuth();

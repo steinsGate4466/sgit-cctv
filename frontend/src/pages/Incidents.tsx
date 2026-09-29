@@ -85,6 +85,19 @@ export default function Incidents() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<any>({ title: '', category: 'GENERAL', priority: 'MEDIA', assetId: '', zone: '', description: '', affectedCameras: '' });
 
+  /* `?nueva=1&activo=…` — bloque 159. Llega desde los accesos rápidos del
+     Dashboard y de la bandeja: abre el alta con el equipo puesto (si lo hay).
+     Se limpia la URL para que recargar no vuelva a abrirla. */
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    if (q.get('nueva') !== '1' || !can('incident.create')) return;
+    const activo = q.get('activo') || '';
+    if (activo) setForm((f: any) => ({ ...f, assetId: activo }));
+    setShowForm(true);
+    window.history.replaceState(null, '', window.location.pathname);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Resolución firmada (profesional)
   const [resolveId, setResolveId] = useState<string | null>(null);
   const [rf, setRf] = useState<any>({});

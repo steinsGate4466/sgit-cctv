@@ -417,10 +417,10 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
  */
 function EstadoMaterial({ m }: { m: any }) {
   const mapa: Record<string, { t: string; c: string; f: string }> = {
-    SOLICITADO: { t: 'Pedido',    c: '#92400e', f: '#fff4e5' },
-    RETIRADO:   { t: 'Retirado',  c: '#166534', f: '#e7f7ee' },
-    DEVUELTO:   { t: 'Cerrado',   c: '#2e5496', f: '#eef4ff' },
-    RECHAZADO:  { t: 'No autorizado', c: '#991b1b', f: '#fdecec' },
+    SOLICITADO: { t: 'Pedido',    c: 'var(--warn-texto)', f: 'var(--warn-fondo)' },
+    RETIRADO:   { t: 'Retirado',  c: 'var(--ok-texto)', f: 'var(--ok-fondo)' },
+    DEVUELTO:   { t: 'Cerrado',   c: 'var(--tinta-marca)', f: 'var(--info-fondo)' },
+    RECHAZADO:  { t: 'No autorizado', c: 'var(--crit-texto)', f: 'var(--crit-fondo)' },
   };
   const e = mapa[m.status] || mapa.SOLICITADO;
   return (

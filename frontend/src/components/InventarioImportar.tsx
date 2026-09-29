@@ -189,13 +189,13 @@ export default function InventarioImportar({ onImportado }: { onImportado: () =>
           marginTop: 12, padding: '32px 20px', textAlign: 'center',
           border: '2px dashed ' + (encima ? 'var(--steel)' : 'var(--border)'),
           borderRadius: 12,
-          background: encima ? '#eef4ff' : 'var(--card)',
+          background: encima ? 'var(--info-fondo)' : 'var(--card)',
           transition: 'background .12s, border-color .12s',
         }}
       >
         {cargando ? (
           <>
-            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--navy)' }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tinta-marca)' }}>
               Leyendo {archivo?.name}…
             </div>
             <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
@@ -204,7 +204,7 @@ export default function InventarioImportar({ onImportado }: { onImportado: () =>
           </>
         ) : (
           <>
-            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--navy)' }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--tinta-marca)' }}>
               Arrastra aquí el archivo de SAP
             </div>
             <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>

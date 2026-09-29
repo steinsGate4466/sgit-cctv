@@ -4,6 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { computeEffectiveStatuses } from '../../common/asset-status';
 import { resolverContextoDePlanta } from '../../common/plant-context';
 import { contarPorTren } from './infra-agregados';
+import { corteDeVencidas } from '../../common/dia-de-planta';
 
 /**
  * Indicadores del tablero ejecutivo.
@@ -53,8 +54,9 @@ export class DashboardService {
       this.prisma.asset.count({ where: { deletedAt: null } }),
       this.prisma.asset.count({ where: { deletedAt: null, criticality: 'CRITICA' } }),
       this.prisma.workOrder.count({ where: openWo }),
-      this.prisma.workOrder.count({ where: { ...openWo, scheduledDate: { lt: now } } }),
-      this.prisma.workOrder.count({ where: { ...openWo, scheduledDate: { gte: now, lt: in7 } } }),
+      // Bloque 158: vence cuando su DÍA pasó, no a la hora exacta (ver common/dia-de-planta).
+      this.prisma.workOrder.count({ where: { ...openWo, scheduledDate: { lt: corteDeVencidas(now) } } }),
+      this.prisma.workOrder.count({ where: { ...openWo, scheduledDate: { gte: corteDeVencidas(now), lt: in7 } } }),
       this.prisma.incident.count({ where: { status: openIncidentStatus } }),
       this.prisma.incident.count({ where: { status: openIncidentStatus, priority: { in: ['ALTA', 'CRITICA'] as any } } }),
       this.prisma.accessRequest.count({ where: { status: { in: ['SOLICITADO', 'EN_REVISION'] as any } } }),

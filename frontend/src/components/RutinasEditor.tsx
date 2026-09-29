@@ -121,7 +121,7 @@ export default function RutinasEditor() {
 
       {!rutinas.length ? (
         <div className="card" style={{ padding: 36, textAlign: 'center', marginTop: 12 }}>
-          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--navy)' }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--tinta-marca)' }}>
             Todavía no hay ninguna rutina definida
           </div>
           <div className="muted" style={{ fontSize: 13, marginTop: 8, lineHeight: 1.6 }}>

@@ -1,8 +1,9 @@
+import { mismoTren } from '../../common/ambito-planta';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   HORA, OrdenParaCalculo, backlog, comparar, cumplimientoPreventivo, disponibilidad, mtbf, mttr,
-  nivelDeServicioOrdenes, peoresEquipos, repartoDeTrabajo,
+  nivelDeServicioOrdenes, peoresEquipos, repartoDeTrabajo, origenDeOrden, esDeDemo,
 } from './calculo';
 import {
   FallaParaCalculo, disponibilidadReal, mtbfReal, nivelDeServicio,
@@ -68,9 +69,9 @@ export class IndicadoresService {
     let idsUbicacion: string[] | null = null;
     if (tren) {
       const nodos = await this.prisma.location.findMany({
-        select: { id: true, parentId: true, type: true, code: true },
+        select: { id: true, parentId: true, type: true, code: true, siglaTren: true },
       });
-      const raiz = nodos.filter((n) => n.type === 'TREN' && n.code === tren).map((n) => n.id);
+      const raiz = nodos.filter((n) => n.type === 'TREN' && mismoTren(tren, n.code, n.siglaTren)).map((n) => n.id);
       const hijos = new Map<string, string[]>();
       for (const n of nodos) {
         if (!n.parentId) continue;
@@ -147,7 +148,12 @@ export class IndicadoresService {
          El indicador que el ingeniero dibujó en el centro de su hoja: cuánto
          del trabajo es apagar incendios y cuánto es adelantarse. El MTTR dice
          cómo de rápido se repara; éste dice si hace falta reparar tanto. */
-      reparto: repartoDeTrabajo(ordenes),
+      reparto: {
+        ...repartoDeTrabajo(ordenes),
+        // Bloque 164: con qué se contó, para que la cifra se pueda comprobar en Órdenes.
+        desde,
+        canceladasFuera: await this.canceladasEntre(desde, idsUbicacion),
+      },
       backlog: backlog(ordenes),
 
       /* CÓMO VAMOS RESPECTO AL PERIODO ANTERIOR — bloque 84.
@@ -210,11 +216,17 @@ export class IndicadoresService {
         { asset: { locationId: { in: idsUbicacion } } },
       ];
     }
+    /* Bloque 164: una orden CANCELADA no es trabajo. Contarla inflaba el reparto
+       («43 preventivas») y el MTBF, y dejaba preventivas canceladas como
+       «vencidas» en el cumplimiento. Se cuentan aparte (`canceladasEntre`). */
+    where.status = { not: 'CANCELADA' };
     const filas = await this.prisma.workOrder.findMany({
       where,
       select: {
         id: true, type: true, status: true, assetId: true,
         createdAt: true, executedDate: true, endedAt: true, scheduledDate: true,
+        code: true, createdById: true, incidentId: true, requestChannel: true,
+        asset: { select: { assetCode: true } },
       },
     });
     /* CUÁNDO SE DA POR CERRADA UNA ORDEN.
@@ -230,7 +242,21 @@ export class IndicadoresService {
       creada: o.createdAt,
       cerrada: o.status === 'CERRADA' ? (o.endedAt ?? o.executedDate ?? null) : null,
       programada: o.scheduledDate,
+      origen: origenDeOrden({ tipo: o.type as string, createdById: o.createdById, incidentId: o.incidentId, requestChannel: o.requestChannel }),
+      demo: esDeDemo(o.code, o.asset?.assetCode),
     }));
+  }
+
+  /** Las canceladas del periodo: no cuentan, pero se dice cuántas quedaron fuera. */
+  private async canceladasEntre(desde: Date, idsUbicacion: string[] | null): Promise<number> {
+    const where: any = { createdAt: { gte: desde }, status: 'CANCELADA' };
+    if (idsUbicacion) {
+      where.OR = [
+        { locationId: { in: idsUbicacion } },
+        { asset: { locationId: { in: idsUbicacion } } },
+      ];
+    }
+    return this.prisma.workOrder.count({ where });
   }
 
   /**
@@ -458,7 +484,7 @@ export class IndicadoresService {
     desde.setDate(1); desde.setHours(0, 0, 0, 0);
 
     const filas = await this.prisma.workOrder.findMany({
-      where: { createdAt: { gte: desde } },
+      where: { createdAt: { gte: desde }, status: { not: 'CANCELADA' } },
       select: {
         id: true, type: true, status: true, assetId: true,
         createdAt: true, executedDate: true, endedAt: true, scheduledDate: true,

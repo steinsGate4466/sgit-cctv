@@ -54,12 +54,12 @@ import Icono from './Iconos';
 export type Tono = 'grave' | 'atender' | 'bien' | 'sindatos';
 
 const TONO: Record<Tono, { fondo: string; texto: string; apoyo: string; icono: string }> = {
-  grave:    { fondo: '#fdeceb', texto: '#7f1d1d', apoyo: '#a32d2d', icono: 'alerta' },
-  atender:  { fondo: '#fdf3e2', texto: '#78350f', apoyo: '#92500b', icono: 'reloj' },
-  bien:     { fondo: '#eaf5ed', texto: '#14532d', apoyo: '#166534', icono: 'ok' },
+  grave:    { fondo: 'var(--crit-fondo)', texto: 'var(--crit-texto)', apoyo: 'var(--crit-texto)', icono: 'alerta' },
+  atender:  { fondo: 'var(--warn-fondo)', texto: 'var(--warn-texto)', apoyo: 'var(--warn-texto)', icono: 'reloj' },
+  bien:     { fondo: 'var(--ok-fondo)', texto: 'var(--ok-texto)', apoyo: 'var(--ok-texto)', icono: 'ok' },
   /* Gris a propósito, ni verde ni rojo. «No sé» no es «está bien» y tampoco
      «está mal». El gris no tranquiliza, que es justo lo que se busca. */
-  sindatos: { fondo: '#f1f4f7', texto: '#334155', apoyo: '#475569', icono: 'nota' },
+  sindatos: { fondo: 'var(--suave-fondo)', texto: 'var(--text)', apoyo: 'var(--muted)', icono: 'nota' },
 };
 
 /**

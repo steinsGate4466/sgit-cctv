@@ -10,6 +10,7 @@ import { useDialogos } from '../components/Dialogos';
 import { mensajeDeError } from '../avisos';
 import { useAuth } from '../auth/AuthContext';
 import { fechaTabla } from '../fechas';
+import OrigenDelReparto from '../components/OrigenDelReparto';
 
 /**
  * INDICADORES DE GESTIÓN
@@ -88,7 +89,7 @@ function Indicador({ valor, unidad, titulo, explica, aviso, color, comp }: {
         </>
       ) : (
         <>
-          <div className="kpi-num" style={{ color: color || 'var(--navy)' }}>
+          <div className="kpi-num" style={{ color: color || 'var(--tinta-marca)' }}>
             {valor}<span className="kpi-u">{unidad}</span>
           </div>
           <Delta c={comp} />
@@ -669,6 +670,7 @@ El MTTR de mantenimiento es <b>Reparar</b>.
               <span><i style={{ background: 'var(--crit-texto)' }} /> Correctivo · {t.reparto.correctivo}</span>
               <span><i style={{ background: 'var(--ok-texto)' }} /> Preventivo · {t.reparto.preventivo}</span>
             </div>
+            <OrigenDelReparto r={t.reparto} dias={t.periodo?.dias ?? 90} />
 
             {/* EL QUESITO Y LA META, COMO LOS DIBUJÓ EL INGENIERO.
                 -----------------------------------------------------

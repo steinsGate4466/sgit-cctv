@@ -157,7 +157,7 @@ export default function Audit() {
                         que ese equipo no está registrado. */}
                     <td style={{ fontSize: 11.5, lineHeight: 1.5 }}>
                       {e.origen
-                        ? <div style={{ fontWeight: 700, color: 'var(--navy)' }}>{e.origen}</div>
+                        ? <div style={{ fontWeight: 700, color: 'var(--tinta-marca)' }}>{e.origen}</div>
                         : e.ip && e.ip !== 'local (servidor)'
                           ? <div className="muted" title="Esta IP no está en el registro de equipos conocidos">equipo sin registrar</div>
                           : null}

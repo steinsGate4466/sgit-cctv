@@ -111,6 +111,14 @@ const EXENTOS = {
     motivo: 'Bloque 105. Pregunta "¿cuáles de ESTOS activos ya tienen preventiva abierta?" con un `in` de los ids vencidos: está acotada por ese conjunto, no por la tabla. Sustituye a la consulta que antes se hacía UNA POR ACTIVO dentro del bucle. Un `take` aquí haría que algunos activos recibieran una segunda orden preventiva duplicada — que es justo lo que esta consulta existe para evitar.' },
 
   /* ---- CÁLCULOS ---------------------------------------------------------- */
+  /* Bloque 151 · el color de cada punto del mapa. Acotadas por los equipos
+     DIBUJADOS en ese plano (un `in` de sus ids), no por la tabla entera. */
+  'modules/planos/planos.service.ts::workOrder': { n: 2, cat: 'CALCULO',
+    motivo: 'Bloque 151. La orden abierta de cada equipo del plano, con un `in` de sus ids. Con un tope, un punto con trabajo en curso saldría sin orden. Bloque 163: y la última CERRADA de cada uno, con `distinct` por equipo (una fila por punto del plano).' },
+  'modules/planos/planos.service.ts::incident': { n: 1, cat: 'CALCULO',
+    motivo: 'Bloque 151. Igual, por el lado de las incidencias: el punto en amarillo depende de verlas todas.' },
+  'modules/planos/planos.service.ts::assetObservation': { n: 1, cat: 'CALCULO',
+    motivo: 'Bloque 151. Una fila por equipo (es la PK), acotada por los ids del plano. Recortarla pintaría en gris equipos que sí se están midiendo.' },
   'common/asset-status.ts::workOrder': { n: 2, cat: 'CALCULO',
     motivo: 'El estado efectivo de un activo se DERIVA de sus órdenes abiertas. Con un tope, un equipo con trabajo en curso saldría OPERATIVO.' },
   'common/asset-status.ts::incident': { n: 2, cat: 'CALCULO',

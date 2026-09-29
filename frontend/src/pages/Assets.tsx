@@ -30,6 +30,7 @@ import { useOcultarAlSalir } from '../useVolverALaPantalla';
 import { fecha, plural } from '../formato';
 import { fechaTabla } from '../fechas';
 import { mensajeDeError } from '../avisos';
+import { IconoEquipo, NOMBRE_ICONO, puntoDeEstado } from '../components/mapa/Marcador';
 
 /* LOS TIPOS QUE SE PUEDEN DAR DE ALTA — bloque 74.
    ---------------------------------------------------------------------------
@@ -75,13 +76,13 @@ const CRITS = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
 /* Los colores de la letra A/B/C (bloque 78). Mismos que en la ficha y en la
    pantalla de Gestión: si un mismo dato se pinta de dos colores según dónde
    se mire, deja de reconocerse de un vistazo. */
-const LETRA_FONDO: Record<string, string> = { A: '#fee2e2', B: '#ffedd5', C: '#e0e7ff' };
+const LETRA_FONDO: Record<string, string> = { A: 'var(--crit-fondo)', B: 'var(--naranja-fondo)', C: 'var(--indigo-fondo)' };
 /* Las tarjetas del reparto llevan también el ámbar de «sin clasificar»: un
    pendiente no es un error, es trabajo por hacer. El rojo se reserva para lo
    que ya falló. */
-const LETRA_FONDO_T: Record<string, string> = { ...LETRA_FONDO, SIN_CLASIFICAR: '#fef3c7' };
-const LETRA_COLOR: Record<string, string> = { A: '#991b1b', B: '#9a3412', C: '#3730a3' };
-const LETRA_COLOR_T: Record<string, string> = { ...LETRA_COLOR, SIN_CLASIFICAR: '#92400e' };
+const LETRA_FONDO_T: Record<string, string> = { ...LETRA_FONDO, SIN_CLASIFICAR: 'var(--warn-fondo)' };
+const LETRA_COLOR: Record<string, string> = { A: 'var(--crit-texto)', B: 'var(--naranja-texto)', C: 'var(--indigo-texto)' };
+const LETRA_COLOR_T: Record<string, string> = { ...LETRA_COLOR, SIN_CLASIFICAR: 'var(--warn-texto)' };
 
 const CABINET_REQUIRED = ['NVR', 'SWITCH', 'SERVER', 'DECODER', 'ROUTER', 'FIREWALL'];
 // Tipos de fotografía del activo.
@@ -799,9 +800,15 @@ export default function Assets() {
                   onClick={() => openDetail(a.id)}>
                 {/* `dato-fijo`: un código no se parte nunca. Ver styles.css. */}
                 {/* `dato-fijo`: un código no se parte nunca. Ver styles.css. */}
-                <td className="dato-fijo">
-                  <div style={{ fontWeight: 600 }}>{a.assetCode}</div>
-                  <div className="muted" style={{ fontSize: 11 }}>{tEs(a.type)}</div>
+                <td className="dato-fijo celda-equipo">
+                  {/* Bloque 162: el aparato dibujado, con el anillo de su estado. */}
+                  <div className="activo-con-icono">
+                    <IconoEquipo e={{ icono: a.icono, tipo: a.type, estado: puntoDeEstado(a.effectiveStatus || a.status) }} tam={30} />
+                    <div>
+                      <div style={{ fontWeight: 600 }}>{a.assetCode}</div>
+                      <div className="muted" style={{ fontSize: 11 }}>{NOMBRE_ICONO[a.icono] || tEs(a.type)}</div>
+                    </div>
+                  </div>
                 </td>
                 <td style={{ minWidth: 74 }}>
                   {/* Avance de la ficha. Es lo que permite repartir el trabajo
@@ -817,7 +824,7 @@ export default function Assets() {
                     {a.fichaPct ?? 0}%{a.isDraft ? ' · incompleta' : ''}
                   </div>
                 </td>
-                <td>{[a.brand, a.model].filter(Boolean).join(' ') || '—'}</td>
+                <td className="celda-modelo">{[a.brand, a.model].filter(Boolean).join(' ') || '—'}</td>
                 {can('credential.read') && <td className="muted dato-fijo" style={{ fontFamily: 'monospace', fontSize: 12 }}>{a.ip || '—'}</td>}
                 {can('credential.read') && (
                   <td className="muted" style={{ fontFamily: 'monospace', fontSize: 12 }}>
@@ -863,14 +870,15 @@ export default function Assets() {
                     >—</span>
                   )}
                 </td>
-                <td>
+                <td className="celda-ubicacion">
                   <div>{a.location?.name || '—'}</div>
                   {/* El tren y la etapa BAJAN aquí: son el mismo dato —dónde
                       está— visto de más lejos. Antes ocupaban su propia
                       columna y dejaban la tabla en doce. */}
                   <div className="muted" style={{ fontSize: 11 }}>
-                    {a.trenNombre || 'Sin tren'}
-                    {a.etapaNombre ? ` · ${a.etapaNombre}` : ' · falta etapa'}
+                    {/* Bloque 163: si el lugar YA es el tren, no se repite. */}
+                    {a.trenNombre && a.trenNombre === a.location?.name ? '' : (a.trenNombre || 'Sin tren')}
+                    {a.etapaNombre ? `${a.trenNombre && a.trenNombre !== a.location?.name ? ' · ' : ''}${a.etapaNombre}` : `${a.trenNombre && a.trenNombre === a.location?.name ? '' : ' · '}falta etapa`}
                   </div>
                 </td>
                 {/* CUÁNDO SE TOCÓ POR ÚLTIMA VEZ (bloque 81), que es lo que
@@ -1434,7 +1442,7 @@ export default function Assets() {
             {qrUrl
               ? <img src={qrUrl} alt={'QR ' + qrFor.assetCode} style={{ width: 240, height: 240 }} />
               : <div className="muted">Generando QR…</div>}
-            <div style={{ fontWeight: 700, color: 'var(--navy)', marginTop: 8 }}>{qrFor.assetCode}</div>
+            <div style={{ fontWeight: 700, color: 'var(--tinta-marca)', marginTop: 8 }}>{qrFor.assetCode}</div>
             <div className="muted" style={{ fontSize: 12 }}>{qrFor.location?.name || ''}</div>
           </div>
           {qrUrl && (

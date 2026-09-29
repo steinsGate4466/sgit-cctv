@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { WorkOrderStatus } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { autogenApagadaPorEntorno } from './autogen-entorno';
 import { AuditService } from '../audit/audit.service';
 import { UpsertPreventivePlanDto } from './dto/upsert-plan.dto';
 import {
@@ -399,7 +400,7 @@ export class PreventiveService {
   private static readonly CLAVE_AUTOGEN = 'preventivo.autogen';
 
   private apagadaPorEntorno(): boolean {
-    return (process.env.PREVENTIVE_AUTOGEN || 'on').toLowerCase() === 'off';
+    return autogenApagadaPorEntorno();
   }
 
   /** ¿Toca generar? Falso si la apaga el entorno O la pantalla. */

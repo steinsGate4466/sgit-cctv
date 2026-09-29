@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import MiPin from './MiPin';
+import BotonTema from './BotonTema';
 import Icono from './Iconos';
 import BuscadorRapido from './BuscadorRapido';
 import RestaurarScroll from './RestaurarScroll';
@@ -71,6 +72,9 @@ const TITLES: Record<string, string> = {
   '/equipos': 'Equipos conocidos',
   '/paradas': 'Ventanas de parada',
   '/instalaciones': 'Instalaciones',
+  '/pedir-instalacion': 'Pedir instalación',
+  '/mapa': 'Mapa',
+  '/planos': 'Planos',
   '/campanas': 'Campañas de mapeo',
   '/electricidad': 'Electricidad',
   '/ipam': 'Direccionamiento IP',
@@ -286,6 +290,7 @@ export default function Layout() {
               </span>
               <span className="avatar">{initials}</span>
             </button>
+            <BotonTema />
             <button className="logout" onClick={() => setVerPin(true)}
               title="PIN para reanudar órdenes en campo"><Icono n="pin" size={15} /> Mi PIN</button>
             <button className="logout" onClick={() => logout()}><Icono n="salir" size={15} /> Salir</button>

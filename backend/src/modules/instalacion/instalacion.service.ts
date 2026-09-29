@@ -1,10 +1,11 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { filtroConAmbito } from '../../common/ambito-usuario';
 import { ETIQUETAS, perfilDe, PERFILES } from './requisitos-sitio';
 import { conReintentoDeCodigo, siguienteCorrelativo } from '../../common/correlativo';
 import {
-  CrearInstalacionDto, DecidirInstalacionDto, EvaluarInstalacionDto, InstaladaDto,
+  CrearInstalacionDto, DecidirInstalacionDto, EvaluarInstalacionDto, InstaladaDto, SolicitarInstalacionDto,
 } from './dto/instalacion.dto';
 
 /**
@@ -164,6 +165,53 @@ export class InstalacionService {
       after: { codigo, tipoSitio: i.tipoSitio, tipoEquipo: i.tipoEquipo },
     });
     return i;
+  }
+
+  /* ===========================================================================
+     BLOQUE 137 · PRODUCCIÓN PIDE, EL TÉCNICO COMPLETA
+     ---------------------------------------------------------------------------
+     Producción no tiene `asset.read` —ve su tren, no la infraestructura—, así
+     que no podía pedir una cámara por el sistema: la pedía por WhatsApp.
+
+     Esta puerta es ESTRECHA a propósito: cinco datos, la ubicación obligatoria
+     y comprobada contra su tren, y ninguna lectura de datos técnicos. Lo que
+     ve después es SÓLO lo suyo (`mias`): código, estado y fechas.
+     =========================================================================== */
+  async solicitar(dto: SolicitarInstalacionDto, userId: string | null, ip?: string | null) {
+    const ambito = await filtroConAmbito(this.prisma, userId, {});
+    if (ambito && !ambito.in.includes(dto.locationId)) {
+      throw new ForbiddenException('Esa ubicación no es de tu tren. Pide sólo en tu zona.');
+    }
+    const quien = userId
+      ? await this.prisma.user.findUnique({ where: { id: userId }, select: { fullName: true } })
+      : null;
+    return this.crear({
+      tipoSitio: dto.tipoSitio,
+      tipoEquipo: dto.tipoEquipo,
+      cantidad: dto.cantidad,
+      locationId: dto.locationId,
+      referenciaSitio: dto.referenciaSitio,
+      justificacion: dto.justificacion,
+      solicitadaPor: quien?.fullName ?? undefined,
+      areaSolicitante: 'Producción',
+    } as CrearInstalacionDto, userId, ip);
+  }
+
+  /** Lo que pidió esta persona y en qué quedó. Sin datos técnicos. */
+  async mias(userId: string | null) {
+    if (!userId) return [];
+    return this.prisma.instalacion.findMany({
+      where: { creadoPorId: userId },
+      orderBy: { creadoEn: 'desc' },
+      take: 50,
+      select: {
+        id: true, codigo: true, estado: true, tipoEquipo: true, cantidad: true,
+        referenciaSitio: true, creadoEn: true, evaluadaEn: true, aprobadaEn: true,
+        instaladaEn: true, motivoRechazo: true,
+        location: { select: { name: true } },
+        workOrder: { select: { code: true } },
+      },
+    });
   }
 
   /**

@@ -59,6 +59,9 @@ const Limpieza = lazyConReintento(() => import('./pages/Limpieza'));
 const Equipos = lazyConReintento(() => import('./pages/Equipos'));
 const Paradas = lazyConReintento(() => import('./pages/Paradas'));
 const Instalaciones = lazyConReintento(() => import('./pages/Instalaciones'));
+const PedirInstalacion = lazyConReintento(() => import('./pages/PedirInstalacion'));
+const Mapa = lazyConReintento(() => import('./pages/Mapa'));
+const PlanosEditor = lazyConReintento(() => import('./pages/PlanosEditor'));
 const Campanas = lazyConReintento(() => import('./pages/Campanas'));
 const Electricidad = lazyConReintento(() => import('./pages/Electricidad'));
 const Ipam = lazyConReintento(() => import('./pages/Ipam'));
@@ -143,6 +146,11 @@ export default function App() {
           <Route path="/equipos" element={<Equipos />} />
           <Route path="/paradas" element={<Paradas />} />
           <Route path="/instalaciones" element={<Instalaciones />} />
+          {/* Bloque 137: la puerta de Producción para pedir equipo nuevo. */}
+          <Route path="/pedir-instalacion" element={<PedirInstalacion />} />
+          {/* Bloque 151 · el plano vivo y su editor. */}
+          <Route path="/mapa" element={<Mapa />} />
+          <Route path="/planos" element={<PlanosEditor />} />
           <Route path="/campanas" element={<Campanas />} />
           <Route path="/electricidad" element={<Electricidad />} />
           <Route path="/ipam" element={<Ipam />} />

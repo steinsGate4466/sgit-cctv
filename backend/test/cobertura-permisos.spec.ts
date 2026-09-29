@@ -35,6 +35,8 @@ const EXCEPCIONES: Record<string, string> = {
     'Igual que el anterior: identidad del token y freno de intentos.',
   'notificaciones.controller.ts:desvincular':
     'Cada persona gestiona SU propia vinculación de Telegram. El identificador sale del token, nunca de la URL, así que no hay forma de desvincular a otro. Exigir un permiso aquí impediría que alguien deje de recibir avisos por su cuenta.',
+  'instalacion.controller.ts:solicitar':
+    'Bloque 137. SÍ declara permiso, pero con @RequireAlguno(\'asset.read\', \'om.mirar\'): lo usan Producción (om.mirar) y quien ya ve la infraestructura (asset.read). Esta prueba sólo reconoce @RequirePermissions, que exige TODOS; con él Producción no podría pedir nunca. El tren se comprueba dentro, contra la ubicación.',
   'monitoreo.controller.ts:reporte':
     'Lo llama el AGENTE de planta, que no es una persona y no tiene sesión. Se autentica con su propio token, comparado por hash contra monitor_agents, y va con freno de intentos. Un permiso de usuario aquí no aplica.',
 };

@@ -141,7 +141,14 @@ export function cruzarAmbito(
     // No pidió tren: se le da el suyo. Con varios, se resuelve por lista.
     return permitido.length === 1 ? permitido[0] : null;
   }
-  return permitido.includes(pedido.toUpperCase()) ? pedido : 'NADA';
+  /* Bloque 160: el permitido puede estar guardado como sigla («T1») y la
+     pantalla pedir el código («AASA-PISCO-T1»), o al revés. Es el mismo tren. */
+  const p = pedido.toUpperCase();
+  const encaja = permitido.some((x) => {
+    const q = (x || '').toUpperCase();
+    return q === p || p.endsWith(`-${q}`) || q.endsWith(`-${p}`);
+  });
+  return encaja ? pedido : 'NADA';
 }
 
 /**

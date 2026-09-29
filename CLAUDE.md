@@ -6236,3 +6236,289 @@ hoy con sus pasos, el tiempo real contra el estimado, la decisión si la hay y u
 La sacan quien la propuso o quien decide (`procedimiento.manage`); nadie más.
 Auditado (`MEJORA_PDF`). Botón «PDF» en cada tarjeta de Mejoras.
 Prueba: `test/mejora-pdf.spec.ts`.
+
+## §75 · BLOQUE 140 — EL HALLAZGO DE LA GRÚA ABRE LA ORDEN (28/09/2026)
+
+- La inspección de grúa **abre un correctivo** si sale FUERA DE SERVICIO, o con
+  observaciones y «requiere seguimiento». No lo abre si no se pudo acceder (no
+  hay hallazgo: hay que volver a subir) ni si ya se hizo dentro de una orden.
+- Si la cámara ya tiene un correctivo abierto, **se enlaza a ése**: dos órdenes
+  a la misma cámara son dos cuadrillas a la misma grúa.
+- Usa el MISMO alta de Órdenes (`MaintenanceService.create`), con código y fecha.
+  Si abrir la orden falla, la inspección se guarda igual y la respuesta lo dice.
+- Pantalla Grúas: la orden enlazada en cada fila y el **QR de la cámara** (el
+  mismo `/assets/:id/qr`, con `asset.read` o `activos.mirar`).
+- Criticidad: las cámaras de grúa YA están en Criticidad como cualquier activo.
+- Reglas puras en `grua/om-de-inspeccion.ts`; pruebas en `test/grua-abre-om.spec.ts`.
+
+## §76 · BLOQUE 137 — PRODUCCIÓN PIDE, EL TÉCNICO COMPLETA (28/09/2026)
+
+- **Pantalla nueva «Pedir instalación»** (`/pedir-instalacion`, módulo Trabajo),
+  para quien tiene `om.mirar` y no `asset.read`. Cinco datos: qué, cuántos,
+  tipo de sitio, dónde (de SU tren) y para qué. Debajo, «Mis pedidos» con estado.
+- `POST /instalaciones/solicitud` comprueba el tren con `filtroConAmbito`;
+  `GET /instalaciones/mias` devuelve sólo lo suyo y sin datos técnicos.
+- **En la visita** (Instalaciones), el técnico mide además cómo va el cable:
+  canalización (lista cerrada), metros de tubería y cajas de paso. Migración
+  aditiva `20260928010000_instalacion_canalizacion`.
+- Prueba: `test/produccion-pide-instalacion.spec.ts`.
+
+§73 (bloque 149) sigue: Grúas ya bajo 130 palabras.
+
+## §77 · BLOQUE 155 — MANTENIMIENTO E INSTALACIONES, CADA UNO CON SU EXPEDIENTE (28/09/2026)
+
+Palabras del usuario: «dos pantallas, mantenimiento e instalación, y ahí
+debería almacenarse toda la información, documentos, instalaciones, todo lo que
+está haciéndose, para los técnicos».
+
+- **El módulo «Trabajo» se parte en dos**: **Mantenimiento** (bandeja,
+  incidencias, órdenes, avance, hojas de ruta, grúas) e **Instalaciones**
+  (instalaciones y «Pedir instalación»). Instalaciones sale de Equipos.
+- **Expediente del trabajo**: un documento puede colgar ahora de una
+  INSTALACIÓN o de una ORDEN (migración aditiva
+  `20260928020000_expediente_del_trabajo`, `ON DELETE SET NULL`: si se borra el
+  trabajo, el documento no se pierde).
+  - Instalación: sección «Documentos del trabajo» en su detalle. Sube `asset.update`.
+  - Orden: menú `⋯` › «Documentos». Sube `wo.update`.
+  - Misma revisión de archivo, mismo versionado (mismo título = versión nueva)
+    y misma auditoría que «Documentos». Se descarga con `document.read`.
+  - En «Documentos» se ve de qué instalación u orden es cada archivo.
+- Numerado 155 porque 151–154 están reservados al Plano Vivo.
+- Prueba: `test/expediente-del-trabajo.spec.ts`.
+
+## §78 · BLOQUE 136 — TIPO → SUBTIPO: LA ORDEN SE LLENA SOLA (28/09/2026)
+
+- Catálogo nuevo **«Trabajos de OM»** (`CatalogKind.TRABAJO_OM`), editable en
+  Catálogo de fallas: nombre, **tipo de orden** al que pertenece (grupo) y la
+  **actividad** que se copia a la orden (nota).
+- **Nueva OM**: después del Tipo sale «¿Qué trabajo?» con los trabajos de ese
+  tipo. Al elegir uno, la actividad se llena sola. Se guarda en
+  `WorkOrder.subtipo` y se ve en la lista junto al tipo.
+- El servidor exige que el código exista, esté activo y sea del MISMO tipo.
+- **El sistema no trae trabajos inventados**: el catálogo nace vacío y lo llena
+  Mantenimiento. Mientras esté vacío, el selector no aparece.
+- Migración aditiva `20260928030000_subtipo_de_om` (valor de enum al final +
+  columna NULL). Prueba: `test/subtipo-de-om.spec.ts`.
+- Pendiente de decidir con él: si PREDICTIVO y MAPEO pasan a ser subtipos
+  (hoy siguen siendo tipos porque el flujo de mapeo depende de ello).
+
+## §79 · BLOQUE 144 — ACCESIBILIDAD: EL ORDEN A LA VISTA (28/09/2026)
+
+«Que no se vayan a perder: primero anotas el activo, luego vas a Accesibilidad.»
+- Pasos numerados arriba de la pantalla: registra el equipo → márcalo
+  inaccesible en su ficha → el Jefe da el visto bueno → se agrupa la subida.
+- La tabla pasa de 8 a 6 columnas: «Cómo se llega» junta medio y altura, y la
+  fecha va bajo el código («las columnas están muy separadas»).
+- El técnico ya la ve: tiene `access.read` y está en Equipos › Acceso y altura.
+
+## §80 · BLOQUES 151–153 — PLANO VIVO: EL MAPA (28/09/2026)
+
+«Quiero como si fuese un plano real, ubicación exacta, métricas, para que los
+técnicos vayan rápido.» Arquitectura completa: `docs/ARQUITECTURA_PLANO_VIVO.md`.
+
+**Modelo** (migración aditiva `20260928040000_plano_vivo`): `Plano` (imagen,
+tamaño en px, `metrosPorPx`, norte, versión, estado BORRADOR/PUBLICADO/ARCHIVADO)
+y `PosicionEnPlano` (x/y **en píxeles de la imagen**, altura, rumbo, ángulo,
+alcance). En píxeles a propósito: corregir la escala no mueve ningún equipo.
+
+**Backend** `modules/planos` (sin permisos nuevos):
+- Mirar: `asset.read` / `activos.mirar` / `om.mirar`, cada uno SU zona
+  (`filtroConAmbito` contra la ubicación del plano). Gestionar: `location.manage`.
+- `GET /planos/:id/vista` = todo el mapa en una respuesta. Color del punto
+  (`geometria.ts › colorDelPunto`): manda el monitoreo vigente; si caducó,
+  GRIS; si nunca hubo monitoreo, lo declarado y MARCADO como declarado.
+- Producción (sin `asset.read`) no recibe switch ni puerto.
+- Imagen: PNG/JPG/WEBP (firma real) o SVG sin scripts; se sirve con la sesión
+  y se dibuja como `<image>` (no ejecuta nada).
+- Publicar exige escala calibrada y al menos un equipo; archiva el anterior.
+  Una versión nueva hereda las posiciones sólo si la imagen mide lo mismo.
+
+**Frontend:**
+- **Estado de planta › Mapa** (`/mapa`): plano con zoom/arrastre/pellizco,
+  barra de escala en metros, conos de visión en metros reales, contadores
+  por estado (filtran), «Atención ahora», refresco cada 30 s.
+- **Tarjeta** por rol: posición en metros, altura (≥ 1,8 m avisa), switch y
+  puerto, **cable estimado contra 90 m** si el switch está en el plano, OM con
+  avance. Botones que LLEVAN: Ir a la orden · Generar OM · Ficha.
+- **Ubicaciones › Planos** (`/planos`): subir → calibrar (dos puntos + metros)
+  → colocar desde «sin colocar» → «Apuntar» (se toca lo que vigila la cámara:
+  salen rumbo y alcance) → publicar.
+- `verificar:mapa` (verificador 28): el mapa no escribe (§58). Probado
+  metiendo un `api.post` en la tarjeta.
+- Arreglado de paso: `/maintenance?nueva=1` preparaba el formulario y **no lo
+  abría** (afectaba también al «Generar OM» de Cableado).
+
+**Demo:** `npm run demo:plano` dibuja un PLANO DE EJEMPLO (lo dice dentro de la
+imagen) y coloca los equipos `DEMO-`. No publica si la zona ya tiene un plano
+real. `npm run demo:borrar` lo quita.
+
+**Falta** (cuando llegue el plano real): 153 zonas como polígonos y cobertura
+por zona; 154 «estás aquí» con QR y ruta a pie; importar DXF con bloques.
+
+## §81 · BLOQUE 156 — PLANO REFERENCIAL DEL TREN Y SU PÚLPITO (28/09/2026)
+
+Cristhian pidió un plano «similar al tren y púlpito» para ver el mapa mientras
+llega el DWG. `prisma/plano-tren-referencial.ts` lo dibuja en metros (1 m =
+10 px, 360 × 160 m): patio de palanquillas → horno → desbastador (D1–D6) →
+cizalla 1 → intermedio (I1–I6) → cizalla 2 → acabador (A1–A6) → enfriamiento
+→ cizalla divisora → lecho → cizalla en frío → atado y despacho; púlpito de
+control con consolas y muro de monitores, púlpito del horno y del lecho; sala
+eléctrica, sala de comunicaciones, oficinas, subestación y planta de agua.
+
+- **No es la planta real** y lo dice dos veces en la imagen. Sin cotas,
+  capacidades ni nombres reales: sólo el orden del proceso, igual en cualquier
+  tren. El día que llegue el DWG, este dibujo se borra con `demo:borrar`.
+- `demo:plano` crea 10 cámaras `DEMO-CAM-T1-*` (una en mantenimiento, una
+  fuera de servicio) y coloca todos los equipos de demo. Lo que no tiene sitio
+  en el dibujo queda «sin colocar»: no se coloca a ojo.
+- El SVG también está en `docs/planos/plano-referencial-tren.svg` para probar
+  el editor a mano (subir → calibrar con 2 ejes de columnas: 12 m).
+- `test/plano-referencial.spec.ts`: la advertencia, SVG limpio, todo dentro.
+
+## §82 · BLOQUE 157 — MODO NOCHE Y ASPECTO (28/09/2026)
+
+Pedido para la prueba: «súper visual, bonito, llamativo» y modo oscuro.
+
+- **Botón de tema** en la cabecera: Automático → Claro → Noche (`src/tema.ts`,
+  `BotonTema.tsx`). Se recuerda en el navegador y se aplica ANTES de pintar
+  (sin fogonazo blanco en el púlpito de noche).
+- **La noche sale sola de `styles.css`**: `scripts/tema-oscuro.mjs` es un
+  plugin de PostCSS enchufado en `vite.config.ts`. En cada build genera la
+  versión oscura de cada regla con color escrito (~426 reglas) colgada de
+  `:where(:root[data-tema="oscuro"])`, sin sumar especificidad. No toca lo que
+  ya es oscuro (menú, marca, lienzo) ni el texto blanco sobre color.
+- Los tokens de noche están a mano en `:root[data-tema="oscuro"]`. Los colores
+  claros que vivían escritos en las pantallas pasaron a tokens
+  (`--crit-fondo`, `--naranja-*`, `--indigo-*`, `--suave-fondo`…).
+- **Aspecto**: fondo con dos luces (azul/rojo), botón principal con degradado,
+  opción activa del menú encendida, pestaña activa con brillo, fundido de
+  0,2 s al entrar (nada con «reducir movimiento»). En el Mapa, de noche, el
+  plano se ve como «plano azul» (filtro CSS, la imagen no se toca).
+- Arreglos de paso: `--line` no existía (bordes de «Por dónde empezar» y
+  cifras no se pintaban); `--shadow` apuntaba a `--e1`, que hoy es un
+  espaciado (las tarjetas no tenían sombra); en el celular «Salir» se salía
+  de la cabecera (ahora iconos de 40 px).
+- `verificar:tema` (verificador 29): plugin enchufado, comportamiento del
+  plugin, cada token de color con pareja de noche y ningún color claro a mano
+  en pantallas. Probado reintroduciendo los cuatro fallos.
+
+## §83 · BLOQUES 158–160 — BANDEJA, MAPA QUE REPORTA Y ÁMBITO (28/09/2026)
+
+**Probado de punta a punta** con la API real, PostgreSQL y datos demo (en la
+nube, con Playwright): login → bandeja → mapa → reportar incidencia desde la
+tarjeta → Generar OM prellenada → guardar → el mapa muestra la orden. Y con un
+Operador de Púlpito: entra al Mapa, no ve switch ni puerto, reporta «no estoy
+viendo» desde la tarjeta.
+
+- **158 · Mi bandeja informativa** (`dashboard/pulso.ts`, `PulsoDePlanta.tsx`):
+  cámaras con problema (mismo criterio que el Dashboard: estado efectivo),
+  órdenes en curso / por empezar / cerradas hoy, incidencias abiertas / hoy /
+  resueltas, preventivos de 7 días, carga por técnico (vencidas primero) y
+  últimas 24 h. Todo con `count`/`groupBy`, nada crece con el historial.
+- **«Vencida» = su día ya pasó** (`common/dia-de-planta.ts`, `diaVencido` en
+  `fechas.ts`). Antes una OM de hoy a las 08:00 salía «vencida · 0 días» a las
+  09:00. Aplicado en bandeja, Dashboard, resumen de Telegram, infra y Órdenes.
+- **159 · Reportar desde el mapa**: la tarjeta usa LOS MISMOS formularios del
+  QR (`ReportarCaida` si sólo reporta, `ReportarAveria` si trabaja órdenes).
+  `verificar:mapa` sólo admite esos dos. «Generar OM» lleva equipo, actividad
+  e incidencia (`?incidencia=`). Accesos rápidos (Reportar incidencia, Nueva
+  OM, Ver el mapa) en Dashboard y bandeja; Incidencias acepta `?nueva=1`.
+- **160 · Ámbito por sigla** (grave): Usuarios guarda «T1», el árbol comparaba
+  con «AASA-PISCO-T1» y el usuario sectorizado no veía NADA. `mismoTren()` en
+  `ambito-planta.ts` acepta código, sigla o sufijo; también `cruzarAmbito`, el
+  guard y Indicadores. `test/ambito-sigla.spec.ts`.
+- **Login**: iba a `/dashboard` para todos; ahora a `/` (inicio por rol).
+  Producción (sin `wo.update`, con mapa) entra al **Mapa**; si su zona no tiene
+  plano, el Mapa ofrece Mi tren / Mis cámaras / Incidencias.
+- Dashboard: causas raíz como ranking legible; «puntos críticos» ya no lista
+  equipos que se llevarían 0 cámaras; tarjetas «Qué hago primero» con fondo de
+  tarjeta (de noche salían grises). Modo noche: grises y blanco toman el matiz
+  azul de la marca.
+- `demo:plano` tomaba el primer TREN del árbol (Grúas); ahora el tren de las
+  cámaras de demo.
+
+## §84 · BLOQUE 161 — EL ÍCONO ES EL DEL DISPOSITIVO (29/09/2026)
+
+- `planos/icono.ts` decide el dibujo de cada punto: `iconoDelEquipo(tipo,
+  cameraStyle, modoInalambrico)`. Lee el «Tipo de cámara» (antes texto libre)
+  sin inventar: si no lo reconoce, cámara genérica; una antena sin ficha de
+  radio es «Antena», no se supone suscriptora. `test/icono-del-mapa.spec.ts`.
+- `Marcador.tsx`: disco del color del ESTADO + pictograma en tinta oscura (se
+  lee sobre ámbar) + «nariz» hacia donde mira la cámara. `IconoEquipo` se usa
+  también en «Atención ahora», la tarjeta y la leyenda «Qué es cada ícono»
+  (sólo los tipos que hay en ese plano).
+- «Tipo de cámara» en la ficha pasa a lista (Domo, Bala, PTZ, Térmica, Ojo de
+  pez 360°, Fija). Un valor viejo que no esté en la lista se conserva.
+- `demo:plano` pone tipo a las cámaras DEMO y la antena del púlpito como base PMP.
+
+## §85 · BLOQUES 162–163 — EL APARATO DIBUJADO Y LA EVIDENCIA (29/09/2026)
+
+**162 · El aparato dibujado** (`components/DibujoEquipo.tsx`). Pedido: «con su
+NVR, una camarita». Cada tipo es un dibujo del aparato (carcasa, lente, leds,
+puertos), colores por clase `eq-*` que el modo noche NO invierte. En el mapa:
+disco + anillo del color del estado + marca (! caído, • alerta, ? sin dato).
+El servidor manda `icono` también en el listado y la ficha de Activos
+(`planos/icono.ts`), así que la tabla de Activos y la ficha del QR lo usan.
+Tabla de Activos: la celda del equipo ya no recorta el código, modelo y lugar
+no se parten letra a letra y el tren no se repite si el lugar ya es el tren.
+
+**163 · Todo cierre se evidencia** (`maintenance/evidencia-de-cierre.ts`):
+- Sin al menos una foto en la orden, el cierre firmado se rechaza, salvo
+  `sinFotoMotivo` (≥10 letras) → queda en el diagnóstico
+  («[Cerrada sin foto de evidencia: …]») y en la auditoría (`fotosDeEvidencia`).
+- El modal de cierre dice cuántas fotos hay y deja tomar/subir la foto ahí
+  mismo (celular: cámara trasera). Avisa ANTES de las confirmaciones.
+- Historial del equipo = **línea de vida**: incidencias y órdenes juntas, con
+  causa, técnico y las fotos de cada orden (miniatura → grande).
+- El mapa dice «Última intervención: OM-… hace N días».
+- Probado de punta a punta: cerrar sin foto → aviso; subir foto en el cierre →
+  cierra; la ficha del equipo enseña la foto. La incidencia pasa a RESUELTA al
+  cerrar su orden (ya existía, verificado).
+
+## §86 · BLOQUE 164 — EL REPARTO SALE DE LAS OM REGISTRADAS (29/09/2026)
+
+Pregunta: «¿por qué el dashboard dice 43 preventivas y 37 correctivos? Eso debe
+salir de las OM registradas». Causa: `indicadores.service.ordenesEntre` contaba
+TODAS las órdenes creadas en 90 días, CANCELADAS incluidas, y las preventivas
+que el programador crea solo cada madrugada desde los planes. Además
+`PREVENTIVE_AUTOGEN=false` NO apagaba el programador (sólo entendía `off`).
+- Las CANCELADAS ya no cuentan en ningún indicador (reparto, MTBF, cumplimiento,
+  tabla mensual) y el reparto dice cuántas quedaron fuera (`canceladasFuera`).
+- Cada orden lleva su ORIGEN (`indicadores/calculo.ts · origenDeOrden`):
+  INCIDENCIA (trae incidentId) · AUTOMATICA (preventiva sin autor ni canal: la
+  creó el programador) · MANUAL. `condicionDeOrigen` es la MISMA regla como
+  filtro Prisma; `test/origen-de-orden.spec.ts` prueba que coinciden.
+- Dashboard e Indicadores enseñan `OrigenDelReparto`: periodo, canceladas fuera,
+  «N generadas por el sistema · M registradas a mano», demo (DEMO-…). Cada
+  cifra abre Órdenes con `creadasDesde + filtroTipo + origen + sinCanceladas`:
+  la lista cuadra con el número.
+- `preventive/autogen-entorno.ts`: off/false/0/no/apagado apagan el programador.
+- Si el número real sigue alto: Preventivo → apagar «Generación automática», o
+  mirar cuántas son «generadas por el sistema» en el propio Dashboard.
+
+## §87 · BLOQUE 165 — ZONAS DEL PLANO Y VISTA DE PLANTA (29/09/2026)
+
+Pedido: «ver por zonas —sala eléctrica y así— en todos lados y para el Tren 2».
+- Modelo `ZonaEnPlano` (migración aditiva `20260929010000_zonas_en_plano`): un
+  polígono por (plano, ubicación). La ubicación debe COLGAR de la del plano.
+- Qué equipos son de la zona lo decide el DIBUJO (punto dentro del polígono,
+  `geometria.dentroDeZona`). Si la ficha dice otra ubicación → aviso
+  `conOtraUbicacion`, no se corrige a escondidas. Color de la zona = su PEOR
+  equipo; sin equipos = «vacia» (gris), nunca verde.
+- Si la ubicación de la zona tiene SU PROPIO plano publicado, la zona lo abre
+  (planta → tren → sala) y su color sale de ese plano. `vista.padre` = plano
+  del nivel de arriba (migas «Planta › Tren 2 › Sala eléctrica»).
+- `GET /planos/planta`: todos los planos publicados agrupados por tren, con su
+  resumen. Es la portada del Mapa cuando hay más de un plano.
+- Mapa: fichas de zona («Todas las zonas», «Sala eléctrica ⤵»…), polígonos
+  coloreados, tarjeta de zona con «Abrir el plano de la zona» y «Órdenes de la
+  zona» (`/maintenance?zona=<ubicación>` → filtro en servidor por la rama).
+- Planos (editor) → botón «Zonas»: elegir ubicación, tocar esquinas, guardar;
+  tocar una zona la carga para redibujarla; borrar no toca la ubicación.
+- `demo:plano` crea ubicaciones `DEMO-T1-…`/`DEMO-T2-…` («… (demo)») colgadas del
+  tren, sus zonas, el plano del Tren 2 (si existe sigla T2; si no, NO lo
+  inventa) y el plano referencial de la SALA ELÉCTRICA T2 con 4 equipos.
+  `demo:borrar` borra también las ubicaciones DEMO- (sólo esas).
+- `LienzoPlano` sólo re-encuadra con un `enfocar.n` nuevo y el Mapa lo monta
+  por plano (`key`): al cambiar de plano no se abre en un rincón vacío.
+

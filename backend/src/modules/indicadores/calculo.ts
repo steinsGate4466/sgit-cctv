@@ -51,7 +51,56 @@ export interface OrdenParaCalculo {
   /** Cuándo se dio por terminada. */
   cerrada?: Date | null;
   programada?: Date | null;
+  /** De dónde salió la orden (bloque 164). Ver `origenDeOrden`. */
+  origen?: OrigenDeOrden;
+  /** Orden o equipo de demostración (código DEMO-…). */
+  demo?: boolean;
 }
+
+/* =============================================================================
+   DE DÓNDE SALE CADA ORDEN — bloque 164
+   -----------------------------------------------------------------------------
+   Pregunta de Cristhian: «¿por qué el dashboard dice 43 preventivas y 37
+   correctivos? Eso debe salir de las OM registradas».
+
+   Salía de TODAS las órdenes creadas en 90 días, incluidas las CANCELADAS y
+   las que el programador de preventivos crea solo cada madrugada desde los
+   planes. Ninguna de las dos la «registró» nadie. Ahora:
+     · las canceladas no cuentan (no son trabajo) y se dice cuántas quedaron fuera;
+     · cada orden dice su ORIGEN, y la pantalla lo desglosa.
+
+   Cómo se sabe el origen, sin columna nueva (no hace falta migración):
+     · INCIDENCIA  → trae `incidentId`: nació de un reporte de falla.
+     · AUTOMATICA  → preventiva SIN autor (`createdById` nulo) y sin canal de
+                     solicitud: la creó el programador desde un plan. Toda
+                     orden hecha desde el formulario guarda su autor (bloque 94).
+     · MANUAL      → el resto: la registró una persona.
+============================================================================= */
+export type OrigenDeOrden = 'AUTOMATICA' | 'INCIDENCIA' | 'MANUAL';
+
+export function origenDeOrden(o: {
+  tipo: string; createdById?: string | null; incidentId?: string | null; requestChannel?: string | null;
+}): OrigenDeOrden {
+  if (o.incidentId) return 'INCIDENCIA';
+  if (o.tipo === 'PREVENTIVO' && !o.createdById && !o.requestChannel) return 'AUTOMATICA';
+  return 'MANUAL';
+}
+
+/**
+ * La MISMA regla, escrita como filtro de base de datos, para que «Ver en
+ * Órdenes» enseñe exactamente las que contó el indicador. Si una de las dos
+ * cambiara sin la otra, la cifra y la lista dejarían de cuadrar — que es
+ * justo la queja de la que sale este bloque. `calculo.spec` prueba que coinciden.
+ */
+export function condicionDeOrigen(origen: OrigenDeOrden): Record<string, unknown> {
+  const automatica = { type: 'PREVENTIVO', createdById: null, requestChannel: null, incidentId: null };
+  if (origen === 'INCIDENCIA') return { incidentId: { not: null } };
+  if (origen === 'AUTOMATICA') return automatica;
+  return { NOT: [{ incidentId: { not: null } }, automatica] };
+}
+
+export const esDeDemo = (codigoOm?: string | null, codigoEquipo?: string | null) =>
+  /^DEMO-/i.test(codigoOm || '') || /^DEMO-/i.test(codigoEquipo || '');
 
 export interface Resultado {
   /** Horas medias desde que se abre la orden hasta que se cierra. */
@@ -241,6 +290,10 @@ export interface RepartoDeTrabajo {
   otros: { mejora: number; mapeo: number; predictivo: number };
   /** Qué habría que mover para acercarse a un mantenimiento planificado. */
   lectura: string;
+  /** Bloque 164 · de dónde salió cada orden que entra en el reparto. */
+  origen: Record<'correctivo' | 'preventivo', Record<OrigenDeOrden, number>>;
+  /** Cuántas de la base son de demostración (DEMO-…). */
+  demo: number;
 }
 
 export function repartoDeTrabajo(ordenes: OrdenParaCalculo[]): RepartoDeTrabajo {
@@ -257,10 +310,17 @@ export function repartoDeTrabajo(ordenes: OrdenParaCalculo[]): RepartoDeTrabajo 
     predictivo: cuenta('PREDICTIVO'),
   };
   const base = correctivo + preventivo;
+  const desglose = (t: string) => {
+    const r: Record<OrigenDeOrden, number> = { AUTOMATICA: 0, INCIDENCIA: 0, MANUAL: 0 };
+    ordenes.filter((o) => o.tipo === t).forEach((o) => { r[o.origen ?? 'MANUAL'] += 1; });
+    return r;
+  };
+  const origen = { correctivo: desglose('CORRECTIVO'), preventivo: desglose('PREVENTIVO') };
+  const demo = ordenes.filter((o) => o.demo && (o.tipo === 'CORRECTIVO' || o.tipo === 'PREVENTIVO')).length;
 
   if (base === 0) {
     return {
-      correctivo, preventivo, base, otros, pct: null,
+      correctivo, preventivo, base, otros, pct: null, origen, demo,
       lectura: 'Sin órdenes de mantenimiento en el periodo. No hay reparto que medir.',
     };
   }
@@ -284,7 +344,13 @@ export function repartoDeTrabajo(ordenes: OrdenParaCalculo[]): RepartoDeTrabajo 
       + 'La meta es seguir moviendo trabajo al lado planificado.';
   }
 
-  return { correctivo, preventivo, base, otros, pct, lectura };
+  /* Si la mayoría de las preventivas las creó el programador, el «% planificado»
+     mide lo que el sistema PROGRAMÓ, no lo que se hizo. Se avisa en la lectura. */
+  if (origen.preventivo.AUTOMATICA > 0 && origen.preventivo.AUTOMATICA * 2 >= preventivo) {
+    lectura += ` Ojo: ${origen.preventivo.AUTOMATICA} de las ${preventivo} preventivas las generó el sistema desde los planes.`;
+  }
+
+  return { correctivo, preventivo, base, otros, pct, lectura, origen, demo };
 }
 
 /* =============================================================================

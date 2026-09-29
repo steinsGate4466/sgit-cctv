@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CANDADO, conCandado } from '../../common/candado-de-instancia';
 import { BandejaSalidaService } from './bandeja-salida.service';
 import { resumenDiario } from './plantillas';
+import { corteDeVencidas } from '../../common/dia-de-planta';
 
 /**
  * Dónde se anota que el resumen de hoy ya se mandó.
@@ -146,7 +147,7 @@ export class ResumenScheduler implements OnModuleInit, OnModuleDestroy {
         where: { detailedAt: null, status: { in: ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'] } },
       }),
       this.prisma.workOrder.count({
-        where: { status: { in: ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'] }, scheduledDate: { lt: new Date() } },
+        where: { status: { in: ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'] }, scheduledDate: { lt: corteDeVencidas() } },
       }),
       this.prisma.workOrder.count({ where: { status: 'EN_ESPERA' } }),
       this.prisma.$queryRaw<{ n: bigint }[]>`

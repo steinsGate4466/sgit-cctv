@@ -19,9 +19,9 @@ import { useDialogos } from './Dialogos';
 type Resultado = 'OK' | 'NO_OK' | 'NO_APLICA';
 
 const BOTONES: { v: Resultado; t: string; fondo: string; color: string }[] = [
-  { v: 'OK', t: 'Conforme', fondo: '#e7f7ee', color: 'var(--ok-texto)' },
-  { v: 'NO_OK', t: 'No conforme', fondo: '#fdecec', color: 'var(--crit-texto)' },
-  { v: 'NO_APLICA', t: 'No aplica', fondo: '#eef2f9', color: 'var(--muted)' },
+  { v: 'OK', t: 'Conforme', fondo: 'var(--ok-fondo)', color: 'var(--ok-texto)' },
+  { v: 'NO_OK', t: 'No conforme', fondo: 'var(--crit-fondo)', color: 'var(--crit-texto)' },
+  { v: 'NO_APLICA', t: 'No aplica', fondo: 'var(--info-fondo)', color: 'var(--muted)' },
 ];
 
 export default function RutinaEnCampo({ workOrderId, soloLectura, onCambio }: {

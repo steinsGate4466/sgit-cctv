@@ -200,7 +200,7 @@ export default function Electricidad() {
           <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap' }}>
             <div><b style={{ fontSize: 26 }}>{resumen.tableros}</b><div className="muted" style={{ fontSize: 12 }}>tableros</div></div>
             <div><b style={{ fontSize: 26 }}>{resumen.circuitos}</b><div className="muted" style={{ fontSize: 12 }}>circuitos</div></div>
-            <div><b style={{ fontSize: 26, color: 'var(--steel)' }}>{resumen.circuitosCctv}</b><div className="muted" style={{ fontSize: 12 }}>alimentan CCTV</div></div>
+            <div><b style={{ fontSize: 26, color: 'var(--tinta-marca)' }}>{resumen.circuitosCctv}</b><div className="muted" style={{ fontSize: 12 }}>alimentan CCTV</div></div>
             <div>
               <b style={{ fontSize: 26, color: resumen.sinAlimentacionDeclarada ? 'var(--crit)' : 'var(--ok)' }}>
                 {resumen.sinAlimentacionDeclarada}

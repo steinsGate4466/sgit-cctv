@@ -3,6 +3,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { resolverContextoDePlanta } from '../../common/plant-context';
 import { alcanza, ambitoDelUsuario, noVeNada } from '../../common/ambito-usuario';
 import { CrearInspeccionGruaDto } from './dto/inspeccion-grua.dto';
+import { MaintenanceService } from '../maintenance/maintenance.service';
+import { actividadDeLaOm, decidirOmDeInspeccion } from './om-de-inspeccion';
 
 /**
  * INSPECCIÓN DE CÁMARAS DE GRÚA (bloque 14).
@@ -18,7 +20,12 @@ import { CrearInspeccionGruaDto } from './dto/inspeccion-grua.dto';
  */
 @Injectable()
 export class GruaService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    /* Bloque 140: el hallazgo abre la orden. Se usa el MISMO alta que el
+       formulario de Órdenes, con su código y su fecha, no un atajo. */
+    private readonly ordenes: MaintenanceService,
+  ) {}
 
   /** Código correlativo por año: GRU-2026-0001. */
   private async siguienteCodigo(): Promise<string> {
@@ -42,6 +49,8 @@ export class GruaService {
         camaraEstado: true, antenaEstado: true, cableEstado: true,
         asset: { select: { assetCode: true, status: true, locationId: true } },
         inspeccionadoPor: { select: { fullName: true } },
+        // Bloque 140: la orden que abrió (o a la que se enlazó).
+        workOrder: { select: { code: true } },
       },
       orderBy: { fecha: 'desc' },
       take: 200,
@@ -67,6 +76,8 @@ export class GruaService {
         grua: f.grua,
         posicion: f.posicionEnGrua,
         equipo: f.asset?.assetCode ?? null,
+        assetId: f.assetId,
+        om: f.workOrder?.code ?? null,
         estadoEquipo: f.asset?.status ?? null,
         tren: ctx[f.assetId]?.trenCode ?? null,
         fecha: f.fecha,
@@ -153,7 +164,7 @@ export class GruaService {
 
     const { workOrderId, proximaRevision, ...resto } = dto;
 
-    return this.prisma.inspeccionGrua.create({
+    const creada = await this.prisma.inspeccionGrua.create({
       data: {
         ...resto,
         code: await this.siguienteCodigo(),
@@ -164,6 +175,32 @@ export class GruaService {
       } as any,
       select: { id: true, code: true },
     });
+
+    /* BLOQUE 140 · EL HALLAZGO SE CONVIERTE EN TRABAJO.
+       La inspección ya está guardada: si abrir la orden fallara, lo subido al
+       manlift NO se pierde, y la respuesta lo dice para abrirla a mano. */
+    let om: { code: string; nueva: boolean } | null = null;
+    let omError: string | null = null;
+    if (decidirOmDeInspeccion({ ...dto, workOrderId }) === 'ABRIR') {
+      try {
+        const abierta = await this.prisma.workOrder.findFirst({
+          where: { assetId: dto.assetId, type: 'CORRECTIVO', status: { in: ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'] } },
+          orderBy: { createdAt: 'desc' },
+          select: { id: true, code: true },
+        });
+        const orden = abierta ?? await this.ordenes.create({
+          type: 'CORRECTIVO',
+          assetId: dto.assetId,
+          activity: actividadDeLaOm({ code: creada.code, grua: dto.grua, posicionEnGrua: dto.posicionEnGrua, resultado: dto.resultado, hallazgos: dto.hallazgos }),
+          zone: `Grúa ${dto.grua.trim()}`,
+        } as any, userId ?? null);
+        await this.prisma.inspeccionGrua.update({ where: { id: creada.id }, data: { workOrderId: orden.id } });
+        om = { code: orden.code, nueva: !abierta };
+      } catch (e: any) {
+        omError = 'La inspección se guardó, pero no se pudo abrir la orden: ' + (e?.message || 'error') + '. Ábrela a mano.';
+      }
+    }
+    return { ...creada, om, omError };
   }
 
   /**

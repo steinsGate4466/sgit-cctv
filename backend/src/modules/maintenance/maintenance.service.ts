@@ -1,11 +1,12 @@
 import {
   BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException,
 } from '@nestjs/common';
+import { condicionDeOrigen } from '../indicadores/calculo';
 import { Prisma } from '../../generated/prisma/client';
 import * as argon2 from 'argon2';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
-import { filtroDeUbicaciones } from '../../common/ambito-planta';
+import { descendientes, filtroDeUbicaciones } from '../../common/ambito-planta';
 import { filtroConAmbito } from '../../common/ambito-usuario';
 import { BandejaSalidaService } from '../notificaciones/bandeja-salida.service';
 import { omCerrada, omAsignada, omEnEspera } from '../notificaciones/plantillas';
@@ -24,6 +25,7 @@ import { OpenWorkOrderDto } from './dto/open-work-order.dto';
 import { ProgressWorkOrderDto } from './dto/progress-work-order.dto';
 import { computeEffectiveStatuses } from '../../common/asset-status';
 import { conReintentoDeCodigo, siguienteCorrelativo } from '../../common/correlativo';
+import { evidenciaDeCierre, notaSinFoto } from './evidencia-de-cierre';
 import {
   EstadoIncidencia, alAbrirOrden, alCerrarOrden, porQueCambio,
 } from '../../common/incidencia-sigue-a-la-om';
@@ -101,6 +103,22 @@ export class MaintenanceService {
       );
     }
 
+    /* BLOQUE 136 · EL SUBTIPO TIENE QUE EXISTIR Y SER DE ESE TIPO. Un código
+       escrito a mano que no está en el catálogo no se podría contar después;
+       y un «cambio de fuente» marcado como Mejora mezclaría las clases. */
+    if (dto.subtipo) {
+      const trabajo = await this.prisma.catalogItem.findUnique({
+        where: { kind_code: { kind: 'TRABAJO_OM', code: dto.subtipo } },
+        select: { active: true, group: true, name: true },
+      });
+      if (!trabajo || !trabajo.active) {
+        throw new BadRequestException('Ese trabajo no está en el catálogo de trabajos de OM.');
+      }
+      if (trabajo.group && trabajo.group !== dto.type) {
+        throw new BadRequestException(`«${trabajo.name}» es un trabajo de tipo ${trabajo.group}, no ${dto.type}.`);
+      }
+    }
+
     /* El reintento envuelve la creación ENTERA, no sólo el cálculo del
        código: el choque se descubre al escribir, no al calcular. Si el código
        viene del formulario (`dto.code`, un número de SAP escrito a mano) no se
@@ -110,6 +128,7 @@ export class MaintenanceService {
       data: {
         code: dto.code || (await this.nextCode()),
         type: dto.type,
+        subtipo: dto.subtipo || undefined,
         assetId: dto.assetId || undefined,
         locationId: dto.locationId || undefined,
         activity: dto.activity,
@@ -305,6 +324,18 @@ export class MaintenanceService {
         ...(q.from ? { gte: new Date(q.from) } : {}),
         ...(q.to ? { lte: new Date(q.to) } : {}),
       };
+    }
+    // Bloque 164 · las mismas que contó el reparto de Indicadores.
+    if (q.creadasDesde && !isNaN(Date.parse(q.creadasDesde))) {
+      condiciones.push({ createdAt: { gte: new Date(q.creadasDesde) } });
+    }
+    if (q.origen) condiciones.push(condicionDeOrigen(q.origen) as Prisma.WorkOrderWhereInput);
+    if (q.sinCanceladas && !q.status) condiciones.push({ status: { not: 'CANCELADA' } });
+    // Bloque 165 · las de una zona del mapa: su ubicación y lo que cuelga de ella.
+    if (q.zona) {
+      const nodos = await this.prisma.location.findMany({ select: { id: true, parentId: true, type: true, code: true, stageId: true } });
+      const rama = [...descendientes(nodos as any, [q.zona])];
+      condiciones.push({ OR: [{ asset: { locationId: { in: rama } } }, { locationId: { in: rama } }] });
     }
     if (condiciones.length) where.AND = condiciones;
     const [total, data] = await this.prisma.$transaction([
@@ -677,6 +708,14 @@ export class MaintenanceService {
       );
     }
 
+    /* Bloque 163: sin foto no se cierra, salvo que se diga por qué. */
+    const fotos = await this.prisma.workOrderEvidence.count({ where: { workOrderId: id } });
+    const evidencia = evidenciaDeCierre(fotos, dto.sinFotoMotivo);
+    if (!evidencia.ok) throw new BadRequestException(evidencia.error);
+    const diagnosticoFinal = evidencia.motivo
+      ? [dto.diagnosis ?? wo.diagnosis, notaSinFoto(evidencia.motivo)].filter(Boolean).join('\n')
+      : (dto.diagnosis ?? wo.diagnosis);
+
     /* Bloque 37: con guarda. Un cierre lleva firma, materiales retirados y a
        veces un informe en PDF. Que dos personas lo hagan a la vez y la segunda
        pise a la primera dejaría el registro diciendo que cerró quien no cerró
@@ -687,7 +726,7 @@ export class MaintenanceService {
       {
         status: 'CERRADA',
         executedDate: wo.executedDate || ahora,
-        diagnosis: dto.diagnosis ?? wo.diagnosis,
+        diagnosis: diagnosticoFinal,
         technicianId: wo.technicianId || signer!.id,
         // Cierre en campo (Bloque 1)
         endedAt: fin,
@@ -734,6 +773,8 @@ export class MaintenanceService {
         accion: dto.actionCode || null,
         reincidente: dto.isRecurrent ?? false,
         duracionMinutos: minutos,
+        fotosDeEvidencia: fotos,
+        sinFotoMotivo: evidencia.motivo,
       },
     });
     // Si es una OM PREVENTIVA, reprograma el plan del activo (próximo = ahora + intervalo).

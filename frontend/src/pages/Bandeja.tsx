@@ -7,6 +7,8 @@ import { useVolverALaPantalla } from '../useVolverALaPantalla';
 import { Accion, Cifras, LoQueHayQueHacer, Titular, Tono } from '../components/Patron';
 import { fecha } from '../formato';
 import { fechaTabla, haceCuanto } from '../fechas';
+import PulsoDePlanta from '../components/PulsoDePlanta';
+import AccesosRapidos from '../components/AccesosRapidos';
 
 /**
  * MI BANDEJA — lo que espera una decisión, hoy.
@@ -23,8 +25,14 @@ import { fechaTabla, haceCuanto } from '../fechas';
  * corre prisa, y al final lo que conviene mirar. No por volumen.
  */
 
-const diasDesde = (d: any) =>
-  d ? Math.floor((Date.now() - new Date(d).getTime()) / 86400000) : 0;
+/* Días de CALENDARIO desde la fecha programada (bloque 158): una orden de
+   ayer a las 13:00 lleva «1 día» vencida esta mañana, no «0». */
+const diasDesde = (d: any) => {
+  if (!d) return 0;
+  const a = new Date(d); a.setHours(0, 0, 0, 0);
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  return Math.round((hoy.getTime() - a.getTime()) / 86400000);
+};
 
 export default function Bandeja() {
   const [d, setD] = useState<any>(null);
@@ -85,6 +93,7 @@ export default function Bandeja() {
   return (
     <div>
       <h1 className="page-title">Mi bandeja</h1>
+      <AccesosRapidos />
 
       {r.total === 0 ? (
         <div className="card vacio">
@@ -94,12 +103,17 @@ export default function Bandeja() {
             Sin órdenes por detallar, firmas ni permisos pendientes.
           </p>
         </div>
-      ) : (
+      ) : null}
+      {r.total === 0 && <PulsoDePlanta p={d.pulso} />}
+      {r.total === 0 ? null : (
         <>
           {/* -------- 1. LA RESPUESTA (bloque 38) --------
               Antes esto abría con cuatro contadores. Cuatro números no dicen
               por dónde empezar; una frase sí. */}
           <Titular tono={tono} texto={titular} apoyo={apoyo} />
+
+          {/* BLOQUE 158 · cómo está la planta hoy, antes de la lista de pendientes. */}
+          <PulsoDePlanta p={d.pulso} />
 
           {/* -------- 2. POR DÓNDE EMPEZAR --------
               Las mismas cifras, pero ordenadas por lo que bloquea a otra
@@ -119,11 +133,11 @@ export default function Bandeja() {
             filas={d.sinDetallar}
             columnas={['Orden', 'Qué hay que hacer', 'Equipo', 'Asignada a', 'Para']}
             fila={(w: any) => [
-              <b>{w.code}</b>,
+              <b className="sin-partir">{w.code}</b>,
               <span style={{ fontSize: 12 }}>{w.activity || '—'}</span>,
               w.asset?.assetCode || <span className="muted">sin definir</span>,
               w.technician?.fullName || <span className="muted">sin asignar</span>,
-              fecha(w.scheduledDate),
+              <span className="sin-partir">{fecha(w.scheduledDate)}</span>,
             ]}
             accion={() => navegar('/maintenance')}
             textoAccion="Ir a órdenes"
@@ -212,10 +226,10 @@ export default function Bandeja() {
             filas={d.vencidas}
             columnas={['Orden', 'Qué', 'Equipo', 'Vencía', 'Días', 'Avance']}
             fila={(w: any) => [
-              <b>{w.code}</b>,
+              <b className="sin-partir">{w.code}</b>,
               <span style={{ fontSize: 12 }}>{w.activity || '—'}</span>,
               w.asset?.assetCode || '—',
-              fecha(w.scheduledDate),
+              <span className="sin-partir">{fecha(w.scheduledDate)}</span>,
               <b style={{ color: 'var(--crit)' }}>{diasDesde(w.scheduledDate)}</b>,
               w.prorrogaPedida
                 ? <span style={{ fontSize: 12 }}>{(w.progressPct ?? 0) + '%'} · prórroga pedida</span>
@@ -320,7 +334,7 @@ export default function Bandeja() {
             fila={(s: any) => [
               <b>{s.name}</b>,
               <span className="muted" style={{ fontSize: 12 }}>{s.sapCode || '—'}</span>,
-              <b style={{ color: s.currentStock <= 0 ? 'var(--crit)' : '#b45309' }}>{s.currentStock}</b>,
+              <b style={{ color: s.currentStock <= 0 ? 'var(--crit)' : 'var(--warn-texto)' }}>{s.currentStock}</b>,
               <span className="muted">{s.minStock}</span>,
             ]}
             accion={() => navegar('/inventory')}

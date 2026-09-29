@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api } from '../api/client';
+import { Link } from 'react-router-dom';
+import { api, motivoDelError } from '../api/client';
 import Modal from '../components/Modal';
 import Icono from '../components/Iconos';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, conAmbito } from '../components/FiltroAmbito';
@@ -8,6 +9,7 @@ import { useAuth } from '../auth/AuthContext';
 import { guardarPendiente } from '../cola-offline';
 import { fecha } from '../fechas';
 import { mensajeDeError } from '../avisos';
+import { ComoSeCalcula } from '../components/Patron';
 
 /**
  * INSPECCIÓN DE CÁMARAS DE GRÚA (bloque 14).
@@ -55,6 +57,15 @@ const VACIO: any = {
 
 export default function Gruas() {
   const { can } = useAuth();
+  const puedeQr = can('asset.read') || can('activos.mirar');
+  async function descargarQr(i: any) {
+    try {
+      const r = await api.get(`/assets/${i.assetId}/qr`, { responseType: 'blob' });
+      const url = URL.createObjectURL(r.data);
+      const a = document.createElement('a'); a.href = url; a.download = `qr-${i.equipo}.png`;
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    } catch (err) { setHecho(await motivoDelError(err, 'No se pudo generar el QR.')); }
+  }
   const puedeRegistrar = can('wo.update');
 
   const [ambito, setAmbito] = useState<Ambito>(AMBITO_VACIO);
@@ -121,7 +132,11 @@ export default function Gruas() {
 
     try {
       const r = await api.post('/gruas', cuerpo);
-      setHecho(`Inspección ${r.data?.code} registrada.`);
+      /* Bloque 140: el hallazgo abre la orden, y se dice cuál. */
+      const om = r.data?.om;
+      setHecho(`Inspección ${r.data?.code} registrada.`
+        + (om ? (om.nueva ? ` Se abrió la orden ${om.code}.` : ` Se enlazó a la orden abierta ${om.code}.`) : '')
+        + (r.data?.omError ? ` ${r.data.omError}` : ''));
       setNueva(false);
       await cargar();
     } catch (e: any) {
@@ -165,11 +180,19 @@ export default function Gruas() {
         )}
       </div>
 
-      <div className="card explica">
-        <b>Las cámaras de grúa fallan distinto.</b> El cable se fatiga en la cadena
-        portacables, la antena se desalinea con el movimiento y no se llega sin
-        manlift. Por eso se sube <b>una vez</b> y se revisa <b>todo</b>.
-      </div>
+      {/* Bloque 149: una línea arriba; el porqué, plegado. */}
+      <p className="muted" style={{ margin: '0 0 12px' }}>Se sube <b>una vez</b> y se revisa <b>todo</b>.</p>
+      <ComoSeCalcula>
+        <p>
+          <b>Las cámaras de grúa fallan distinto.</b> El cable se fatiga en la cadena
+          portacables, la antena se desalinea con el movimiento y no se llega sin
+          manlift. Por eso el formulario es largo: subir dos veces cuesta más.
+        </p>
+        <p>
+          A partir de la segunda inspección se ve la <b>deriva de la señal</b>: avisa
+          de una antena que se está desalineando antes de que se caiga.
+        </p>
+      </ComoSeCalcula>
 
       {hecho && <div className="card" style={{ borderColor: 'var(--ok-borde)', background: 'var(--ok-fondo)' }}>{hecho}</div>}
       {fallo && <div className="card aviso-error">{fallo}</div>}
@@ -205,9 +228,7 @@ export default function Gruas() {
         <div className="card vacio">
           <h3>Todavía no hay inspecciones de grúa</h3>
           <p>
-            Registra la primera con «Nueva inspección». A partir de la segunda, el
-            sistema empieza a mostrar la <strong>deriva de la señal</strong>: es lo
-            que avisa de una antena que se está desalineando antes de que se caiga.
+            Registra la primera con «Nueva inspección».
           </p>
         </div>
       ) : !cargando && (
@@ -221,15 +242,27 @@ export default function Gruas() {
           <tbody>
             {lista.map((i) => (
               <tr key={i.id}>
-                <td><strong>{i.code}</strong></td>
+                <td>
+                  <strong>{i.code}</strong>
+                  {/* Bloque 140: la orden que abrió este hallazgo. */}
+                  {i.om && <div><Link to={`/maintenance?om=${encodeURIComponent(i.om)}`} style={{ fontSize: 12 }}>{i.om}</Link></div>}
+                </td>
                 <td>{i.grua}{i.posicion ? ` · ${i.posicion}` : ''}</td>
-                <td>{i.equipo || '—'}</td>
+                <td>
+                  {i.equipo || '—'}
+                  {/* Bloque 140: el QR de la cámara de grúa, para pegarlo en la cabina. */}
+                  {i.equipo && puedeQr && (
+                    <button type="button" className="btn-mini" style={{ marginLeft: 6 }}
+                      title="Etiqueta QR de esta cámara" aria-label={`QR de ${i.equipo}`}
+                      onClick={() => descargarQr(i)}><Icono n="qr" size={13} /></button>
+                  )}
+                </td>
                 <td>{fecha(i.fecha)}</td>
                 <td>{ETIQUETA_RESULTADO[i.resultado] || i.resultado}</td>
                 <td>{i.senalDbm != null ? `${i.senalDbm} dBm` : '—'}</td>
                 <td>
                   {i.deriva == null ? '—' : (
-                    <span style={{ color: i.deriva < -5 ? '#b3261e' : i.deriva > 5 ? '#166534' : undefined, fontWeight: 600 }}>
+                    <span style={{ color: i.deriva < -5 ? 'var(--crit-texto)' : i.deriva > 5 ? 'var(--ok-texto)' : undefined, fontWeight: 600 }}>
                       {i.deriva > 0 ? '+' : ''}{i.deriva} dB
                     </span>
                   )}
@@ -272,14 +305,14 @@ export default function Gruas() {
           <label className="campo">
             <span>Grúa</span>
             <input value={f.grua} onChange={set('grua')} placeholder="Ej: Puente grúa 2 / GRU-107" maxLength={120} />
-            <small className="muted">Como la llama Producción. No hay catálogo: se escribe tal cual.</small>
+            <small className="muted">Como la llama Producción.</small>
           </label>
           <label className="campo">
             <span>Posición en la grúa</span>
             <input value={f.posicionEnGrua} onChange={set('posicionEnGrua')} placeholder="cabina / pluma / lecho / gancho / sala eléctrica" maxLength={120} />
           </label>
 
-          <div className="section-title">Acceso — lo que decide si se puede ir mañana</div>
+          <div className="section-title">Acceso</div>
           <div className="casillas">
             <Casilla k="requiereManlift" t="Requiere manlift" />
             <Casilla k="seBajaAPiso" t="La grúa se puede bajar a piso" />
@@ -306,14 +339,14 @@ export default function Gruas() {
             <span>Señal (dBm)</span>
             <input type="number" min={-100} max={0} value={f.senalDbm} onChange={set('senalDbm')} placeholder="Ej: -65" />
             <small className="muted">
-              Siempre negativo. −45 buena · −70 justa · −80 se cae. Se compara con la anterior.
+              −45 buena · −70 justa · −80 se cae.
             </small>
           </label>
           <div className="casillas"><Casilla k="antenaAlineada" t="Antena alineada" /></div>
           <label className="campo"><span>Observaciones de la antena</span>
             <textarea rows={2} value={f.antenaObs} onChange={set('antenaObs')} maxLength={600} /></label>
 
-          <div className="section-title">Cableado — donde más falla y menos se mira</div>
+          <div className="section-title">Cableado</div>
           <Estado k="cableEstado" t="Estado del cableado" />
           <div className="casillas">
             <Casilla k="enCadenaPortacables" t="Va en cadena portacables / festón" />
@@ -324,7 +357,7 @@ export default function Gruas() {
           <label className="campo">
             <span>Metros aproximados</span>
             <input type="number" min={0} step="1" value={f.metrosAproximados} onChange={set('metrosAproximados')} />
-            <small className="muted">Pasados los 90 m, Ethernet falla de forma intermitente.</small>
+            <small className="muted">Más de 90 m: Ethernet falla a ratos.</small>
           </label>
           <label className="campo"><span>Observaciones del cableado</span>
             <textarea rows={2} value={f.cableObs} onChange={set('cableObs')} maxLength={600} /></label>
@@ -360,8 +393,7 @@ export default function Gruas() {
               {RESULTADOS.map((r) => <option key={r.v} value={r.v}>{r.t}</option>)}
             </select>
             <small className="muted">
-              «No se pudo acceder» no admite componentes revisados: o se llegó al
-              equipo, o no.
+              Si no se llegó, no marques componentes.
             </small>
           </label>
           <label className="campo"><span>Hallazgos</span>

@@ -2,7 +2,7 @@ import { CanActivate, ExecutionContext, Injectable, NotFoundException } from '@n
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CLAVE_AMBITO, RecursoConAmbito } from '../ambito.decorator';
-import { ambitoDelUsuario, noVeNada, veTodo } from '../ambito-usuario';
+import { alcanza, ambitoDelUsuario, noVeNada, veTodo } from '../ambito-usuario';
 import { filtroDeUbicaciones } from '../ambito-planta';
 
 /**
@@ -145,7 +145,7 @@ export class AmbitoGuard implements CanActivate {
 
       // Recurso que guarda el tren a pelo (ventana de parada, instalación).
       if (objetivo.tren) {
-        if (!trenes.includes(String(objetivo.tren).toUpperCase())) throw new NotFoundException();
+        if (!alcanza(ambito, String(objetivo.tren))) throw new NotFoundException();
         return true;
       }
 

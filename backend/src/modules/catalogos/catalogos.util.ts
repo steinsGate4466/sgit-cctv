@@ -7,7 +7,7 @@
 // ============================================================================
 
 /** Tipos de catálogo. Debe coincidir con el enum CatalogKind del esquema. */
-export const TIPOS_CATALOGO = ['CAUSA', 'SINTOMA', 'ACCION', 'MOTIVO_AVANCE'] as const;
+export const TIPOS_CATALOGO = ['CAUSA', 'SINTOMA', 'ACCION', 'MOTIVO_AVANCE', 'TRABAJO_OM'] as const;
 export type TipoCatalogo = (typeof TIPOS_CATALOGO)[number];
 
 export const TIPO_ES: Record<string, string> = {
@@ -15,6 +15,7 @@ export const TIPO_ES: Record<string, string> = {
   SINTOMA: 'Síntomas observados',
   ACCION: 'Acciones realizadas',
   MOTIVO_AVANCE: 'Motivos de no avanzar',
+  TRABAJO_OM: 'Trabajos de OM (subtipos)',
 };
 
 /**

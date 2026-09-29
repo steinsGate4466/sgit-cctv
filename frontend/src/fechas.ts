@@ -156,3 +156,16 @@ export function yaPaso(v: unknown): boolean {
   const d = aFecha(v);
   return d ? d.getTime() < Date.now() : false;
 }
+
+/**
+ * ¿La orden está vencida? Cuando su DÍA ya pasó, no a la hora exacta — bloque
+ * 158. Una OM de hoy a las 08:00 no sale «vencida» a las 09:00 del mismo día.
+ * Es la misma regla que el servidor (`common/dia-de-planta.ts`).
+ */
+export function diaVencido(v: unknown): boolean {
+  const d = aFecha(v);
+  if (!d) return false;
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  return d.getTime() < hoy.getTime();
+}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { TIPOS_ACTIVO, NOMBRE_DE_TIPO } from '../tipos-de-equipo';
 import { api } from '../api/client';
 import Modal from '../components/Modal';
+import ExpedienteDelTrabajo from '../components/ExpedienteDelTrabajo';
 import BotonPurgar from '../components/BotonPurgar';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
@@ -57,7 +58,13 @@ const BOOLEANOS = new Set([
   'hayFalsoTecho', 'hayCanaleta', 'esClimatizado', 'necesitaGabineteEstanco',
 ]);
 // `costoEstimado` fuera desde el bloque 47: aqui no se escriben soles.
-const NUMEROS = new Set(['metrosCable', 'alturaMetros', 'distanciaEnlaceM', 'canalNvr']);
+const NUMEROS = new Set(['metrosCable', 'alturaMetros', 'distanciaEnlaceM', 'canalNvr', 'metrosTuberia', 'cajasDePaso']);
+/* Bloque 137 · por dónde va el cable. Lista cerrada: «tubo» y «tubería» y
+   «conduit» escritos a mano serían tres cosas distintas al contar material. */
+const CANALIZACIONES: Record<string, string> = {
+  TUBERIA: 'Tubería (conduit / EMT)', BANDEJA: 'Bandeja portacables', CANALETA: 'Canaleta',
+  AEREO: 'Aéreo (mensajero)', ENTERRADO: 'Enterrado / ducto', EXISTENTE: 'Canalización existente',
+};
 const LARGOS = new Set(['rutaCable', 'riesgos', 'materialesEstimados']);
 
 export default function Instalaciones() {
@@ -233,6 +240,17 @@ export default function Instalaciones() {
             <option value="">Sin comprobar</option>
             <option value="si">Sí</option>
             <option value="no">No</option>
+          </select>
+        </label>
+      );
+    }
+    if (nombre === 'canalizacion') {
+      return (
+        <label className="campo" key={nombre}>
+          <span>{et}</span>
+          <select value={valor ?? ''} onChange={(e) => set(e.target.value)}>
+            <option value="">—</option>
+            {Object.entries(CANALIZACIONES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
         </label>
       );
@@ -506,6 +524,7 @@ export default function Instalaciones() {
                       <div style={{ fontSize: 13.5 }}>
                         {typeof detalle[c] === 'boolean' ? (detalle[c] ? 'Sí' : 'No')
                           : c === 'ambiente' ? (AMBIENTES[detalle[c]] ?? detalle[c])
+                          : c === 'canalizacion' ? (CANALIZACIONES[detalle[c]] ?? detalle[c])
                           : String(detalle[c])}
                       </div>
                     </div>
@@ -526,6 +545,9 @@ export default function Instalaciones() {
           {detalle.motivoRechazo && (
             <div role="alert" className="aviso-error">Motivo: {detalle.motivoRechazo}</div>
           )}
+          {/* Bloque 155: el expediente de la instalación — planos, actas,
+              protocolos. Lo sube quien registra la visita. */}
+          <ExpedienteDelTrabajo base={`/instalaciones/${detalle.id}`} puedeSubir={puedeEvaluar} />
         </Modal>
       )}
 

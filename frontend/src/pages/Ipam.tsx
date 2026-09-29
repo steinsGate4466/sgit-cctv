@@ -28,8 +28,8 @@ const TIPO: Record<string, string> = {
   RESERVADA: 'Apartada', LIBRE: 'Libre',
 };
 const COLOR: Record<string, string> = {
-  LIBRE: '#e7f7ee', EN_USO: '#eef2f9', RESERVADA: '#fff4e5',
-  DUPLICADA: '#fdecec', GATEWAY: '#e8e3fb', POOL_DHCP: '#f1f3f7',
+  LIBRE: 'var(--ok-fondo)', EN_USO: 'var(--info-fondo)', RESERVADA: 'var(--warn-fondo)',
+  DUPLICADA: 'var(--crit-fondo)', GATEWAY: 'var(--violeta-fondo)', POOL_DHCP: 'var(--suave-fondo)',
 };
 
 export default function Ipam() {

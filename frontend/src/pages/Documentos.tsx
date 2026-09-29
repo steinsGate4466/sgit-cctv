@@ -173,7 +173,7 @@ export default function Documentos() {
               <tr key={d.id}>
                 <td><strong>{d.title}</strong></td>
                 <td>{ETIQUETA[d.category] || d.category}</td>
-                <td>{d.asset?.assetCode || d.location?.name || '—'}</td>
+                <td>{d.asset?.assetCode || d.location?.name || (d.instalacion ? `Instalación ${d.instalacion.codigo}` : null) || (d.workOrder ? `Orden ${d.workOrder.code}` : null) || '—'}</td>
                 <td>v{d.version}</td>
                 <td>{fecha(d.createdAt)}</td>
                 <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>

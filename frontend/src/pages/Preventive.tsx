@@ -227,7 +227,7 @@ export default function Preventive() {
         </table>
       </div>
 
-      <h3 style={{ margin: '22px 0 10px', color: 'var(--navy)', fontSize: 15 }}>Órdenes preventivas ({oms.length})</h3>
+      <h3 style={{ margin: '22px 0 10px', color: 'var(--tinta-marca)', fontSize: 15 }}>Órdenes preventivas ({oms.length})</h3>
       <div className="card">
         <table>
           <thead>

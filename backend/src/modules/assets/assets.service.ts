@@ -29,6 +29,7 @@ import { UpdateAssetStatusDto } from './dto/update-asset-status.dto';
 import { UpdateNetworkDto } from './dto/update-network.dto';
 import { QueryAssetDto } from './dto/query-asset.dto';
 import { motivoParaNoCrearComoActivo } from '../../common/tipos-de-equipo';
+import { iconoDelEquipo } from '../planos/icono';
 
 @Injectable()
 export class AssetsService {
@@ -198,15 +199,18 @@ export class AssetsService {
       this.prisma.asset.count({ where }),
       this.prisma.asset.findMany({
         where,
+        /* Bloque 162: el tipo de cámara y el modo de la antena van siempre —no
+           son sensibles— porque deciden el dibujo del equipo en la lista. */
         include: sensitive
           ? {
               location: true,
-              camera: { select: { ipAddress: true } },
+              camera: { select: { ipAddress: true, cameraStyle: true } },
+              wireless: { select: { mode: true } },
               switchDev: { select: { mgmtIp: true } },
               nvr: { select: { nicPrimary: true } },
               credentials: { take: 1, orderBy: { createdAt: 'desc' } },
             }
-          : { location: true },
+          : { location: true, camera: { select: { cameraStyle: true } }, wireless: { select: { mode: true } } },
         orderBy: { assetCode: 'asc' },
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -246,6 +250,8 @@ export class AssetsService {
     ]);
 
     const enriquecer = (a: any) => ({
+      // Bloque 162: qué aparato dibujar (el mismo criterio que el mapa).
+      icono: iconoDelEquipo(a.type, a.camera?.cameraStyle, a.wireless?.mode),
       effectiveStatus: eff[a.id] || a.status,
       trenNombre: ctx[a.id]?.trenNombre || null,
       etapaNombre: ctx[a.id]?.etapaNombre || null,
@@ -616,6 +622,7 @@ export class AssetsService {
     // panel de avance del mapeo.
     asset.completitud = evaluarFicha(asset);
     asset.pendiente = resumenPendiente(asset);
+    asset.icono = iconoDelEquipo(asset.type, asset.camera?.cameraStyle, asset.wireless?.mode);
     return asset;
   }
 

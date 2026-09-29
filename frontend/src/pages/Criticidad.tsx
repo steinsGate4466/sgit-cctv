@@ -54,10 +54,10 @@ import { useBusquedaEnVivo } from '../useBusquedaEnVivo';
 ============================================================================= */
 
 const COLOR: Record<string, string> = {
-  A: '#991b1b', B: '#9a3412', C: '#3730a3', SIN_CLASIFICAR: '#92400e',
+  A: 'var(--crit-texto)', B: 'var(--naranja-texto)', C: 'var(--indigo-texto)', SIN_CLASIFICAR: 'var(--warn-texto)',
 };
 const FONDO: Record<string, string> = {
-  A: '#fee2e2', B: '#ffedd5', C: '#e0e7ff', SIN_CLASIFICAR: '#fef3c7',
+  A: 'var(--crit-fondo)', B: 'var(--naranja-fondo)', C: 'var(--indigo-fondo)', SIN_CLASIFICAR: 'var(--warn-fondo)',
 };
 const NOMBRE: Record<string, string> = {
   A: 'A — lo más exigente',

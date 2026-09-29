@@ -1,4 +1,5 @@
 import { useEffect, useState, FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import Modal from '../components/Modal';
 import AccessRequestForm, { MEANS_ES, STATUS_ES, STATUS_BADGE } from '../components/AccessRequestForm';
@@ -99,24 +100,31 @@ export default function Access() {
 
   const Tabla = ({ data, titulo, resaltar }: { data: any[]; titulo: string; resaltar?: boolean }) => (
     <>
-      <h3 style={{ margin: '20px 0 10px', color: 'var(--navy)', fontSize: 15 }}>{titulo} ({data.length})</h3>
+      <h3 style={{ margin: '20px 0 10px', color: 'var(--tinta-marca)', fontSize: 15 }}>{titulo} ({data.length})</h3>
       <div className="card">
         <table>
           <thead>
-            <tr><th>Código</th><th>Activo</th><th>Medio</th><th>Altura</th><th>Evidencia</th><th>Estado</th><th>Fecha</th><th></th></tr>
+            {/* Bloque 144 · «las columnas están muy separadas». Ocho columnas
+                repartidas en todo el ancho obligaban a seguir la fila con el
+                dedo. Medio y altura son UNA respuesta —cómo se llega—, y la
+                fecha va bajo el código. Quedan seis. */}
+            <tr><th>Solicitud</th><th>Activo</th><th>Cómo se llega</th><th>Evidencia</th><th>Estado</th><th></th></tr>
           </thead>
           <tbody>
             {data.map((r) => (
               <tr key={r.id}>
-                <td style={{ fontWeight: 600 }}>{r.code}</td>
+                <td style={{ fontWeight: 600 }}>
+                  {r.code}
+                  <div className="muted" style={{ fontSize: 11, fontWeight: 400 }}>{fecha(r.createdAt)}</div>
+                </td>
                 <td className="muted">
                   {r.asset?.assetCode || '—'}
                   <div style={{ fontSize: 11 }}>{r.asset?.location?.name || ''}</div>
                 </td>
-                <td style={{ fontSize: 12 }}>{MEANS_ES[r.means] || r.means}</td>
-                <td>
-                  {r.heightMeters != null ? `${r.heightMeters} m` : '—'}
-                  {r.trabajoEnAltura && <div><span className="badge ALTA" style={{ fontSize: 10 }}>Altura</span></div>}
+                <td style={{ fontSize: 12 }}>
+                  {MEANS_ES[r.means] || r.means}
+                  {r.heightMeters != null && <> · {r.heightMeters} m</>}
+                  {r.trabajoEnAltura && <> <span className="badge ALTA" style={{ fontSize: 10 }}>Altura</span></>}
                 </td>
                 <td>
                   {r.photoCount > 0
@@ -124,7 +132,6 @@ export default function Access() {
                     : <span className="badge FUERA_SERVICIO" style={{ fontSize: 10 }}>Sin evidencia</span>}
                 </td>
                 <td><span className={'badge ' + (STATUS_BADGE[r.status] || 'BAJA')}>{STATUS_ES[r.status] || r.status}</span></td>
-                <td className="muted" style={{ fontSize: 12 }}>{fecha(r.createdAt)}</td>
                 <td style={{ whiteSpace: 'nowrap' }}>
                   <button className="btn-mini" onClick={() => openDetail(r.id)}>Revisar</button>
                   <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => downloadReport(r)}>Informe</button>
@@ -132,7 +139,7 @@ export default function Access() {
               </tr>
             ))}
             {!data.length && (
-              <tr><td colSpan={8} className="muted" style={{ textAlign: 'center', padding: 26 }}>
+              <tr><td colSpan={6} className="muted" style={{ textAlign: 'center', padding: 26 }}>
                 {resaltar ? 'No hay solicitudes esperando revisión.' : 'Sin registros.'}
               </td></tr>
             )}
@@ -147,7 +154,7 @@ export default function Access() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 className="page-title">Accesibilidad y Trabajo en Altura</h1>
-          <p className="page-sub">Equipos que no se pueden intervenir sin manlift, grúa o andamio · revisión y visto bueno del Jefe de Mantenimiento</p>
+          <p className="page-sub">Equipos a los que no se llega sin manlift, grúa o andamio.</p>
         </div>
         {can('access.request') && <button className="btn-primary" onClick={() => setShowNew(true)}>+ Nueva solicitud</button>}
       </div>
@@ -167,10 +174,17 @@ export default function Access() {
           </select>
           </label>
         </div>
-        <div className="muted" style={{ fontSize: 12, alignSelf: 'flex-end', paddingBottom: 8 }}>
-          El técnico marca el activo como inaccesible desde <b>Activos</b>; aquí se revisa y aprueba.
-        </div>
       </div>
+
+      {/* Bloque 144 · EL ORDEN DEL PROCESO, A LA VISTA. Palabras del usuario:
+          «que no se vayan a perder: primero anotas el activo, luego vas a
+          Accesibilidad». Cada paso dice dónde se hace. */}
+      <ol className="pasos-proceso" aria-label="Cómo se pide un acceso especial">
+        <li><b>1</b> <Link to="/assets">Registra el equipo</Link> en Activos</li>
+        <li><b>2</b> En su ficha, <b>Marcar activo inaccesible</b>, con foto y altura</li>
+        <li><b>3</b> Aquí el Jefe lo revisa y da el visto bueno</li>
+        <li><b>4</b> Se agrupa con otros para una sola subida de manlift</li>
+      </ol>
 
       <Tabla data={pendientes} titulo="Pendientes de revisión" resaltar />
       <Tabla data={resueltas} titulo="✓ Resueltas" />

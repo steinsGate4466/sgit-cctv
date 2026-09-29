@@ -1,4 +1,4 @@
-import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsBoolean, IsEnum, IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { WorkOrderStatus, WorkOrderType } from '../../../generated/prisma/client';
 
@@ -23,6 +23,16 @@ export class QueryWorkOrderDto {
      la planta. Se transforma igual que `mias`, por el mismo motivo. */
   @IsOptional() @Transform(({ value }) => value === true || value === 'true' || value === '1')
   @IsBoolean() asignadas?: boolean;
+  /* Bloque 164 · «Ver en Órdenes» desde Indicadores/Dashboard: las MISMAS que
+     contó el reparto. `creadasDesde` va sobre la fecha de CREACIÓN (el reparto
+     cuenta por creación; `from`/`to` van sobre la programada). */
+  @IsOptional() @IsString() creadasDesde?: string;
+  @IsOptional() @IsIn(['AUTOMATICA', 'INCIDENCIA', 'MANUAL']) origen?: 'AUTOMATICA' | 'INCIDENCIA' | 'MANUAL';
+  @IsOptional() @Transform(({ value }) => value === true || value === 'true' || value === '1')
+  @IsBoolean() sinCanceladas?: boolean;
+  /* Bloque 165 · «las órdenes de esta zona» desde el Mapa: el id de la
+     ubicación de la zona (sala eléctrica, púlpito…) y todo lo que cuelga. */
+  @IsOptional() @IsString() zona?: string;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) pageSize?: number;
 }

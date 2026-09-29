@@ -3,6 +3,36 @@ import { api } from '../api/client';
 import { CAUSA_ES, fh } from '../pages/omCatalogos';
 import { plural } from '../formato';
 
+const TIPO_OM: Record<string, string> = { CORRECTIVO: 'Correctiva', PREVENTIVO: 'Preventiva', PREDICTIVO: 'Predictiva', MEJORA: 'Mejora', INSTALACION: 'Instalación' };
+
+/** Una foto de evidencia: se pide con la sesión (no es un enlace público). */
+function FotoEvidencia({ ev }: { ev: { id: string; caption?: string | null } }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [abierta, setAbierta] = useState(false);
+  useEffect(() => {
+    let vivo = true;
+    let u: string | null = null;
+    api.get('/work-orders/evidence/' + ev.id + '/file', { responseType: 'blob' })
+      .then((r) => { if (!vivo) return; u = URL.createObjectURL(r.data); setUrl(u); })
+      .catch(() => { if (vivo) setUrl(null); });
+    return () => { vivo = false; if (u) URL.revokeObjectURL(u); };
+  }, [ev.id]);
+  if (!url) return <span className="lv-foto lv-foto-cargando" title={ev.caption || 'Foto de evidencia'} />;
+  return (
+    <>
+      <button type="button" className="lv-foto" title={ev.caption || 'Foto de evidencia'} onClick={() => setAbierta(true)}>
+        <img src={url} alt={ev.caption || 'Foto de evidencia'} />
+      </button>
+      {abierta && (
+        <div className="lv-foto-grande" role="dialog" aria-label={ev.caption || 'Foto de evidencia'} onClick={() => setAbierta(false)}>
+          <img src={url} alt={ev.caption || 'Foto de evidencia'} />
+          {ev.caption && <div>{ev.caption}</div>}
+        </div>
+      )}
+    </>
+  );
+}
+
 /**
  * HISTORIAL DEL ACTIVO — la retroalimentación antes de intervenir.
  *
@@ -18,9 +48,9 @@ import { plural } from '../formato';
  */
 
 const COLOR: Record<string, { fondo: string; borde: string; texto: string }> = {
-  CONFIRMADA: { fondo: '#fee2e2', borde: '#fca5a5', texto: '#991b1b' },
-  SOSPECHA: { fondo: '#fef3c7', borde: '#fcd34d', texto: '#92400e' },
-  NINGUNA: { fondo: '#f0fdf4', borde: '#bbf7d0', texto: '#166534' },
+  CONFIRMADA: { fondo: 'var(--crit-fondo)', borde: 'var(--crit-borde)', texto: 'var(--crit-texto)' },
+  SOSPECHA: { fondo: 'var(--warn-fondo)', borde: 'var(--warn-borde)', texto: 'var(--warn-texto)' },
+  NINGUNA: { fondo: 'var(--ok-fondo)', borde: 'var(--ok-borde)', texto: 'var(--ok-texto)' },
 };
 
 const MEDIO: Record<string, string> = {
@@ -123,7 +153,7 @@ export default function HistorialActivo({ assetId, compacto }: Props) {
               border: '1px solid var(--border)', borderRadius: 6, padding: '6px 10px', minWidth: 84,
             }}>
               <div className="muted" style={{ fontSize: 10 }}>{k.t}</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: k.alerta ? '#b91c1c' : undefined }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: k.alerta ? 'var(--crit-texto)' : undefined }}>
                 {k.v}
               </div>
             </div>
@@ -173,8 +203,8 @@ export default function HistorialActivo({ assetId, compacto }: Props) {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {d.compartida.vecinosDetalle?.slice(0, compacto ? 6 : 20).map((v: any) => (
               <span key={v.assetCode} style={{
-                background: v.ordenes ? '#fee2e2' : '#f1f5f9',
-                color: v.ordenes ? '#991b1b' : undefined,
+                background: v.ordenes ? 'var(--crit-fondo)' : 'var(--suave-fondo)',
+                color: v.ordenes ? 'var(--crit-texto)' : undefined,
                 borderRadius: 12, padding: '3px 10px', fontSize: 12,
               }}>
                 {v.assetCode}{v.ordenes ? ` · ${v.ordenes} falla(s)` : ''}
@@ -203,27 +233,61 @@ export default function HistorialActivo({ assetId, compacto }: Props) {
         </div>
       )}
 
-      {/* ------------------------------------------------ últimas órdenes */}
-      {!compacto && d.ordenes?.length > 0 && (
-        <div style={{ marginTop: 12 }}>
-          <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 4 }}>Últimas intervenciones</div>
-          <table style={{ fontSize: 12 }}>
-            <thead><tr><th>OM</th><th>Tipo</th><th>Cierre</th><th>Causa</th><th>Técnico</th></tr></thead>
-            <tbody>
-              {d.ordenes.slice(0, 8).map((o: any) => (
-                <tr key={o.id}>
-                  <td style={{ fontWeight: 600 }}>{o.code}</td>
-                  <td className="muted">{o.type}</td>
-                  <td className="muted">{fh(o.endedAt || o.executedDate)}</td>
-                  <td>
-                    {o.rootCause ? (CAUSA_ES[o.rootCause] || o.rootCause) : '—'}
-                    {o.isRecurrent && <div style={{ fontSize: 10, color: 'var(--crit-texto)' }}>reincidente</div>}
-                  </td>
-                  <td className="muted">{o.technician?.fullName || '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* ------------------------------------ LÍNEA DE VIDA — bloque 163 ----
+          Antes: una tabla de órdenes aparte y las incidencias en otro sitio.
+          Ahora todo lo que le pasó al equipo en UNA línea, lo más nuevo
+          arriba: cada incidencia, cada orden con su causa, quién la hizo y
+          SUS FOTOS. Es la pregunta de la auditoría —«¿qué se le hizo y cómo
+          se sabe?»— contestada en un solo sitio. */}
+      {!compacto && (d.ordenes?.length > 0 || d.incidencias?.length > 0) && (
+        <div className="linea-vida">
+          <div className="linea-vida-titulo">Línea de vida del equipo</div>
+          <ol>
+            {[
+              ...(d.ordenes || []).map((o: any) => ({ k: 'om-' + o.id, cuando: o.endedAt || o.executedDate || o.scheduledDate, tipo: 'om', o })),
+              ...(d.incidencias || []).map((i: any) => ({ k: 'inc-' + i.id, cuando: i.reportedAt, tipo: 'inc', i })),
+            ]
+              .sort((a, b) => String(b.cuando || '').localeCompare(String(a.cuando || '')))
+              .slice(0, 12)
+              .map((x: any) => (x.tipo === 'om' ? (
+                <li key={x.k} className={'lv lv-om ' + (x.o.status === 'CERRADA' ? 'lv-cerrada' : 'lv-abierta')}>
+                  <div className="lv-cab">
+                    <b>{x.o.code}</b> · {TIPO_OM[x.o.type] || x.o.type}
+                    <span className="lv-estado">{x.o.status === 'CERRADA' ? 'cerrada' : 'abierta'}</span>
+                    <span className="muted lv-fecha">{fh(x.cuando)}</span>
+                  </div>
+                  <div className="lv-cuerpo">
+                    {x.o.rootCause && <span>Causa: {CAUSA_ES[x.o.rootCause] || x.o.rootCause}. </span>}
+                    {x.o.isRecurrent && <span className="lv-reincide">Reincidente. </span>}
+                    {x.o.diagnosis && <span className="muted">{String(x.o.diagnosis).split('\n')[0].slice(0, 140)}</span>}
+                    <div className="muted lv-quien">{x.o.technician?.fullName || 'sin técnico asignado'}</div>
+                  </div>
+                  {x.o.evidences?.length > 0 && (
+                    <div className="lv-fotos">
+                      {x.o.evidences.map((ev: any) => <FotoEvidencia key={ev.id} ev={ev} />)}
+                      {(x.o._count?.evidences ?? 0) > x.o.evidences.length && (
+                        <span className="muted">+{x.o._count.evidences - x.o.evidences.length}</span>
+                      )}
+                    </div>
+                  )}
+                  {x.o.status === 'CERRADA' && !(x.o.evidences?.length > 0) && (
+                    <div className="lv-sin-foto">Sin fotos de evidencia.</div>
+                  )}
+                </li>
+              ) : (
+                <li key={x.k} className="lv lv-inc">
+                  <div className="lv-cab">
+                    <b>{x.i.code}</b> · Incidencia
+                    <span className="lv-estado">{String(x.i.status || '').toLowerCase().replace('_', ' ')}</span>
+                    <span className="muted lv-fecha">{fh(x.cuando)}</span>
+                  </div>
+                  <div className="lv-cuerpo">
+                    {x.i.title}
+                    {x.i.visionDownMin > 0 && <span className="muted"> · {x.i.visionDownMin} min sin visión</span>}
+                  </div>
+                </li>
+              )))}
+          </ol>
         </div>
       )}
     </div>

@@ -38,6 +38,12 @@ export class CloseWorkOrderDto {
   /** El técnico marca si el problema ya se había presentado antes. */
   @IsOptional() @IsBoolean() isRecurrent?: boolean;
 
+  /**
+   * Bloque 163: por qué se cierra SIN foto de evidencia. Sólo hace falta si la
+   * orden no tiene ninguna; queda en el diagnóstico y en la auditoría.
+   */
+  @IsOptional() @IsString() @MaxLength(300) sinFotoMotivo?: string;
+
   /** Hora REAL de cierre. Si no viene, se toma el momento actual. */
   @IsOptional() @IsISO8601() endedAt?: string;
 }

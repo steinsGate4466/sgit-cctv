@@ -191,7 +191,7 @@ export default function Campanas() {
 
           <div className="card" style={{ marginTop: 0 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-              <div style={{ fontSize: 34, fontWeight: 800, color: 'var(--navy)' }}>{abierta.pctAprobado}%</div>
+              <div style={{ fontSize: 34, fontWeight: 800, color: 'var(--tinta-marca)' }}>{abierta.pctAprobado}%</div>
               <div>
                 <b>aprobado</b>
                 <div className="muted" style={{ fontSize: 12.5 }}>
@@ -298,7 +298,7 @@ export default function Campanas() {
                       {a.ok ? <span className="chip ok">Correcto</span> : (
                         <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12.5, lineHeight: 1.6 }}>
                           {a.defectos.map((d: any, k: number) => (
-                            <li key={k} style={{ color: d.gravedad === 'BLOQUEANTE' ? '#8c1414' : 'inherit' }}>
+                            <li key={k} style={{ color: d.gravedad === 'BLOQUEANTE' ? 'var(--crit-texto)' : 'inherit' }}>
                               {d.gravedad === 'BLOQUEANTE' && <b>[impide usarlo] </b>}{d.texto}
                             </li>
                           ))}

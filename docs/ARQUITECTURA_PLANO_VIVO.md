@@ -3,6 +3,8 @@
 > Propuesta del 28/09/2026, tras la reunión con Producción y Mantenimiento.
 > Prototipo de referencia (datos de ejemplo): https://claude.ai/artifact/6bZk1Vtj4qoNUCo7bouRya
 
+> **Estado (28/09/2026, tarde):** bloques 151 y 152 HECHOS, 153 a medias (conos, cable vs 90 m y altura; faltan polígonos de zona). Diferencias con este documento: las posiciones se guardan en **píxeles de la imagen** (no en metros) para que corregir la escala no mueva nada; no se crearon permisos nuevos (mirar = `asset.read`/`activos.mirar`/`om.mirar`; gestionar = `location.manage`); `ZonaEnPlano` y rutas quedan para 153–154. Ver CLAUDE.md §80.
+
 ## 1. La idea en una línea
 
 SGIT pasa a tener **dos capas**: **Monitoreo** (un plano a escala real, entrada principal para técnico, producción y mantenimiento) y **Gestión** (los módulos que ya existen, agrupados por dominio). El plano **ve y manda, no hace** (§58): cada botón de la tarjeta lleva al módulo donde se trabaja.

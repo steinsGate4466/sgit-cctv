@@ -6,6 +6,10 @@ import { AuthProvider } from './auth/AuthContext';
 import './styles.css';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ProveedorDialogos } from './components/Dialogos';
+import { iniciarTema } from './tema';
+
+// Bloque 157: el tema se pinta ANTES que la aplicación (sin fogonazo blanco de noche).
+iniciarTema();
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>

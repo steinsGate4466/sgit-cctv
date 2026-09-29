@@ -30,12 +30,17 @@ export class DocumentsService {
     private readonly audit: AuditService,
   ) {}
 
-  async lista(filtros: { assetId?: string; locationId?: string; categoria?: string; q?: string }) {
+  async lista(filtros: {
+    assetId?: string; locationId?: string; categoria?: string; q?: string;
+    instalacionId?: string; workOrderId?: string;
+  }) {
     const q = filtros.q?.trim();
     return this.prisma.document.findMany({
       where: {
         ...(filtros.assetId ? { assetId: filtros.assetId } : {}),
         ...(filtros.locationId ? { locationId: filtros.locationId } : {}),
+        ...(filtros.instalacionId ? { instalacionId: filtros.instalacionId } : {}),
+        ...(filtros.workOrderId ? { workOrderId: filtros.workOrderId } : {}),
         ...(filtros.categoria ? { category: filtros.categoria as any } : {}),
         ...(q ? { title: { contains: q, mode: 'insensitive' as const } } : {}),
       },
@@ -44,6 +49,9 @@ export class DocumentsService {
         uploadedBy: true, fileId: true, assetId: true, locationId: true,
         asset: { select: { assetCode: true } },
         location: { select: { name: true } },
+        // Bloque 155: de qué trabajo es.
+        instalacion: { select: { codigo: true } },
+        workOrder: { select: { code: true } },
       },
       orderBy: { createdAt: 'desc' },
       take: 300,
@@ -52,7 +60,10 @@ export class DocumentsService {
 
   async subir(
     archivo: any,
-    dto: { title: string; category: string; assetId?: string; locationId?: string },
+    dto: {
+      title: string; category: string; assetId?: string; locationId?: string;
+      instalacionId?: string; workOrderId?: string;
+    },
     userId?: string | null,
     ip?: string | null,
   ) {
@@ -64,7 +75,10 @@ export class DocumentsService {
 
     // Al menos uno de los dos: un documento suelto que no cuelga de nada no
     // lo encuentra nadie, y acaba siendo basura que ocupa espacio.
-    if (!dto.assetId && !dto.locationId) {
+    /* Bloque 155: también puede colgar de una instalación o de una orden (el
+       expediente del trabajo). Esos dos llegan SIEMPRE de la ruta del trabajo,
+       nunca del formulario suelto: el controlador los pone. */
+    if (!dto.assetId && !dto.locationId && !dto.instalacionId && !dto.workOrderId) {
       throw new BadRequestException(
         'Indica a qué equipo o a qué ubicación pertenece. Un documento que no cuelga de nada no lo encuentra nadie.',
       );
@@ -81,6 +95,14 @@ export class DocumentsService {
       });
       if (!existe) throw new BadRequestException('Esa ubicación no existe.');
     }
+    if (dto.instalacionId) {
+      const existe = await this.prisma.instalacion.findUnique({ where: { id: dto.instalacionId }, select: { id: true } });
+      if (!existe) throw new NotFoundException('Esa instalación no existe.');
+    }
+    if (dto.workOrderId) {
+      const existe = await this.prisma.workOrder.findUnique({ where: { id: dto.workOrderId }, select: { id: true } });
+      if (!existe) throw new NotFoundException('Esa orden no existe.');
+    }
 
     /* VERSIONADO: si ya hay un documento con el mismo título en el mismo
        sitio, este es la versión siguiente. NO se sobrescribe el anterior.
@@ -91,6 +113,8 @@ export class DocumentsService {
         title: dto.title.trim(),
         assetId: dto.assetId || null,
         locationId: dto.locationId || null,
+        instalacionId: dto.instalacionId || null,
+        workOrderId: dto.workOrderId || null,
       },
       orderBy: { version: 'desc' },
       select: { version: true },
@@ -104,6 +128,8 @@ export class DocumentsService {
         version: (previo?.version ?? 0) + 1,
         assetId: dto.assetId || null,
         locationId: dto.locationId || null,
+        instalacionId: dto.instalacionId || null,
+        workOrderId: dto.workOrderId || null,
         uploadedBy: userId || null,
       },
       select: { id: true, title: true, version: true },

@@ -12,6 +12,7 @@ import AvisoDeIntervencion from '../components/AvisoDeIntervencion';
 import TrabajoDesdeElQR from '../components/TrabajoDesdeElQR';
 import ReportarAveria from '../components/ReportarAveria';
 import { fecha, hoyParaInput } from '../fechas';
+import { IconoEquipo, puntoDeEstado } from '../components/mapa/Marcador';
 
 /**
  * Ficha rápida del activo — destino del código QR pegado en el equipo.
@@ -151,6 +152,8 @@ export default function AssetScan() {
   return (
     <div className="scan-wrap">
       <div className="scan-head">
+        {/* Bloque 162: se ve QUÉ aparato es antes de leer nada. */}
+        <IconoEquipo e={{ icono: a.icono, tipo: a.type, estado: puntoDeEstado(estado) }} tam={44} />
         <div className="scan-code">{a.assetCode}</div>
         <span className={'badge ' + estado}>{STATUS_ES[estado] || estado}</span>
       </div>

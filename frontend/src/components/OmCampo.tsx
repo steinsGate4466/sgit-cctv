@@ -69,6 +69,10 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
   const [herramientas, setHerramientas] = useState<HerramientaMarcada[]>([]);
 
   // ---- firma (abrir y cerrar) ----
+  // Bloque 163: fotos de la orden y, si no hay, el porqué.
+  const [fotos, setFotos] = useState<number | null>(null);
+  const [subiendoFoto, setSubiendoFoto] = useState(false);
+  const [sinFotoMotivo, setSinFotoMotivo] = useState('');
   const [email, setEmail] = useState(user?.email || '');
   const [password, setPassword] = useState('');
 
@@ -101,8 +105,28 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
       api.get('/work-orders/' + wo.id + '/materials')
         .then((r) => setSobrante((r.data?.items || []).filter((m: any) => m.porDevolver > 0)))
         .catch(() => setSobrante([]));
+      // Bloque 163: sin foto no se cierra, salvo que se diga por qué.
+      api.get('/work-orders/' + wo.id + '/evidence')
+        .then((r) => setFotos(Array.isArray(r.data) ? r.data.length : 0))
+        .catch(() => setFotos(null));
     }
   }, [accion, wo?.id, user?.id]);
+
+  /** La foto se sube desde el mismo cierre: sin salir, sin buscar la orden otra vez. */
+  async function subirFoto(archivo: File | undefined) {
+    if (!archivo) return;
+    setSubiendoFoto(true);
+    setError('');
+    try {
+      const fd = new FormData();
+      fd.append('file', archivo);
+      fd.append('caption', 'Cierre de ' + wo.code);
+      await api.post('/work-orders/' + wo.id + '/evidence', fd);
+      setFotos((n) => (n ?? 0) + 1);
+    } catch (err: any) {
+      setError(mensajeError(err));
+    } finally { setSubiendoFoto(false); }
+  }
 
   /** Devuelve al almacén lo que sobró, desde la propia pantalla de cierre. */
   async function devolverSobrante() {
@@ -157,6 +181,13 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
           note: nota.trim() || undefined,
         });
       } else {
+        // Bloque 163: lo primero que se mira es la evidencia. Si falta, se dice
+        // ya, antes de hacer pasar al jefe por las preguntas de confirmación.
+        if (fotos === 0 && sinFotoMotivo.trim().length < 10) {
+          setError('Falta la foto de evidencia. Súbela aquí mismo o escribe por qué no se pudo tomar (mínimo 10 letras).');
+          setGuardando(false);
+          return;
+        }
         // Cerrar una orden que no llegó al 100 % es válido —a veces se decide
         // no continuar— pero tiene que ser una decisión consciente.
         if ((wo.progressPct ?? 0) < 100) {
@@ -207,6 +238,7 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
           actionCode: accionRealizada || undefined,
           rootCauseNote: causaNota.trim() || undefined,
           isRecurrent: reincidente,
+          sinFotoMotivo: fotos === 0 ? sinFotoMotivo.trim() || undefined : undefined,
         });
       }
       onHecho();
@@ -227,14 +259,14 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
         {/* ---------------------------------------------------------- ABRIR */}
         {accion === 'abrir' && acceso?.aplica && (
           <div style={{
-            background: acceso.aprobado && !acceso.faltan?.length ? '#e7f7ee' : '#fdecec',
-            border: '1px solid ' + (acceso.aprobado && !acceso.faltan?.length ? '#bfe9cf' : '#f6c9c9'),
+            background: acceso.aprobado && !acceso.faltan?.length ? 'var(--ok-fondo)' : 'var(--crit-fondo)',
+            border: '1px solid ' + (acceso.aprobado && !acceso.faltan?.length ? 'var(--ok-borde)' : 'var(--crit-borde)'),
             borderLeft: '4px solid ' + (acceso.aprobado && !acceso.faltan?.length ? 'var(--ok)' : 'var(--crit)'),
             borderRadius: 8, padding: '10px 12px', marginBottom: 12,
           }}>
             <div style={{
               fontWeight: 700, fontSize: 13,
-              color: acceso.aprobado && !acceso.faltan?.length ? '#166534' : '#991b1b',
+              color: acceso.aprobado && !acceso.faltan?.length ? 'var(--ok-texto)' : 'var(--crit-texto)',
             }}>
               {acceso.aprobado && !acceso.faltan?.length ? 'Permiso de acceso en regla' : 'ATENCIÓN — permiso de acceso'}
             </div>
@@ -434,6 +466,29 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
             {/* El Jefe ve qué declaró el técnico al salir. Si faltó una
                 herramienta y la orden quedó sin resolver, ahí está el motivo. */}
             <OmHerramientas workOrderId={wo.id} onChange={() => {}} soloLectura />
+
+            {/* BLOQUE 163 · LA EVIDENCIA. Se cierra con foto; si no la hay, se
+                sube aquí mismo o se escribe por qué no se pudo. */}
+            <div className={'evidencia-cierre ' + (fotos ? 'con-foto' : 'sin-foto')}>
+              {fotos === null ? (
+                <span className="muted">Comprobando las fotos de la orden…</span>
+              ) : fotos > 0 ? (
+                <span><b>{fotos} {fotos === 1 ? 'foto' : 'fotos'}</b> de evidencia en la orden.</span>
+              ) : (
+                <>
+                  <b>La orden no tiene fotos.</b>
+                  <label className="btn-mini evidencia-subir">
+                    {subiendoFoto ? 'Subiendo…' : 'Tomar o subir foto'}
+                    <input type="file" accept="image/*" capture="environment" hidden
+                      onChange={(e) => subirFoto(e.target.files?.[0])} disabled={subiendoFoto} />
+                  </label>
+                  <label>Si no se pudo tomar, ¿por qué?
+                    <input value={sinFotoMotivo} onChange={(e) => setSinFotoMotivo(e.target.value)}
+                      placeholder="Ej.: zona de grúa, no se permite celular" maxLength={300} />
+                  </label>
+                </>
+              )}
+            </div>
           </>
         )}
 
@@ -487,7 +542,7 @@ export function OmDesviacion({ d }: { d: any }) {
             : `${duracion(Math.abs(d.retrasoInicioMin))} antes`}
         </span></div>
       <div className="frow"><span className="k">Desviación</span>
-        <span className="v" style={{ color: excedio ? '#b91c1c' : undefined }}>
+        <span className="v" style={{ color: excedio ? 'var(--crit-texto)' : undefined }}>
           {d.desviacionMin === null ? '—'
             : `${excedio ? '+' : ''}${duracion(d.desviacionMin)}` +
               (d.desviacionPct !== null ? ` (${d.desviacionPct > 0 ? '+' : ''}${d.desviacionPct}%)` : '')}

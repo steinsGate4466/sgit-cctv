@@ -4,6 +4,8 @@ import { WorkOrderType, RequestChannel } from '../../../generated/prisma/client'
 
 export class CreateWorkOrderDto {
   @IsOptional() @IsString() code?: string;        // opcional: código manual
+  /** Bloque 136 · el trabajo concreto, del catálogo TRABAJO_OM. */
+  @IsOptional() @IsString() @MaxLength(40) subtipo?: string;
   @IsEnum(WorkOrderType) type: WorkOrderType;     // PREVENTIVO | CORRECTIVO | MEJORA | PREDICTIVO | MAPEO
 
   /**

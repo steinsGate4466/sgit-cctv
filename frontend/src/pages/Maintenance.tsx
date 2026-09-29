@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, AvisoAmbito } from '../components/FiltroAmbito';
 import ParadaYPlazo from '../components/ParadaYPlazo';
+import ExpedienteDelTrabajo from '../components/ExpedienteDelTrabajo';
 import Modal from '../components/Modal';
 import EquiposDeLaOm from '../components/EquiposDeLaOm';
 import { useAuth } from '../auth/AuthContext';
@@ -12,7 +13,7 @@ import HistorialActivo from '../components/HistorialActivo';
 import AsignarOm from '../components/AsignarOm';
 import DetallarOm from '../components/DetallarOm';
 import OmMateriales from '../components/OmMateriales';
-import { hoyParaInput } from '../fechas';
+import { diaVencido, hoyParaInput } from '../fechas';
 import { WO_TYPES, WO_TYPE_ES, WO_STATUS_ES, CANALES, CANAL_ES, CAUSA_ES } from './omCatalogos';
 import Icono from '../components/Iconos';
 import { useDialogos } from '../components/Dialogos';
@@ -72,8 +73,15 @@ function woBadge(s: string) {
 }
 
 function isOverdue(w: any) {
-  return w.scheduledDate && new Date(w.scheduledDate) < new Date() && w.status !== 'CERRADA' && w.status !== 'CANCELADA';
+  // Bloque 158: vence cuando su día pasó (misma regla que el servidor).
+  return diaVencido(w.scheduledDate) && w.status !== 'CERRADA' && w.status !== 'CANCELADA';
 }
+
+const ORIGEN_ES: Record<string, string> = {
+  AUTOMATICA: 'automáticas',
+  INCIDENCIA: 'de incidencias',
+  MANUAL: 'a mano',
+};
 
 export default function Maintenance() {
   const { avisar } = useDialogos();
@@ -97,7 +105,24 @@ export default function Maintenance() {
   const [fq, setFq] = useState(() => new URLSearchParams(window.location.search).get('om') || '');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
-  const [fType, setFType] = useState('');
+  const [fType, setFType] = useState(() => new URLSearchParams(window.location.search).get('filtroTipo') || '');
+  /* «VER EN ÓRDENES» DESDE EL REPARTO — bloque 164. Llegan las MISMAS órdenes
+     que contó Indicadores: creadas desde tal día, sin canceladas y, si se
+     pidió, de un origen (automáticas, de incidencias, a mano). Se ve arriba
+     como una franja que se puede quitar. */
+  const [totalServidor, setTotalServidor] = useState(0);
+  /* Bloque 165 · «Órdenes de la zona» desde el Mapa: la sala eléctrica, el
+     púlpito… (su ubicación y lo que cuelga). Lo filtra el servidor. */
+  const [zonaFiltro, setZonaFiltro] = useState(() => {
+    const u = new URLSearchParams(window.location.search);
+    const id = u.get('zona');
+    return id ? { id, nombre: u.get('zonaNombre') || 'zona del mapa' } : null;
+  });
+  const [delReparto, setDelReparto] = useState(() => {
+    const u = new URLSearchParams(window.location.search);
+    const creadasDesde = u.get('creadasDesde');
+    return creadasDesde ? { creadasDesde, origen: u.get('origen') || '', sinCanceladas: u.get('sinCanceladas') === '1' } : null;
+  });
   const [fStatus, setFStatus] = useState('');
   const [ambito, setAmbito] = useState<Ambito>(AMBITO_VACIO);
   const [parametros, setParametros] = useSearchParams();
@@ -109,6 +134,8 @@ export default function Maintenance() {
   const [detallando, setDetallando] = useState<any>(null);
   // Bloques 135/138: parada real y prórroga, dentro de la orden.
   const [plazoDe, setPlazoDe] = useState<any>(null);
+  // Bloque 155: el expediente (documentos) de la orden.
+  const [docsDe, setDocsDe] = useState<any>(null);
   const [soloSinDetallar, setSoloSinDetallar] = useState(false);
   /* «SÓLO LAS QUE HE PEDIDO YO» — bloque 94.
      ---------------------------------------------------------------------------
@@ -126,7 +153,7 @@ export default function Maintenance() {
      eso son dos cuadrillas al mismo poste. Es la decisión del bloque 72 con
      otra cara: se ORDENA por persona, no se esconde lo demás. */
   const soloMiasPorDefecto = can('wo.create') && !can('wo.update');
-  const [soloMias, setSoloMias] = useState(soloMiasPorDefecto);
+  const [soloMias, setSoloMias] = useState(soloMiasPorDefecto && !delReparto && !zonaFiltro);
   /* «MIS TRABAJOS» — bloque 148. El técnico entra al sistema por aquí
      (`/maintenance?asignadas=1`, ver `inicioPara` en modulos.ts): sus órdenes
      vivas, no las de toda la planta. Lo resuelve el SERVIDOR, como «las mías». */
@@ -139,9 +166,13 @@ export default function Maintenance() {
     code: '', type: 'PREVENTIVO', assetId: '', locationId: '', activity: '', responsible: '',
     materials: '', zone: '', incidentId: '', scheduledDate: hoyParaInput(),
     requestedBy: '', requestChannel: '', externalRef: '',
-    plannedStopAt: '', plannedDurationMin: '',
+    plannedStopAt: '', plannedDurationMin: '', subtipo: '',
   };
   const [form, setForm] = useState<any>(FORM_VACIO);
+  /* BLOQUE 136 · los «trabajos» de cada tipo de OM (catálogo TRABAJO_OM).
+     Elegir uno copia su actividad al formulario: el software rellena lo que
+     ya sabe, el técnico sólo pone lo que sólo él sabe. */
+  const [trabajos, setTrabajos] = useState<any[]>([]);
 
   // Registro de intervención (técnico): qué se intervino en el equipo.
   const [intId, setIntId] = useState<string | null>(null);
@@ -180,6 +211,12 @@ export default function Maintenance() {
        creerse el resto de la pantalla. */
     if (soloMias) params.set('mias', '1');
     if (aMiCargo) params.set('asignadas', '1');
+    if (zonaFiltro) params.set('zona', zonaFiltro.id);
+    if (delReparto) {
+      params.set('creadasDesde', delReparto.creadasDesde);
+      if (delReparto.origen) params.set('origen', delReparto.origen);
+      if (delReparto.sinCanceladas) params.set('sinCanceladas', '1');
+    }
     const [wo, ast, inc, loc] = await Promise.all([
       api.get('/work-orders?' + params.toString()).then((r) => r.data).catch(() => ({ data: [] })),
       api.get('/assets/options').then((r) => r.data).catch(() => []),
@@ -187,6 +224,7 @@ export default function Maintenance() {
       api.get('/locations').then((r) => r.data).catch(() => []),
     ]);
     setRows(wo.data || []);
+    setTotalServidor(typeof wo.total === 'number' ? wo.total : (wo.data || []).length);
     setAssets(ast || []);
     setIncidents(Array.isArray(inc) ? inc : inc.data || []);
     setLocations(loc || []);
@@ -203,7 +241,7 @@ export default function Maintenance() {
      resuelve el SERVIDOR, así que cambiarlo obliga a volver a preguntar. Los
      que se aplican al pulsar «Buscar» no van aquí. */
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [ambito, soloMias, aMiCargo]);
+  useEffect(() => { load(); }, [ambito, soloMias, aMiCargo, delReparto, zonaFiltro]);
 
   /* Se busca MIENTRAS SE ESCRIBE, con 350 ms de espera. El botón «Buscar»
      se queda: quien teclea un código completo lo pulsa por costumbre y
@@ -227,6 +265,14 @@ export default function Maintenance() {
       .catch(() => setNombreCausa({}));
   }, []);
 
+  useEffect(() => {
+    let vivo = true;
+    api.get('/catalogos/TRABAJO_OM')
+      .then((r) => { if (vivo) setTrabajos(r.data?.items || []); })
+      .catch(() => { if (vivo) setTrabajos([]); });
+    return () => { vivo = false; };
+  }, []);
+
   // ALTA PRELLENADA DESDE OTRA PANTALLA (3C).
   // Cableado manda aquí un tramo fuera de norma con la actividad ya redactada.
   // Se abre el formulario con todo puesto y el usuario solo revisa y guarda:
@@ -240,7 +286,13 @@ export default function Maintenance() {
       type: parametros.get('tipo') || 'MEJORA',
       assetId: parametros.get('activo') || '',
       activity: parametros.get('actividad') || '',
+      // Bloque 159: desde el mapa, la OM sale ligada a la incidencia abierta.
+      incidentId: parametros.get('incidencia') || '',
     });
+    /* Bloque 151: faltaba ABRIRLO. Se preparaba el formulario y no se
+       enseñaba: el botón «Generar OM» de Cableado —y ahora el del mapa—
+       llevaba a la lista sin nada abierto. */
+    if (can('wo.create')) setShowForm(true);
     setParametros({}, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parametros]);
@@ -254,6 +306,7 @@ export default function Maintenance() {
     setSaving(true);
     try {
       const body: any = { type: form.type, activity: form.activity };
+      if (form.subtipo) body.subtipo = form.subtipo;
       // Activo O ubicación: una orden de mapeo cubre una zona completa.
       if (form.assetId) body.assetId = form.assetId;
       if (form.locationId) body.locationId = form.locationId;
@@ -400,6 +453,24 @@ export default function Maintenance() {
 
       <AvisoAmbito valor={ambito} total={rows.length} />
 
+      {zonaFiltro && (
+        <div className="franja-reparto">
+          <span>{`Zona: ${zonaFiltro.nombre}`} — <b>{totalServidor}</b></span>
+          <button className="btn-mini" title="Quitar este filtro" aria-label="Quitar este filtro" onClick={() => setZonaFiltro(null)}>✕</button>
+        </div>
+      )}
+      {delReparto && (
+        <div className="franja-reparto">
+          <span>
+            {`Reparto desde ${fecha(delReparto.creadasDesde)}`}
+            {delReparto.sinCanceladas ? ', sin canceladas' : ''}
+            {delReparto.origen ? ` · ${ORIGEN_ES[delReparto.origen] ?? delReparto.origen}` : ''}
+            {fType ? ` · ${fType.toLowerCase()}` : ''} — <b>{totalServidor}</b>.
+          </span>
+          <button className="btn-mini" title="Quitar este filtro" aria-label="Quitar este filtro" onClick={() => { setDelReparto(null); setFType(''); }}>✕</button>
+        </div>
+      )}
+
       <div className="filters">
         <FiltroAmbito valor={ambito} onChange={setAmbito} />
         <div style={{ flex: 1, minWidth: 180 }}><label>Buscar<input placeholder="código OM, incidencia, actividad, zona…" value={fq} onChange={(e) => setFq(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} /></label></div>
@@ -458,6 +529,8 @@ export default function Maintenance() {
                   {w.code}
                   <div className="muted" style={{ fontSize: 11, fontWeight: 400 }}>
                     {WO_TYPE_ES[w.type] || w.type}
+                    {/* Bloque 136: el trabajo concreto, si se eligió. */}
+                    {w.subtipo && <> · {trabajos.find((t) => t.code === w.subtipo)?.name || w.subtipo}</>}
                   </div>
                   {w.incident && <div className="muted" style={{ fontSize: 10 }}>◦ {w.incident.code}</div>}
                 </td>
@@ -530,7 +603,7 @@ export default function Maintenance() {
                     <div style={{ fontSize: 10, color: 'var(--warn-texto)', fontWeight: 700 }}>SIN DETALLAR</div>
                   )}
                   {w.scopeChanged && (
-                    <div style={{ fontSize: 10, color: 'var(--steel)' }} title={w.scopeNote || ''}>
+                    <div style={{ fontSize: 10, color: 'var(--tinta-marca)' }} title={w.scopeNote || ''}>
                       alcance cambiado
                     </div>
                   )}
@@ -619,6 +692,7 @@ export default function Maintenance() {
                       {/* Bloques 135/138: la parada real y la prórroga viven
                           dentro de la orden, no en un módulo aparte. */}
                       <button className="btn-mini" onClick={() => setPlazoDe(w)}>Parada y plazo</button>
+                      <button className="btn-mini" onClick={() => setDocsDe(w)}>Documentos</button>
                     </div>
                   </details>
                   {/* «ELIMINAR» YA NO VIVE EN LA FILA — bloque 91.
@@ -649,6 +723,13 @@ export default function Maintenance() {
           un bloque que nadie llama compila, pasa el lint y no existe.
           La purga de órdenes vive en «Limpieza de datos». */}
 
+      {docsDe && (
+        <Modal title={'Documentos · ' + docsDe.code} onClose={() => setDocsDe(null)}>
+          <ExpedienteDelTrabajo base={`/work-orders/${docsDe.id}`}
+            puedeSubir={can('wo.update') && docsDe.status !== 'CANCELADA'} />
+        </Modal>
+      )}
+
       {plazoDe && (
         <ParadaYPlazo wo={plazoDe} onClose={() => setPlazoDe(null)} onHecho={load} />
       )}
@@ -660,10 +741,28 @@ export default function Maintenance() {
               <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="N.º generado por SAP (si lo dejas vacío se asigna uno provisional)" />
             </label>
             <label>Tipo
-              <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+              <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value, subtipo: '' })}>
               {TYPES.map((t) => <option key={t} value={t}>{WO_TYPE_ES[t] || t}</option>)}
             </select>
             </label>
+            {/* Bloque 136 · qué se va a hacer. Sólo sale si hay trabajos
+                declarados para ese tipo; al elegir uno, la actividad se llena. */}
+            {trabajos.some((t) => !t.group || t.group === form.type) && (
+              <label>¿Qué trabajo?
+                <select value={form.subtipo} onChange={(e) => {
+                  const t = trabajos.find((x) => x.code === e.target.value);
+                  setForm({
+                    ...form,
+                    subtipo: e.target.value,
+                    activity: t ? (t.notes || t.name) : form.activity,
+                  });
+                }}>
+                  <option value="">— otro / sin catálogo —</option>
+                  {trabajos.filter((t) => !t.group || t.group === form.type)
+                    .map((t) => <option key={t.code} value={t.code}>{t.name}</option>)}
+                </select>
+              </label>
+            )}
             {form.type === 'MAPEO' ? (
               <>
                 <label>Zona a levantar (obligatorio)
@@ -673,8 +772,7 @@ export default function Maintenance() {
                 </select>
                 </label>
                 <div className="muted" style={{ fontSize: 11, marginTop: -6, marginBottom: 10 }}>
-                  Una orden de mapeo cubre una zona: el técnico levanta todos los
-                  equipos que encuentre allí.
+                  El mapeo cubre una zona: se levantan todos sus equipos.
                 </div>
               </>
             ) : (
@@ -686,7 +784,7 @@ export default function Maintenance() {
                   onChange={(id) => setForm({ ...form, assetId: id })}
                   vacio="— selecciona —"
                 />
-                <label>O bien una zona completa (si afecta a varios equipos)
+                <label>O una zona entera (varios equipos)
                   <select value={form.locationId} onChange={(e) => setForm({ ...form, locationId: e.target.value })}>
                   <option value="">— ninguna —</option>
                   {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}

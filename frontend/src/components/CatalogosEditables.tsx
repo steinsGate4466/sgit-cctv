@@ -23,7 +23,15 @@ const TIPOS = [
   { k: 'SINTOMA', t: 'Síntomas', d: 'Qué vio el técnico ANTES de intervenir. Sin imagen, imagen con rayas, se congela…' },
   { k: 'ACCION', t: 'Acciones', d: 'Qué hizo. Limpiar carcasa, recrimpar, cambiar fuente…' },
   { k: 'MOTIVO_AVANCE', t: 'Motivos de no avanzar', d: 'Por qué se quedó a medias. No llegó el repuesto, se acortó la parada…' },
+  /* Bloque 136 · los SUBTIPOS de OM. El grupo es el tipo de orden y la nota es
+     la actividad que se copia sola al formulario al elegir el trabajo. */
+  { k: 'TRABAJO_OM', t: 'Trabajos de OM', d: 'Qué se hace de verdad en cada tipo de orden. Al elegirlo, la orden se llena sola con la actividad.' },
 ];
+
+/** Bloque 136 · los tipos de OM, para el grupo de un «trabajo». */
+const TIPOS_OM: Record<string, string> = {
+  PREVENTIVO: 'Preventivo', CORRECTIVO: 'Correctivo', MEJORA: 'Mejora', PREDICTIVO: 'Predictivo', MAPEO: 'Mapeo',
+};
 
 const VACIO = { id: '', code: '', name: '', group: '', sequence: 0, notes: '' };
 
@@ -132,7 +140,7 @@ export default function CatalogosEditables() {
         <div className="loading">Cargando…</div>
       ) : !datos?.items?.length ? (
         <div className="card" style={{ padding: 36, textAlign: 'center', marginTop: 12 }}>
-          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--navy)' }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--tinta-marca)' }}>
             Todavía no hay ninguna entrada en «{info?.t}»
           </div>
           <div className="muted" style={{ fontSize: 13, marginTop: 8, lineHeight: 1.6 }}>
@@ -191,10 +199,19 @@ export default function CatalogosEditables() {
             placeholder="ej. Conector RJ45 mal ponchado" required />
           </label>
 
+          {tipo === 'TRABAJO_OM' ? (
+            <label>Tipo de orden al que pertenece
+              <select required value={form.group} onChange={(e) => setForm({ ...form, group: e.target.value })}>
+                <option value="">— elige —</option>
+                {Object.entries(TIPOS_OM).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </label>
+          ) : (
           <label>Familia — para agrupar la lista
             <input value={form.group} onChange={(e) => setForm({ ...form, group: e.target.value })}
             placeholder="ej. Cableado" list="familias-catalogo" />
           </label>
+          )}
           <datalist id="familias-catalogo">
             {[...new Set((datos?.items || []).map((i: any) => i.group).filter(Boolean))].map((g: any) => (
               <option key={g} value={g} />
@@ -209,9 +226,16 @@ export default function CatalogosEditables() {
             onChange={(e) => setForm({ ...form, sequence: e.target.value })} />
           </label>
 
+          {tipo === 'TRABAJO_OM' ? (
+            <label>Actividad que se copia a la orden
+              <textarea rows={3} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                placeholder="ej. Limpiar el domo, revisar el sello y comprobar la imagen en el grabador" />
+            </label>
+          ) : (
           <label>Nota interna (opcional)
             <input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
           </label>
+          )}
 
           {form.id && (
             <div className="muted" style={{ fontSize: 11, marginTop: 8 }}>

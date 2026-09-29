@@ -164,7 +164,7 @@ export default function TrainBoard() {
       <div>
         <h1 className="page-title">Estado por Tren</h1>
         <div className="card" style={{ padding: 40, textAlign: 'center' }}>
-          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--navy)' }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--tinta-marca)' }}>
             No hay trenes en el árbol de ubicaciones
           </div>
           <div className="muted" style={{ fontSize: 13, marginTop: 8, lineHeight: 1.6 }}>

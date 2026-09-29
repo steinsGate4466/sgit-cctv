@@ -10,6 +10,7 @@ import {
 } from './infra-agregados';
 import { zonasDelTren, titularDelTren, ActivoDeZona } from './zonas-del-tren';
 import { saludDeDatos, ActivoParaSalud } from './salud-de-datos';
+import { omVencida } from '../../common/dia-de-planta';
 
 /**
  * TABLERO DE INFRAESTRUCTURA POR TREN.
@@ -216,7 +217,7 @@ export class InfraService {
         ?? null;
       const b = bolsa(tren);
       b.omAbiertas++;
-      if (o.scheduledDate && new Date(o.scheduledDate) < now) b.omVencidas++;
+      if (omVencida(o.scheduledDate, now)) b.omVencidas++;
     }
     for (const i of incidencias) {
       const b = bolsa(i.assetId ? trenDeActivo.get(i.assetId) ?? null : null);
@@ -422,7 +423,7 @@ export class InfraService {
           sinFoto: gabinetes.filter((g) => !g.photoFileId).length,
         },
         omAbiertas: oms.length,
-        omVencidas: oms.filter((o) => o.scheduledDate && new Date(o.scheduledDate) < now).length,
+        omVencidas: oms.filter((o) => omVencida(o.scheduledDate, now)).length,
         incidenciasAbiertas: incidencias.length,
         incidenciasCriticas: incidencias.filter((i) => ['ALTA', 'CRITICA'].includes(i.priority as any)).length,
         accesosPendientes: accesos.length,
@@ -451,7 +452,7 @@ export class InfraService {
           ubicacion: a.location?.name || null,
         })),
       ordenes: oms.map((o) => ({
-        ...o, vencida: !!(o.scheduledDate && new Date(o.scheduledDate) < now),
+        ...o, vencida: omVencida(o.scheduledDate, now),
       })),
       incidencias,
       accesos,

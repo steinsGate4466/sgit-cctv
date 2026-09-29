@@ -57,7 +57,7 @@ async function paso(nombre: string, fn: () => Promise<{ count: number }>) {
 
 async function main() {
   console.log('Borrando SÓLO los datos de demo (prefijo DEMO-)…');
-  console.log('  No se tocan usuarios, roles, ubicaciones ni auditoría.');
+  console.log('  No se tocan usuarios, roles, ubicaciones reales ni auditoría.');
   console.log('');
 
   const p = prisma as any;
@@ -110,6 +110,14 @@ async function main() {
   await paso('mediciones eléctricas', () => p.medicionElectrica.deleteMany({ where: { tableroId: { in: tabIds } } }));
   await paso('tableros eléctricos', () => p.tableroElectrico.deleteMany({ where: { codigo: { startsWith: P } } }));
 
+  // ------------------------------------------------- 4b. el plano de demo (151)
+  /* Primero sus posiciones (las de los equipos de demo en CUALQUIER plano) y
+     después los planos cuyo nombre empieza por DEMO. Un plano real no se toca. */
+  await paso('posiciones en plano', () => p.posicionEnPlano.deleteMany({
+    where: { OR: [{ assetId: { in: ids } }, { plano: { nombre: { startsWith: 'DEMO' } } }] },
+  }));
+  await paso('planos de demo', () => p.plano.deleteMany({ where: { nombre: { startsWith: 'DEMO' } } }));
+
   // ----------------------------------------------------------- 5. los activos
   /* Las fichas por tipo —assetCamera, assetSwitch, assetNvr…— se van solas:
      están declaradas con `onDelete: Cascade` sobre el activo. */
@@ -119,10 +127,14 @@ async function main() {
   await paso('gabinetes', () => p.cabinet.deleteMany({ where: { code: { startsWith: P } } }));
   await paso('subredes', () => p.subred.deleteMany({ where: { nombre: { startsWith: 'DEMO' } } }));
   await paso('repuestos', () => p.sparePart.deleteMany({ where: { sapCode: { startsWith: P } } }));
+  /* Bloque 165: las zonas de demo son ubicaciones con código DEMO- (las crea
+     `demo:plano`). Sólo esas: el árbol real no se toca. Sus zonas dibujadas se
+     van con ellas (onDelete: Cascade). */
+  await paso('ubicaciones de demo (zonas)', () => p.location.deleteMany({ where: { code: { startsWith: P } } }));
 
   console.log('');
   console.log('  Listo. La base queda como estaba antes de cargar la demo.');
-  console.log('  Usuarios, roles, ubicaciones, catálogos y auditoría: intactos.');
+  console.log('  Usuarios, roles, ubicaciones reales, catálogos y auditoría: intactos.');
   console.log('');
 }
 

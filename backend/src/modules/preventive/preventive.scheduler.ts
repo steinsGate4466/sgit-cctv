@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { PrismaService } from '../../prisma/prisma.service';
 import { CANDADO, conCandado } from '../../common/candado-de-instancia';
 import { PreventiveService } from './preventive.service';
+import { autogenApagadaPorEntorno } from './autogen-entorno';
 
 /**
  * Tarea programada de generación automática de OM **PREVENTIVAS**.
@@ -16,7 +17,7 @@ import { PreventiveService } from './preventive.service';
  * un temporizador propio evita tocar package.json y mantiene el despliegue estable.
  *
  * Configuración por variables de entorno:
- *   PREVENTIVE_AUTOGEN=off        -> desactiva la generación automática (por defecto: activa)
+ *   PREVENTIVE_AUTOGEN=off|false|0|no -> desactiva la generación automática (por defecto: activa)
  *                                    (además, Mantenimiento la apaga y enciende desde Preventivo — bloque 143)
  *   PREVENTIVE_AUTOGEN_HOUR=6     -> hora local de planta a partir de la cual corre (0-23)
  *   PREVENTIVE_LOOKAHEAD_DAYS=0   -> también genera las que vencen en N días
@@ -37,8 +38,8 @@ export class PreventiveScheduler implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   onModuleInit() {
-    if ((process.env.PREVENTIVE_AUTOGEN || 'on').toLowerCase() === 'off') {
-      this.logger.log('Generación automática de preventivos DESACTIVADA (PREVENTIVE_AUTOGEN=off).');
+    if (autogenApagadaPorEntorno()) {
+      this.logger.log(`Generación automática de preventivos DESACTIVADA (PREVENTIVE_AUTOGEN=${process.env.PREVENTIVE_AUTOGEN}).`);
       return;
     }
     // No bloquear el arranque de la app: se agenda en segundo plano.

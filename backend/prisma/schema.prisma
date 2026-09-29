@@ -153,6 +153,9 @@ model User {
   /// Órdenes que esta persona PIDIÓ (bloque 94). Lado inverso obligatorio.
   woSolicitadas   WorkOrder[]     @relation("WoCreatedBy")
   prorrogasPedidas    ProrrogaDeOm[] @relation("ProrrogaPedidaPor")
+  planosCreados       Plano[]        @relation("PlanoCreadoPor")
+  planosPublicados    Plano[]        @relation("PlanoPublicadoPor")
+  posicionesColocadas PosicionEnPlano[] @relation("PosicionColocadaPor")
   prorrogasResueltas  ProrrogaDeOm[] @relation("ProrrogaResueltaPor")
   /// Metas de mantenimiento que esta persona fijó por última vez (bloque 94).
   metasFijadas    MetaMantenimiento[] @relation("MetaFijadaPor")
@@ -433,6 +436,10 @@ model Location {
   documents        Document[]
   cabinets         Cabinet[]
   workOrders       WorkOrder[]
+
+  /// Bloque 151 · los planos de esta ubicación (uno por versión).
+  planos           Plano[]
+  zonasEnPlano     ZonaEnPlano[] @relation("ZonaEnPlano")
 
   @@index([parentId])
   // Bloque 43. El índice existe en el SQL de la migración; declararlo aquí es
@@ -939,6 +946,8 @@ model Asset {
   // cae en medio del historial, así que en una base nueva se ejecutaría antes
   // de que el índice exista y el despliegue se caería. Pasó el 17/08 con
   // `locations_siglaTren_idx`.
+  /// Bloque 151 · dónde está dibujado en cada plano.
+  posicionesEnPlano PosicionEnPlano[] @relation("PosicionEnPlano")
   observacion     AssetObservation?
   /// BLOQUE 106 · los aparatos que han estado instalados en ESTE SITIO.
   /// `Asset` es la UBICACIÓN FUNCIONAL —«la cámara del foso del Tren 2»—;
@@ -1452,7 +1461,13 @@ model WorkOrder {
   /// órdenes se cumplieron en su fecha de verdad y cuántas gracias a una
   /// prórroga. Sin esto, prorrogar sería una forma de borrar un retraso.
   fechaOriginal    DateTime?
+  /// SUBTIPO — bloque 136. Tipo = Preventivo / Correctivo / Mejora (ISO 14224);
+  /// el subtipo es el trabajo concreto («Limpieza de domo», «Cambio de fuente»),
+  /// del catálogo TRABAJO_OM. Es el que arma y autocompleta el formulario.
+  subtipo          String?
   prorrogas        ProrrogaDeOm[]
+  /// Bloque 155 · el expediente de la orden.
+  documentos       Document[]       @relation("DocumentoDeOm")
   /// QUIÉN PIDIÓ LA ORDEN — bloque 94.
   /// -------------------------------------------------------------------------
   /// NO es `openedById` ni `requestedBy`, y confundirlos borra un dato:
@@ -1862,11 +1877,20 @@ model Document {
   asset      Asset?           @relation(fields: [assetId], references: [id])
   locationId String?
   location   Location?        @relation(fields: [locationId], references: [id])
+  /// EL EXPEDIENTE DEL TRABAJO — bloque 155. Planos, actas, protocolos y
+  /// fotos de UNA instalación o de UNA orden, guardados donde se trabaja.
+  /// Antes vivían en el WhatsApp de quien los hizo.
+  instalacionId String?
+  instalacion   Instalacion?  @relation(fields: [instalacionId], references: [id], onDelete: SetNull)
+  workOrderId   String?
+  workOrder     WorkOrder?    @relation("DocumentoDeOm", fields: [workOrderId], references: [id], onDelete: SetNull)
   uploadedBy String?
   createdAt  DateTime         @default(now())
 
   @@index([assetId])
   @@index([locationId])
+  @@index([instalacionId])
+  @@index([workOrderId])
   @@map("documents")
 }
 
@@ -1957,6 +1981,9 @@ enum CatalogKind {
   SINTOMA        // qué vio el técnico antes de intervenir
   ACCION         // qué hizo
   MOTIVO_AVANCE  // por qué no se avanzó más de lo declarado
+  /// Bloque 136 · el TRABAJO concreto de una orden (el subtipo). `group` dice
+  /// de qué tipo de OM es y `notes` la actividad que se copia al formulario.
+  TRABAJO_OM
 }
 
 /// Una entrada de catálogo. Cuatro listas distintas en una sola tabla porque
@@ -2957,6 +2984,12 @@ model Instalacion {
   gabineteCercano String?
   metrosCable     Float?
   rutaCable       String?
+  /// Bloque 137 · CÓMO VA EL CABLE. Lo mide el técnico en el sitio: es lo que
+  /// convierte «por dónde iría» en una lista de materiales. Texto de una lista
+  /// cerrada (TUBERIA, BANDEJA, CANALETA, AEREO, ENTERRADO, EXISTENTE).
+  canalizacion    String?
+  metrosTuberia   Float?
+  cajasDePaso     Int?
   necesitaPoe     Boolean?
   switchDestinoId String?
   nvrDestinoId    String?
@@ -3018,6 +3051,8 @@ model Instalacion {
   editadoEn       DateTime  @default(now()) @updatedAt
 
   fotos           FotoInstalacion[]
+  /// Bloque 155 · el expediente: planos, actas, protocolos.
+  documentos      Document[]
 
   @@index([estado])
   @@index([tipoSitio])
@@ -3949,4 +3984,104 @@ model OmEquipo {
   @@index([assetId, createdAt])
   @@index([createdAt])
   @@map("om_equipos")
+}
+
+// =============================================================================
+//  PLANO VIVO — bloque 151
+// =============================================================================
+//  El plano real de un área (exportado de AutoCAD a PNG o SVG) con cada equipo
+//  dibujado en su sitio. Es la pantalla de monitoreo que pidió Producción.
+//
+//  LAS POSICIONES SE GUARDAN EN PÍXELES DE LA IMAGEN, no en metros, a
+//  propósito: si la escala se calibra mal y se corrige, ningún equipo se
+//  mueve. Los metros salen de `metrosPorPx` al leer.
+//
+//  Un plano nuevo de la misma ubicación es una VERSIÓN nueva; la anterior
+//  queda ARCHIVADA, nunca se borra. Las posiciones se copian a la versión
+//  nueva para no tener que colocar todo otra vez.
+// =============================================================================
+enum EstadoPlano {
+  BORRADOR
+  PUBLICADO
+  ARCHIVADO
+}
+
+model Plano {
+  id             String      @id @default(uuid())
+  nombre         String
+  locationId     String
+  location       Location    @relation(fields: [locationId], references: [id])
+  version        Int         @default(1)
+  estado         EstadoPlano @default(BORRADOR)
+  archivoFileId  String
+  archivoMime    String
+  anchoPx        Int
+  altoPx         Int
+  /// Sale de la calibración: dos puntos con distancia real conocida.
+  /// NULL = sin calibrar, y un plano sin calibrar no se publica.
+  metrosPorPx    Float?
+  /// Hacia dónde queda el norte en la imagen, en grados (0 = arriba).
+  rotacionNorte  Float       @default(0)
+  notas          String?
+  creadoPorId    String?
+  creadoPor      User?       @relation("PlanoCreadoPor", fields: [creadoPorId], references: [id], onDelete: SetNull)
+  publicadoPorId String?
+  publicadoPor   User?       @relation("PlanoPublicadoPor", fields: [publicadoPorId], references: [id], onDelete: SetNull)
+  publicadoEn    DateTime?
+  creadoEn       DateTime    @default(now())
+  actualizadoEn  DateTime    @updatedAt
+  posiciones     PosicionEnPlano[]
+  zonas          ZonaEnPlano[]
+
+  @@unique([locationId, version])
+  @@index([estado])
+  @@map("planos")
+}
+
+/// ZONAS DEL PLANO — bloque 165.
+/// «¿Cómo hago para ver por zonas —sala eléctrica y así— en todos lados, y
+/// para el Tren 2?» Una zona es un POLÍGONO dibujado sobre el plano y atado a
+/// una UBICACIÓN del árbol (la sala eléctrica, el púlpito…). Con eso:
+///   · el mapa pinta la zona del color de su peor equipo y filtra por ella;
+///   · si esa ubicación tiene SU PROPIO plano publicado, la zona abre ese plano
+///     (planta → tren → sala), que es la vista de planta por niveles;
+///   · Órdenes se puede filtrar por la zona (su ubicación y lo que cuelga).
+/// Qué equipos son «de la zona» lo decide el DIBUJO (el punto cae dentro del
+/// polígono). Si el punto cae dentro pero la ficha del equipo dice otra
+/// ubicación, se avisa en vez de corregirlo a escondidas.
+model ZonaEnPlano {
+  id            String   @id @default(uuid())
+  planoId       String
+  plano         Plano    @relation(fields: [planoId], references: [id], onDelete: Cascade)
+  locationId    String
+  location      Location @relation("ZonaEnPlano", fields: [locationId], references: [id], onDelete: Cascade)
+  /// Polígono en píxeles de la imagen: [[x, y], …], de 3 a 60 vértices.
+  puntos        Json
+  dibujadoPorId String?
+  dibujadoEn    DateTime @default(now())
+
+  @@unique([planoId, locationId])
+  @@index([locationId])
+  @@map("zonas_en_plano")
+}
+
+model PosicionEnPlano {
+  planoId       String
+  plano         Plano    @relation(fields: [planoId], references: [id], onDelete: Cascade)
+  assetId       String
+  asset         Asset    @relation("PosicionEnPlano", fields: [assetId], references: [id], onDelete: Cascade)
+  xPx           Float
+  yPx           Float
+  alturaM       Float?
+  /// Hacia dónde mira (cámaras), en grados: 0 = derecha de la imagen, horario.
+  rumbo         Float?
+  anguloVision  Float?
+  alcanceM      Float?
+  colocadoPorId String?
+  colocadoPor   User?    @relation("PosicionColocadaPor", fields: [colocadoPorId], references: [id], onDelete: SetNull)
+  colocadoEn    DateTime @default(now())
+
+  @@id([planoId, assetId])
+  @@index([assetId])
+  @@map("posiciones_en_plano")
 }
