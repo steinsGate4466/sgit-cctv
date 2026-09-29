@@ -71,6 +71,19 @@ function luz(hex) {
   const generadas = (real.match(/:where\(:root\[data-tema="oscuro"\]\)/g) || []).length;
   if (generadas < 300) fallos.push(`Plugin: sólo generó ${generadas} reglas de noche (esperadas 300+).`);
 
+  /* 2b. Bloque 167 · ninguna animación de ENTRADA de pantalla deja un
+     `transform` aplicado (`both`/`forwards`): eso hace de la pantalla el marco
+     de todo lo `position: fixed` que lleva dentro y las ventanas salen
+     descentradas. Probado reintroduciendo `translateY` con `both`. */
+  {
+    const hoja = fs.readFileSync(path.join(RAIZ, 'src', 'styles.css'), 'utf8');
+    const conTransform = new Set();
+    for (const m of hoja.matchAll(/@keyframes\s+([\w-]+)\s*\{([\s\S]*?\})\s*\}/g)) if (/transform\s*:/.test(m[2])) conTransform.add(m[1]);
+    for (const m of hoja.matchAll(/(\.content[^{]*|\.page[^{]*|\.app[^{]*)\{[^}]*animation\s*:\s*([\w-]+)[^;}]*\b(both|forwards)\b/g)) {
+      if (conTransform.has(m[2])) fallos.push(`«${m[1].trim()}» anima con transform y lo deja aplicado (${m[3]}): las ventanas saldrían descentradas. Usa opacidad y \`backwards\`.`);
+    }
+  }
+
   // 3. Cada token de color tiene pareja de noche.
   const raiz = postcss.parse(css);
   // Vale la ÚLTIMA definición de cada token (`--e1` empezó siendo una sombra y

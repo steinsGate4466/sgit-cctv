@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { api } from '../api/client';
 import Icono from './Iconos';
 import BotonConMotivo from './BotonConMotivo';
@@ -78,7 +79,7 @@ export default function DeclararAcceso({ activo, alCerrar, alGuardar }: {
     } finally { setGuardando(false); }
   }
 
-  return (
+  return createPortal(
     <div className="modal-overlay" onClick={alCerrar}>
       <div className="modal declarar" onClick={(e) => e.stopPropagation()}>
         <h3>
@@ -133,5 +134,6 @@ export default function DeclararAcceso({ activo, alCerrar, alGuardar }: {
         </small>
       </div>
     </div>
+    , document.body,
   );
 }

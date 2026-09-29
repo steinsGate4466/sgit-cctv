@@ -6538,3 +6538,15 @@ en el PC carga la base y el MinIO LOCALES, no los de Railway.
 - Si Railway no tiene almacén (MINIO_*), la salida lo dice: «No se pudo guardar la
   imagen en el almacén».
 
+## §89 · BLOQUE 167 — LAS VENTANAS SALÍAN DESENCAJADAS (29/09/2026)
+
+«Nueva ubicación», «Nuevo gabinete», «Registrar activo»: descentradas, cortadas
+arriba o corridas según el scroll. Causa: la animación de entrada de pantalla
+(`.content > *`, bloque 157) animaba `transform` con fill `both`; eso convierte
+la pantalla en el marco de todo `position: fixed` que lleva dentro.
+- Animación sólo de opacidad y `backwards` (no deja nada aplicado al terminar).
+- `Modal` y `DeclararAcceso` se pintan en `<body>` con `createPortal`: ningún
+  estilo de la pantalla de detrás las puede volver a descentrar.
+- `verificar:tema` falla si una animación de `.content/.page/.app` deja un
+  `transform` aplicado (probado reintroduciendo el fallo).
+

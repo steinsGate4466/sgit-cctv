@@ -100,6 +100,7 @@ Dentro de cada módulo, lo que antes era una entrada del menú pasa a ser una **
 | **164** ✅ | El reparto correctivo/preventivo sale de las OM registradas: sin canceladas, con su origen (automáticas del programador / de incidencias / a mano) y enlace a la lista que cuadra; `PREVENTIVE_AUTOGEN=false` ya apaga el programador |
 | **165** ✅ | Zonas del plano (sala eléctrica, púlpito, línea…): polígonos por ubicación, color del peor equipo, filtro por zona, plano propio de la sala (planta → tren → sala), vista de planta, «Órdenes de la zona»; demo del Tren 2 y su sala eléctrica |
 | **166** ✅ | La demostración (mapa, zonas, Tren 2, sala eléctrica, OM, red) se carga y se borra desde la app (Limpieza → Demostración): corre en el servidor, también en Railway |
+| **167** ✅ | Ventanas (nueva ubicación, gabinete, activo) centradas otra vez: la animación de entrada ya no descoloca lo fijo, y las ventanas van en un portal |
 | **154** | «Estás aquí» con QR y ruta a pie |
 
 Detalle: `docs/ARQUITECTURA_PLANO_VIVO.md`.

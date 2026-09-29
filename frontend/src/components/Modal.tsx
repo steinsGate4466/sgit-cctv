@@ -1,4 +1,5 @@
 import { ReactNode, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 /**
  * Ventana de formulario.
@@ -89,7 +90,9 @@ export default function Modal({
 
   }, []);
 
-  return (
+  /* Bloque 167: la ventana se pinta en <body> (portal). Así ningún estilo de
+     la pantalla de detrás (una animación, un filtro) la puede descentrar. */
+  return createPortal(
     <div
       className="modal-overlay"
       onMouseDown={(e) => { downInside.current = e.target !== e.currentTarget; }}
@@ -106,6 +109,7 @@ export default function Modal({
         <div className="modal-body">{children}</div>
         {acciones && <div className="modal-pie">{acciones}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -4556,9 +4556,15 @@ input::-webkit-datetime-edit { padding: 0; }
   min-height: 100vh;
 }
 
-/* ---- La pantalla entra con un fundido corto ---- */
-@keyframes sgit-entra { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-.content > * { animation: sgit-entra .22s ease-out both; }
+/* ---- La pantalla entra con un fundido corto ----
+   Bloque 167 · SÓLO OPACIDAD y `backwards`, nunca `transform` ni `both`.
+   Una animación de `transform` que se queda aplicada (fill `both`) convierte
+   la pantalla en el «marco» de todo lo `position: fixed` que lleve dentro: las
+   ventanas (Nueva ubicación, Nuevo gabinete, Registrar activo) dejaban de
+   centrarse en la ventana del navegador y salían desencajadas, cortadas
+   arriba o corridas según el scroll. Lo vigila `verificar:tema`. */
+@keyframes sgit-entra { from { opacity: 0; } to { opacity: 1; } }
+.content > * { animation: sgit-entra .2s ease-out backwards; }
 @media (prefers-reduced-motion: reduce) { .content > * { animation: none; } }
 
 /* ---- Menú lateral ---- */
