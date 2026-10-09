@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { puedeAbrir } from '../modulos';
 import LienzoPlano from '../components/mapa/LienzoPlano';
 import Marcador, { ConoDeVision, IconoEquipo, NOMBRE_ICONO, iconoDe } from '../components/mapa/Marcador';
 import TarjetaEquipo from '../components/mapa/TarjetaEquipo';
 import TarjetaZona from '../components/mapa/TarjetaZona';
 import VistaDePlanta from '../components/mapa/VistaDePlanta';
+import EstasAqui from '../components/mapa/EstasAqui';
+import Icono from '../components/Iconos';
 import ZonasDelPlano, { Zona, nombreCorto } from '../components/mapa/ZonasDelPlano';
 import { hora } from '../fechas';
 
@@ -28,7 +31,7 @@ const ORDEN: Record<string, number> = { caida: 0, alerta: 1, sindato: 2, ok: 3 }
 const NOMBRE: Record<string, string> = { ok: 'operativos', alerta: 'con alerta', caida: 'sin servicio', sindato: 'sin dato' };
 
 export default function Mapa() {
-  const { can } = useAuth();
+  const { can, user } = useAuth();
   const [planos, setPlanos] = useState<any[] | null>(null);
   const [planoId, setPlanoId] = useState<string>(() => {
     try { return localStorage.getItem('sgit:mapa-plano') || ''; } catch { return ''; }
@@ -47,6 +50,24 @@ export default function Mapa() {
   });
   const [planta, setPlanta] = useState<any[] | null>(null);
   const [zonaSel, setZonaSel] = useState<string | null>(null);
+  /* BLOQUE 171 (plan 154) · «ESTÁS AQUÍ». Se llega desde el QR de un equipo
+     (`/mapa?activo=<id>`): el mapa abre su plano, lo centra, lo marca y dice
+     cómo se llega. La ruta a pie es TEXTO —tren, sala, «cómo llegar», altura y
+     medio— porque los planos no traen pasillos dibujados: inventar un camino
+     sobre el plano sería pintar algo que nadie ha medido. */
+  const [params] = useSearchParams();
+  const activoQr = params.get('activo');
+  const [aqui, setAqui] = useState<{ assetId: string; xPx: number; yPx: number; planoId: string; porSuPadre: boolean } | null>(null);
+  const [noColocado, setNoColocado] = useState(false);
+  const [ruta, setRuta] = useState<any>(null);
+  const [verRuta, setVerRuta] = useState(true);
+  /* BLOQUE 171 (plan 153) · CAPA DE IMPACTO. Con un equipo elegido, marca en
+     el plano lo que se dejaría de ver si cae — el mismo cálculo de «Impacto de
+     una caída» (`/network/impacto`), pero DONDE está, no en una lista. Es la
+     pregunta antes de apagar un switch para cambiarlo. Sólo con `red.read`. */
+  const veImpacto = can('red.read');
+  const [impacto, setImpacto] = useState(false);
+  const [caen, setCaen] = useState<{ ids: Set<string>; resumen: string } | null>(null);
 
   // 1. Los planos que esta persona puede ver.
   useEffect(() => {
@@ -84,6 +105,44 @@ export default function Mapa() {
     const t = setInterval(tick, REFRESCO_MS);
     return () => { vivo = false; clearInterval(t); };
   }, [hayVariosPlanos, modo]);
+
+  const planosListos = planos !== null;
+  useEffect(() => {
+    if (!activoQr || !planosListos) return;
+    let vivo = true;
+    setNoColocado(false); setAqui(null); setVerRuta(true);
+    api.get(`/planos/donde/${activoQr}`)
+      .then((r) => {
+        if (!vivo) return;
+        const d = (r.data || [])[0];
+        if (!d) { setNoColocado(true); return; }
+        setAqui({ ...d, assetId: activoQr });
+        abrirPlano(d.planoId);
+        if (!d.porSuPadre) setSel(activoQr);
+        setEnfocar({ x: d.xPx, y: d.yPx, n: Date.now() });
+      })
+      .catch(() => { if (vivo) setNoColocado(true); });
+    api.get(`/seguridad/activo/${activoQr}`)
+      .then((r) => { if (vivo) setRuta(r.data); })
+      .catch(() => { if (vivo) setRuta(null); });
+    return () => { vivo = false; };
+    // abrirPlano cambia en cada pintado; lo que manda es el equipo pedido.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activoQr, planosListos]);
+
+  useEffect(() => {
+    if (!impacto || !sel || !veImpacto) { setCaen(null); return; }
+    let vivo = true;
+    api.get(`/network/impacto/${sel}`)
+      .then((r) => { if (vivo) setCaen({ ids: new Set<string>(r.data?.pierden || []), resumen: r.data?.resumen || '' }); })
+      .catch((e) => {
+        if (!vivo) return;
+        setCaen({ ids: new Set(), resumen: e?.response?.status === 404
+          ? 'Este equipo no tiene enlaces de red declarados: no se puede calcular qué cae.'
+          : 'No se pudo calcular el impacto.' });
+      });
+    return () => { vivo = false; };
+  }, [impacto, sel, veImpacto]);
 
   function abrirPlano(id: string) {
     setPlanoId(id); setModo('plano'); setSel(null); setZonaSel(null); setFiltro(''); setEnfocar(null);
@@ -150,7 +209,7 @@ export default function Mapa() {
         {can('asset.delete') && <Link className="btn-mini" to="/limpieza?pestana=demo" style={{ marginLeft: 8 }}>Cargar la demostración</Link>}
         {/* Bloque 160: Producción entra aquí. Sin plano, que no se quede mirando una pantalla vacía. */}
         <div className="accesos-rapidos" style={{ justifyContent: 'center', marginTop: 12 }}>
-          {can('om.mirar') && <Link className="acceso-rapido" to="/mi-tren">Mi tren</Link>}
+          {puedeAbrir('/mi-tren', can, user) && <Link className="acceso-rapido" to="/mi-tren">Mi tren</Link>}
           {can('activos.mirar') && <Link className="acceso-rapido" to="/mis-camaras">Mis cámaras</Link>}
           {can('incident.read') && <Link className="acceso-rapido" to="/incidents">Incidencias</Link>}
         </div>
@@ -198,6 +257,11 @@ export default function Mapa() {
         </div>
         <label className="mapa-capa"><input type="checkbox" checked={conos} onChange={(ev) => setConos(ev.target.checked)} /> Cobertura</label>
         <label className="mapa-capa"><input type="checkbox" checked={etiquetas} onChange={(ev) => setEtiquetas(ev.target.checked)} /> Códigos</label>
+        {veImpacto && (
+          <label className="mapa-capa" title="Elige un equipo: se marca lo que dejaría de verse si cae">
+            <input type="checkbox" checked={impacto} onChange={(ev) => setImpacto(ev.target.checked)} /> Impacto
+          </label>
+        )}
         {vista && (
           <span className="muted" style={{ fontSize: 12 }}>
             {vista.hayMonitoreo ? 'Monitoreo' : 'Estado declarado'} · {hora(vista.datoDe)}
@@ -217,6 +281,31 @@ export default function Mapa() {
         </div>
       )}
 
+      {impacto && (
+        <div className="mapa-impacto" role="status">
+          {!sel ? 'Elige un equipo en el plano para ver qué se dejaría de ver si cae.'
+            : caen ? <><b>{elegido?.codigo ?? 'Equipo'}:</b> {caen.resumen}{caen.ids.size > 0 ? ` En este plano: ${equipos.filter((e) => caen.ids.has(e.assetId)).length}.` : ''}</>
+              : 'Calculando…'}
+        </div>
+      )}
+      {activoQr && verRuta && (aqui || noColocado) && (
+        <section className="ruta-a-pie" aria-label="Cómo llegar">
+          <button type="button" className="btn-mini ruta-cerrar" onClick={() => setVerRuta(false)}>{'Cerrar'}</button>
+          <h4><Icono n="ubicacion" size={16} /> {`Cómo llegar a ${ruta?.assetCode ?? 'este equipo'}`}</h4>
+          {noColocado && (
+            <p className="muted">{'Aún no está colocado en ningún plano publicado. Se coloca en Ubicaciones › Planos.'}</p>
+          )}
+          <ol>
+            {(ruta?.ubicacion || aqui) && <li>{`Ve a ${[aqui ? vista?.plano?.ubicacion : null, ruta?.ubicacion].filter(Boolean).filter((x, i, a) => a.indexOf(x) === i).join(' › ') || 'su zona'}.`}</li>}
+            {aqui?.porSuPadre && <li>{'Es un componente: en el plano está marcado el equipo del que cuelga.'}</li>}
+            {ruta?.comoLlegar && <li>{ruta.comoLlegar}</li>}
+            {ruta?.enAltura && <li>{`Está en altura${ruta.alturaM != null ? ` (${ruta.alturaM} m)` : ''}${ruta.medio ? `: hace falta ${String(ruta.medio).toLowerCase().replace('_', ' ')}` : ''}.`}</li>}
+            {ruta?.bloqueoElectrico && <li>{'Antes de tocarlo: bloqueo eléctrico.'}</li>}
+            {ruta && !ruta.comoLlegar && <li className="muted">{'Falta declarar «cómo llegar» en su ubicación (Árbol de planta).'}</li>}
+          </ol>
+        </section>
+      )}
+
       <div className="mapa-escenario">
         {vista ? (
           <LienzoPlano key={vista.plano.id}
@@ -232,10 +321,14 @@ export default function Mapa() {
                 {conos && visibles.filter((e) => e.tipo === 'CAMERA').map((e) => (
                   <ConoDeVision key={'c' + e.assetId} e={e} metrosPorPx={mpp} />
                 ))}
+                {caen && visibles.filter((e) => caen.ids.has(e.assetId)).map((e) => (
+                  <circle key={'i' + e.assetId} cx={e.xPx} cy={e.yPx} r={26 * escala} className="impacto-halo" />
+                ))}
                 {visibles.map((e) => (
                   <Marcador key={e.assetId} e={e} escala={escala} seleccionado={sel === e.assetId}
                     conEtiqueta={etiquetas} onPulsar={() => setSel(e.assetId)} />
                 ))}
+                {aqui && vista?.plano?.id === aqui.planoId && <EstasAqui x={aqui.xPx} y={aqui.yPx} escala={escala} />}
               </>
             )}
           />

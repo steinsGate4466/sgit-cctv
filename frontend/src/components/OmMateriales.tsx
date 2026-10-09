@@ -35,6 +35,7 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
   // reemplazo
   const [swaps, setSwaps] = useState<any[]>([]);
   const [stock, setStock] = useState<any[]>([]);
+  const [compatibles, setCompatibles] = useState<Set<string>>(new Set());
   const [swap, setSwap] = useState<any>({ removedAssetId: '', installedAssetId: '', note: '' });
   const [resumen, setResumen] = useState<any>(null);
   const [firmando, setFirmando] = useState(false);
@@ -45,12 +46,22 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
   // como dependencia, abrir otra OM recarga sus propios materiales en vez de
   // mostrar los de la anterior.
   const cargar = useCallback(async () => {
-    const [m, r, s, st] = await Promise.all([
+    /* Bloque 172 · «Equipo instalado (desde almacén)» ofrecía TODO lo que hay
+       en almacén: para cambiar una cámara salían switches y fuentes. Ahora sólo
+       el mismo tipo que el equipo de la orden. Y en «Del catálogo», arriba y
+       aparte los repuestos que sirven para ESE equipo (vinculados o de su
+       modelo). */
+    const tipo = wo.asset?.type;
+    const [m, r, s, st, compat] = await Promise.all([
       api.get(`/work-orders/${wo.id}/materials`).then((x) => x.data).catch(() => []),
       api.get('/inventory?pageSize=500').then((x) => x.data).catch(() => null),
       api.get(`/work-orders/${wo.id}/swaps`).then((x) => x.data).catch(() => []),
-      api.get(`/work-orders/${wo.id}/stock-assets`).then((x) => x.data).catch(() => []),
+      api.get(`/work-orders/${wo.id}/stock-assets`, { params: tipo ? { type: tipo } : {} }).then((x) => x.data).catch(() => []),
+      wo.asset?.id && can('inventory.read')
+        ? api.get(`/inventory/for-asset/${wo.asset.id}`).then((x) => x.data).catch(() => [])
+        : Promise.resolve([]),
     ]);
+    setCompatibles(new Set((Array.isArray(compat) ? compat : []).map((x: any) => x.id)));
     // La respuesta trae ahora { items, resumen }: el resumen es lo que el
     // ingeniero mira de un vistazo (¿hay algo que firmar? ¿algo por devolver?).
     setItems(m?.items || []);
@@ -58,6 +69,7 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
     setRepuestos(Array.isArray(r) ? r : r?.data || r?.items || []);
     setSwaps(s || []);
     setStock(st || []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wo.id]);
   useEffect(() => { cargar().finally(() => setCargando(false)); }, [cargar]);
 
@@ -293,13 +305,24 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
 
               <label>Del catálogo (con código SAP)
                 <select value={nuevo.sparePartId}
-                onChange={(e) => setNuevo({ ...nuevo, sparePartId: e.target.value })}>
+                onChange={(e) => {
+                  /* Bloque 168: la unidad del catálogo se pone sola. */
+                  const r = repuestos.find((x) => x.id === e.target.value);
+                  setNuevo({ ...nuevo, sparePartId: e.target.value, unit: r?.unit || nuevo.unit });
+                }}>
                 <option value="">— no está catalogado —</option>
-                {repuestos.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.sapCode ? `${r.sapCode} · ` : ''}{r.name}
-                    {r.currentStock != null ? ` (hay ${r.currentStock})` : ''}
-                  </option>
+                {[
+                  { titulo: `Para ${wo.asset?.assetCode || 'este equipo'}`, lista: repuestos.filter((r) => compatibles.has(r.id)) },
+                  { titulo: compatibles.size ? 'Resto del almacén' : 'Almacén', lista: repuestos.filter((r) => !compatibles.has(r.id)) },
+                ].filter((g) => g.lista.length).map((g) => (
+                  <optgroup key={g.titulo} label={g.titulo}>
+                    {g.lista.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.sapCode ? `${r.sapCode} · ` : ''}{r.name}
+                        {r.currentStock != null ? ` (hay ${r.currentStock})` : ''}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
               </label>
@@ -310,7 +333,7 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
               )}
 
               <label>Descripción {nuevo.sparePartId ? '(opcional)' : '(obligatoria)'}</label>
-              <input aria-label="Cantidad a retirar" value={nuevo.description}
+              <input aria-label="Descripción del material" value={nuevo.description}
                 onChange={(e) => setNuevo({ ...nuevo, description: e.target.value })}
                 placeholder="Ej: 30 m de cable Cat6 blindado" />
 

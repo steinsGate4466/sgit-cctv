@@ -197,3 +197,18 @@ describe('la firma de quien reporta', () => {
     expect(firmaDeQuienReporta('Ing. Cañasas', null)).toBe('Reportó Ing. Cañasas');
   });
 });
+
+/* Bloque 168 · la prioridad no queda a criterio: sin elegir manda la zona, y no se puede bajar. */
+import { prioridadDeIncidencia } from './reporte-de-produccion';
+describe('prioridad de una incidencia del técnico', () => {
+  it('sin elegir, la de la zona (ALTA → ALTA; sin declarar → MEDIA)', () => {
+    expect(prioridadDeIncidencia(null, 'ALTA').prioridad).toBe('ALTA');
+    expect(prioridadDeIncidencia(undefined, null as any).prioridad).toBe('MEDIA');
+  });
+  it('se puede subir, no bajar', () => {
+    expect(prioridadDeIncidencia('CRITICA', 'MEDIA').prioridad).toBe('CRITICA');
+    const r = prioridadDeIncidencia('BAJA', 'ALTA');
+    expect(r.prioridad).toBe('ALTA');
+    expect(r.porque).toMatch(/No se puede bajar/);
+  });
+});

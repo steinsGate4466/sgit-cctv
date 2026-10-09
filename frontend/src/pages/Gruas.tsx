@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import ElegirConClics from '../components/ElegirConClics';
 import { Link } from 'react-router-dom';
 import { api, motivoDelError } from '../api/client';
 import Modal from '../components/Modal';
@@ -100,15 +101,44 @@ export default function Gruas() {
   useEffect(() => { setCargando(true); cargar().finally(() => setCargando(false)); }, [cargar]);
 
   async function abrirNueva() {
-    setF(VACIO); setErrorModal(''); setHecho(''); setNueva(true);
+    setF(VACIO); setPropuesta(null); setGruaNueva(false); setAccionesSel([]); setErrorModal(''); setHecho(''); setNueva(true);
     try {
-      const r = await api.get('/assets', { params: { type: 'CAMERA', limit: 300 } });
-      setCamaras(r.data?.items || r.data || []);
+      // Bloque 172 · las de grúa primero y aparte (antes: todas las cámaras de planta).
+      const r = await api.get('/gruas/camaras');
+      setCamaras(Array.isArray(r.data) ? r.data : []);
     } catch { setCamaras([]); }
   }
 
   const set = (k: string) => (e: any) =>
     setF((v: any) => ({ ...v, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }));
+
+  /* BLOQUE 168 · al elegir la cámara, el formulario se rellena con lo que ya
+     se sabe: grúa y posición de la inspección anterior, acceso y parada del
+     perfil de seguridad, canal y grabador de su ficha, permiso de altura y
+     orden abierta. Lo que se inspecciona hoy (estados, señal, hallazgos) no se
+     copia: se mira. */
+  const [propuesta, setPropuesta] = useState<any>(null);
+  /* Bloque 169: grúas ya conocidas y acciones del catálogo, para elegir con clics. */
+  const gruasConocidas: string[] = [...new Set<string>((resumen || []).map((r: any) => r.grua).filter(Boolean))].sort();
+  const [gruaNueva, setGruaNueva] = useState(false);
+  const [acciones, setAcciones] = useState<any[]>([]);
+  const [accionesSel, setAccionesSel] = useState<string[]>([]);
+  useEffect(() => {
+    if (!nueva || acciones.length) return;
+    let vivo = true;
+    api.get('/catalogos/ACCION').then((r) => { if (vivo) setAcciones(r.data?.items || []); }).catch(() => { if (vivo) setAcciones([]); });
+    return () => { vivo = false; };
+  }, [nueva, acciones.length]);
+  async function elegirCamara(assetId: string) {
+    setF((v: any) => ({ ...VACIO, assetId }));
+    setPropuesta(null);
+    if (!assetId) return;
+    try {
+      const r = await api.get('/gruas/propuesta/' + assetId);
+      setPropuesta(r.data);
+      setF((v: any) => (v.assetId === assetId ? { ...v, ...r.data.valores } : v));
+    } catch { /* sin propuesta: se llena a mano, como antes */ }
+  }
 
   function aNumero(v: any) { return v === '' || v == null ? undefined : Number(v); }
 
@@ -117,8 +147,10 @@ export default function Gruas() {
     if (!f.grua.trim()) { setErrorModal('Indica de qué grúa se trata.'); return; }
     setGuardando(true); setErrorModal('');
 
+    const hechas = acciones.filter((a) => accionesSel.includes(a.code)).map((a) => a.name);
     const cuerpo = {
       ...f,
+      accionesRealizadas: [hechas.join('; '), (f.accionesRealizadas || '').trim()].filter(Boolean).join('. '),
       grua: f.grua.trim(),
       alturaMetros: aNumero(f.alturaMetros),
       senalDbm: aNumero(f.senalDbm),
@@ -293,18 +325,48 @@ export default function Gruas() {
           <div className="section-title" style={{ marginTop: 0 }}>Qué y dónde</div>
           <label className="campo">
             <span>Cámara inspeccionada</span>
-            <select value={f.assetId} onChange={set('assetId')}>
+            <select value={f.assetId} onChange={(e) => elegirCamara(e.target.value)}>
               <option value="">— elegir cámara —</option>
-              {camaras.map((c: any) => (
-                <option key={c.id} value={c.id}>
-                  {c.assetCode}{c.referencePlace ? ` — ${c.referencePlace}` : ''}
-                </option>
+              {[
+                { titulo: 'Cámaras en grúa', lista: camaras.filter((c: any) => c.enGrua) },
+                { titulo: 'Otras cámaras (sin declarar como de grúa)', lista: camaras.filter((c: any) => !c.enGrua) },
+              ].filter((g) => g.lista.length).map((g) => (
+                <optgroup key={g.titulo} label={g.titulo}>
+                  {g.lista.map((c: any) => (
+                    <option key={c.id} value={c.id}>
+                      {c.assetCode}{c.referencePlace ? ` — ${c.referencePlace}` : ''}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           </label>
+          {propuesta && (
+            <div className="seguridad-trabajo">
+              <p className="seg-impacto">
+                {`Rellenado con ${[propuesta.origen.anterior && `la inspección ${propuesta.origen.anterior}`, 'el acceso declarado',
+                  propuesta.origen.permiso && `el permiso ${propuesta.origen.permiso}`, propuesta.origen.orden && `la orden ${propuesta.origen.orden}`]
+                  .filter(Boolean).join(', ')}.`}
+              </p>
+              <div className="seg-listas">
+                <div><b>Riesgos</b><ul>{propuesta.seguridad.riesgos.map((x: string) => <li key={x}>{x}</li>)}</ul></div>
+                <div><b>EPP</b><ul>{propuesta.seguridad.epp.map((x: string) => <li key={x}>{x}</li>)}</ul></div>
+              </div>
+              {propuesta.origen.faltaDeclarar.length > 0 && <p className="seg-falta">{`Sin declarar: ${propuesta.origen.faltaDeclarar.join(' · ')}.`}</p>}
+            </div>
+          )}
           <label className="campo">
             <span>Grúa</span>
-            <input value={f.grua} onChange={set('grua')} placeholder="Ej: Puente grúa 2 / GRU-107" maxLength={120} />
+            {/* Bloque 169: la grúa se elige de las que ya se inspeccionaron. */}
+            {gruasConocidas.length > 0 && !gruaNueva ? (
+              <select value={f.grua} onChange={(e) => { if (e.target.value === '__nueva__') { setGruaNueva(true); setF((v: any) => ({ ...v, grua: '' })); } else setF((v: any) => ({ ...v, grua: e.target.value })); }}>
+                <option value="">{'— elige —'}</option>
+                {gruasConocidas.map((g) => <option key={g} value={g}>{g}</option>)}
+                <option value="__nueva__">{'Otra grúa (escribirla)'}</option>
+              </select>
+            ) : (
+              <input value={f.grua} onChange={set('grua')} placeholder="Ej: Puente grúa 2 / GRU-107" maxLength={120} />
+            )}
             <small className="muted">Como la llama Producción.</small>
           </label>
           <label className="campo">
@@ -396,10 +458,12 @@ export default function Gruas() {
               Si no se llegó, no marques componentes.
             </small>
           </label>
-          <label className="campo"><span>Hallazgos</span>
+          <label className="campo"><span>{'Hallazgos (si lo dejas vacío, se arman con lo marcado arriba)'}</span>
             <textarea rows={3} value={f.hallazgos} onChange={set('hallazgos')} maxLength={2000} /></label>
-          <label className="campo"><span>Acciones realizadas</span>
-            <textarea rows={3} value={f.accionesRealizadas} onChange={set('accionesRealizadas')} maxLength={2000} /></label>
+          <ElegirConClics etiqueta="Acciones realizadas" multiple valor={accionesSel}
+            opciones={acciones.map((a) => ({ valor: a.code, texto: a.name }))} onChange={setAccionesSel} />
+          <label className="campo"><span>{'Detalle de las acciones (opcional)'}</span>
+            <textarea rows={2} value={f.accionesRealizadas} onChange={set('accionesRealizadas')} maxLength={2000} /></label>
           <div className="casillas"><Casilla k="requiereSeguimiento" t="Requiere volver" /></div>
         </Modal>
       )}

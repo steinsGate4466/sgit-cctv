@@ -33,6 +33,13 @@ const MEDIO: Record<string, string> = {
   FIBRA: 'Fibra', COBRE: 'Cobre', INALAMBRICO: 'Inalámbrico',
 };
 
+/** Bloque 172 · qué equipos pueden ser extremo según el medio del enlace. */
+export function aptoPara(medio: string, tipo: string): boolean {
+  if (medio === 'INALAMBRICO') return tipo === 'WIRELESS';
+  if (medio === 'FIBRA') return tipo !== 'WIRELESS';
+  return true;
+}
+
 export default function Conexiones() {
   const { confirmar, avisar } = useDialogos();
   const { can } = useAuth();
@@ -384,11 +391,31 @@ export default function Conexiones() {
         >
           {errorModal && <div role="alert" className="aviso-error" style={{ marginBottom: 10 }}>{errorModal}</div>}
 
+          {/* Bloque 172 · el medio va PRIMERO y decide qué extremos tienen
+              sentido: un radioenlace es de antena a antena; la fibra no llega
+              a una antena. Antes se podía declarar «inalámbrico» entre dos
+              switches y el mapa de red dibujaba un enlace que no existe. */}
+          <label className="campo">
+            <span>Medio</span>
+            <select value={medio} onChange={(e) => {
+              const m = e.target.value;
+              setMedio(m);
+              const vale = (id: string) => !id || todos.some((c) => c.id === id && aptoPara(m, c.tipo));
+              if (!vale(ladoA)) setLadoA('');
+              if (!vale(ladoB)) setLadoB('');
+              if (m !== 'FIBRA') setAnillo(false);
+            }}>
+              <option value="FIBRA">Fibra</option>
+              <option value="COBRE">Cobre</option>
+              <option value="INALAMBRICO">Radioenlace</option>
+            </select>
+          </label>
+
           <label className="campo">
             <span>Extremo A</span>
             <select value={ladoA} onChange={(e) => setLadoA(e.target.value)}>
               <option value="">— elegir —</option>
-              {todos.map((c) => <option key={c.id} value={c.id}>{c.code} ({TIPO[c.tipo] || c.tipo})</option>)}
+              {todos.filter((c) => aptoPara(medio, c.tipo)).map((c) => <option key={c.id} value={c.id}>{c.code} ({TIPO[c.tipo] || c.tipo})</option>)}
             </select>
           </label>
 
@@ -396,21 +423,14 @@ export default function Conexiones() {
             <span>Extremo B</span>
             <select value={ladoB} onChange={(e) => setLadoB(e.target.value)}>
               <option value="">— elegir —</option>
-              {todos.filter((c) => c.id !== ladoA).map((c) => (
+              {todos.filter((c) => c.id !== ladoA && aptoPara(medio, c.tipo)).map((c) => (
                 <option key={c.id} value={c.id}>{c.code} ({TIPO[c.tipo] || c.tipo})</option>
               ))}
             </select>
           </label>
 
-          <label className="campo">
-            <span>Medio</span>
-            <select value={medio} onChange={(e) => setMedio(e.target.value)}>
-              <option value="FIBRA">Fibra</option>
-              <option value="COBRE">Cobre</option>
-              <option value="INALAMBRICO">Inalámbrico</option>
-            </select>
-          </label>
 
+          {medio === 'FIBRA' && (<>
           <label style={{ display: 'flex', gap: 7, alignItems: 'center', fontSize: 13, margin: '10px 0' }}>
             <input type="checkbox" checked={anillo} onChange={(e) => setAnillo(e.target.checked)} />
             Es un tramo del anillo de fibra
@@ -418,6 +438,7 @@ export default function Conexiones() {
           <small className="muted" style={{ display: 'block', marginBottom: 10 }}>
             Marcarlo permite detectar camino alternativo. Un anillo declarado da impacto cero.
           </small>
+          </>)}
 
           <label className="campo">
             <span>Detalle (opcional)</span>

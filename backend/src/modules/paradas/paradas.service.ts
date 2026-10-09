@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { CrearParadaDto, EstadoParadaDto, MoverParadaDto } from './dto/parada.dto';
+import { aTrenDePlanta, filtroDeTrenDePlanta } from '../../common/tren-de-planta';
 
 /**
  * VENTANAS DE PARADA (F8-F/G/H) — desbloqueado.
@@ -86,7 +87,8 @@ export class ParadasService {
 
   async listar(q: { tren?: string; estado?: string; desde?: string; hasta?: string }) {
     const where: any = {};
-    if (q.tren) where.tren = q.tren;
+    // Bloque 172: «T1» y «TREN_1» son el mismo tren (ver tren-de-planta.ts).
+    if (q.tren) where.tren = filtroDeTrenDePlanta(q.tren);
     if (q.estado) where.estado = q.estado;
     if (q.desde || q.hasta) {
       where.inicioPrevisto = {};
@@ -112,7 +114,7 @@ export class ParadasService {
       where: {
         estado: { in: ['ANUNCIADA', 'CONFIRMADA', 'EN_CURSO'] },
         inicioPrevisto: { gte: desde },
-        ...(tren ? { tren: tren as any } : {}),
+        ...(filtroDeTrenDePlanta(tren) ? { tren: filtroDeTrenDePlanta(tren) } : {}),
       },
       orderBy: { inicioPrevisto: 'asc' },
       take: 30,
@@ -149,7 +151,7 @@ export class ParadasService {
 
     const p = await this.prisma.ventanaParada.create({
       data: {
-        tren: dto.tren as any,
+        tren: aTrenDePlanta(dto.tren) as any,
         origen: (dto.origen as any) || 'PRODUCCION',
         inicioPrevisto: inicio,
         finPrevisto: fin,

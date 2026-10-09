@@ -9,6 +9,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useDialogos } from '../components/Dialogos';
 import { fecha } from '../fechas';
 import { mensajeDeError } from '../avisos';
+import { OpcionesDeUbicacion } from '../ubicaciones';
 
 /**
  * DOCUMENTOS: MANUALES, PLANOS Y FICHAS (bloque 12.7).
@@ -232,7 +233,7 @@ export default function Documentos() {
             <span>Ubicación (opcional si eliges equipo)</span>
             <select value={locationId} onChange={(e) => setLocationId(e.target.value)}>
               <option value="">— ninguna —</option>
-              {ubicaciones.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
+              <OpcionesDeUbicacion uso="documento" lista={ubicaciones} actual={locationId} />
             </select>
           </label>
 

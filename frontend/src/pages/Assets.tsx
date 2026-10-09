@@ -5,13 +5,14 @@ import { enviarConRespaldo, TEXTO_PENDIENTE } from '../envio-seguro';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, conAmbito, AvisoAmbito } from '../components/FiltroAmbito';
 import Modal from '../components/Modal';
 import AccessRequestForm, { MEANS_ES, STATUS_ES as ACC_STATUS_ES, STATUS_BADGE as ACC_BADGE } from '../components/AccessRequestForm';
-import { TIPOS_ACTIVO, TIPOS_DE_EQUIPO } from '../tipos-de-equipo';
+import { TIPOS_ACTIVO, TIPOS_DE_EQUIPO, VA_EN_GABINETE, VA_EN_TABLERO } from '../tipos-de-equipo';
 import { useAuth } from '../auth/AuthContext';
 import { useAutoOcultar } from '../auth/useInactivity';
 import AssetSpecFields, { FICHA_DE } from '../components/AssetSpecFields';
 import AssetPhotoPicker, { FotoPendiente } from '../components/AssetPhotoPicker';
 import HistorialActivo from '../components/HistorialActivo';
 import AparatoInstalado from '../components/AparatoInstalado';
+import SelectorDeModelo from '../components/SelectorDeModelo';
 import ReemplazoDelActivo from '../components/ReemplazoDelActivo';
 import RedDelActivo from '../components/RedDelActivo';
 import CriticidadActivo from '../components/CriticidadActivo';
@@ -30,6 +31,9 @@ import { useOcultarAlSalir } from '../useVolverALaPantalla';
 import { fecha, plural } from '../formato';
 import { fechaTabla } from '../fechas';
 import { mensajeDeError } from '../avisos';
+import EnergiaDelActivo from '../components/EnergiaDelActivo';
+import { OpcionesDeUbicacion, delMismoTren } from '../ubicaciones';
+import DocumentosDelActivo from '../components/DocumentosDelActivo';
 import { IconoEquipo, NOMBRE_ICONO, puntoDeEstado } from '../components/mapa/Marcador';
 
 /* LOS TIPOS QUE SE PUEDEN DAR DE ALTA — bloque 74.
@@ -117,6 +121,23 @@ function Frow({ k, v }: { k: string; v: any }) {
   );
 }
 
+/* LAS PESTAÑAS DE LA FICHA ÚNICA — bloque 171 (plan 150). Sin permiso, la
+   pestaña no sale: una pestaña que abre «no tienes permiso» es peor que nada.
+   `cuenta` pone un número cuando ayuda a decidir si entrar. */
+const PESTANAS_FICHA: {
+  v: string; t: string; icono: string; permiso?: string;
+  cuenta?: (d: any, fotos: any[]) => number;
+}[] = [
+  { v: 'resumen', t: 'Resumen', icono: 'activos' },
+  { v: 'red', t: 'Red', icono: 'puertos' },
+  { v: 'energia', t: 'Energía', icono: 'electricidad', permiso: 'infra.read' },
+  { v: 'acceso', t: 'Acceso', icono: 'seguridad', cuenta: (d) => d?.accessRequests?.length || 0 },
+  { v: 'historial', t: 'Historial', icono: 'reloj', cuenta: (d) => d?.workOrders?.length || 0 },
+  { v: 'repuestos', t: 'Repuestos', icono: 'inventario' },
+  { v: 'fotos', t: 'Fotos', icono: 'camara', cuenta: (_d, f) => f?.length || 0 },
+  { v: 'documentos', t: 'Documentos', icono: 'pdf', permiso: 'document.read' },
+];
+
 export default function Assets() {
   const { confirmar, avisar, pedirTexto } = useDialogos();
   const { can, user } = useAuth();
@@ -139,6 +160,10 @@ export default function Assets() {
   const [tableros, setTableros] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<any>(null);
+  /* Bloque 171 · la pestaña de la ficha. Vuelve a «Resumen» al abrir otro
+     equipo: abrir una cámara y caer en las fotos de la anterior desorienta. */
+  const [fichaTab, setFichaTab] = useState('resumen');
+  useEffect(() => { setFichaTab('resumen'); }, [detail?.id]);
   // Borrado DEFINITIVO. No es la baja: la baja retira un equipo real y le
   // conserva el historial; esto es para el registro que nunca debió existir
   // (una prueba, un duplicado, un código mal tecleado). Sólo el Jefe.
@@ -184,6 +209,20 @@ export default function Assets() {
 
   // Alta firmada de activo
   const [form, setForm] = useState<any>(null);
+  /* BLOQUE 168 · EL RÓTULO SE PROPONE SOLO (norma AA-<TIPO>-<TREN>-<ZONA>-<NNN>).
+     Con el tipo y la ubicación elegidos, el servidor arma el código con el
+     primer número libre de la serie. Si la persona lo cambia, se respeta. */
+  const [codigoAuto, setCodigoAuto] = useState('');
+  useEffect(() => {
+    if (!form || form.id || !form.type || !form.locationId) return;
+    if (form.assetCode && form.assetCode !== codigoAuto) return;
+    let vivo = true;
+    api.get('/estandares/proximo-rotulo', { params: { tipo: form.type, locationId: form.locationId } })
+      .then((r) => { if (!vivo || !r.data?.codigo) return; setCodigoAuto(r.data.codigo); setForm((f: any) => (f && !f.id && (!f.assetCode || f.assetCode === codigoAuto) ? { ...f, assetCode: r.data.codigo } : f)); })
+      .catch(() => { /* sin propuesta: se escribe a mano */ });
+    return () => { vivo = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form?.type, form?.locationId, form?.id]);
   const [saving, setSaving] = useState(false);
   const [formErr, setFormErr] = useState('');
   const [tries, setTries] = useState(5);
@@ -236,10 +275,13 @@ export default function Assets() {
       api.get('/locations').then((r) => r.data).catch(() => []),
       api.get('/cabinets').then((r) => r.data).catch(() => []),
       api.get('/assets/options').then((r) => r.data).catch(() => []),
-      api.get('/electricidad/tableros').then((r) => r.data).catch(() => []),
+      // Bloque 171 · el consultor ve Activos sin `infra.read`: daba 403.
+      can('infra.read') ? api.get('/electricidad/tableros').then((r) => r.data).catch(() => []) : Promise.resolve([]),
     ]).then(([l, c, o, t]) => {
       setLocations(l || []); setCabinets(c || []); setOpciones(o || []); setTableros(t || []);
     });
+    // Una sola vez al abrir: los permisos no cambian mientras se mira la lista.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Recarga al cambiar filtros o página. El retardo de 350 ms evita disparar
@@ -970,339 +1012,370 @@ export default function Assets() {
 
       {detail && (
         <Modal title={detail.assetCode} onClose={() => setDetail(null)}>
-          {/* ARRIBA SÓLO LO QUE NO DESTRUYE NADA (bloque 80).
-              -----------------------------------------------------------------
-              «Dar de baja» y «Eliminar definitivamente» estaban AQUÍ, en la
-              primera línea de la ficha, antes que la marca y el modelo. Lo
-              primero que se veía al abrir una cámara era el botón rojo de
-              borrarla.
-
-              Con guantes y prisa, un botón destructivo en el sitio donde
-              esperas «Código QR» es un accidente esperando a pasar. Bajan al
-              FINAL, después de todo lo que hay que leer, en su propia zona
-              marcada. La confirmación escrita a mano sigue puesta: son dos
-              barreras, no una. */}
-          <div className="acciones-ficha">
-            <button className="btn-mini" onClick={() => openQr(detail)}><Icono n="qr" size={14} /> Código QR</button>
-            <button className="btn-mini" onClick={() => descargarInforme(detail)}><Icono n="pdf" size={14} /> Informe (PDF)</button>
-            {can('credential.read') && <button className="btn-mini" onClick={() => openEdit(detail)}><Icono n="editar" size={14} /> Editar activo</button>}
-          </div>
-          <Frow k="Tipo" v={tEs(detail.type)} />
-          <Frow k="Marca / Modelo" v={[detail.brand, detail.model].filter(Boolean).join(' ')} />
-          <Frow k="N° de serie" v={detail.serialNumber} />
-          <div className="frow">
-            <span className="k">Estado operativo</span>
-            <span className="v"><span className={'badge ' + (detail.effectiveStatus || detail.status)}>{sEs(detail.effectiveStatus || detail.status)}</span></span>
-          </div>
-          {/* POR QUÉ ESTÁ ASÍ (bloque 83).
-              El usuario lo reportó como un bug: pone el equipo en OPERATIVO,
-              recarga y sigue leyendo «En mantenimiento». El cálculo era
-              correcto —una orden abierta lo retiene—, pero antes aquí ponía
-              «calculado en vivo desde sus OM/incidencias abiertas», que no
-              dice CUÁL ni permite ir a cerrarla.
-
-              Un cálculo correcto que no se explica es indistinguible de un
-              fallo. El código de la orden y el enlace convierten la frase en
-              algo accionable: se pulsa y se va a cerrarla. */}
-          {detail.effectiveStatus && detail.effectiveStatus !== detail.status
-            && detail.porQueEseEstado && (
-            <div className="estado-porque">
-              <b>Estado base guardado: {sEs(detail.status)}.</b>{' '}
-              {detail.porQueEseEstado.texto}
-              {detail.porQueEseEstado.tipo === 'ORDEN' && can('wo.read') && (
-                <> <Link to={`/maintenance?q=${detail.porQueEseEstado.codigo}`}>
-                  Ver {detail.porQueEseEstado.codigo}
-                </Link></>
-              )}
-              {detail.porQueEseEstado.tipo === 'INCIDENCIA' && can('incident.read') && (
-                <> <Link to={`/incidents?q=${detail.porQueEseEstado.codigo}`}>
-                  Ver {detail.porQueEseEstado.codigo}
-                </Link></>
-              )}
-            </div>
-          )}
-          {/* Retroalimentación: qué le ha pasado antes a este equipo.
-              Va ARRIBA porque es lo que hay que leer antes de decidir algo. */}
-          {/* Qué repuestos sirven para este equipo y si hay en almacén.
-              Se pregunta CON EL EQUIPO DELANTE: el técnico está arriba y
-              necesita saber si bajar o no. */}
-          <RepuestosDelActivo assetId={detail.id} />
-
-          {/* BLOQUE 106-B. Va ANTES del historial de averías y con razón: lo
-              primero que hay que saber al mirar tres fallas seguidas es si le
-              pasaron al MISMO aparato o a tres cámaras distintas. */}
-          {/* BLOQUE 108. El veredicto va ARRIBA de todo lo demás: es lo que
-              contesta la pregunta con la que se abre esta ficha. */}
-          <ReemplazoDelActivo assetId={detail.id} assetCode={detail.assetCode} />
-
-          <AparatoInstalado assetId={detail.id} />
-
-          {/* BLOQUE 109. La máscara, la VLAN y la puerta de enlace salen de la
-              subred a la que pertenece la IP, no de campos copiados aquí. */}
-          <RedDelActivo assetId={detail.id} />
-
-          <HistorialActivo assetId={detail.id} />
-
-          {detail.completitud && detail.completitud.faltanClave?.length > 0 && (
-            <div style={{
-              background: 'var(--warn-fondo)', border: '1px solid var(--warn-borde)', borderRadius: 8,
-              padding: '10px 12px', marginBottom: 12, fontSize: 13,
-            }}>
-              <div style={{ fontWeight: 700, color: 'var(--warn-texto)', marginBottom: 4 }}>
-                Ficha incompleta — {detail.completitud.porcentaje}%
-              </div>
-              <div style={{ color: 'var(--warn-texto)' }}>Falta registrar:</div>
-              <ul style={{ margin: '4px 0 0 18px', color: 'var(--warn-texto)' }}>
-                {detail.completitud.faltanClave.map((f: any) => (
-                  <li key={f.campo}>{f.etiqueta}</li>
-                ))}
-              </ul>
-              {detail.completitud.faltanOtros?.length > 0 && (
-                <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>
-                  Además, sería útil: {detail.completitud.faltanOtros.map((f: any) => f.etiqueta).join(', ')}.
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* CRITICIDAD A/B/C DE MANTENIMIENTO (bloque 76).
-              Va ANTES de la ficha de datos porque contesta la pregunta con la
-              que se abre esta pantalla —«¿cada cuánto hay que subir a revisar
-              esto?»— y porque el cálculo llevaba tres bloques hecho sin que
-              hubiera forma de verlo. */}
-          <CriticidadActivo assetId={detail.id} />
-
-          <Frow k="Criticidad de la zona" v={
-            detail.planta?.criticidadEfectiva && detail.planta.criticidadEfectiva !== detail.criticality
-              ? `${cEs(detail.planta.criticidadEfectiva)} (elevada por la etapa)`
-              : cEs(detail.criticality)
-          } />
-          <Frow k="Firmware" v={detail.firmware} />
-          <Frow k="Tren" v={detail.planta?.tren} />
-          <Frow k="Área del tren" v={
-            detail.planta?.etapa || (detail.planta?.etapaPendiente ? 'Falta asignar' : null)
-          } />
-          <Frow k="Ambiente" v={AMBIENTE_ES[detail.planta?.ambiente] || null} />
-          <Frow k="Preventivo cada" v={
-            detail.planta?.intervaloPreventivoDias ? `${detail.planta.intervaloPreventivoDias} días` : null
-          } />
-          <Frow k="Ubicación" v={detail.location?.name} />
-          <Frow k="Gabinete" v={detail.cabinet ? `${detail.cabinet.code} — ${detail.cabinet.name}` : null} />
-          <Frow k="Lugar de referencia" v={detail.referencePlace} />
-          <Frow k="Garantía" v={detail.warrantyEnd ? fecha(detail.warrantyEnd) : null} />
-
-          {can('asset.update') && (
-            <div className="detail-sec">
-              <h4><Icono n="refrescar" size={15} /> Actualizar estado</h4>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <select aria-label="Filtrar por tipo de equipo" value={newStatus} onChange={(e) => setNewStatus(e.target.value)} style={{ flex: 1 }}>
-                  {STATES.map((t) => <option key={t} value={t}>{sEs(t)}</option>)}
-                </select>
-                <button className="btn-mini" disabled={savingStatus || newStatus === detail.status} onClick={saveStatus}>
-                  {savingStatus ? 'Guardando…' : 'Guardar estado'}
+          {/* LA FICHA ÚNICA — bloque 171 (plan 150).
+              Era una sola columna de catorce secciones: para llegar a la IP
+              había que bajar por repuestos, historial, criticidad, fotos… En el
+              celular eran cinco pantallas de scroll. Ahora son pestañas, cada
+              una con lo suyo; arriba sale lo que se mira primero. */}
+          <div className="ficha-pestanas" role="tablist" aria-label="Partes de la ficha">
+            {PESTANAS_FICHA.filter((t) => !t.permiso || can(t.permiso)).map((t) => {
+              const n = t.cuenta?.(detail, photos);
+              return (
+                <button key={t.v} type="button" role="tab" aria-selected={fichaTab === t.v}
+                  className={'ficha-pestana' + (fichaTab === t.v ? ' activa' : '')}
+                  onClick={() => setFichaTab(t.v)}>
+                  <Icono n={t.icono} size={15} /> {t.t}{n ? <span className="ficha-cuenta">{n}</span> : null}
                 </button>
-              </div>
-              <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>Estado base. Con OM o incidencia abierta se muestra el real.</div>
-            </div>
-          )}
-
-          {detail.workOrders && detail.workOrders.length > 0 && (
-            <div className="detail-sec">
-              <h4><Icono n="llaveInglesa" size={15} /> Historial de mantenimiento</h4>
-              {detail.workOrders.map((w: any) => (
-                <div key={w.code} className="frow">
-                  <span className="v">{w.code} <span className="muted" style={{ fontWeight: 400, fontSize: 11 }}>({w.type})</span></span>
-                  <span className={'badge ' + (w.status === 'CERRADA' ? 'OPERATIVO' : w.status === 'CANCELADA' ? 'BAJA' : 'MANTENIMIENTO')}>{w.status}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="detail-sec">
-            <h4><Icono n="seguridad" size={15} /> Accesibilidad del equipo</h4>
-            {/* ---- COMPONENTES (bloque 45) ----
-              La fuente PoE, el calefactor, el conversor: viven AQUÍ, dentro
-              de la ficha de su equipo, nunca sueltos en el listado. Cada uno
-              es un activo con su historial: «se quemó la fuente» deja de
-              registrarse como «falló la antena». */}
-          {(detail.componentes?.length ?? 0) > 0 && (
-            <div className="card" style={{ marginTop: 10 }}>
-              <div className="section-title">Componentes de este equipo</div>
-              {detail.componentes.map((c: any) => (
-                <div key={c.id} className="frow" style={{ cursor: 'pointer' }}
-                  onClick={() => openDetail(c.id)}>
-                  <span className="k">{tEs(c.type)}</span>
-                  <span className="v"><b>{c.assetCode}</b>{' '}
-                    <span className={'badge ' + c.status}>{sEs(c.status)}</span>
-                    {[c.brand, c.model].filter(Boolean).length > 0 &&
-                      <span className="muted"> · {[c.brand, c.model].filter(Boolean).join(' ')}</span>}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-          {detail.parteDe && (
-            <p className="muted" style={{ fontSize: 12.5 }}>
-              Este equipo es un componente de{' '}
-              <b style={{ cursor: 'pointer', textDecoration: 'underline' }}
-                onClick={() => openDetail(detail.parteDe.id)}>{detail.parteDe.assetCode}</b>.
-            </p>
-          )}
-          {/* ---- POR DÓNDE VIAJA LA IMAGEN (bloque 47) ----
-              Sólo en las cámaras, y sólo dentro de su ficha. Es la pregunta
-              que se hace el técnico delante del equipo: «¿y esto por dónde
-              sale?». Tenerlo aquí evita el viaje a Topología con el celular
-              en la mano y el manlift esperando. */}
-          {detail.type === 'CAMERA' && <CadenaDeLaCamara id={detail.id} />}
-          {detail.accessRequests && detail.accessRequests.length > 0 ? (
-              <>
-                {detail.accessRequests.map((ar: any) => (
-                  <div key={ar.id} className="frow">
-                    <span className="v">
-                      {ar.code}
-                      <span className="muted" style={{ fontWeight: 400, fontSize: 11 }}>
-                        {' · '}{MEANS_ES[ar.means] || ar.means}{ar.heightMeters != null ? ` · ${ar.heightMeters} m` : ''}
-                      </span>
-                    </span>
-                    <span className={'badge ' + (ACC_BADGE[ar.status] || 'BAJA')}>{ACC_STATUS_ES[ar.status] || ar.status}</span>
-                  </div>
-                ))}
-                <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
-                  El seguimiento y la aprobación se hacen en el módulo <b>Accesibilidad</b>.
-                </div>
-              </>
-            ) : (
-              <div className="muted" style={{ fontSize: 12 }}>
-                Si hace falta plataforma, grúa o andamio, márcalo aquí.
-              </div>
-            )}
-            {can('access.request') && (
-              <button className="btn-mini" style={{ marginTop: 8 }} onClick={() => setAccessFor(detail)}>
-                <Icono n="seguridad" size={14} /> Marcar activo inaccesible (solicitar acceso especial)
-              </button>
-            )}
+              );
+            })}
           </div>
+          {fichaTab === 'resumen' && (<>
+            {/* ARRIBA SÓLO LO QUE NO DESTRUYE NADA (bloque 80).
+                -----------------------------------------------------------------
+                «Dar de baja» y «Eliminar definitivamente» estaban AQUÍ, en la
+                primera línea de la ficha, antes que la marca y el modelo. Lo
+                primero que se veía al abrir una cámara era el botón rojo de
+                borrarla.
 
-          <div className="detail-sec">
-            <h4><Icono n="camara" size={15} /> Fotografías del equipo</h4>
-            {photos.length ? photos.map((ph) => (
-              <div key={ph.id} className="frow">
-                <span className="v">{PHOTO_KIND_ES[ph.kind] || ph.kind}{ph.caption ? ' — ' + ph.caption : ''}</span>
-                <span style={{ display: 'flex', gap: 6 }}>
-                  <button className="btn-mini" onClick={() => viewPhoto(ph)}>Ver</button>
-                  {can('asset.update') && <button className="btn-mini" onClick={() => delPhoto(ph)}>✕</button>}
-                </span>
-              </div>
-            )) : <div className="muted" style={{ fontSize: 12 }}>Sin fotografías.</div>}
-            {can('asset.update') && (
-              <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <select aria-label="Estado del equipo" value={photoKind} onChange={(e) => setPhotoKind(e.target.value)}>
-                  {PHOTO_KINDS.map((k) => <option key={k} value={k}>{PHOTO_KIND_ES[k]}</option>)}
-                </select>
-                <input type="file" accept="image/*" onChange={(e) => setPhotoFile(e.target.files?.[0] || null)} />
-                <input value={photoCaption} onChange={(e) => setPhotoCaption(e.target.value)} placeholder="Descripción (opcional)" />
-                <button className="btn-mini" disabled={uploadingPhoto} onClick={uploadPhoto}>{uploadingPhoto ? 'Subiendo…' : 'Subir foto'}</button>
-              </div>
-            )}
-          </div>
-
-          {can('credential.read') ? (
-            <div className="detail-sec">
-              <h4><Icono n="candado" size={15} /> Red y accesos</h4>
-              {can('credential.manage') ? (
-                <div style={{ marginBottom: 8 }}>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                    <div style={{ flex: 1, minWidth: 130 }}>
-                      <div className="muted" style={{ fontSize: 11 }}>IP principal</div>
-                      <input value={ipEdit} onChange={(e) => setIpEdit(e.target.value)} placeholder="172.16.x.x" style={{ width: '100%' }} />
-                    </div>
-                    <div style={{ flex: 1, minWidth: 130 }}>
-                      <div className="muted" style={{ fontSize: 11 }}>Contraseña del equipo</div>
-                      <input type="password" value={cred.secret} onChange={(e) => setCred({ ...cred, secret: e.target.value })} placeholder="clave cámara / NVR" style={{ width: '100%' }} />
-                    </div>
-                    <button className="btn-mini" disabled={savingIp} onClick={saveAccess}>{savingIp ? '…' : 'Guardar'}</button>
-                  </div>
-                  <div className="muted" style={{ fontSize: 10, marginTop: 4 }}>IP y contraseña del equipo van juntas. Usuario opcional (por defecto “admin”). Se cifra (AES-256); revelar queda auditado.</div>
-                </div>
-              ) : <Frow k="IP principal" v={detail.ipAddress} />}
-              {detail.camera && (<>
-                <Frow k="IP" v={detail.camera.ipAddress} />
-                <Frow k="MAC" v={detail.camera.macAddress} />
-                <Frow k="NVR asociado" v={detail.camera.nvrId} />
-              </>)}
-              {detail.nvr && (<>
-                <Frow k="Canales" v={detail.nvr.channels} />
-                <Frow k="NIC primaria (industrial)" v={detail.nvr.nicPrimary} />
-                <Frow k="NIC secundaria (visualización)" v={detail.nvr.nicSecondary} />
-              </>)}
-              {detail.switchDev && (<>
-                <Frow k="IP de gestión" v={detail.switchDev.mgmtIp} />
-                <Frow k="Fabricante" v={detail.switchDev.vendor} />
-                <Frow k="Rol" v={detail.switchDev.switchRole} />
-              </>)}
-              {detail.wireless && (<>
-                <Frow k="Modo" v={detail.wireless.mode} />
-                <Frow k="Frecuencia" v={detail.wireless.frequency} />
-                <Frow k="Origen → Destino" v={[detail.wireless.originPoint, detail.wireless.destPoint].filter(Boolean).join(' → ')} />
-              </>)}
-
-              <h4 style={{ marginTop: 14 }}>Credenciales</h4>
-              {creds.length ? creds.map((c) => (
-                <div key={c.id} className="frow">
-                  <span className="v">{c.username} <span className="muted" style={{ fontWeight: 400 }}>({c.type || '—'})</span></span>
-                  <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                    {revealed[c.id]
-                      ? <b style={{ fontSize: 13 }}>{revealed[c.id]}</b>
-                      : (can('credential.read')
-                          ? <button className="btn-mini" onClick={() => reveal(c.id)}>Revelar</button>
-                          : <span className="muted" style={{ fontSize: 11 }}>oculto</span>)}
-                    {can('credential.manage') && <button className="btn-mini" onClick={() => delCredential(c.id)}>✕</button>}
-                  </span>
-                </div>
-              )) : <div className="muted" style={{ fontSize: 12 }}>Sin credenciales registradas</div>}
-
+                Con guantes y prisa, un botón destructivo en el sitio donde
+                esperas «Código QR» es un accidente esperando a pasar. Bajan al
+                FINAL, después de todo lo que hay que leer, en su propia zona
+                marcada. La confirmación escrita a mano sigue puesta: son dos
+                barreras, no una. */}
+            <div className="acciones-ficha">
+              <button className="btn-mini" onClick={() => openQr(detail)}><Icono n="qr" size={14} /> Código QR</button>
+              <button className="btn-mini" onClick={() => descargarInforme(detail)}><Icono n="pdf" size={14} /> Informe (PDF)</button>
+              {can('credential.read') && <button className="btn-mini" onClick={() => openEdit(detail)}><Icono n="editar" size={14} /> Editar activo</button>}
             </div>
-          ) : (
-            <div className="sign-note" style={{ marginTop: 14 }}>
-              <Icono n="candado" size={14} /> Datos de red y accesos ocultos — requiere permiso de red (Jefe de Mantenimiento, Supervisor TI o Técnico de Red).
+            <Frow k="Tipo" v={tEs(detail.type)} />
+            <Frow k="Marca / Modelo" v={[detail.brand, detail.model].filter(Boolean).join(' ')} />
+            <Frow k="N° de serie" v={detail.serialNumber} />
+            <div className="frow">
+              <span className="k">Estado operativo</span>
+              <span className="v"><span className={'badge ' + (detail.effectiveStatus || detail.status)}>{sEs(detail.effectiveStatus || detail.status)}</span></span>
             </div>
-          )}
+            {/* POR QUÉ ESTÁ ASÍ (bloque 83).
+                El usuario lo reportó como un bug: pone el equipo en OPERATIVO,
+                recarga y sigue leyendo «En mantenimiento». El cálculo era
+                correcto —una orden abierta lo retiene—, pero antes aquí ponía
+                «calculado en vivo desde sus OM/incidencias abiertas», que no
+                dice CUÁL ni permite ir a cerrarla.
 
-          {/* LO IRREVERSIBLE, AL FINAL Y EN SU PROPIA ZONA (bloque 80).
-              -----------------------------------------------------------------
-              Estaba arriba del todo, en la misma fila que «Código QR». Aquí
-              abajo hay que haber pasado por delante de toda la ficha —lo que
-              es el equipo, dónde está, qué órdenes tiene— antes de llegar. Esa
-              lectura ES la primera barrera; la frase escrita a mano es la
-              segunda.
-
-              Y va marcado en rojo con un título encima: separado del resto no
-              se pulsa por inercia buscando otra cosa. */}
-          {can('asset.delete') && (
-            <div className="zona-peligro">
-              <div className="zp-titulo">Retirar este equipo</div>
-              <div className="zp-botones">
-                <button className="btn-mini btn-danger" onClick={() => removeAsset(detail)}>
-                  <Icono n="alerta" size={14} /> Dar de baja
-                </button>
-                {/* Sólo el Jefe de Mantenimiento. El servidor lo vuelve a
-                    comprobar: esconder un botón no protege nada, sólo evita
-                    la confusión. */}
-                {can('purga.definitiva') && (
-                  <button
-                    className="btn-mini btn-peligro"
-                    title="Elimina el registro de la base de datos. Para pruebas, duplicados y códigos mal tecleados. No se recupera."
-                    onClick={() => setAPurgar(detail.id)}
-                  >
-                    <Icono n="papelera" size={14} /> Eliminar definitivamente
-                  </button>
+                Un cálculo correcto que no se explica es indistinguible de un
+                fallo. El código de la orden y el enlace convierten la frase en
+                algo accionable: se pulsa y se va a cerrarla. */}
+            {detail.effectiveStatus && detail.effectiveStatus !== detail.status
+              && detail.porQueEseEstado && (
+              <div className="estado-porque">
+                <b>Estado base guardado: {sEs(detail.status)}.</b>{' '}
+                {detail.porQueEseEstado.texto}
+                {detail.porQueEseEstado.tipo === 'ORDEN' && can('wo.read') && (
+                  <> <Link to={`/maintenance?q=${detail.porQueEseEstado.codigo}`}>
+                    Ver {detail.porQueEseEstado.codigo}
+                  </Link></>
+                )}
+                {detail.porQueEseEstado.tipo === 'INCIDENCIA' && can('incident.read') && (
+                  <> <Link to={`/incidents?q=${detail.porQueEseEstado.codigo}`}>
+                    Ver {detail.porQueEseEstado.codigo}
+                  </Link></>
                 )}
               </div>
-              <div className="zp-nota">
-                Dar de baja conserva el historial. Eliminar no.
+            )}
+            {detail.completitud && detail.completitud.faltanClave?.length > 0 && (
+              <div style={{
+                background: 'var(--warn-fondo)', border: '1px solid var(--warn-borde)', borderRadius: 8,
+                padding: '10px 12px', marginBottom: 12, fontSize: 13,
+              }}>
+                <div style={{ fontWeight: 700, color: 'var(--warn-texto)', marginBottom: 4 }}>
+                  Ficha incompleta — {detail.completitud.porcentaje}%
+                </div>
+                <div style={{ color: 'var(--warn-texto)' }}>Falta registrar:</div>
+                <ul style={{ margin: '4px 0 0 18px', color: 'var(--warn-texto)' }}>
+                  {detail.completitud.faltanClave.map((f: any) => (
+                    <li key={f.campo}>{f.etiqueta}</li>
+                  ))}
+                </ul>
+                {detail.completitud.faltanOtros?.length > 0 && (
+                  <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>
+                    Además, sería útil: {detail.completitud.faltanOtros.map((f: any) => f.etiqueta).join(', ')}.
+                  </div>
+                )}
               </div>
+            )}
+
+            {/* CRITICIDAD A/B/C DE MANTENIMIENTO (bloque 76).
+                Va ANTES de la ficha de datos porque contesta la pregunta con la
+                que se abre esta pantalla —«¿cada cuánto hay que subir a revisar
+                esto?»— y porque el cálculo llevaba tres bloques hecho sin que
+                hubiera forma de verlo. */}
+            <CriticidadActivo assetId={detail.id} />
+
+            <Frow k="Criticidad de la zona" v={
+              detail.planta?.criticidadEfectiva && detail.planta.criticidadEfectiva !== detail.criticality
+                ? `${cEs(detail.planta.criticidadEfectiva)} (elevada por la etapa)`
+                : cEs(detail.criticality)
+            } />
+            <Frow k="Firmware" v={detail.firmware} />
+            <Frow k="Tren" v={detail.planta?.tren} />
+            <Frow k="Área del tren" v={
+              detail.planta?.etapa || (detail.planta?.etapaPendiente ? 'Falta asignar' : null)
+            } />
+            <Frow k="Ambiente" v={AMBIENTE_ES[detail.planta?.ambiente] || null} />
+            <Frow k="Preventivo cada" v={
+              detail.planta?.intervaloPreventivoDias ? `${detail.planta.intervaloPreventivoDias} días` : null
+            } />
+            <Frow k="Ubicación" v={detail.location?.name} />
+            <Frow k="Gabinete" v={detail.cabinet ? `${detail.cabinet.code} — ${detail.cabinet.name}` : null} />
+            <Frow k="Lugar de referencia" v={detail.referencePlace} />
+            <Frow k="Garantía" v={detail.warrantyEnd ? fecha(detail.warrantyEnd) : null} />
+
+            {(detail.componentes?.length ?? 0) > 0 && (
+              <div className="card" style={{ marginTop: 10 }}>
+                <div className="section-title">Componentes de este equipo</div>
+                {detail.componentes.map((c: any) => (
+                  <div key={c.id} className="frow" style={{ cursor: 'pointer' }}
+                    onClick={() => openDetail(c.id)}>
+                    <span className="k">{tEs(c.type)}</span>
+                    <span className="v"><b>{c.assetCode}</b>{' '}
+                      <span className={'badge ' + c.status}>{sEs(c.status)}</span>
+                      {[c.brand, c.model].filter(Boolean).length > 0 &&
+                        <span className="muted"> · {[c.brand, c.model].filter(Boolean).join(' ')}</span>}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {detail.parteDe && (
+              <p className="muted" style={{ fontSize: 12.5 }}>
+                Este equipo es un componente de{' '}
+                <b style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                  onClick={() => openDetail(detail.parteDe.id)}>{detail.parteDe.assetCode}</b>.
+              </p>
+            )}
+            {can('asset.update') && (
+              <div className="detail-sec">
+                <h4><Icono n="refrescar" size={15} /> Actualizar estado</h4>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <select aria-label="Nuevo estado del equipo" value={newStatus} onChange={(e) => setNewStatus(e.target.value)} style={{ flex: 1 }}>
+                    {STATES.map((t) => <option key={t} value={t}>{sEs(t)}</option>)}
+                  </select>
+                  <button className="btn-mini" disabled={savingStatus || newStatus === detail.status} onClick={saveStatus}>
+                    {savingStatus ? 'Guardando…' : 'Guardar estado'}
+                  </button>
+                </div>
+                <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>Con OM o incidencia abierta, manda el estado real.</div>
+              </div>
+            )}
+
+            {/* LO IRREVERSIBLE, AL FINAL Y EN SU PROPIA ZONA (bloque 80).
+                -----------------------------------------------------------------
+                Estaba arriba del todo, en la misma fila que «Código QR». Aquí
+                abajo hay que haber pasado por delante de toda la ficha —lo que
+                es el equipo, dónde está, qué órdenes tiene— antes de llegar. Esa
+                lectura ES la primera barrera; la frase escrita a mano es la
+                segunda.
+
+                Y va marcado en rojo con un título encima: separado del resto no
+                se pulsa por inercia buscando otra cosa. */}
+            {can('asset.delete') && (
+              <div className="zona-peligro">
+                <div className="zp-titulo">Retirar este equipo</div>
+                <div className="zp-botones">
+                  <button className="btn-mini btn-danger" onClick={() => removeAsset(detail)}>
+                    <Icono n="alerta" size={14} /> Dar de baja
+                  </button>
+                  {/* Sólo el Jefe de Mantenimiento. El servidor lo vuelve a
+                      comprobar: esconder un botón no protege nada, sólo evita
+                      la confusión. */}
+                  {can('purga.definitiva') && (
+                    <button
+                      className="btn-mini btn-peligro"
+                      title="Elimina el registro de la base de datos. Para pruebas, duplicados y códigos mal tecleados. No se recupera."
+                      onClick={() => setAPurgar(detail.id)}
+                    >
+                      <Icono n="papelera" size={14} /> Eliminar definitivamente
+                    </button>
+                  )}
+                </div>
+                <div className="zp-nota">
+                  Dar de baja conserva el historial. Eliminar no.
+                </div>
+              </div>
+            )}
+          </>)}
+          {fichaTab === 'red' && (<>
+            <RedDelActivo assetId={detail.id} />
+            {/* ---- POR DÓNDE VIAJA LA IMAGEN (bloque 47) ----
+                Sólo en las cámaras, y sólo dentro de su ficha. Es la pregunta
+                que se hace el técnico delante del equipo: «¿y esto por dónde
+                sale?». Tenerlo aquí evita el viaje a Topología con el celular
+                en la mano y el manlift esperando. */}
+            {detail.type === 'CAMERA' && <CadenaDeLaCamara id={detail.id} />}
+            {can('credential.read') ? (
+              <div className="detail-sec">
+                <h4><Icono n="candado" size={15} /> Accesos al equipo</h4>
+                {can('credential.manage') ? (
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                      <div style={{ flex: 1, minWidth: 130 }}>
+                        <div className="muted" style={{ fontSize: 11 }}>IP principal</div>
+                        <input aria-label="IP principal" value={ipEdit} onChange={(e) => setIpEdit(e.target.value)} placeholder="172.16.x.x" style={{ width: '100%' }} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 130 }}>
+                        <div className="muted" style={{ fontSize: 11 }}>Contraseña</div>
+                        <input aria-label="Contraseña del equipo" type="password" value={cred.secret} onChange={(e) => setCred({ ...cred, secret: e.target.value })} placeholder="clave cámara / NVR" style={{ width: '100%' }} />
+                      </div>
+                      <button className="btn-mini" disabled={savingIp} onClick={saveAccess}>{savingIp ? '…' : 'Guardar'}</button>
+                    </div>
+                    <div className="muted" style={{ fontSize: 10, marginTop: 4 }}>IP y contraseña del equipo van juntas. Usuario opcional (por defecto “admin”). Se cifra (AES-256); revelar queda auditado.</div>
+                  </div>
+                ) : <Frow k="IP principal" v={detail.ipAddress} />}
+                {detail.camera && (<>
+                  <Frow k="IP" v={detail.camera.ipAddress} />
+                  <Frow k="MAC" v={detail.camera.macAddress} />
+                  <Frow k="NVR asociado" v={detail.camera.nvrId} />
+                </>)}
+                {detail.nvr && (<>
+                  <Frow k="Canales" v={detail.nvr.channels} />
+                  <Frow k="NIC primaria (industrial)" v={detail.nvr.nicPrimary} />
+                  <Frow k="NIC secundaria (visualización)" v={detail.nvr.nicSecondary} />
+                </>)}
+                {detail.switchDev && (<>
+                  <Frow k="IP de gestión" v={detail.switchDev.mgmtIp} />
+                  <Frow k="Fabricante" v={detail.switchDev.vendor} />
+                  <Frow k="Rol" v={detail.switchDev.switchRole} />
+                </>)}
+                {detail.wireless && (<>
+                  <Frow k="Modo" v={detail.wireless.mode} />
+                  <Frow k="Frecuencia" v={detail.wireless.frequency} />
+                  <Frow k="Origen → Destino" v={[detail.wireless.originPoint, detail.wireless.destPoint].filter(Boolean).join(' → ')} />
+                </>)}
+
+                <h4 style={{ marginTop: 14 }}>Credenciales</h4>
+                {creds.length ? creds.map((c) => (
+                  <div key={c.id} className="frow">
+                    <span className="v">{c.username} <span className="muted" style={{ fontWeight: 400 }}>({c.type || '—'})</span></span>
+                    <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      {revealed[c.id]
+                        ? <b style={{ fontSize: 13 }}>{revealed[c.id]}</b>
+                        : (can('credential.read')
+                            ? <button className="btn-mini" onClick={() => reveal(c.id)}>Revelar</button>
+                            : <span className="muted" style={{ fontSize: 11 }}>oculto</span>)}
+                      {can('credential.manage') && <button className="btn-mini" onClick={() => delCredential(c.id)}>✕</button>}
+                    </span>
+                  </div>
+                )) : <div className="muted" style={{ fontSize: 12 }}>Sin credenciales</div>}
+
+              </div>
+            ) : (
+              <div className="sign-note" style={{ marginTop: 14 }}>
+                <Icono n="candado" size={14} /> Requiere permiso de red.
+              </div>
+            )}
+
+          </>)}
+          {fichaTab === 'energia' && <EnergiaDelActivo assetId={detail.id} />}
+          {fichaTab === 'acceso' && (<>
+            <div className="detail-sec">
+              <h4><Icono n="seguridad" size={15} /> Accesibilidad del equipo</h4>
+              {/* ---- COMPONENTES (bloque 45) ----
+                La fuente PoE, el calefactor, el conversor: viven AQUÍ, dentro
+                de la ficha de su equipo, nunca sueltos en el listado. Cada uno
+                es un activo con su historial: «se quemó la fuente» deja de
+                registrarse como «falló la antena». */}
+            {detail.accessRequests && detail.accessRequests.length > 0 ? (
+                <>
+                  {detail.accessRequests.map((ar: any) => (
+                    <div key={ar.id} className="frow">
+                      <span className="v">
+                        {ar.code}
+                        <span className="muted" style={{ fontWeight: 400, fontSize: 11 }}>
+                          {' · '}{MEANS_ES[ar.means] || ar.means}{ar.heightMeters != null ? ` · ${ar.heightMeters} m` : ''}
+                        </span>
+                      </span>
+                      <span className={'badge ' + (ACC_BADGE[ar.status] || 'BAJA')}>{ACC_STATUS_ES[ar.status] || ar.status}</span>
+                    </div>
+                  ))}
+                  <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+                    Se aprueba en <b>Accesibilidad</b>.
+                  </div>
+                </>
+              ) : (
+                <div className="muted" style={{ fontSize: 12 }}>
+                  ¿Hace falta plataforma, grúa o andamio? Márcalo.
+                </div>
+              )}
+              {can('access.request') && (
+                <button className="btn-mini" style={{ marginTop: 8 }} onClick={() => setAccessFor(detail)}>
+                  <Icono n="seguridad" size={14} /> Marcar activo inaccesible (solicitar acceso especial)
+                </button>
+              )}
             </div>
-          )}
+
+          </>)}
+          {fichaTab === 'historial' && (<>
+            {/* BLOQUE 106-B. Va ANTES del historial de averías y con razón: lo
+                primero que hay que saber al mirar tres fallas seguidas es si le
+                pasaron al MISMO aparato o a tres cámaras distintas. */}
+            {/* BLOQUE 108. El veredicto va ARRIBA de todo lo demás: es lo que
+                contesta la pregunta con la que se abre esta ficha. */}
+            <ReemplazoDelActivo assetId={detail.id} assetCode={detail.assetCode} />
+
+            <AparatoInstalado assetId={detail.id} tipo={detail.type} />
+
+            {/* BLOQUE 109. La máscara, la VLAN y la puerta de enlace salen de la
+                subred a la que pertenece la IP, no de campos copiados aquí. */}
+
+            <HistorialActivo assetId={detail.id} />
+
+            {detail.workOrders && detail.workOrders.length > 0 && (
+              <div className="detail-sec">
+                <h4><Icono n="llaveInglesa" size={15} /> Historial de mantenimiento</h4>
+                {detail.workOrders.map((w: any) => (
+                  <div key={w.code} className="frow">
+                    <span className="v">{w.code} <span className="muted" style={{ fontWeight: 400, fontSize: 11 }}>({w.type})</span></span>
+                    <span className={'badge ' + (w.status === 'CERRADA' ? 'OPERATIVO' : w.status === 'CANCELADA' ? 'BAJA' : 'MANTENIMIENTO')}>{w.status}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+          </>)}
+          {fichaTab === 'repuestos' && (<>
+            {/* Retroalimentación: qué le ha pasado antes a este equipo.
+                Va ARRIBA porque es lo que hay que leer antes de decidir algo. */}
+            {/* Qué repuestos sirven para este equipo y si hay en almacén.
+                Se pregunta CON EL EQUIPO DELANTE: el técnico está arriba y
+                necesita saber si bajar o no. */}
+            <RepuestosDelActivo assetId={detail.id} />
+
+          </>)}
+          {fichaTab === 'fotos' && (<>
+            <div className="detail-sec">
+              <h4><Icono n="camara" size={15} /> Fotografías del equipo</h4>
+              {photos.length ? photos.map((ph) => (
+                <div key={ph.id} className="frow">
+                  <span className="v">{PHOTO_KIND_ES[ph.kind] || ph.kind}{ph.caption ? ' — ' + ph.caption : ''}</span>
+                  <span style={{ display: 'flex', gap: 6 }}>
+                    <button className="btn-mini" onClick={() => viewPhoto(ph)}>Ver</button>
+                    {can('asset.update') && <button className="btn-mini" onClick={() => delPhoto(ph)}>✕</button>}
+                  </span>
+                </div>
+              )) : <div className="muted" style={{ fontSize: 12 }}>Sin fotografías.</div>}
+              {can('asset.update') && (
+                <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <select aria-label="Tipo de foto" value={photoKind} onChange={(e) => setPhotoKind(e.target.value)}>
+                    {PHOTO_KINDS.map((k) => <option key={k} value={k}>{PHOTO_KIND_ES[k]}</option>)}
+                  </select>
+                  <input type="file" accept="image/*" onChange={(e) => setPhotoFile(e.target.files?.[0] || null)} />
+                  <input value={photoCaption} onChange={(e) => setPhotoCaption(e.target.value)} placeholder="Descripción (opcional)" />
+                  <button className="btn-mini" disabled={uploadingPhoto} onClick={uploadPhoto}>{uploadingPhoto ? 'Subiendo…' : 'Subir foto'}</button>
+                </div>
+              )}
+            </div>
+
+          </>)}
+          {fichaTab === 'documentos' && <DocumentosDelActivo assetId={detail.id} assetCode={detail.assetCode} />}
         </Modal>
       )}
 
@@ -1323,15 +1396,19 @@ export default function Assets() {
           <form id="form-activo" onSubmit={submitNew}>
             <div className="sign-note">El activo contiene información sensible (IP, red, accesos). Confirma tu identidad con correo y contraseña; quedará auditado con tu firma quién {form.id ? 'editó' : 'registró'} el activo.</div>
             <label>Código / rótulo del activo
-              <input value={form.assetCode} onChange={(e) => setForm({ ...form, assetCode: e.target.value })} required />
+              <input value={form.assetCode} onChange={(e) => setForm({ ...form, assetCode: e.target.value })} required
+                placeholder={form.id ? undefined : 'Se propone solo al elegir tipo y ubicación'} />
             </label>
             <div style={{ display: 'flex', gap: 10 }}>
               <div style={{ flex: 1 }}><label>Tipo<select value={form.type} onChange={(e) => { setForm({ ...form, type: e.target.value }); setSpec({}); }}>{TYPES.map((t) => <option key={t} value={t}>{tEs(t)}</option>)}</select></label></div>
               <div style={{ flex: 1 }}><label>Criticidad<select value={form.criticality} onChange={(e) => setForm({ ...form, criticality: e.target.value })}>{CRITS.map((t) => <option key={t} value={t}>{cEs(t)}</option>)}</select></label></div>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
-              <div style={{ flex: 1 }}><label>Marca<input value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} /></label></div>
-              <div style={{ flex: 1 }}><label>Modelo<input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} /></label></div>
+              {/* Bloque 169: marca y modelo se eligen de los que ya hay en planta. */}
+              <div style={{ flex: 1 }}>
+                <SelectorDeModelo tipo={form.type} marca={form.brand || ''} modelo={form.model || ''}
+                  onChange={(marca, modelo) => setForm((f: any) => ({ ...f, brand: marca, model: modelo }))} />
+              </div>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <div style={{ flex: 1 }}><label>N° de serie<input value={form.serialNumber} onChange={(e) => setForm({ ...form, serialNumber: e.target.value })} /></label></div>
@@ -1354,7 +1431,9 @@ export default function Assets() {
               required
             >
               <option value="">— selecciona ubicación —</option>
-              {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              {/* Bloque 172 · sin gabinetes (van en su campo) ni la empresa,
+                  agrupado por tren. Ver ubicaciones.tsx. */}
+              <OpcionesDeUbicacion uso="equipo" lista={locations} actual={form.locationId} />
             </select>
             <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>¿No está? Regístrala en Ubicaciones.</div>
             {/* DÓNDE ESTÁ MONTADO: gabinete O tablero eléctrico.
@@ -1362,30 +1441,33 @@ export default function Assets() {
                 Ese switch no está en ningún gabinete de comunicaciones, y
                 obligar a inventar uno daría dos registros para una sola cosa
                 física. Se elige uno de los dos, no los dos. */}
+            {/* Bloque 172 · gabinete y tablero sólo para los tipos que se
+                montan ahí (una cámara no va en un gabinete ni en un tablero de
+                fuerza), y sólo los del MISMO TREN que la ubicación elegida. */}
+            {(VA_EN_GABINETE.includes(form.type) || !!form.cabinetId) && (<>
             <label>Gabinete{CABINET_REQUIRED.includes(form.type) && !form.tableroId ? ' (obligatorio para este tipo)' : ''}</label>
-            {/* La etiqueta decía «Elegir tablero eléctrico» y esto es el
-                GABINETE (bloque 77). Un lector de pantalla leía el nombre del
-                campo de al lado: quien no ve la pantalla elegía el campo
-                equivocado sin ninguna pista de que se estaba equivocando. */}
             <select aria-label="Elegir gabinete" value={form.cabinetId}
               onChange={(e) => setForm({ ...form, cabinetId: e.target.value, tableroId: e.target.value ? '' : form.tableroId })}
               disabled={!!form.tableroId}
               required={CABINET_REQUIRED.includes(form.type) && !form.tableroId}>
               <option value="">— sin gabinete —</option>
-              {cabinets.map((c) => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
+              {delMismoTren(locations, cabinets, form.locationId, form.cabinetId).map((c) => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
             </select>
+            </>)}
 
+            {(VA_EN_TABLERO.includes(form.type) || !!form.tableroId) && (<>
             <label>…o dentro de un tablero eléctrico
               <select value={form.tableroId}
               onChange={(e) => setForm({ ...form, tableroId: e.target.value, cabinetId: e.target.value ? '' : form.cabinetId })}
               disabled={!!form.cabinetId}>
               <option value="">— no está en un tablero —</option>
-              {tableros.map((t: any) => <option key={t.id} value={t.id}>{t.codigo} — {t.nombre}</option>)}
+              {delMismoTren(locations, tableros, form.locationId, form.tableroId).map((t: any) => <option key={t.id} value={t.id}>{t.codigo} — {t.nombre}</option>)}
             </select>
             </label>
             <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
               Para los switches dentro de un tablero. Se elige gabinete <b>o</b> tablero, no los dos.
             </div>
+            </>)}
             {CABINET_REQUIRED.includes(form.type) && !form.cabinetId && !form.tableroId && (
               <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
                 Di dónde está montado, para poder encontrarlo.
@@ -1403,6 +1485,7 @@ export default function Assets() {
               spec={spec}
               onChange={setSpec}
               opciones={opciones}
+              propioId={form.id}
             />
 
             <AssetPhotoPicker fotos={fotosNuevas} onChange={setFotosNuevas} />

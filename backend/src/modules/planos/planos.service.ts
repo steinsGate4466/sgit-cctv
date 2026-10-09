@@ -90,6 +90,37 @@ export class PlanosService {
     return filas.map(({ _count, ...p }) => ({ ...p, equiposColocados: _count.posiciones }));
   }
 
+  /**
+   * DÓNDE ESTÁ DIBUJADO UN EQUIPO — bloque 171 (plan 154, «Estás aquí»).
+   *
+   * Sólo planos PUBLICADOS y de su ámbito: el QR lo escanea cualquiera con
+   * permiso de mirar, y un borrador puede tener el equipo mal colocado. Si es
+   * un componente (la fuente PoE de una antena), se busca a su equipo padre,
+   * que es lo que está dibujado. Vacío = no está en ningún plano todavía.
+   */
+  async donde(assetId: string, userId: string | null) {
+    const a = await this.prisma.asset.findUnique({ where: { id: assetId }, select: { id: true, parteDeId: true } });
+    if (!a) throw new NotFoundException('Ese equipo no existe.');
+    const ambito = await filtroConAmbito(this.prisma, userId, {});
+    const ids = [a.id, ...(a.parteDeId ? [a.parteDeId] : [])];
+    const filas = await this.prisma.posicionEnPlano.findMany({
+      where: {
+        assetId: { in: ids },
+        plano: { estado: 'PUBLICADO', ...(ambito ? { locationId: { in: ambito.in } } : {}) },
+      },
+      select: {
+        assetId: true, xPx: true, yPx: true,
+        plano: { select: { id: true, nombre: true, version: true, location: { select: { name: true } } } },
+      },
+    });
+    // El equipo mismo antes que su padre; y de cada plano, la versión más nueva.
+    filas.sort((x, y) => (x.assetId === a.id ? 0 : 1) - (y.assetId === a.id ? 0 : 1) || y.plano.version - x.plano.version);
+    return filas.map((f) => ({
+      planoId: f.plano.id, plano: f.plano.nombre, ubicacion: f.plano.location?.name ?? null,
+      xPx: f.xPx, yPx: f.yPx, porSuPadre: f.assetId !== a.id,
+    }));
+  }
+
   async imagen(id: string, userId: string | null, gestiona: boolean) {
     const p = await this.plano(id);
     if (!gestiona && p.estado !== 'PUBLICADO') throw new NotFoundException('Ese plano no está publicado.');

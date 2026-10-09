@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { perfilDeSeguridadEn } from '../../common/seguridad-de-planta';
 import { Prisma } from '../../generated/prisma/client';
 import { revisarImagen } from '../../common/archivos-seguros';
 import * as argon2 from 'argon2';
@@ -112,24 +113,31 @@ export class AccessService {
     const asset = await this.prisma.asset.findUnique({ where: { id: dto.assetId } });
     if (!asset || asset.deletedAt) throw new NotFoundException('Activo no encontrado');
 
+    /* BLOQUE 168 · LO DE SEGURIDAD NO SE DEJA EN BLANCO NI POR DEBAJO DE LO DECLARADO.
+       Lo que el formulario no traiga se completa con el perfil del equipo
+       (`common/seguridad-del-trabajo.ts`); y lo obligatorio no baja: si el
+       equipo está en altura, PETAR sí y mínimo las personas que exige. */
+    const perfil = await perfilDeSeguridadEn(this.prisma, { assetId: asset.id, locationId: asset.locationId });
+    const altura = dto.heightMeters ?? perfil.alturaM ?? undefined;
+
     const code = await this.nextCode();
     const created = await this.prisma.accessRequest.create({
       data: {
         code,
         assetId: dto.assetId,
         requestedById: userId || undefined,
-        heightMeters: dto.heightMeters,
-        means: dto.means || 'MANLIFT',
+        heightMeters: altura,
+        means: dto.means || (perfil.medio && perfil.medio !== 'A_PIE' ? perfil.medio as any : 'MANLIFT'),
         locationKind: dto.locationKind,
         justification: dto.justification,
-        accessRoute: dto.accessRoute,
-        requiresPetar: dto.requiresPetar ?? ((dto.heightMeters ?? 0) >= ALTURA_TRABAJO_EN_ALTURA_M),
+        accessRoute: dto.accessRoute || perfil.comoLlegar || undefined,
+        requiresPetar: perfil.enAltura || (altura ?? 0) >= ALTURA_TRABAJO_EN_ALTURA_M || !!dto.requiresPetar,
         hasIperc: dto.hasIperc ?? false,
         hasAts: dto.hasAts ?? false,
-        personnelCount: dto.personnelCount ?? 2,
-        eppDetail: dto.eppDetail,
-        risks: dto.risks,
-        productionImpact: dto.productionImpact,
+        personnelCount: Math.max(dto.personnelCount ?? 2, perfil.personasMinimas),
+        eppDetail: dto.eppDetail?.trim() || perfil.epp.join(', '),
+        risks: dto.risks?.trim() || perfil.riesgos.join('; '),
+        productionImpact: dto.productionImpact?.trim() || perfil.impactoProduccion,
       },
       include: inc,
     });

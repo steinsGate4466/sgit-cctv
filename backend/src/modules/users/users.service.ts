@@ -38,6 +38,37 @@ export class UsersService {
     return this.prisma.user.findMany({ select: userSelect, orderBy: { createdAt: 'asc' } });
   }
 
+  /**
+   * QUIÉN PUEDE HACER UN TRABAJO DE CAMPO — bloque 172.
+   *
+   * «¿A quién se lo asignas?», «Acompañante en campo» y «Responsable de la
+   * zona» ofrecían TODOS los usuarios activos: el consultor externo, el jefe de
+   * línea de Producción o el operador del púlpito salían como técnicos. Se
+   * asignaba una orden a quien no puede ni abrirla.
+   *
+   * Ejecuta quien tiene `wo.update` (registrar avance y cerrar). Se decide por
+   * PERMISO, nunca por el nombre del rol (regla del bloque 62-A).
+   */
+  async ejecutores() {
+    const filas = await this.prisma.user.findMany({
+      where: {
+        active: true,
+        role: { permissions: { some: { permission: { code: 'wo.update' } } } },
+      },
+      select: { id: true, fullName: true, ambitoTrenes: true, role: { select: { name: true } } },
+      orderBy: { fullName: 'asc' },
+    });
+    return filas.map((u) => ({ id: u.id, fullName: u.fullName, rol: u.role?.name ?? null, ambitoTrenes: u.ambitoTrenes }));
+  }
+
+  /** ¿Puede este usuario ejecutar órdenes? Lo usa Mantenimiento al asignar. */
+  async puedeEjecutar(id: string): Promise<boolean> {
+    const n = await this.prisma.user.count({
+      where: { id, active: true, role: { permissions: { some: { permission: { code: 'wo.update' } } } } },
+    });
+    return n > 0;
+  }
+
   async findOne(id: string) {
     const user = await this.prisma.user.findUnique({ where: { id }, select: userSelect });
     if (!user) throw new NotFoundException('Usuario no encontrado');

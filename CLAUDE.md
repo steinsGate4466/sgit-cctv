@@ -6550,3 +6550,173 @@ la pantalla en el marco de todo `position: fixed` que lleva dentro.
 - `verificar:tema` falla si una animación de `.content/.page/.app` deja un
   `transform` aplicado (probado reintroduciendo el fallo).
 
+## §90 · BLOQUE 168 — LA SEGURIDAD Y LOS FORMULARIOS SALEN DE LO DECLARADO (04/10/2026)
+
+Revisión: «formularios, como los de seguridad, no se autocompletan o dejan a
+criterio técnico; eso no debe ser así». Auditados todos los formularios.
+- **Perfil de seguridad único** (`common/seguridad-del-trabajo.ts`, puro, con
+  pruebas; `common/seguridad-de-planta.ts` lee la base). De lo DECLARADO —altura
+  y medio del equipo (o de su padre), «la zona exige subir», firma de
+  intervención, ambiente, tablero que lo contiene/alimenta, riesgo para personas,
+  cómo llegar— salen: en altura (≥1,80 m), bloqueo eléctrico, parada (sin firma =
+  parada), personas mínimas, REQUISITOS a marcar (ATS, EPP básico, PETAR, EPP de
+  altura, manlift, grúa, LOTO, EPP eléctrico, parada, EPP del ambiente), EPP,
+  riesgos (lo declarado se copia tal cual) e impacto. Lo no declarado se lista.
+- `GET /seguridad/activo|orden|ubicacion/:id` (ámbito comprobado).
+- **Abrir la OM** (`openSigned`): sin todos los requisitos marcados NO abre; en
+  altura o con bloqueo, sin acompañante tampoco. Se guarda `WorkOrder.seguridadInicio`
+  (migración `20261004010000_seguridad_al_empezar`). El ATS marcado completa el
+  permiso de altura aprobado (`hasAts`). Pantalla: `SeguridadAlEmpezar`.
+- **Solicitud de acceso en altura**: se rellena con el perfil (altura, medio, ruta,
+  PETAR, personas, EPP, riesgos, impacto); el servidor completa lo vacío y no deja
+  bajar PETAR ni personas por debajo de lo exigido.
+- **Inspección de grúa**: `GET /gruas/propuesta/:assetId` rellena grúa, posición,
+  acceso, parada, canal/NVR, antena, permiso y orden; lo inspeccionado no se copia.
+- **Visita de instalación**: propone ambiente, parada, LOTO, permiso de altura,
+  manlift y riesgos de la zona (dice qué propuso). La orden generada lleva parada,
+  caliente, andamio y riesgos; ya no pone `openedById` (usa `createdById`).
+- **Incidencias**: zona del equipo; prioridad por defecto la de la zona y no se
+  puede BAJAR (`prioridadDeIncidencia`); al resolver: causa del catálogo CAUSA,
+  responsable e intervinientes = quien firma, minutos sin visión calculados.
+- **OM**: zona/responsable rellenados; condición «Sin revisar» por defecto (antes
+  «OK»); reincidente automático si hubo otra correctiva en la ventana (90 d).
+- **Prórroga y «No pude» del QR**: motivo del catálogo MOTIVO_AVANCE.
+- **Ubicaciones**: ya se editan «cómo se llega», sigla del tren y ambiente.
+- **Rótulo**: `GET /estandares/proximo-rotulo` (tipo + ubicación → AA-…-NNN libre),
+  usado en el alta de equipo y al marcar instalada.
+- **Preventivo**: intervalo por ambiente y último preventivo cerrado si se dejan vacíos.
+- Paradas: tren por defecto el del usuario. Materiales: unidad del catálogo.
+
+## §91 · BLOQUE 169 — TODO CON CLICS (08/10/2026)
+
+«Que los técnicos no coloquen nada a su criterio, que todo se ordene con clics.»
+- **Catálogos base** (`20261008010000_catalogos_base`): SÍNTOMA (19), ACCIÓN (20),
+  MOTIVO_AVANCE (11), TRABAJO_OM (12, con su actividad). Estaban VACÍOS de fábrica y
+  por eso el cierre, el avance y la OM caían a texto libre. Genéricos de CCTV/red,
+  editables; SÓLO se cargan si ese catálogo está vacío. (Revierte la decisión del 136
+  de «no traer subtipos»: el usuario pidió que todo sea elegir.)
+- **Cerrar correctiva**: síntoma, causa y acción OBLIGATORIOS (servidor y pantalla)
+  si el catálogo tiene opciones. «Sin foto» se elige de una lista.
+- **Registrar intervención**: trabajo / qué se encontró / qué se hizo con listas; el
+  texto es detalle; materiales → pantalla de materiales con código SAP. La lista de
+  OM trae lugar y ubicación del equipo (zona rellenada).
+- **Detallar OM**: trabajo del catálogo; motivo de cambio de equipo con fichas;
+  conserva la parada estimada.
+- **Incidencias**: el equipo va primero; título armado con categoría + equipo; al
+  resolver, la acción del catálogo. Arreglado: prioridad «según la zona» mandaba ''.
+- **Permiso de altura**: el sustento se arma solo (altura, montaje, medio); texto opcional.
+- **Grúa**: grúa de las ya inspeccionadas; acciones con fichas; hallazgos armados con
+  lo marcado si se dejan vacíos (servidor).
+- **Marca y modelo**: `GET /assets/marcas-modelos?tipo=` + `SelectorDeModelo` (alta de
+  equipo, aparato instalado, marcar instalada). Retiro de aparato: motivo de lista.
+- Componentes: `ElegirConClics` (fichas), `SelectorDeModelo`.
+- Texto libre que QUEDA a propósito: serie, firmware, notas/detalle opcional, bitácora
+  del turno, datos maestros (nombres, IP, rutas de cable de una visita).
+
+
+
+## §92 · BLOQUE 170 — LA SESIÓN YA NO ECHA A QUIEN TRABAJA · MÓDULOS VISIBLES (08/10/2026)
+
+«Cuando estás mucho tiempo, aunque estés moviendo todo y cambiando de página, igual se sale.»
+La actividad NO era el problema. Tres causas, reproducidas con el token a 5 s:
+1. **Carrera de renovación** (la principal). Cada 15 min caduca el token; la pantalla lanza
+   varias peticiones, todas 401, y CADA UNA renovaba con el mismo refresh. El servidor rota en
+   la 1ª y toma la 2ª por ROBO → cierra TODAS las sesiones. Arreglo: `api/client.ts`
+   `renovarUnaVez` (una renovación en vuelo por pestaña + candado Web Locks entre pestañas +
+   reusar el token si otra ya renovó) y en el servidor `auth/rotacion.ts`: reutilizar un token
+   rotado hace < 30 s por «rotado» NO es robo (ventana de reutilización tipo Auth0/Okta).
+   Pasados 30 s, o revocado por otro motivo, sigue cerrando todo.
+2. **Freno del refresh = freno del login**: 20 cada 5 min POR IP. En planta todos salen por la
+   misma IP pública (NAT/PAT) → el cupo era de TODA la planta, 429 y fuera 10 min. Ahora
+   `CUPO_RENOVAR` (600/5 min, castigo 1 min). Y un 429/5xx/sin red al renovar ya NO echa:
+   sólo falla esa petición («temporal»).
+3. **Pestañas**: la pestaña sin usar contaba sus 15 min y cerraba la sesión de la otra. Ahora
+   la última actividad se comparte (`sgit.actividad`, una escritura cada 5 s).
+- `verificar-sesion` vigila las tres. Pruebas: `rotacion-concurrente.spec.ts`. E2E: 16
+  caducidades con 2 pestañas, 16 renovaciones, sigue dentro.
+
+**Módulos más visibles**
+- `GET /dashboard/contadores`: cuentas baratas por pantalla (incidencias vivas/graves, OM
+  fuera de plazo, sin detallar, permisos por revisar, instalaciones en marcha, repuestos bajo
+  mínimo). Sólo si puede abrir esa pantalla, con ÁMBITO, ceros fuera, una que falla no tumba
+  al resto. Front: `contadores.ts` (cada 3 min y al navegar, máx. 1/min), `Insignia`.
+- Menú: número por módulo (la bandeja no suma: resume a las otras), punto en la barra estrecha.
+- `PanelDeModulo`: al dejar el ratón sobre un módulo, sus pantallas con para qué sirven y su
+  número; un clic y llegas. `modulos.ts` lleva `descripcion` y `nota` por pantalla.
+- `/modulos` «Todos los módulos» (índice; exento en verificar-menu; 1ª pastilla en celular).
+- Pestañas del módulo en UNA fila deslizable con degradado; la activa se centra (sólo la fila).
+- Arreglos de paso: barra estrecha (`.brand > div` no casaba desde el bloque 67 → `> span`),
+  cabecera del celular (título arriba, hora y botones abajo).
+
+## §93 · BLOQUE 171 — VALIDAR TODO · FICHA ÚNICA · «ESTÁS AQUÍ» · IMPACTO (08/10/2026)
+
+«Valida absolutamente todo, que sea más agradable, termina los módulos pendientes.»
+
+**Cómo se validó**: barrido de las 65 rutas con 6 perfiles (Jefe, técnico, técnico de red,
+jefe de tren, jefe de línea, consultor), en PC, celular y modo noche; más todos los GET del
+API (126 sin parámetro + 81 con id real: 0 errores 5xx). Queda como recorrido
+`frontend/e2e/08-todas-las-pantallas.spec.ts` (lee las rutas de App.tsx: una pantalla nueva
+entra sola).
+
+**Fallos reales encontrados y arreglados**
+- **429 sin CORS** (main.ts): el limitador iba ANTES de CORS; su 429 salía sin cabeceras y la
+  pantalla decía «el servidor no responde». Ahora CORS va primero, OPTIONS no gasta cupo (se
+  contaba por la IP COMPARTIDA de la planta) y el cupo por usuario sube a 600/min (una pantalla
+  hoy pide 10-25 cosas). El front anuncia el 429 con cuánto esperar.
+- **403 en pantallas del propio menú**: Dashboard pedía red y troubleshooting sin permiso;
+  Activos pedía tableros al consultor; Órdenes pedía catálogos con `wo.read` al jefe de tren
+  (catálogos: ahora `wo.read | om.mirar | incident.read`). Gabinete por QR abierto a
+  `activos.mirar` (IP oculta si no ve red).
+- **PuertaDeRuta**: una ruta que no está en tu menú ya no se carga a ciegas (403 y pantalla
+  vacía): dice «no está en tu menú» y a dónde ir. Regla única `puedeAbrir` en modulos.ts (la
+  usan menú, buscador, «Lo último» y el mapa). Vigilada en verificar-menu.
+- **Desbordes en el celular**: 8 pantallas con tabla fuera de tarjeta (180-264 px) → `.desliza`;
+  ficha de gabinete (86 px).
+- QR de tablero/gabinete/equipo: un 403/404 ya no dice «comprueba la señal».
+- Servicio caído (MinIO/BD) → 503 con mensaje claro, no 500 «error interno».
+- Títulos que faltaban (Avance, Retirados, Criticidad, Hojas de ruta, QR).
+- aria-label equivocados («Filtrar por tren» en el estado de una incidencia, etc.).
+- Verificador de coherencia cazó `infra.manage` (no existe) en un componente nuevo.
+
+**Módulos pendientes cerrados**
+- **150 · Ficha única del equipo**: pestañas Resumen · Red · Energía · Acceso · Historial ·
+  Repuestos · Fotos · Documentos (barra pegada arriba, alto mínimo). Energía usa
+  `/electricidad/activo/:id` (existía y nadie lo usaba). Documentos del equipo con descarga.
+- **154 · «Estás aquí»**: `GET /planos/donde/:assetId` (planos publicados, ámbito, componente →
+  su padre). Desde el QR, «Ver dónde está en el mapa» abre el plano centrado, lo marca y da
+  la ruta a pie en texto (tren › zona, cómo llegar, altura y medio, bloqueo). Sin pasillos
+  dibujados no se inventa un camino.
+- **153 · Capa de impacto** en el mapa (con `red.read`): elige un equipo y se marca lo que
+  dejaría de verse si cae. En la demo no hay cámaras cableadas a los switches del plano.
+- **149 · Menos letras**: líneas base bajadas (Activos 241, Electricidad 289, Equipos 288,
+  Instalaciones 225, Limpieza 346, Órdenes 187, Paradas 238).
+
+**Aspecto**: botón «Eliminar» de las filas en línea roja (el rojo lleno queda para el que
+borra de verdad), incidencias con menú «⋯», «Lo último» con rótulo, celdas `break-word`.
+
+## §94 · BLOQUE 172 — CADA DESPLEGABLE OFRECE LO QUE SU CAMPO PIDE (08/10/2026)
+
+Repaso de los 161 desplegables. Fallos encontrados y arreglados:
+
+- **Ubicaciones sin filtrar** (12 formularios mostraban gabinetes/RACK y la empresa en «dónde
+  está», «zona del plano», «ubicación del tablero»…). Ahora `fe/src/ubicaciones.tsx`:
+  `<OpcionesDeUbicacion uso="equipo|estructura|plano|zonaDePlano|trabajo|documento">`,
+  agrupado por tren, en orden de árbol; el padre en Ubicaciones usa `padresPosibles()`.
+  Backend: `common/jerarquia-ubicaciones.ts` rechaza padres de nivel inválido y ciclos.
+- **Tren de planta** (Paradas, Instalaciones, Tableros, Subredes, Campañas guardan el enum
+  `PlantTrain` TREN_1…; el front mandaba «T1» → 400). **No se podía guardar ninguna parada.**
+  `common/tren-de-planta.ts` normaliza (`aTrenDePlanta`, `filtroDeTrenDePlanta`); front
+  `<OpcionesDeTrenDePlanta>`. Trenes de la base (`useTrenes`/`<OpcionesDeTren>`) en
+  Indicadores y Rotulado. El spec `tren-de-planta` comprueba front = back = enum.
+- **Incidencias**: prioridad «Crítica» (texto) era rechazada; ahora códigos + `PRIORIDAD_ES`.
+  Categorías del tipo del equipo primero.
+- **Asignar trabajo**: `GET /users/ejecutores` (activos con `wo.update`); `exigirEjecutor`
+  en create/update/asignar/detallar de órdenes. AsignarOm, OmCampo y Campañas lo usan.
+- **Grúas**: `GET /gruas/camaras` — primero las cámaras de grúa. **Enlaces**: el medio va
+  primero y filtra extremos (radioenlace = WIRELESS a ambos lados; fibra sin WIRELESS);
+  backend lo valida. **Materiales**: stock del mismo tipo primero; reemplazo exige mismo
+  tipo y STOCK. **Gabinete/tablero** del equipo sólo para tipos que van ahí, del mismo tren.
+  Órdenes nuevas sin «Predictivo». Acceso usa `SelectorDeActivo`.
+
+Vigila: `npm run verificar:desplegables` (incluido en `verificar`).
+Pruebas: backend 107 suites / 1490 tests; e2e desplegables 15/15, spec 08, seguridad, clics.

@@ -82,9 +82,11 @@ interface Props {
   onChange: (spec: any) => void;
   /** Lista ligera de activos (de /assets/options) para los desplegables. */
   opciones: any[];
+  /** Bloque 172 · el propio equipo, para que no salga como su propio padre. */
+  propioId?: string | null;
 }
 
-export default function AssetSpecFields({ tipo, spec, onChange, opciones }: Props) {
+export default function AssetSpecFields({ tipo, spec, onChange, opciones, propioId }: Props) {
   const bloque = FICHA_DE[tipo];
   if (!bloque) {
     return (
@@ -103,7 +105,9 @@ export default function AssetSpecFields({ tipo, spec, onChange, opciones }: Prop
   const txt = (campo: string) => (e: any) => set(campo, e.target.value);
 
   /** Activos de un tipo, para los desplegables de dependencia. */
-  const de = (t: string) => opciones.filter((o) => o.type === t);
+  /* Bloque 172 · nunca el propio equipo: una antena salía como «AP del que
+     cuelga» de sí misma, y un switch como su propio switch de subida. */
+  const de = (t: string) => opciones.filter((o) => o.type === t && o.id !== propioId);
 
   const Nota = ({ children }: { children: any }) => (
     <div className="muted" style={{ fontSize: 11, marginTop: -6, marginBottom: 8 }}>{children}</div>
@@ -125,7 +129,7 @@ export default function AssetSpecFields({ tipo, spec, onChange, opciones }: Prop
           <label>Grabador al que entra
             <select value={v.nvrId || ''} onChange={txt('nvrId')}>
             <option value="">— sin definir —</option>
-            {de('NVR').map((o) => <option key={o.id} value={o.id}>{o.assetCode}</option>)}
+            {de('NVR').map((o) => <option key={o.id} value={o.id}>{o.assetCode}{o.locationName ? ` · ${o.locationName}` : ''}</option>)}
           </select>
           </label>
 
@@ -172,7 +176,7 @@ export default function AssetSpecFields({ tipo, spec, onChange, opciones }: Prop
           <label>Antena de la que cuelga
             <select value={v.wirelessUplinkId || ''} onChange={txt('wirelessUplinkId')}>
             <option value="">— sin definir / va por cable —</option>
-            {de('WIRELESS').map((o) => <option key={o.id} value={o.id}>{o.assetCode}</option>)}
+            {de('WIRELESS').map((o) => <option key={o.id} value={o.id}>{o.assetCode}{o.locationName ? ` · ${o.locationName}` : ''}</option>)}
           </select>
           </label>
           <Nota>
@@ -216,7 +220,7 @@ export default function AssetSpecFields({ tipo, spec, onChange, opciones }: Prop
           <label>Switch al que va conectado directo
             <select value={v.switchIdDirect || ''} onChange={txt('switchIdDirect')}>
             <option value="">— sin definir —</option>
-            {de('SWITCH').map((o) => <option key={o.id} value={o.id}>{o.assetCode}</option>)}
+            {de('SWITCH').map((o) => <option key={o.id} value={o.id}>{o.assetCode}{o.locationName ? ` · ${o.locationName}` : ''}</option>)}
           </select>
           </label>
         </>
@@ -322,12 +326,17 @@ export default function AssetSpecFields({ tipo, spec, onChange, opciones }: Prop
           </select>
           </label>
 
+          {/* Bloque 172 · «AP del que cuelga» sólo tiene sentido en una
+              suscriptora o estación. En el AP principal y en un punto a punto
+              no se pregunta (antes ofrecía colgarlo de cualquier antena). */}
+          {(v.mode !== 'PMP_BASE' && v.mode !== 'PTP') && (
           <label>AP del que cuelga
             <select value={v.parentWirelessId || ''} onChange={txt('parentWirelessId')}>
             <option value="">— ninguno (es el AP principal) —</option>
-            {de('WIRELESS').map((o) => <option key={o.id} value={o.id}>{o.assetCode}</option>)}
+            {de('WIRELESS').map((o) => <option key={o.id} value={o.id}>{o.assetCode}{o.locationName ? ` · ${o.locationName}` : ''}</option>)}
           </select>
           </label>
+          )}
 
           <label>Fabricante
             <input value={v.vendor || ''} onChange={txt('vendor')} placeholder="Ubiquiti, Mimosa, TP-Link" />
@@ -378,7 +387,7 @@ export default function AssetSpecFields({ tipo, spec, onChange, opciones }: Prop
           <label>Grabador del que consume el video
             <select value={v.sourceNvrId || ''} onChange={txt('sourceNvrId')}>
             <option value="">— sin definir —</option>
-            {de('NVR').map((o) => <option key={o.id} value={o.id}>{o.assetCode}</option>)}
+            {de('NVR').map((o) => <option key={o.id} value={o.id}>{o.assetCode}{o.locationName ? ` · ${o.locationName}` : ''}</option>)}
           </select>
           </label>
 
@@ -422,7 +431,7 @@ export default function AssetSpecFields({ tipo, spec, onChange, opciones }: Prop
               <label>PC que la maneja
                 <select value={v.sourcePcAssetId || ''} onChange={txt('sourcePcAssetId')}>
                 <option value="">— sin definir —</option>
-                {de('PC').map((o) => <option key={o.id} value={o.id}>{o.assetCode}</option>)}
+                {de('PC').map((o) => <option key={o.id} value={o.id}>{o.assetCode}{o.locationName ? ` · ${o.locationName}` : ''}</option>)}
               </select>
               </label>
             </>

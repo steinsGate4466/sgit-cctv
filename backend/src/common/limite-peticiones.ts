@@ -38,11 +38,15 @@ export interface ReglaDeLimite {
   maximo: number;
 }
 
-/** Por defecto: 300 peticiones por minuto y origen.
- *  Una persona usando la aplicación a toda velocidad no pasa de 60; una
- *  pantalla que carga seis listados a la vez tampoco. 300 deja sitio de sobra
- *  al uso legítimo y corta en seco el barrido automático. */
-export const LIMITE_GENERAL: ReglaDeLimite = { ventanaMs: 60_000, maximo: 300 };
+/** Por defecto: 600 peticiones por minuto y origen (300 hasta el bloque 171).
+ *  «Una persona no pasa de 60» dejó de ser cierto: hoy una pantalla pide entre
+ *  10 y 25 cosas al abrirse (listas, contadores del menú, perfil, catálogos),
+ *  y con dos pestañas y el refresco del mapa una persona que cambia de
+ *  pantalla rápido rozaba las 300. El barrido de las 65 pantallas lo tocó:
+ *  «Demasiadas consultas seguidas» en Documentos, Instalaciones e IP. 600 por
+ *  minuto (10 por segundo sostenidos) sigue cortando en seco un script y deja
+ *  trabajar a cualquiera. */
+export const LIMITE_GENERAL: ReglaDeLimite = { ventanaMs: 60_000, maximo: 600 };
 
 /** Lo que crea cosas o gasta CPU va más apretado: informes en PDF, subidas,
  *  exportaciones a Excel. Uno de esos cuesta cien veces más que un listado. */
@@ -93,6 +97,15 @@ export class ContadorDePeticiones {
 }
 
 /** ¿Esta ruta es de las caras? */
+/**
+ * ¿Esta petición gasta cupo? La consulta previa de CORS (OPTIONS) no: no hace
+ * trabajo, no lleva token y en planta se contaría contra la IP compartida de
+ * todos (bloque 171).
+ */
+export function cuentaParaElLimite(metodo: string | undefined): boolean {
+  return String(metodo || '').toUpperCase() !== 'OPTIONS';
+}
+
 export function esRutaPesada(ruta: string): boolean {
   return /\/(informe|pdf|exportar|export|archivos|upload|qr)\b/i.test(ruta);
 }

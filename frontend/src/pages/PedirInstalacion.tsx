@@ -1,9 +1,10 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { TIPOS_ACTIVO, NOMBRE_DE_TIPO } from '../tipos-de-equipo';
 import { fecha } from '../fechas';
 import { mensajeDeError } from '../avisos';
+import { OpcionesDeUbicacion } from '../ubicaciones';
 
 /**
  * PEDIR UNA INSTALACIÓN — bloque 137. La puerta de Producción.
@@ -51,13 +52,6 @@ export default function PedirInstalacion() {
 
   /* Sólo las ubicaciones de SU tren. El servidor lo vuelve a comprobar: esto
      es para que no elija algo que le van a rechazar. */
-  const suyas = useMemo(() => {
-    const trenes: string[] = (user as any)?.ambitoTrenes ?? [];
-    const lista = trenes.length
-      ? ubicaciones.filter((u) => trenes.some((t) => String(u.code || '').startsWith(t)))
-      : ubicaciones;
-    return [...lista].sort((a, b) => String(a.name).localeCompare(String(b.name)));
-  }, [ubicaciones, user]);
 
   async function pedir(e: FormEvent) {
     e.preventDefault();
@@ -107,7 +101,9 @@ export default function PedirInstalacion() {
         <label>Dónde
           <select required value={f.locationId} onChange={set('locationId')}>
             <option value="">— elige la zona —</option>
-            {suyas.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+            {/* Bloque 172 · sólo su tren, con «T1» bien comparado contra «AASA-PISCO-T1»
+                (antes `startsWith('T1')` no casaba nunca y la lista salía vacía). */}
+            <OpcionesDeUbicacion uso="trabajo" lista={ubicaciones} tren={(user as any)?.ambitoTrenes ?? []} actual={f.locationId} />
           </select>
         </label>
         <label>Punto de referencia

@@ -295,6 +295,14 @@ export class PreparacionService {
 
     if (dto.removedAssetId && !retirado) throw new NotFoundException('El equipo retirado no existe.');
     if (dto.installedAssetId && !instalado) throw new NotFoundException('El equipo instalado no existe.');
+    /* Bloque 172 · se cambia una cámara por una cámara: el desplegable ya sólo
+       ofrece el mismo tipo; esto lo asegura aunque alguien mande otra cosa. */
+    if (retirado && instalado && retirado.type !== instalado.type) {
+      throw new BadRequestException(`No se reemplaza ${retirado.assetCode} por ${instalado.assetCode}: son de tipo distinto.`);
+    }
+    if (instalado && instalado.status !== 'STOCK') {
+      throw new BadRequestException(`${instalado.assetCode} no está en almacén: no se puede instalar como repuesto.`);
+    }
 
     const operaciones: any[] = [
       this.prisma.workOrderSwap.create({

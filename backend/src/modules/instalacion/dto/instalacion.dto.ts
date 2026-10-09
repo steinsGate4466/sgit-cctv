@@ -1,3 +1,4 @@
+import { TRENES_ACEPTADOS } from '../../../common/tren-de-planta';
 import {
   IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min, MinLength,
 } from 'class-validator';
@@ -32,7 +33,8 @@ export class CrearInstalacionDto {
   @IsIn(TIPOS_SITIO as unknown as string[]) tipoSitio!: string;
   @IsIn(TIPOS_EQUIPO as unknown as string[]) tipoEquipo!: string;
   @IsOptional() @IsInt() @Min(1) @Max(200) cantidad?: number;
-  @IsOptional() @IsIn(['T1', 'T2', 'T3']) tren?: string;
+  // Bloque 172 · el enum de la base y la forma corta; se normaliza en el servicio.
+  @IsOptional() @IsIn(TRENES_ACEPTADOS) tren?: string;
   @IsOptional() @IsString() locationId?: string;
   @IsOptional() @IsString() @MaxLength(200) referenciaSitio?: string;
   @IsOptional() @IsString() @MaxLength(600) comoLlegar?: string;

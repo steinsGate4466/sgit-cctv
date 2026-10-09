@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import SelectorDeModelo from '../components/SelectorDeModelo';
 import { TIPOS_ACTIVO, NOMBRE_DE_TIPO } from '../tipos-de-equipo';
 import { api } from '../api/client';
 import Modal from '../components/Modal';
@@ -10,6 +11,7 @@ import { useDialogos } from '../components/Dialogos';
 import { fecha } from '../fechas';
 import BotonConMotivo from '../components/BotonConMotivo';
 import { mensajeDeError, queFalta } from '../avisos';
+import { OpcionesDeTrenDePlanta, OpcionesDeUbicacion, nombreDeTrenDePlanta, siglaDeTrenDePlanta, trenDePlantaDeSigla } from '../ubicaciones';
 
 /**
  * INSTALACIONES — poner equipo NUEVO.
@@ -136,6 +138,29 @@ export default function Instalaciones() {
     } catch (e: any) {
       setError(mensajeDeError(e, 'crear'));
     } finally { setGuardando(false); }
+  }
+
+  /* BLOQUE 168 · LA VISITA SE ABRE CON LO QUE LA ZONA YA DECLARÓ.
+     Antes cada sí/no de seguridad empezaba en «Sin comprobar» aunque la zona
+     tuviera firmado que exige parada, que hay que subir o que es sala
+     eléctrica. Ahora se propone (sólo en lo que nadie ha contestado) y se
+     dice qué se propuso: en el sitio se confirma o se corrige. */
+  async function empezarVisita(d: any) {
+    const datos: any = { ...d };
+    const propuestos: string[] = [];
+    if (d.locationId) {
+      try {
+        const p = (await api.get(`/seguridad/ubicacion/${d.locationId}`)).data;
+        const vacio = (k: string) => datos[k] === null || datos[k] === undefined || datos[k] === '';
+        const proponer = (k: string, v: any) => { if (v !== undefined && v !== null && vacio(k)) { datos[k] = v; propuestos.push(perfiles?.etiquetas?.[k] ?? k); } };
+        proponer('ambiente', p.ambiente);
+        proponer('necesitaParada', p.parada);
+        proponer('necesitaLoto', p.bloqueoElectrico);
+        if (p.enAltura) { proponer('necesitaPermisoAltura', true); if (p.medio === 'MANLIFT') proponer('necesitaManlift', true); }
+        proponer('riesgos', p.riesgos?.length ? p.riesgos.join('; ') : undefined);
+      } catch { /* sin perfil: se llena en el sitio, como antes */ }
+    }
+    setEvaluando({ id: d.id, perfil: d.perfil, falta: d.faltaParaEvaluar, datos, propuestos });
   }
 
   async function guardarEvaluacion(cerrar: boolean) {
@@ -344,7 +369,7 @@ export default function Instalaciones() {
                   <div className="muted" style={{ fontSize: 11.5 }}>{fecha(i.creadoEn)}</div></td>
                 <td>{i.cantidad > 1 ? `${i.cantidad} × ` : ''}{EQUIPO_ES[i.tipoEquipo] || i.tipoEquipo}</td>
                 <td>
-                  <div>{SITIO_ES[i.tipoSitio] || i.tipoSitio}{i.tren ? ` · ${i.tren}` : ''}</div>
+                  <div>{SITIO_ES[i.tipoSitio] || i.tipoSitio}{i.tren ? ` · ${nombreDeTrenDePlanta(i.tren)}` : ''}</div>
                   {i.referenciaSitio && <div className="muted" style={{ fontSize: 11.5 }}>{i.referenciaSitio}</div>}
                 </td>
                 <td><span className={'badge ' + i.estado}>{ESTADO_ES[i.estado]}</span></td>
@@ -416,14 +441,26 @@ export default function Instalaciones() {
               <span>Tren</span>
               <select value={nueva.tren} onChange={(e) => setNueva({ ...nueva, tren: e.target.value })}>
                 <option value="">No aplica</option>
-                {['T1', 'T2', 'T3'].map((t) => <option key={t} value={t}>{t}</option>)}
+                <OpcionesDeTrenDePlanta />
               </select>
             </label>
             <label className="campo campo-ancho">
               <span>Ubicación del árbol</span>
-              <select value={nueva.locationId} onChange={(e) => setNueva({ ...nueva, locationId: e.target.value })}>
+              <select value={nueva.locationId} onChange={(e) => {
+                /* Bloque 168: el tren y «cómo llegar» salen de la ubicación elegida. */
+                const id = e.target.value;
+                const porId = new Map(ubicaciones.map((u: any) => [u.id, u]));
+                let tren = '';
+                let llegar = '';
+                for (let u: any = porId.get(id); u; u = u.parentId ? porId.get(u.parentId) : null) {
+                  if (!llegar && u.howToGet) llegar = u.howToGet;
+                  // Bloque 172: la base guarda TREN_1, no «T1».
+                  if (!tren && u.type === 'TREN') tren = trenDePlantaDeSigla(u.siglaTren || String(u.code).split('-').pop() || '');
+                }
+                setNueva({ ...nueva, locationId: id, tren: tren || nueva.tren, comoLlegar: nueva.comoLlegar.trim() ? nueva.comoLlegar : llegar });
+              }}>
                 <option value="">Sin especificar</option>
-                {ubicaciones.map((u: any) => <option key={u.id} value={u.id}>{u.path || u.name}</option>)}
+                <OpcionesDeUbicacion uso="trabajo" lista={ubicaciones} tren={siglaDeTrenDePlanta(nueva.tren)} actual={nueva.locationId} />
               </select>
             </label>
             <label className="campo campo-ancho">
@@ -461,10 +498,7 @@ export default function Instalaciones() {
         <Modal title={`${detalle.codigo} · ${SITIO_ES[detalle.tipoSitio]}`} onClose={() => setDetalle(null)} ancho
           acciones={<>
             {puedeEvaluar && ['SOLICITADA', 'EN_EVALUACION', 'EVALUADA'].includes(detalle.estado) && (
-              <button className="btn-primary" onClick={() => {
-                setError('');
-                setEvaluando({ id: detalle.id, perfil: detalle.perfil, falta: detalle.faltaParaEvaluar, datos: { ...detalle } });
-              }}>
+              <button className="btn-primary" onClick={() => { setError(''); empezarVisita(detalle); }}>
                 {detalle.estado === 'EVALUADA' ? 'Corregir la visita' : 'Registrar la visita'}
               </button>
             )}
@@ -478,7 +512,11 @@ export default function Instalaciones() {
             {puedeCerrar && ['APROBADA', 'EN_EJECUCION'].includes(detalle.estado) && (
               <button className="btn-primary" onClick={() => {
                 setError('');
-                setCerrando({ id: detalle.id, assetCode: '', brand: '', modelo: '', serialNumber: '', locationId: detalle.locationId || '', notas: '' });
+                setCerrando({ id: detalle.id, tipoEquipo: detalle.tipoEquipo, assetCode: '', brand: '', modelo: '', serialNumber: '', locationId: detalle.locationId || '', notas: '' });
+                /* Bloque 168: el código del equipo que nace se propone con la norma de rotulado. */
+                api.get('/estandares/proximo-rotulo', { params: { tipo: detalle.tipoEquipo, locationId: detalle.locationId || undefined } })
+                  .then((r) => setCerrando((c: any) => (c && !c.assetCode ? { ...c, assetCode: r.data?.codigo || '' } : c)))
+                  .catch(() => { /* se escribe a mano */ });
               }}>Marcar instalada</button>
             )}
           </>}>
@@ -568,6 +606,9 @@ export default function Instalaciones() {
             <b>Se puede guardar a medias.</b> Apunta lo que lleves y sigue después: sólo al pulsar <b>Visita terminada</b> se exige
             lo imprescindible.
           </div>
+          {evaluando.propuestos?.length > 0 && (
+            <p className="seg-falta">{`Propuesto con lo declarado de la zona (confírmalo en el sitio): ${evaluando.propuestos.join(', ')}.`}</p>
+          )}
           {evaluando.falta?.length > 0 && (
             <div className="card peligro">
               <b>Para dar la visita por hecha falta:</b>
@@ -616,16 +657,16 @@ export default function Instalaciones() {
                 placeholder="AA-CAM-T2-PUL-014" />
               <small className="muted">Si ya existe, el sistema lo rechaza en vez de duplicarlo.</small>
             </label>
-            <label className="campo"><span>Marca</span>
-              <input value={cerrando.brand} onChange={(e) => setCerrando({ ...cerrando, brand: e.target.value })} /></label>
-            <label className="campo"><span>Modelo</span>
-              <input value={cerrando.modelo} onChange={(e) => setCerrando({ ...cerrando, modelo: e.target.value })} /></label>
+            <div className="campo campo-ancho">
+              <SelectorDeModelo tipo={cerrando.tipoEquipo || ''} marca={cerrando.brand || ''} modelo={cerrando.modelo || ''}
+                onChange={(marca, modelo) => setCerrando((c: any) => ({ ...c, brand: marca, modelo }))} />
+            </div>
             <label className="campo"><span>N° de serie</span>
               <input value={cerrando.serialNumber} onChange={(e) => setCerrando({ ...cerrando, serialNumber: e.target.value })} /></label>
             <label className="campo"><span>Ubicación</span>
               <select value={cerrando.locationId} onChange={(e) => setCerrando({ ...cerrando, locationId: e.target.value })}>
                 <option value="">La de la instalación</option>
-                {ubicaciones.map((u: any) => <option key={u.id} value={u.id}>{u.path || u.name}</option>)}
+                <OpcionesDeUbicacion uso="equipo" lista={ubicaciones} actual={cerrando.locationId} />
               </select></label>
             <label className="campo campo-ancho"><span>Notas del cierre</span>
               <textarea value={cerrando.notas} onChange={(e) => setCerrando({ ...cerrando, notas: e.target.value })} /></label>

@@ -489,7 +489,9 @@ select optgroup { font-weight: 700; color: var(--navy); }
 .scan-card { padding: 6px 16px; overflow-x: visible; }
 /* En la ficha del QR las filas se apilan si el valor es largo */
 .scan-card .frow { flex-wrap: wrap; gap: 2px; }
-.scan-card .frow .k { flex: 0 0 auto; }
+/* Bloque 171 · `0 0 auto` no dejaba encoger: la descripción larga de una OM
+   empujaba la ficha del gabinete 86 px fuera del celular. */
+.scan-card .frow .k { flex: 0 1 auto; min-width: 0; overflow-wrap: anywhere; }
 .scan-card .frow .v { text-align: right; margin-left: auto; word-break: break-word; }
 .scan-note { background: #eef4ff; border: 1px solid #dbe6fb; color: var(--steel);
   padding: 10px 12px; border-radius: 8px; font-size: 13px; margin-top: 12px; }
@@ -839,7 +841,7 @@ select optgroup { font-weight: 700; color: var(--navy); }
 .leg-dot.crit { background: var(--crit); }
 
 /* Sub-pestañas de detalle */
-.subtabs { display: flex; gap: 4px; margin: 22px 0 12px; border-bottom: 2px solid var(--border); flex-wrap: wrap; }
+.subtabs { display: flex; gap: 4px; margin: 22px 0 12px; border-bottom: 2px solid var(--border); flex-wrap: nowrap; }
 .subtab { background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px;
   padding: 10px 16px; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; font-family: inherit; }
 .subtab:hover { color: var(--steel); }
@@ -896,7 +898,13 @@ select optgroup { font-weight: 700; color: var(--navy); }
 .app > *, .content > *, .panel-grid > *, .kpi-grid > * { min-width: 0; }
 .app { max-width: 100%; }
 /* Palabras que no rompen (códigos SAP, correos, rutas) no desbordan */
-.page-sub, .kpi .hint, .frow .v, td, .train-detail { overflow-wrap: anywhere; }
+.page-sub, .kpi .hint, .frow .v, .train-detail { overflow-wrap: anywhere; }
+/* Bloque 171 · en las celdas, `break-word` y no `anywhere`. Con `anywhere` la
+   tabla calculaba su ancho mínimo como si cada palabra se pudiera partir por
+   cualquier letra: las columnas de texto se estrechaban hasta «Gabinet / e
+   R-01» mientras otras quedaban vacías. `break-word` sólo parte la palabra que
+   de verdad no cabe (un código SAP larguísimo), y la tabla reparte bien. */
+td { overflow-wrap: break-word; }
 
 /* Altura real de pantalla en el celular: 100vh incluye la barra del
    navegador, así que dejaba una franja muerta abajo. */
@@ -1887,6 +1895,14 @@ label.campo > span,
 /* Deshabilitado hasta que se escribe la confirmación: tiene que verse que
    está apagado, no que la aplicación no responde. */
 .btn-peligro:disabled { background: #e7bdbd; border-color: #e7bdbd; color: #fff; cursor: not-allowed; box-shadow: none; }
+/* BLOQUE 171 · EN UNA LISTA, EL DISPARADOR VA EN LÍNEA ROJA, NO LLENO.
+   Ubicaciones o Incidencias enseñaban veinte botones rojos llenos, uno por
+   fila: la pantalla entera gritaba «peligro» y el rojo dejaba de distinguir
+   nada. El botón de la fila sólo ABRE la confirmación; el rojo lleno se queda
+   para el botón que de verdad borra, dentro de la ventana. Al pasar el ratón
+   se llena: sigue avisando justo cuando importa. */
+.btn-mini.btn-peligro { background: transparent; color: var(--crit); border-color: var(--crit-borde); box-shadow: none; font-weight: 600; }
+.btn-mini.btn-peligro:hover:not(:disabled) { background: var(--crit); color: #fff; border-color: var(--crit); }
 
 /* ---- 2. Avisos de resultado ---------------------------------------------
    Antes cada pantalla se inventaba el suyo con estilos sueltos. */
@@ -2250,7 +2266,8 @@ input:disabled, select:disabled, textarea:disabled {
 /* Con la barra reducida a iconos, el rótulo de la sección no cabe: son diez
    caracteres en 60 px. Se esconde y vuelve al desplegarse. */
 .sidebar.estrecha:not(:hover) .nav-group-title { display: none; }
-.sidebar.estrecha .brand > div,
+.sidebar.estrecha .brand > span,
+.sidebar.estrecha .foot,
 .sidebar.estrecha .nav-titulo,
 .sidebar.estrecha .nav a span,
 .sidebar.estrecha .recientes-nav { display: none; }
@@ -2266,12 +2283,19 @@ input:disabled, select:disabled, textarea:disabled {
 /* AL PASAR EL RATÓN SE DESPLIEGA. Esto es lo que hace que estrechar no
    cueste nada: se recupera el menú entero sin pulsar. */
 .sidebar.estrecha:hover { width: 240px; box-shadow: 6px 0 24px rgba(16,24,40,.28); }
-.sidebar.estrecha:hover .brand > div,
+.sidebar.estrecha:hover .brand > span,
+.sidebar.estrecha:hover .foot,
 .sidebar.estrecha:hover .nav-titulo,
 .sidebar.estrecha:hover .nav a span { display: initial; }
 .sidebar.estrecha:hover .nav a { justify-content: flex-start; padding: 9px 14px; gap: 10px; font-size: 13.5px; }
 
 /* ---- Lo último ---- */
+.recientes-nav .nav-titulo {
+  /* Bloque 171 · no tenía estilo: «Lo último» salía pegado al borde, con
+     letra de párrafo, y parecía un texto suelto y no el rótulo de un grupo. */
+  padding: 2px 14px 6px; font-size: 10.5px; font-weight: 700; letter-spacing: .7px;
+  text-transform: uppercase; color: #7f93b5;
+}
 .recientes-nav {
   padding: 4px 0 10px; margin-bottom: 6px;
   border-bottom: 1px solid rgba(255,255,255,.10);
@@ -4888,3 +4912,255 @@ tbody tr:hover td { background: var(--brillo); }
 /* Bloque 166 · lo que respondió el servidor al cargar/borrar la demostración */
 .demo-salida { margin: 12px 0 0; padding: 10px 12px; max-height: 320px; overflow: auto; font-size: 12px; line-height: 1.45; white-space: pre-wrap; background: var(--ok-fondo); border: 1px solid var(--ok-borde); border-radius: 8px; }
 .demo-salida.mal { background: var(--crit-fondo); border-color: var(--crit-borde); }
+
+/* ===== Bloque 168 · seguridad antes de empezar (sale de lo declarado) ===== */
+.seguridad-trabajo { border: 1px solid var(--warn-borde); border-left: 4px solid var(--warn); background: var(--warn-fondo); border-radius: 8px; padding: 10px 12px; margin: 0 0 12px; font-size: 13px; }
+.seguridad-trabajo.completa { border-color: var(--ok-borde); border-left-color: var(--ok); background: var(--ok-fondo); }
+.seguridad-trabajo.mal { border-color: var(--crit-borde); border-left-color: var(--crit); background: var(--crit-fondo); color: var(--crit-texto); }
+.seguridad-trabajo h4 { margin: 0 0 6px; font-size: 14px; }
+.seg-etiquetas { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.seg-etiquetas span { font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--card); border: 1px solid var(--border); }
+.seg-impacto, .seg-llegar { margin: 0 0 6px; }
+.seg-requisitos { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 4px; }
+.seg-requisitos label { display: flex; gap: 8px; align-items: flex-start; margin: 0; font-weight: 400; cursor: pointer; }
+.seg-requisitos input { width: auto; margin-top: 3px; }
+.seg-requisitos small { display: block; color: var(--muted); font-size: 11.5px; }
+.seg-listas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; font-size: 12px; }
+.seg-listas ul { margin: 2px 0 0; padding-left: 16px; }
+@media (max-width: 640px) { .seg-listas { grid-template-columns: 1fr; } }
+.seg-falta { margin: 6px 0 0; font-size: 12px; color: var(--warn-texto); }
+
+/* ===== Bloque 169 · todo con clics ===== */
+.selector-modelo { display: grid; gap: 0; }
+.chips-elegir { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+.chips-elegir button { border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 999px; padding: 6px 12px; font-size: 12.5px; cursor: pointer; }
+.chips-elegir button.activo { background: var(--navy); border-color: var(--navy); color: #fff; font-weight: 600; }
+
+/* =============================================================================
+   MÓDULOS MÁS VISIBLES — bloque 170
+   -----------------------------------------------------------------------------
+   Números en el menú, panel al pasar el ratón, pestañas en una sola fila y la
+   página «Todos los módulos». Ver Layout.tsx, PanelDeModulo.tsx y Modulos.tsx.
+============================================================================= */
+
+/* ---- El número ---- */
+.insignia {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 20px; height: 20px; padding: 0 6px; margin-left: auto;
+  border-radius: 10px; font-size: 11px; font-weight: 700; line-height: 1;
+  font-variant-numeric: tabular-nums; flex: none;
+}
+.insignia.alerta { background: var(--crit); color: #fff; }
+.insignia.aviso { background: var(--warn-fondo); color: var(--warn-texto); border: 1px solid var(--warn-borde); }
+.insignia.punto { min-width: 9px; width: 9px; height: 9px; padding: 0; border: none; }
+.insignia.punto.aviso { background: var(--warn); }
+
+/* En el menú oscuro, el ámbar claro se pierde: se le da cuerpo. */
+.nav a .insignia.aviso { /* tema: fijo */ background: rgba(232,163,61,.18); color: #f4c27a; border-color: rgba(232,163,61,.45); }
+
+/* Bloque 170 · `.brand > div` llevaba sin casar desde el bloque 67 (el logo
+   pasó a ser un <button> con <span>): en la barra estrecha el nombre y la
+   versión del pie se salían por encima del contenido. Ahora es `> span`. */
+
+/* Barra estrecha: el texto se esconde, el número se queda como PUNTO en la
+   esquina del icono. Sin esto la regla de arriba (`.nav a span`) lo ocultaba. */
+.sidebar.estrecha .nav a { position: relative; }
+.sidebar.estrecha .nav a .insignia { display: inline-block; position: absolute; top: 7px; right: 13px; margin: 0; }
+.sidebar.estrecha:hover .nav a .insignia { position: static; margin-left: auto; }
+
+/* El nombre del módulo cede antes que el número: si no cabe, se corta él. */
+.nav-texto { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---- «Todos los módulos», al pie del menú ---- */
+.nav a.nav-todos {
+  margin-top: 10px; border-top: 1px solid rgba(255,255,255,.08);
+  border-radius: 0 0 10px 10px; padding-top: 12px; color: #8fa3c4; font-size: 12.5px;
+}
+.nav a.nav-todos:hover { color: #fff; }
+
+/* ---- Panel del módulo ---- */
+.panel-modulo {
+  position: fixed; z-index: 60; width: 320px; max-height: calc(100vh - 16px); overflow-y: auto;
+  background: var(--card); color: var(--text);
+  border: 1px solid var(--border); border-radius: 14px;
+  box-shadow: 0 18px 44px rgba(16,24,40,.22), 0 2px 6px rgba(16,24,40,.08);
+  animation: sgit-entra .14s ease-out;
+}
+.panel-modulo-cab {
+  display: flex; align-items: center; gap: 11px; padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.panel-modulo-cab > span:nth-child(2) { display: flex; flex-direction: column; min-width: 0; }
+.panel-modulo-cab b { font-size: 14px; }
+.panel-modulo-cab small { font-size: 12px; color: var(--muted); line-height: 1.35; margin-top: 2px; }
+.panel-modulo-ico, .modulo-tarjeta-ico {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 34px; height: 34px; border-radius: 10px;
+  background: var(--info-fondo); color: var(--navy);
+}
+.panel-modulo-lista { padding: 6px; }
+.panel-modulo-item {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 9px;
+  color: var(--text); text-decoration: none;
+}
+.panel-modulo-item > span:first-child { display: flex; flex-direction: column; min-width: 0; }
+.panel-modulo-item b { font-size: 13px; font-weight: 600; }
+.panel-modulo-item small { font-size: 11.5px; color: var(--muted); }
+.panel-modulo-item:hover { background: var(--bg); }
+.panel-modulo-item.actual { background: var(--info-fondo); }
+.panel-modulo-item.actual b { color: var(--navy); }
+
+/* ---- Pestañas del módulo: UNA fila, deslizable ----
+   Con diez pantallas (Red y energía) partían en dos líneas y la segunda
+   parecía otra barra. Ahora se desliza, sin barra de desplazamiento visible,
+   y con un degradado a la derecha que avisa de que hay más. */
+.subtabs {
+  position: relative; overflow-x: auto; scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 28px), transparent 100%);
+  mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 28px), transparent 100%);
+  /* tema: fijo */
+}
+.subtabs::-webkit-scrollbar { display: none; }
+.subtab { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; flex: none; }
+.subtab .insignia { margin-left: 0; height: 18px; min-width: 18px; font-size: 10.5px; }
+
+/* ---- Todos los módulos ---- */
+.modulos-hub { max-width: 1400px; }
+.modulos-grid {
+  display: grid; gap: 16px; margin-top: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+}
+.modulo-tarjeta {
+  background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+  box-shadow: var(--shadow); overflow: hidden; display: flex; flex-direction: column;
+}
+.modulo-tarjeta.con-pendientes.alerta { border-top: 3px solid var(--crit); }
+.modulo-tarjeta.con-pendientes.aviso { border-top: 3px solid var(--warn); }
+.modulo-tarjeta-cab {
+  display: flex; align-items: center; gap: 12px; padding: 16px 16px 12px;
+  color: var(--text); text-decoration: none; border-bottom: 1px solid var(--border);
+}
+.modulo-tarjeta-cab:hover { background: var(--bg); }
+.modulo-tarjeta-tit { display: flex; flex-direction: column; min-width: 0; }
+.modulo-tarjeta-tit b { font-size: 15px; }
+.modulo-tarjeta-tit small { font-size: 12px; color: var(--muted); line-height: 1.35; margin-top: 2px; }
+.modulo-tarjeta-lista { list-style: none; margin: 0; padding: 6px; }
+.modulo-tarjeta-lista a {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 9px;
+  color: var(--text); text-decoration: none;
+}
+.modulo-tarjeta-lista a > span:first-child { display: flex; flex-direction: column; min-width: 0; }
+.modulo-tarjeta-lista b { font-size: 13px; font-weight: 600; }
+.modulo-tarjeta-lista small { font-size: 11.5px; color: var(--muted); }
+.modulo-tarjeta-lista a:hover { background: var(--bg); }
+
+/* ---- Celular ---- */
+@media (max-width: 780px) {
+  /* «Todos los módulos» primero en la tira: es la puerta a todo lo demás. */
+  .nav a.nav-todos { order: -1; margin-top: 0; border-top: none; border-radius: 20px; padding-top: 9px; }
+  .nav a .insignia { margin-left: 6px; }
+  .modulos-grid { grid-template-columns: 1fr; gap: 12px; }
+  .modulo-tarjeta-lista a { min-height: 44px; }
+
+  /* LA CABECERA NO CABÍA EN 390 px — bloque 170.
+     El título partía en dos líneas, «Datos hace un momento» se metía en una
+     columna de tres palabras por línea y el botón «Salir» quedaba cortado por
+     la derecha. Ahora: título y hora del dato en una columna a la izquierda;
+     los botones, sólo con icono. */
+  .topbar { flex-wrap: wrap; row-gap: 2px; }
+  .topbar .title { flex: 1 0 100%; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .topbar .fecha-dato { order: 2; }
+  .topbar .user { order: 3; flex: none; margin-left: auto; }
+}
+
+/* =============================================================================
+   TABLA QUE SE DESLIZA — bloque 171
+   -----------------------------------------------------------------------------
+   En el celular las tablas llevan `min-width: 560px` para que se lean, y se
+   apoyan en el `overflow-x` de `.card`. Las que no van dentro de una tarjeta
+   (Mi cuenta, Sesiones, Criticidad, IP, Electricidad, Capacidad, Limpieza,
+   Planos) empujaban la PANTALLA ENTERA de lado: 180-260 px. Lo cazó el barrido
+   de las 65 pantallas en el celular. Ahora se desliza la tabla, no la página.
+============================================================================= */
+.desliza { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* ---- Pantalla que no es de tu rol (bloque 171) ---- */
+.puerta-ruta { max-width: 560px; margin: 40px auto; text-align: center; padding: 30px 26px; }
+.puerta-ruta-ico {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 54px; height: 54px; border-radius: 16px; margin-bottom: 10px;
+  background: var(--info-fondo); color: var(--navy);
+}
+.puerta-ruta h3 { margin: 4px 0 8px; }
+.puerta-ruta-botones { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
+
+/* =============================================================================
+   FICHA ÚNICA DEL EQUIPO — bloque 171 (plan 150)
+============================================================================= */
+.ficha-pestanas {
+  /* Pegada arriba al bajar por la ficha: cambiar de parte sin volver a subir. */
+  position: sticky; top: -14px; z-index: 3; background: var(--card);
+  display: flex; gap: 4px; margin: 2px 0 14px; padding-bottom: 2px;
+  border-bottom: 2px solid var(--border); overflow-x: auto; scrollbar-width: none;
+}
+.ficha-pestanas::-webkit-scrollbar { display: none; }
+.ficha-pestana {
+  display: inline-flex; align-items: center; gap: 6px; flex: none; white-space: nowrap;
+  background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -4px;
+  padding: 9px 12px; font: inherit; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer;
+  border-radius: 8px 8px 0 0;
+}
+.ficha-pestana:hover { color: var(--steel); background: var(--bg); }
+.ficha-pestana.activa { color: var(--navy); border-bottom-color: var(--red); }
+.ficha-cuenta {
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; font-size: 10.5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--info-fondo); color: var(--info-texto);
+}
+.ficha-vacia {
+  display: flex; gap: 12px; align-items: flex-start; padding: 14px;
+  border: 1px dashed var(--border); border-radius: 10px; color: var(--muted);
+}
+.ficha-vacia b { color: var(--text); }
+.ficha-vacia p { margin: 4px 0 8px; font-size: 12.5px; }
+
+/* ---- Energía del equipo ---- */
+.energia-lista { display: flex; flex-direction: column; gap: 12px; }
+.energia-fila { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+.energia-cadena { display: flex; align-items: stretch; gap: 8px; flex-wrap: wrap; }
+.energia-paso {
+  display: flex; flex-direction: column; padding: 6px 10px; border-radius: 8px;
+  background: var(--bg); min-width: 90px;
+}
+.energia-paso small { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+.energia-paso b { font-size: 13.5px; }
+.energia-paso em { font-style: normal; font-size: 11.5px; color: var(--muted); }
+.energia-flecha { align-self: center; color: var(--muted); font-weight: 700; }
+.energia-datos { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 6px; font-size: 12px; }
+.energia-datos span { padding: 2px 8px; border-radius: 10px; background: var(--bg); border: 1px solid var(--border); }
+.energia-datos .energia-permiso { background: var(--warn-fondo); color: var(--warn-texto); border-color: var(--warn-borde); }
+.energia-llegar { font-size: 12.5px; margin: 6px 0 10px; }
+/* La ventana no salta de alto al cambiar de pestaña (Energía ocupa 3 líneas,
+   Historial 3 pantallas): con alto mínimo, los botones no se mueven bajo el dedo. */
+.modal-body:has(> .ficha-pestanas) { min-height: min(62vh, 560px); }
+
+/* ---- «Estás aquí» en el mapa (bloque 171, plan 154) ---- */
+.estas-aqui { pointer-events: none; }
+.estas-aqui-onda { /* tema: fijo */ fill: rgba(37, 99, 235, .18); stroke: none; animation: estas-aqui-late 1.6s ease-in-out infinite; }
+.estas-aqui-aro { /* tema: fijo */ fill: none; stroke: #2563eb; stroke-width: 3; }
+.estas-aqui-cartel { /* tema: fijo */ fill: #1d4ed8; }
+.estas-aqui-texto { /* tema: fijo */ fill: #fff; font-size: 12px; font-weight: 700; font-family: inherit; }
+@keyframes estas-aqui-late { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+
+.ruta-a-pie { margin: 0 0 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--info-borde); background: var(--info-fondo); }
+.ruta-a-pie h4 { margin: 0 0 6px; color: var(--info-texto); display: flex; align-items: center; gap: 6px; }
+.ruta-a-pie ol { margin: 4px 0 0; padding-left: 20px; font-size: 13px; }
+.ruta-a-pie li { margin: 3px 0; }
+.ruta-a-pie .ruta-cerrar { float: right; }
+
+/* ---- Capa de impacto en el mapa (bloque 171, plan 153) ---- */
+.impacto-halo { /* tema: fijo */ fill: rgba(220, 38, 38, .22); stroke: #dc2626; stroke-width: 2; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
+.mapa-impacto {
+  margin: 0 0 10px; padding: 8px 12px; border-radius: 10px; font-size: 13px;
+  background: var(--crit-fondo); color: var(--crit-texto); border: 1px solid var(--crit-borde);
+}

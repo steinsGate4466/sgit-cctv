@@ -441,14 +441,49 @@ export class AssetsService {
    * Aquí van solo los campos necesarios para identificarlo. Sin paginar:
    * un desplegable necesita la lista entera, pero pesa una fracción.
    */
-  async options() {
+  /** Bloque 169 · pares marca/modelo conocidos para un tipo, los más usados primero. */
+  async marcasModelos(tipo?: string) {
+    const tipoValido = tipo && /^[A-Z_]{2,30}$/.test(tipo) ? tipo : undefined;
+    const [usados, catalogo] = await Promise.all([
+      this.prisma.asset.groupBy({
+        by: ['brand', 'model'],
+        where: { deletedAt: null, ...(tipoValido ? { type: tipoValido as any } : {}), brand: { not: null } },
+        _count: { _all: true },
+      }),
+      this.prisma.modeloEquipo.findMany({
+        where: tipoValido ? { tipoActivo: tipoValido as any } : {},
+        select: { marca: true, modelo: true },
+        take: 500,
+      }),
+    ]);
+    const mapa = new Map<string, { marca: string; modelo: string; usos: number }>();
+    const clave = (m: string, o: string) => `${m.trim().toLowerCase()}|${o.trim().toLowerCase()}`;
+    for (const u of usados) {
+      if (!u.brand?.trim()) continue;
+      mapa.set(clave(u.brand, u.model || ''), { marca: u.brand.trim(), modelo: (u.model || '').trim(), usos: u._count._all });
+    }
+    for (const c of catalogo) if (!mapa.has(clave(c.marca, c.modelo))) mapa.set(clave(c.marca, c.modelo), { marca: c.marca, modelo: c.modelo, usos: 0 });
+    return [...mapa.values()].sort((a, b) => b.usos - a.usos || a.marca.localeCompare(b.marca) || a.modelo.localeCompare(b.modelo));
+  }
+
+  /* BLOQUE 172 · EL DESPLEGABLE DE EQUIPOS, CON EL ÁMBITO DEL USUARIO.
+     Salía la planta entera también al jefe del Tren 2: elegía un equipo del
+     Tren 1, rellenaba el formulario y al guardar el servidor decía «ese equipo
+     no es de tu tren». El desplegable ofrecía lo que el servidor no acepta. */
+  async options(userId?: string | null) {
+    const ambito = userId ? await filtroConAmbito(this.prisma, userId, {}) : null;
     const rows = await this.prisma.asset.findMany({
-      where: { deletedAt: null, status: { notIn: ['BAJA'] } },
+      where: {
+        deletedAt: null, status: { notIn: ['BAJA'] },
+        ...(ambito ? { locationId: ambito } : {}),
+      },
       select: {
         id: true,
         assetCode: true,
         type: true,
         status: true,
+        // Bloque 168: con esto los formularios rellenan la zona solos.
+        referencePlace: true,
         location: { select: { name: true } },
       },
       orderBy: { assetCode: 'asc' },
@@ -459,6 +494,7 @@ export class AssetsService {
       type: a.type,
       status: a.status,
       locationName: a.location?.name || null,
+      referencePlace: a.referencePlace || null,
     }));
   }
 

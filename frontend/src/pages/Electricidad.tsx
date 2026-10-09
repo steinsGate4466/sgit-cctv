@@ -10,6 +10,7 @@ import Icono from '../components/Iconos';
 import { fecha } from '../fechas';
 import BotonConMotivo from '../components/BotonConMotivo';
 import { mensajeDeError, queFalta } from '../avisos';
+import { OpcionesDeTrenDePlanta, OpcionesDeUbicacion, nombreDeTrenDePlanta, siglaDeTrenDePlanta } from '../ubicaciones';
 
 /**
  * ELECTRICIDAD — tableros, circuitos y qué cuelga de cada llave.
@@ -240,7 +241,7 @@ export default function Electricidad() {
         <div><label>Tren
             <select value={fTren} onChange={(e) => setFTren(e.target.value)}>
             <option value="">Todos</option>
-            {['T1', 'T2', 'T3'].map((t) => <option key={t} value={t}>{t}</option>)}
+            <OpcionesDeTrenDePlanta />
           </select>
           </label></div>
         {can('asset.create') && (
@@ -259,13 +260,13 @@ export default function Electricidad() {
           </p>
         </div>
       ) : (
-        <table className="tabla">
+        <div className="desliza"><table className="tabla">
           <thead><tr><th>Código</th><th>Nombre</th><th>Tipo</th><th>Dónde</th>
             <th className="num">Circuitos</th><th></th></tr></thead>
           <tbody>
             {tableros.map((t) => (
               <tr key={t.id}>
-                <td><strong>{t.codigo}</strong>{t.tren && <span className="muted"> · {t.tren}</span>}</td>
+                <td><strong>{t.codigo}</strong>{t.tren && <span className="muted"> · {nombreDeTrenDePlanta(t.tren)}</span>}</td>
                 <td>{t.nombre}
                   {t.referencia && <div className="muted" style={{ fontSize: 11.5 }}>{t.referencia}</div>}</td>
                 <td>{TIPO_TABLERO[t.tipo] || t.tipo}</td>
@@ -291,7 +292,7 @@ export default function Electricidad() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
 
       {/* ---------- DETALLE DEL TABLERO ---------- */}
@@ -335,7 +336,7 @@ export default function Electricidad() {
           {detalle.mediciones?.length > 0 && (
             <>
               <div className="section-title">Últimas mediciones</div>
-              <table className="tabla">
+              <div className="desliza"><table className="tabla">
                 <thead><tr><th>Fecha</th><th>Dónde</th><th className="num">Tensión</th>
                   <th className="num">Corriente</th><th className="num">Temperatura</th><th>Observación</th></tr></thead>
                 <tbody>
@@ -356,7 +357,7 @@ export default function Electricidad() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             </>
           )}
 
@@ -366,7 +367,7 @@ export default function Electricidad() {
               Ninguno declarado. Regístralo en Activos y asígnalo aquí.
             </p>
           ) : (
-            <table className="tabla">
+            <div className="desliza"><table className="tabla">
               <thead><tr><th>Equipo</th><th>Tipo</th><th>Marca / modelo</th><th>Estado</th></tr></thead>
               <tbody>
                 {detalle.equiposMontados.map((a: any) => (
@@ -378,7 +379,7 @@ export default function Electricidad() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
 
           <div className="section-title">Circuitos</div>
@@ -387,7 +388,7 @@ export default function Electricidad() {
               Sin circuitos declarados. Regístralos con el número rotulado en la puerta.
             </p>
           ) : (
-            <table className="tabla">
+            <div className="desliza"><table className="tabla">
               <thead><tr><th>N°</th><th>Qué alimenta</th><th>Protección</th><th>Estado</th>
                 <th>Equipos</th><th></th></tr></thead>
               <tbody>
@@ -433,7 +434,7 @@ export default function Electricidad() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
         </Modal>
       )}
@@ -515,9 +516,7 @@ export default function Electricidad() {
           </>}>
           {error && <div role="alert" className="aviso-error">{error}</div>}
           <div className="card explica" style={{ marginTop: 0 }}>
-            <b>La temperatura es la que más avisa.</b> Un borne por encima de 60 °C no
-            es un riesgo: es una avería con fecha. Se aprieta o se cambia antes de que
-            se abra el circuito solo, casi siempre de madrugada.
+            <b>La temperatura es la que más avisa.</b> Un borne a más de 60 °C es una avería con fecha: se aprieta o se cambia ya.
             <div style={{ marginTop: 6 }}>
               Basta con rellenar uno de los tres. No hay que medirlo todo cada vez.
             </div>
@@ -577,14 +576,14 @@ export default function Electricidad() {
               <span>Tren</span>
               <select value={nuevoTablero.tren} onChange={(e) => setNuevoTablero({ ...nuevoTablero, tren: e.target.value })}>
                 <option value="">No aplica</option>
-                {['T1', 'T2', 'T3'].map((t) => <option key={t} value={t}>{t}</option>)}
+                <OpcionesDeTrenDePlanta />
               </select>
             </label>
             <label className="campo campo-ancho">
               <span>Ubicación</span>
               <select value={nuevoTablero.locationId} onChange={(e) => setNuevoTablero({ ...nuevoTablero, locationId: e.target.value })}>
                 <option value="">Sin especificar</option>
-                {ubicaciones.map((u: any) => <option key={u.id} value={u.id}>{u.path || u.name}</option>)}
+                <OpcionesDeUbicacion uso="estructura" lista={ubicaciones} tren={siglaDeTrenDePlanta(nuevoTablero.tren)} actual={nuevoTablero.locationId} />
               </select>
             </label>
             <label className="campo"><span>Tensión (V)</span>

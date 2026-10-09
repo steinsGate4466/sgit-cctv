@@ -43,6 +43,9 @@ const EXENTAS = {
   '/': 'Redirección al inicio según el permiso de cada uno.',
   '*': 'La pantalla de «no existe».',
   '/login': 'Se llega sin sesión; no hay menú todavía.',
+  '/modulos': 'Bloque 170: es el ÍNDICE de todos los módulos, no un módulo. Se '
+    + 'llega desde «Todos los módulos» al pie del menú (y primera pastilla en '
+    + 'el celular). Meterla dentro de un módulo sería poner el índice en un capítulo.',
   '/a/:id': 'El QR de un activo. Se llega escaneando, nunca desde el menú.',
   '/g/:id': 'El QR de un gabinete. Igual que el anterior.',
   '/t/:id': 'El QR de un tablero eléctrico (bloque 146). Se llega escaneando la '
@@ -145,8 +148,16 @@ const layout = sinComentarios(leer(path.join('components', 'Layout.tsx')));
 if (!/MODULOS/.test(layout) || !/<EnlaceDeModulo\b/.test(layout)) {
   errores.push('Layout.tsx ya no pinta el menú desde `MODULOS`.');
 }
+/* Bloque 171 · la puerta: una ruta que no está en tu menú no se carga a ciegas. */
+if (!/<PuertaDeRuta>/.test(layout)) {
+  errores.push('Layout.tsx ya no envuelve las pantallas en <PuertaDeRuta>: quien llegue a una '
+    + 'pantalla que no es de su rol volverá a verla vacía y llena de 403.');
+}
 const aMano = [...layout.matchAll(/<NavLink[^>]*\bto="(\/[^"]+)"/g)].map((m) => m[1]);
-for (const r of aMano) {
+/* Bloque 170 · el índice de módulos NO es un módulo: es la puerta a todos.
+   Es el único enlace a mano permitido, y por eso va con nombre. */
+const A_MANO_PERMITIDOS = new Set(['/modulos']);
+for (const r of aMano.filter((x) => !A_MANO_PERMITIDOS.has(x))) {
   errores.push(`Layout.tsx tiene un enlace escrito a mano a ${r}. Va en src/modulos.ts.`);
 }
 const barra = sinComentarios(leer(path.join('components', 'Pestanas.tsx')));

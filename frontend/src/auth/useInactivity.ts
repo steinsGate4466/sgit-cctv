@@ -48,6 +48,32 @@ const SENALES = [
   'scroll', 'wheel', 'focus', 'visibilitychange',
 ];
 
+/* =============================================================================
+   LA ACTIVIDAD SE COMPARTE ENTRE PESTAÑAS — bloque 170
+   -----------------------------------------------------------------------------
+   Segunda causa de «me echa aunque esté trabajando»: con dos pestañas
+   abiertas (una ficha abierta aparte, el mapa en otra), la pestaña que NO se
+   usa contaba sus 15 minutos sola y cerraba la sesión — que es la misma para
+   las dos. Trabajabas en una y te echaba la otra.
+
+   Ahora cada pestaña deja la hora de su última actividad en el navegador
+   (como mucho una escritura cada 5 s) y todas miden desde la más reciente.
+============================================================================= */
+const CLAVE_ACTIVIDAD = 'sgit.actividad';
+const CADA_MS = 5000;
+
+function leerCompartida(): number {
+  try { return Number(localStorage.getItem(CLAVE_ACTIVIDAD)) || 0; } catch { return 0; }
+}
+function escribirCompartida(t: number) {
+  try { localStorage.setItem(CLAVE_ACTIVIDAD, String(t)); } catch { /* sin almacenamiento: cuenta sólo esta pestaña */ }
+}
+
+/** La última actividad que cuenta: la de esta pestaña o la de otra, la más reciente. */
+export function ultimaActividad(propia: number, compartida: number): number {
+  return Math.max(propia, compartida);
+}
+
 export type Decision = 'ok' | 'avisar' | 'cerrar';
 
 /**
@@ -91,6 +117,8 @@ export function useInactivity(activo: boolean, alCerrar: () => void) {
     ultimo.current = Date.now();
     avisando.current = false;
     setRestante(null);
+    escribirCompartida(ultimo.current);
+    let escrito = ultimo.current;
 
     /* CUALQUIER ACTIVIDAD CUENTA, TAMBIÉN CON EL AVISO EN PANTALLA.
        -------------------------------------------------------------------
@@ -108,6 +136,7 @@ export function useInactivity(activo: boolean, alCerrar: () => void) {
        Sesión = INACTIVIDAD. Si hay actividad, no hay inactividad. Punto. */
     const registrar = () => {
       ultimo.current = Date.now();
+      if (ultimo.current - escrito >= CADA_MS) { escribirCompartida(ultimo.current); escrito = ultimo.current; }
       if (avisando.current) {
         // Estaba avisando y la persona ha vuelto: se retira el aviso solo.
         avisando.current = false;
@@ -118,7 +147,7 @@ export function useInactivity(activo: boolean, alCerrar: () => void) {
     SENALES.forEach((e) => window.addEventListener(e, registrar, { passive: true }));
 
     const reloj = setInterval(() => {
-      const inactivo = Date.now() - ultimo.current;
+      const inactivo = Date.now() - ultimaActividad(ultimo.current, leerCompartida());
 
       switch (decidir(inactivo, limites)) {
         case 'cerrar':
@@ -161,6 +190,7 @@ export function useInactivity(activo: boolean, alCerrar: () => void) {
   /** El usuario confirma que sigue ahí. */
   function seguir() {
     ultimo.current = Date.now();
+    escribirCompartida(ultimo.current);
     avisando.current = false;
     setRestante(null);
   }

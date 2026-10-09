@@ -63,8 +63,8 @@ Dentro de cada módulo, lo que antes era una entrada del menú pasa a ser una **
 |---|---|---|
 | **147** ✅ | Menú por módulos + pestañas | 9 entradas en lugar de 48; las pantallas del módulo salen como pestañas. Ninguna ruta cambia |
 | **148** ✅ | Inicio por rol | Cada rol entra directo a su pantalla (técnico → sus trabajos, producción → su tren) |
-| **149** 🟡 | Menos letras (Zonas, Incidencias y Grúas listas; Órdenes 219→202) | Aplicar las reglas de la sección 3 a todas las pantallas; el verificador de densidad las vigila |
-| **150** | Ficha única del equipo | Datos · Red · Energía · Acceso · Documentos · Historial · QR, en una sola pantalla |
+| **149** ✅ | Menos letras (Zonas, Incidencias y Grúas listas; Órdenes 219→202) | Aplicar las reglas de la sección 3 a todas las pantallas; el verificador de densidad las vigila |
+| **150** ✅ | Ficha única del equipo | Datos · Red · Energía · Acceso · Documentos · Historial · QR, en una sola pantalla |
 
 ### Fase B · Procesos simples (pendientes del grupo C)
 
@@ -88,7 +88,7 @@ Dentro de cada módulo, lo que antes era una entrada del menú pasa a ser una **
 |---|---|
 | **151** ✅ | Modelo `Plano` + subir, calibrar y colocar equipos |
 | **152** ✅ | `/mapa` de lectura con estado real y tarjeta por rol |
-| **153** 🟡 | Capas y métricas: cobertura (conos), cable vs 90 m y altura listos; faltan zonas como polígonos e impacto |
+| **153** ✅ | Capas y métricas: cobertura (conos), cable vs 90 m y altura listos; faltan zonas como polígonos e impacto |
 | **156** ✅ | Plano referencial de un tren y su púlpito (demo, dice «NO ES LA PLANTA REAL»): horno → desbastador → intermedio → acabador → lecho → atado, 3 púlpitos, 10 cámaras de ejemplo |
 | **157** ✅ | Modo noche (Automático / Claro / Noche) y aspecto más vistoso: fondo de sala de control, botones con brillo, mapa como «plano azul» de noche |
 | **158** ✅ | Mi bandeja informativa: cómo está la planta hoy (cámaras, órdenes, incidencias, preventivos), carga por técnico y últimas 24 h. «Vencida» = su día ya pasó |
@@ -101,7 +101,12 @@ Dentro de cada módulo, lo que antes era una entrada del menú pasa a ser una **
 | **165** ✅ | Zonas del plano (sala eléctrica, púlpito, línea…): polígonos por ubicación, color del peor equipo, filtro por zona, plano propio de la sala (planta → tren → sala), vista de planta, «Órdenes de la zona»; demo del Tren 2 y su sala eléctrica |
 | **166** ✅ | La demostración (mapa, zonas, Tren 2, sala eléctrica, OM, red) se carga y se borra desde la app (Limpieza → Demostración): corre en el servidor, también en Railway |
 | **167** ✅ | Ventanas (nueva ubicación, gabinete, activo) centradas otra vez: la animación de entrada ya no descoloca lo fijo, y las ventanas van en un portal |
-| **154** | «Estás aquí» con QR y ruta a pie |
+| **168** ✅ | Seguridad y formularios desde lo declarado: requisitos al abrir la OM (ATS, PETAR, LOTO, EPP, parada, acompañante) obligatorios; acceso en altura, grúa, instalación, incidencias, prórrogas, rótulo y preventivo se rellenan solos |
+| **169** ✅ | Todo con clics: catálogos base (síntoma, acción, motivos, trabajos), cierre de correctiva obligatorio con catálogo, intervención/detalle/incidencia/permiso/grúa/aparato con listas y fichas, marca y modelo elegidos |
+| **170** ✅ | Sesión: renovación única + ventana de 30 s + freno de refresh por NAT + actividad entre pestañas. Módulos: contadores, panel al pasar el ratón, «Todos los módulos», pestañas en una fila |
+| **171** ✅ | Validación total (65 pantallas × 6 perfiles, PC/celular/noche, todos los GET): 429 sin CORS, 403 en pantallas propias, PuertaDeRuta, desbordes; ficha única (150), «Estás aquí» (154), capa de impacto (153), menos letras (149); recorrido e2e 08 |
+| **172** ✅ | Desplegables acordes a su campo: ubicaciones por uso (sin gabinetes ni empresa), tren de planta normalizado (paradas no se podían guardar), «Crítica» rechazada, asignar sólo a ejecutores, grúas, enlaces por medio, stock por tipo; `verificar-desplegables` |
+| **154** ✅ | «Estás aquí» con QR y ruta a pie (texto: tren › zona, cómo llegar, altura) |
 
 Detalle: `docs/ARQUITECTURA_PLANO_VIVO.md`.
 

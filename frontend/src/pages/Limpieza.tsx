@@ -184,10 +184,9 @@ export default function Limpieza() {
         ) : (
           <>
             <div className="card explica">
-              Activos <b>sin orden ni incidencia</b>, ordenados por señales de posible basura.
-              Es una pista, no un juicio: mira el código antes de borrar.
+              Activos <b>sin orden ni incidencia</b>, ordenados por señales de basura. Es una pista: mira el código antes de borrar.
             </div>
-            <table className="tabla">
+            <div className="desliza"><table className="tabla">
               <thead>
                 <tr><th>Código</th><th>Tipo</th><th>Dónde</th><th>Creado</th><th>Señales</th><th></th></tr>
               </thead>
@@ -208,7 +207,7 @@ export default function Limpieza() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           </>
         )
       )}
@@ -263,7 +262,7 @@ export default function Limpieza() {
                 </button>
               </div>
             )}
-            <table className="tabla">
+            <div className="desliza"><table className="tabla">
               <thead>
                 <tr><th>Código</th><th>Tipo</th><th>Estado</th><th>Equipo</th><th>Creada</th><th>Señales</th><th></th></tr>
               </thead>
@@ -292,7 +291,7 @@ export default function Limpieza() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           </>
         )
       )}
@@ -304,7 +303,7 @@ export default function Limpieza() {
             Una persona que <b>firmó algo</b> —cerró una orden, autorizó un trabajo en
             altura— <b>no se puede borrar</b>: dejaría documentos firmados por nadie. Se desactivan desde Usuarios.
           </div>
-          <table className="tabla">
+          <div className="desliza"><table className="tabla">
             <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th><th></th></tr></thead>
             <tbody>
               {usuarios.map((u: any) => (
@@ -319,7 +318,7 @@ export default function Limpieza() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </>
       )}
 

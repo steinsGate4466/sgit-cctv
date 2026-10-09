@@ -99,7 +99,8 @@ export default function Preventive() {
   }
 
   function openNew() {
-    setForm({ assetId: '', intervalDays: 60, zoneCritical: false, lastServiceAt: '', active: true });
+    // Bloque 168: vacío = lo decide el ambiente de la etapa y el último preventivo cerrado (servidor).
+    setForm({ assetId: '', intervalDays: '', zoneCritical: false, lastServiceAt: '', active: true });
   }
   function openEdit(p: any) {
     setForm({
@@ -116,7 +117,7 @@ export default function Preventive() {
     try {
       const body: any = {
         assetId: form.assetId,
-        intervalDays: Number(form.intervalDays) || (form.zoneCritical ? 30 : 60),
+        intervalDays: Number(form.intervalDays) || (form.zoneCritical ? 30 : undefined),
         zoneCritical: !!form.zoneCritical,
         active: !!form.active,
       };
@@ -258,6 +259,8 @@ export default function Preventive() {
                 <SelectorDeActivo
                   etiqueta="Activo"
                   opciones={assets}
+                  /* Bloque 172 · la fuente PoE va dentro del plan de su equipo padre. */
+                  excluir={['PHONE', 'PSU']}
                   valor={form.assetId}
                   onChange={(id) => setForm({ ...form, assetId: id })}
                   vacio="— selecciona —"
@@ -265,14 +268,14 @@ export default function Preventive() {
               </>
             )}
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400, marginTop: 10 }}>
-              <input type="checkbox" checked={!!form.zoneCritical} onChange={(e) => setForm({ ...form, zoneCritical: e.target.checked, intervalDays: e.target.checked ? 30 : 60 })} style={{ width: 'auto' }} />
+              <input type="checkbox" checked={!!form.zoneCritical} onChange={(e) => setForm({ ...form, zoneCritical: e.target.checked, intervalDays: e.target.checked ? 30 : '' })} style={{ width: 'auto' }} />
               Zona crítica (cerca del horno / suciedad) → 30 días
             </label>
             <label>Intervalo (días)
-              <input type="number" min={1} value={form.intervalDays} onChange={(e) => setForm({ ...form, intervalDays: e.target.value })} />
+              <input type="number" min={1} value={form.intervalDays} placeholder="Según el ambiente de su etapa" onChange={(e) => setForm({ ...form, intervalDays: e.target.value })} />
             </label>
             <label>Último mantenimiento (opcional)
-              <input type="date" value={form.lastServiceAt} onChange={(e) => setForm({ ...form, lastServiceAt: e.target.value })} />
+              <input type="date" value={form.lastServiceAt} title="Vacío: se toma el último preventivo cerrado del equipo" onChange={(e) => setForm({ ...form, lastServiceAt: e.target.value })} />
             </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400, marginTop: 10 }}>
               <input type="checkbox" checked={!!form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} style={{ width: 'auto' }} />

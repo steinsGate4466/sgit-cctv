@@ -4,7 +4,6 @@ import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { Titular } from '../components/Patron';
-import Icono from '../components/Iconos';
 import BotonConMotivo from '../components/BotonConMotivo';
 import { mensajeDeError, queFalta } from '../avisos';
 import { useBusquedaEnVivo } from '../useBusquedaEnVivo';
@@ -175,7 +174,6 @@ export default function Criticidad() {
           correcto: la criticidad es DEL EQUIPO. «De mantenimiento» sonaba a
           que era una escala interna del área, y no lo es — es una propiedad
           del activo que además decide cada cuánto se le hace mantenimiento. */}
-      <h2><Icono n="alerta" size={20} /> Criticidad de activos</h2>
       <p className="muted" style={{ marginTop: -6 }}>
         Cada cuánto hay que revisar cada equipo, y por qué. Método CTR:
         frecuencia de falla × consecuencia.
@@ -322,7 +320,7 @@ export default function Criticidad() {
             : 'Todavía no hay equipos que clasificar. Los de baja y los de almacén no cuentan.'}
         </p>
       ) : (
-        <table className="tabla">
+        <div className="desliza"><table className="tabla">
           <thead>
             <tr>
               <th>Equipo</th><th>Tipo</th><th>Letra</th>
@@ -369,7 +367,7 @@ export default function Criticidad() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
     </div>
   );

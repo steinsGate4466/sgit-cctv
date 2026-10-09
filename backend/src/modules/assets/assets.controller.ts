@@ -111,8 +111,18 @@ export class AssetsController {
     'incident.read', 'incident.create', 'inventory.read',
     'infra.read', 'access.read',
   )
-  options() {
-    return this.assets.options();
+  options(@CurrentUser() user: any) {
+    // Bloque 172: con el ámbito del usuario (ver el servicio).
+    return this.assets.options(user?.userId ?? null);
+  }
+
+  /* MARCA Y MODELO CON CLICS — bloque 169. Los que ya hay en planta para ese
+     tipo (de los equipos registrados y del catálogo de modelos), para elegir
+     en vez de teclear «Hikvision», «hikvision» y «HIK» como tres marcas. */
+  @Get('marcas-modelos')
+  @RequireAlguno('asset.read', 'asset.create', 'asset.update', 'wo.update', 'infra.read')
+  marcasModelos(@Query('tipo') tipo?: string) {
+    return this.assets.marcasModelos(tipo);
   }
 
   /* EL QR TIENE QUE ABRIRSE PARA QUIEN ESTÁ EN LA LÍNEA — bloque 68.

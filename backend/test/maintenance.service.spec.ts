@@ -43,6 +43,8 @@ describe('MaintenanceService — ejecución de OM en campo', () => {
           (over.wo ? { ...filaViva } : null)),
         findUniqueOrThrow: jest.fn().mockImplementation(() => ({ ...filaViva })),
         findFirst: jest.fn().mockResolvedValue(over.ultimaOm ?? null),
+        // Bloque 168: correctivas previas del mismo equipo (reincidencia automática).
+        count: jest.fn().mockResolvedValue(over.correctivasPrevias ?? 0),
         create: jest.fn().mockImplementation(({ data }: any) => ({ id: 'w1', ...data })),
         update: jest.fn().mockImplementation(({ data }: any) => {
           Object.assign(filaViva, data);
@@ -56,6 +58,16 @@ describe('MaintenanceService — ejecución de OM en campo', () => {
         }),
       },
       user: { findUnique: jest.fn().mockResolvedValue(over.usuario ?? USUARIO('Técnico de Red')) },
+      // Bloque 169: con catálogos cargados, la correctiva se cierra eligiendo.
+      catalogItem: { count: jest.fn().mockResolvedValue(over.catalogos ?? 0) },
+      // Bloque 168: lo que lee el perfil de seguridad al abrir.
+      asset: { findUnique: jest.fn().mockResolvedValue(over.activo ?? null) },
+      location: { findMany: jest.fn().mockResolvedValue(over.ubicaciones ?? []) },
+      processStage: { findMany: jest.fn().mockResolvedValue([]) },
+      accessRequest: {
+        findFirst: jest.fn().mockResolvedValue(over.permiso ?? null),
+        update: jest.fn().mockImplementation(({ data }: any) => ({ id: 'acc1', ...data })),
+      },
       // Bloque 163: por defecto la orden ya tiene una foto de evidencia.
       workOrderEvidence: { count: jest.fn().mockResolvedValue(over.fotos ?? 1) },
       workOrderProgress: {
@@ -147,13 +159,17 @@ describe('MaintenanceService — ejecución de OM en campo', () => {
   // ------------------------------------------------------------- apertura
   describe('apertura en campo', () => {
     const abierta = { id: 'w1', code: 'OM-2026-0001', type: 'CORRECTIVO', status: 'ABIERTA', startedAt: null };
+    /* Bloque 168: sin equipo ni zona firmada, lo mínimo es ATS, EPP básico y
+       parada (sin firma, parada). */
+    const SEG = ['ATS', 'EPP_BASICO', 'PARADA'];
 
     it('registra inicio real, firmante y acompañante', async () => {
       const { svc, prisma } = build({ wo: abierta });
       await svc.openSigned('w1', {
-        email: 'tec@aa.local', password: 'correcta', companionId: 'u2',
+        email: 'tec@aa.local', password: 'correcta', companionId: 'u2', seguridad: SEG,
       } as any);
       const d = prisma.__fila;
+      expect(d.seguridadInicio.marcados).toEqual(SEG);
       expect(d.status).toBe('EN_PROCESO');
       expect(d.openedById).toBe('u1');
       expect(d.companionId).toBe('u2');
@@ -203,14 +219,42 @@ describe('MaintenanceService — ejecución de OM en campo', () => {
         wo: { ...abierta, type: 'MAPEO' },
         usuario: USUARIO('Técnico de Red'),
       });
-      await svc.openSigned('w1', { email: 'tec@aa.local', password: 'correcta' } as any);
+      await svc.openSigned('w1', { email: 'tec@aa.local', password: 'correcta', seguridad: SEG } as any);
       expect(prisma.workOrder.updateMany).toHaveBeenCalled();
     });
 
     it('un Técnico eléctrico SÍ puede abrir una correctiva', async () => {
       const { svc, prisma } = build({ wo: abierta, usuario: USUARIO('Técnico') });
-      await svc.openSigned('w1', { email: 'tec@aa.local', password: 'correcta' } as any);
+      await svc.openSigned('w1', { email: 'tec@aa.local', password: 'correcta', seguridad: SEG } as any);
       expect(prisma.workOrder.updateMany).toHaveBeenCalled();
+    });
+
+    /* ---------- Bloque 168 · la seguridad no queda a criterio de quien abre ---------- */
+    const camaraAlta = { id: 'a1', assetCode: 'AA-CAM-T1-001', type: 'CAMERA', locationId: null, alturaMetros: 7,
+      medioAcceso: 'MANLIFT', accesoNota: null, riesgoPersonas: false, tableroMontaje: null, alimentadoPor: [], parteDe: null };
+
+    it('sin marcar la seguridad NO se abre, y dice qué falta', async () => {
+      const { svc, prisma } = build({ wo: abierta });
+      await expect(svc.openSigned('w1', { email: 'tec@aa.local', password: 'correcta', seguridad: ['ATS'] } as any))
+        .rejects.toThrow(/falta confirmar: EPP básico/i);
+      expect(prisma.workOrder.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('equipo a 7 m en manlift: exige PETAR, EPP de altura, manlift y acompañante', async () => {
+      const { svc } = build({ wo: { ...abierta, assetId: 'a1' }, activo: camaraAlta });
+      await expect(svc.openSigned('w1', { email: 'tec@aa.local', password: 'correcta', companionId: 'u2', seguridad: SEG } as any))
+        .rejects.toThrow(/PETAR/);
+      const todo = [...SEG, 'PETAR_ALTURA', 'EPP_ALTURA', 'MANLIFT'];
+      await expect(svc.openSigned('w1', { email: 'tec@aa.local', password: 'correcta', seguridad: todo } as any))
+        .rejects.toThrow(/nunca se trabaja solo/i);
+    });
+
+    it('con todo marcado y acompañante abre, y el ATS completa el permiso de altura aprobado', async () => {
+      const { svc, prisma } = build({ wo: { ...abierta, assetId: 'a1' }, activo: camaraAlta, permiso: { id: 'acc1', hasAts: false } });
+      const todo = [...SEG, 'PETAR_ALTURA', 'EPP_ALTURA', 'MANLIFT'];
+      await svc.openSigned('w1', { email: 'tec@aa.local', password: 'correcta', companionId: 'u2', seguridad: todo } as any);
+      expect(prisma.__fila.seguridadInicio.enAltura).toBe(true);
+      expect(prisma.accessRequest.update).toHaveBeenCalledWith({ where: { id: 'acc1' }, data: { hasAts: true } });
     });
   });
 
@@ -323,6 +367,21 @@ describe('MaintenanceService — ejecución de OM en campo', () => {
       expect(d.rootCause).toBe('CABLE_FUERA_NORMA');
       expect(d.isRecurrent).toBe(true);
       expect(d.closedById).toBe('u1');
+    });
+
+    it('bloque 168: si el mismo equipo ya tuvo otra correctiva en la ventana, queda reincidente aunque no se marque', async () => {
+      const { svc, prisma } = build({ wo: { ...enProceso, type: 'CORRECTIVO', assetId: 'a1' }, correctivasPrevias: 1 });
+      await svc.closeSigned('w1', { email: 'tec@aa.local', password: 'correcta' } as any);
+      expect(prisma.__fila.isRecurrent).toBe(true);
+    });
+
+    it('bloque 169: con catálogos cargados, una correctiva NO se cierra sin síntoma, causa y acción', async () => {
+      const { svc, prisma } = build({ wo: { ...enProceso, type: 'CORRECTIVO' }, catalogos: 10 });
+      await expect(svc.closeSigned('w1', { email: 'tec@aa.local', password: 'correcta', rootCauseCode: 'CONECTOR' } as any))
+        .rejects.toThrow(/síntoma.*acción/);
+      expect(prisma.__fila.status).not.toBe('CERRADA');
+      await svc.closeSigned('w1', { email: 'tec@aa.local', password: 'correcta', symptomCode: 'SIN_IMAGEN', rootCauseCode: 'CONECTOR', actionCode: 'CAMBIO_CONECTOR' } as any);
+      expect(prisma.__fila.status).toBe('CERRADA');
     });
 
     // --------------------------------------- evidencia al cerrar (bloque 163)
@@ -502,7 +561,7 @@ describe('MaintenanceService — ejecución de OM en campo', () => {
       prisma.__fila.status = 'CANCELADA';   // el Jefe la cancela entre medias
 
       await expect(
-        svc.openSigned('w1', { email: 'tec@aa.local', password: 'correcta' } as any),
+        svc.openSigned('w1', { email: 'tec@aa.local', password: 'correcta', seguridad: ['ATS', 'EPP_BASICO', 'PARADA'] } as any),
       ).rejects.toThrow(/OM-2026-0007.*CANCELADA/is);
     });
 

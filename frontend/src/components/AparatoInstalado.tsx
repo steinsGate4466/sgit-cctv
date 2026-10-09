@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client';
 import Modal from './Modal';
+import SelectorDeModelo from './SelectorDeModelo';
 import { useAuth } from '../auth/AuthContext';
 import { fecha } from '../fechas';
 import { mensajeDeError } from '../avisos';
@@ -33,13 +34,20 @@ import { mensajeDeError } from '../avisos';
 
 type Props = { assetId: string };
 
-export default function AparatoInstalado({ assetId }: Props) {
+export default function AparatoInstalado({ assetId, tipo }: Props & { tipo?: string }) {
   const { can } = useAuth();
   const puedeTocar = can('asset.update');
 
   const [d, setD] = useState<any>(null);
   const [cargando, setCargando] = useState(true);
   const [abierto, setAbierto] = useState<'' | 'instalar' | 'retirar'>('');
+  const [causas, setCausas] = useState<any[]>([]);
+  useEffect(() => {
+    if (!abierto || causas.length) return;
+    let vivo = true;
+    api.get('/catalogos/CAUSA').then((r) => { if (vivo) setCausas(r.data?.items || []); }).catch(() => { if (vivo) setCausas([]); });
+    return () => { vivo = false; };
+  }, [abierto, causas.length]);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState({
@@ -213,12 +221,9 @@ export default function AparatoInstalado({ assetId }: Props) {
           <p className="muted" style={{ fontSize: 12 }}>
             El sitio no cambia. Lo que se registra es el aparato que hay dentro.
           </p>
-          <label>Marca
-            <input value={form.marca} onChange={(e) => setForm({ ...form, marca: e.target.value })} />
-          </label>
-          <label>Modelo
-            <input value={form.modelo} onChange={(e) => setForm({ ...form, modelo: e.target.value })} />
-          </label>
+          {/* Bloque 169: marca y modelo con clics; el porqué del retiro, del catálogo de causas. */}
+          <SelectorDeModelo tipo={tipo || ''} marca={form.marca || ''} modelo={form.modelo || ''}
+            onChange={(marca, modelo) => setForm((f: any) => ({ ...f, marca, modelo }))} />
           <label>Número de serie
             <input value={form.serie} onChange={(e) => setForm({ ...form, serie: e.target.value })} />
           </label>
@@ -227,11 +232,10 @@ export default function AparatoInstalado({ assetId }: Props) {
           </label>
           {puesto && (
             <label>Por qué sale el que estaba
-              <input
-                value={form.motivoRetiroAnterior}
-                onChange={(e) => setForm({ ...form, motivoRetiroAnterior: e.target.value })}
-                placeholder="se quemó la fuente, golpe de grúa, fin de vida útil…"
-              />
+              <select value={form.motivoRetiroAnterior} onChange={(e) => setForm({ ...form, motivoRetiroAnterior: e.target.value })}>
+                <option value="">{'— elige —'}</option>
+                {causas.map((c) => <option key={c.code} value={c.name}>{c.name}</option>)}
+              </select>
             </label>
           )}
           <label>Notas
@@ -259,8 +263,11 @@ export default function AparatoInstalado({ assetId }: Props) {
             El sitio se queda sin aparato. Su historial se conserva entero.
           </p>
           <label>Por qué se retira
-            <input value={motivoRetiro} onChange={(e) => setMotivoRetiro(e.target.value)}
-              placeholder="se lo llevaron al taller, reemplazo pendiente…" />
+            <select value={motivoRetiro} onChange={(e) => setMotivoRetiro(e.target.value)}>
+              <option value="">{'— elige —'}</option>
+              {['Se lleva al taller', 'Reemplazo pendiente (sin repuesto)', 'Punto dado de baja', ...causas.map((c) => c.name)]
+                .map((m) => <option key={m} value={m}>{m}</option>)}
+            </select>
           </label>
         </Modal>
       )}

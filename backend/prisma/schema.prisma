@@ -1489,6 +1489,12 @@ model WorkOrder {
   /// técnico eléctrico acompaña. Queda declarado para trazabilidad y SSOMA.
   companionId   String?
   companion     User?            @relation("WoCompanion", fields: [companionId], references: [id])
+  /// SEGURIDAD AL EMPEZAR — bloque 168. Lo que el técnico MARCÓ al abrir la
+  /// orden, contra los requisitos que el sistema calculó de lo declarado
+  /// (altura, permiso eléctrico, parada, ambiente). Se guarda la foto del
+  /// momento: { requisitos: [...], marcados: [...], epp, riesgos, en }.
+  /// NULL = orden abierta antes de este bloque (no se sabe, no se inventa).
+  seguridadInicio Json?
 
   // ---- CIERRE (Bloque 1) ----
   rootCause     RootCause?       // causa encontrada — enum LEGADO, ver nota

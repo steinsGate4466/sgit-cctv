@@ -6,6 +6,7 @@ import FiltroAmbito, { Ambito, AMBITO_VACIO, AvisoAmbito } from '../components/F
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
 import { useDialogos } from '../components/Dialogos';
+import { OpcionesDeUbicacion } from '../ubicaciones';
 
 export default function Cabinets() {
   const { avisar } = useDialogos();
@@ -201,7 +202,7 @@ export default function Cabinets() {
             <label>Ubicación
               <select value={form.locationId} onChange={(e) => setForm({ ...form, locationId: e.target.value })}>
               <option value="">— sin ubicación —</option>
-              {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              <OpcionesDeUbicacion uso="estructura" lista={locations} actual={form.locationId} />
             </select>
             </label>
             <label>Lugar de referencia

@@ -2,7 +2,7 @@ import { useEffect, useState, FormEvent } from 'react';
 import { api } from '../api/client';
 import SelectorDeActivo from './SelectorDeActivo';
 import Modal from './Modal';
-import { WO_TYPES, WO_TYPE_ES } from '../pages/omCatalogos';
+import { WO_TYPES_NUEVA, WO_TYPE_ES } from '../pages/omCatalogos';
 import { useDialogos } from './Dialogos';
 import { hoyParaInput } from '../fechas';
 
@@ -39,7 +39,8 @@ export default function AsignarOm({ incidente, onHecho, onClose }: {
   useEffect(() => {
     Promise.all([
       api.get('/assets/options').then((r) => r.data).catch(() => []),
-      api.get('/users').then((r) => r.data).catch(() => []),
+      // Bloque 172 · sólo quien puede ejecutar la orden (wo.update), no todos los usuarios.
+      api.get('/users/ejecutores').then((r) => r.data).catch(() => []),
     ]).then(([a, u]) => {
       setActivos(a || []);
       const lista = Array.isArray(u) ? u : (u as any)?.data || [];
@@ -85,7 +86,7 @@ export default function AsignarOm({ incidente, onHecho, onClose }: {
 
         <label>Tipo de trabajo
           <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-          {WO_TYPES.map((t) => <option key={t} value={t}>{WO_TYPE_ES[t] || t}</option>)}
+          {WO_TYPES_NUEVA.map((t) => <option key={t} value={t}>{WO_TYPE_ES[t] || t}</option>)}
         </select>
         </label>
 
@@ -115,7 +116,7 @@ export default function AsignarOm({ incidente, onHecho, onClose }: {
         <label>¿A quién se lo asignas?
           <select value={form.technicianId} onChange={(e) => setForm({ ...form, technicianId: e.target.value })}>
           <option value="">— sin asignar —</option>
-          {tecnicos.map((t) => <option key={t.id} value={t.id}>{t.fullName}</option>)}
+          {tecnicos.map((t) => <option key={t.id} value={t.id}>{t.fullName}{t.rol ? ` · ${t.rol}` : ''}</option>)}
         </select>
         </label>
 

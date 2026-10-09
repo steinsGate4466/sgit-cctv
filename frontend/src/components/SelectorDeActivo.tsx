@@ -57,16 +57,23 @@ type Props = {
   vacio?: string;
   /** Restringe a estos tipos. Sólo cuando NO cabe otro (ej. el NVR de una cámara). */
   tipos?: string[];
+  /** Bloque 172 · tipos que NO se ofrecen. Por defecto el teléfono IP: no es de
+   *  CCTV y está marcado para que nadie lo toque (ver tipos-de-equipo). */
+  excluir?: string[];
   etiqueta: string;
   desactivado?: boolean;
 };
 
 export default function SelectorDeActivo({
-  opciones, valor, onChange, vacio, tipos, etiqueta, desactivado,
+  opciones, valor, onChange, vacio, tipos, excluir, etiqueta, desactivado,
 }: Props) {
   const grupos = useMemo(() => {
+    const fuera = excluir ?? ['PHONE'];
     const util = (opciones || []).filter((o) => o && o.id
-      && (!tipos || !o.type || tipos.includes(o.type)));
+      && ((!tipos || !o.type || tipos.includes(o.type)) && !fuera.includes(String(o.type))
+        // El valor ya guardado se enseña siempre: un desplegable en blanco al
+        // editar parece que borró el dato.
+        || o.id === valor));
 
     /* EL ORDEN DE LOS GRUPOS ES EL DE `TIPOS_ACTIVO`, no alfabético: esa lista
        ya está ordenada por lo que más se toca en planta —cámara, antena,
@@ -89,7 +96,7 @@ export default function SelectorDeActivo({
         nombre: NOMBRE_DE_TIPO[tipo] || tipo,
         lista: lista.sort((x, y) => (x.assetCode || '').localeCompare(y.assetCode || '')),
       }));
-  }, [opciones, tipos]);
+  }, [opciones, tipos, excluir, valor]);
 
   const dondeEsta = (o: Opcion) => o.referencePlace || o.locationName || '';
 

@@ -4,6 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { resolverContextoDePlanta } from '../../common/plant-context';
 import { tablerosAfectados, calcularImpacto, ColgadosDeSwitch, EquipoAlimentado } from './impacto-tablero';
+import { aTrenDePlanta, filtroDeTrenDePlanta } from '../../common/tren-de-planta';
 
 /**
  * ELECTRICIDAD (bloque 18)
@@ -45,7 +46,7 @@ export class ElectricidadService {
     const t = (q.texto || '').trim();
     return this.prisma.tableroElectrico.findMany({
       where: {
-        ...(q.tren ? { tren: q.tren as any } : {}),
+        ...(filtroDeTrenDePlanta(q.tren) ? { tren: filtroDeTrenDePlanta(q.tren) } : {}),
         ...(t ? {
           OR: [
             { codigo: { contains: t, mode: 'insensitive' } },
@@ -234,7 +235,7 @@ export class ElectricidadService {
         nombre: String(dto.nombre || '').trim() || codigo,
         tipo: dto.tipo || 'DISTRIBUCION',
         locationId: dto.locationId || null,
-        tren: dto.tren || null,
+        tren: (aTrenDePlanta(dto.tren) as any) ?? null,
         referencia: dto.referencia?.trim() || null,
         comoLlegar: dto.comoLlegar?.trim() || null,
         tensionV: dto.tensionV ? Number(dto.tensionV) : null,
@@ -258,6 +259,7 @@ export class ElectricidadService {
     for (const k of ['nombre', 'tipo', 'locationId', 'tren', 'referencia', 'comoLlegar', 'riesgos', 'notas', 'alimentadoDeId']) {
       if (dto[k] !== undefined) datos[k] = typeof dto[k] === 'string' ? (dto[k].trim() || null) : dto[k];
     }
+    if (dto.tren !== undefined) datos.tren = aTrenDePlanta(dto.tren) ?? null;
     for (const k of ['tensionV', 'fases', 'corrienteNominalA']) {
       if (dto[k] !== undefined) datos[k] = dto[k] === '' || dto[k] === null ? null : Number(dto[k]);
     }

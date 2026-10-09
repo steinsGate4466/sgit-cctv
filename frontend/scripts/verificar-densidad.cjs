@@ -86,25 +86,28 @@ const EXENTAS = {
    lista de excepciones. Las líneas base bajan con cada recorte para que el
    texto no pueda volver a crecer. */
 const LINEA_BASE = {
+  /* Bloque 171 · bajadas: Assets 244→241, Electricidad 305→289, Equipos
+     305→288, Instalaciones 227→225, Limpieza 350→346, Órdenes 199→187,
+     Paradas 246→238. */
   // pantalla:            [palabras, columnas, indicadores]
   /* 304 -> 305 en el bloque 146: la pantalla GANÓ el botón «QR» de cada
      tablero, una palabra. Es la etiqueta que el usuario pidió para pegar en la
      puerta —«ese tablero también tiene que estar segmentado para poder
      generarle un QR y saber dónde está ubicado»—. Subir la línea base por una
      función que llega es legítimo; por un párrafo de más, no. */
-  'Electricidad.tsx':      [305, 6, 0],
-  'Equipos.tsx':           [305, 7, 0],
-  'Limpieza.tsx':          [350, 7, 0],
-  'Instalaciones.tsx':     [227, 7, 0],
+  'Electricidad.tsx':      [289, 6, 0],
+  'Equipos.tsx':           [288, 7, 0],
+  'Limpieza.tsx':          [346, 7, 0],
+  'Instalaciones.tsx':     [225, 7, 0],
   /* 243 -> 244 en el bloque 131. La pantalla no se llenó de texto: GANÓ una
      función. «Declarar cómo se llega» se mudó aquí desde «Mis activos»,
      porque es información que sólo Mantenimiento puede tocar, y su botón
      cuesta una palabra —«Acceso»—. Subir la línea base por una función que
      llega es legítimo; subirla por un párrafo de más, no. */
-  'Assets.tsx':            [244, 10, 0],
-  'Paradas.tsx':           [246, 10, 0],
+  'Assets.tsx':            [241, 10, 0],
+  'Paradas.tsx':           [238, 10, 0],
   'Ipam.tsx':              [187, 7, 0],
-  'Maintenance.tsx':      [199, 7, 0],
+  'Maintenance.tsx':      [187, 7, 0],
   'Campanas.tsx':          [180, 7, 0],
   'Topologia.tsx':         [218, 6, 0],
   // Convertida a medias en el bloque 38: el titular y las acciones ya están

@@ -194,10 +194,23 @@ export class NetworkService {
     if (endpointAId === endpointBId) {
       throw new BadRequestException('Un enlace no puede empezar y terminar en el mismo equipo.');
     }
-    const existen = await this.prisma.asset.count({
+    const extremos = await this.prisma.asset.findMany({
       where: { id: { in: [endpointAId, endpointBId] }, deletedAt: null },
+      select: { id: true, type: true, assetCode: true },
     });
-    if (existen !== 2) throw new BadRequestException('Alguno de los dos equipos no existe.');
+    if (extremos.length !== 2) throw new BadRequestException('Alguno de los dos equipos no existe.');
+    /* Bloque 172 · el medio decide qué extremos valen (lo mismo que filtra el
+       formulario). Un radioenlace entre dos switches dibujaba en el mapa de red
+       un enlace que no existe; una fibra no termina en una antena. */
+    const m = medium || 'FIBRA';
+    for (const x of extremos) {
+      if (m === 'INALAMBRICO' && x.type !== 'WIRELESS') {
+        throw new BadRequestException(`Un radioenlace va de antena a antena: ${x.assetCode} no es una antena.`);
+      }
+      if (m === 'FIBRA' && x.type === 'WIRELESS') {
+        throw new BadRequestException(`${x.assetCode} es una antena: la fibra llega al switch, no a la antena.`);
+      }
+    }
 
     // Sin repetir el mismo enlace en los dos sentidos: sería el mismo cable
     // contado dos veces, y el análisis lo trataría como redundancia.

@@ -7,6 +7,7 @@ import { conReintentoDeCodigo, siguienteCorrelativo } from '../../common/correla
 import {
   CrearInstalacionDto, DecidirInstalacionDto, EvaluarInstalacionDto, InstaladaDto, SolicitarInstalacionDto,
 } from './dto/instalacion.dto';
+import { aTrenDePlanta, filtroDeTrenDePlanta } from '../../common/tren-de-planta';
 
 /**
  * INSTALACIONES (Bloque 16)
@@ -99,7 +100,7 @@ export class InstalacionService {
     const where: any = {};
     if (q.estado) where.estado = q.estado;
     if (q.tipoSitio) where.tipoSitio = q.tipoSitio;
-    if (q.tren) where.tren = q.tren;
+    if (q.tren) where.tren = filtroDeTrenDePlanta(q.tren);
     const t = (q.texto || '').trim();
     if (t) {
       where.OR = [
@@ -148,7 +149,7 @@ export class InstalacionService {
         tipoSitio: dto.tipoSitio as any,
         tipoEquipo: dto.tipoEquipo as any,
         cantidad: dto.cantidad ?? 1,
-        tren: (dto.tren as any) ?? null,
+        tren: (aTrenDePlanta(dto.tren) as any) ?? null,
         locationId: dto.locationId || null,
         referenciaSitio: dto.referenciaSitio?.trim() || null,
         comoLlegar: dto.comoLlegar?.trim() || null,
@@ -311,8 +312,13 @@ export class InstalacionService {
       i.referenciaSitio ? `Sitio: ${i.referenciaSitio}` : null,
       i.metrosCable ? `Cable estimado: ${i.metrosCable} m` : null,
       i.necesitaManlift ? 'REQUIERE MANLIFT' : null,
+      i.necesitaAndamio ? 'REQUIERE ANDAMIO' : null,
       i.necesitaLoto ? 'REQUIERE BLOQUEO LOTO' : null,
       i.necesitaPermisoAltura ? 'REQUIERE PERMISO DE ALTURA' : null,
+      // Bloque 168: se perdían al pasar de la visita a la orden.
+      i.necesitaParada ? 'REQUIERE PARADA DEL TREN' : null,
+      i.necesitaPermisoCaliente ? 'REQUIERE PERMISO DE TRABAJO EN CALIENTE' : null,
+      i.riesgos ? `Riesgos identificados en la visita: ${i.riesgos}` : null,
       i.quienAutoriza ? `Autoriza: ${i.quienAutoriza}` : null,
     ].filter(Boolean).join('\n');
 
@@ -345,7 +351,10 @@ export class InstalacionService {
             activity: detalles,
             zone: i.referenciaSitio,
             materials: i.materialesEstimados,
-            openedById: userId || null,
+            /* Bloque 168: quien GENERA la orden la pide; no la ha arrancado en
+               campo. `openedById` es la firma de apertura (bloque 94) y la
+               pone el técnico al empezar, con su seguridad marcada. */
+            createdById: userId || null,
           },
         }),
         this.prisma.instalacion.update({ where: { id }, data: { estado: 'EN_EJECUCION' } }),

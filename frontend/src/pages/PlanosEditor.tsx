@@ -9,6 +9,7 @@ import { NOMBRE_DE_TIPO } from '../tipos-de-equipo';
 import LienzoPlano from '../components/mapa/LienzoPlano';
 import Marcador, { ConoDeVision } from '../components/mapa/Marcador';
 import ZonasDelPlano, { Zona } from '../components/mapa/ZonasDelPlano';
+import { OpcionesDeUbicacion, tiposPara } from '../ubicaciones';
 
 /**
  * PLANOS — bloque 151. Donde Mantenimiento prepara el mapa.
@@ -109,7 +110,8 @@ export default function PlanosEditor() {
     const fuera: any[] = [];
     const pila = [...(hijos.get(plano.locationId) ?? [])];
     while (pila.length) { const u = pila.shift()!; fuera.push(u); pila.push(...(hijos.get(u.id) ?? [])); }
-    return fuera;
+    /* Bloque 172 · sin gabinetes (RACK): un gabinete es un punto, no una zona del plano. */
+    return fuera.filter((u) => tiposPara('zonaDePlano').includes(String(u.type)));
   }, [ubicaciones, plano?.locationId]);
 
   async function guardarZona() {
@@ -241,7 +243,7 @@ export default function PlanosEditor() {
       </p>
 
       <div className="planos-cabecera">
-        <table className="tabla">
+        <div className="desliza"><table className="tabla">
           <thead><tr><th>Plano</th><th>Zona</th><th>Versión</th><th>Estado</th><th>Equipos</th><th></th></tr></thead>
           <tbody>
             {planos.map((p) => (
@@ -256,14 +258,14 @@ export default function PlanosEditor() {
             ))}
             {!planos.length && <tr><td colSpan={6} className="muted" style={{ textAlign: 'center', padding: 20 }}>Todavía no hay planos.</td></tr>}
           </tbody>
-        </table>
+        </table></div>
 
         <form className="card" onSubmit={subir}>
           <div className="section-title">Subir un plano</div>
           <label>Zona
             <select required value={subida.locationId} onChange={(e) => setSubida({ ...subida, locationId: e.target.value })}>
               <option value="">— elige —</option>
-              {ubicaciones.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+              <OpcionesDeUbicacion uso="plano" lista={ubicaciones} actual={subida.locationId} />
             </select>
           </label>
           <label>Nombre

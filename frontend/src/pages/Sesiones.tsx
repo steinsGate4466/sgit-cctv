@@ -154,7 +154,7 @@ export default function Sesiones() {
           {texto ? 'Nadie cuadra con lo que buscas.' : 'No hay ninguna sesión abierta.'}
         </p>
       ) : (
-        <table className="tabla">
+        <div className="desliza"><table className="tabla">
           <thead>
             <tr>
               <th>Persona</th><th>Rol</th><th>Desde dónde</th>
@@ -203,7 +203,7 @@ export default function Sesiones() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
 
       <p className="muted" style={{ fontSize: 12 }}>

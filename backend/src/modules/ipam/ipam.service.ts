@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { aNumero, aTexto, analizar, dentroDe, enPoolDhcp } from './red';
+import { aTrenDePlanta } from '../../common/tren-de-planta';
 
 /**
  * DIRECCIONAMIENTO IP (IPAM) — bloque 20
@@ -110,7 +111,7 @@ export class IpamService {
         gateway: dto.gateway?.trim() || null,
         dns1: dto.dns1?.trim() || null,
         dns2: dto.dns2?.trim() || null,
-        tren: dto.tren || null,
+        tren: (aTrenDePlanta(dto.tren) as any) ?? null,
         locationId: dto.locationId || null,
         dhcpDesde: dto.dhcpDesde?.trim() || null,
         dhcpHasta: dto.dhcpHasta?.trim() || null,

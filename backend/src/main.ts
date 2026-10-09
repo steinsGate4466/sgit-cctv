@@ -6,7 +6,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { StructuredLogger } from './common/logger.service';
 import {
   ContadorDePeticiones, LIMITE_GENERAL, LIMITE_PESADO,
-  claveDeOrigen, esRutaPesada,
+  claveDeOrigen, cuentaParaElLimite, esRutaPesada,
 } from './common/limite-peticiones';
 
 async function bootstrap() {
@@ -21,6 +21,51 @@ async function bootstrap() {
   // la IP del cliente desde la cabecera X-Forwarded-For.
   app.getHttpAdapter().getInstance().set('trust proxy', true);
 
+  /* CORS VA ANTES QUE EL LÍMITE — bloque 171.
+     -------------------------------------------------------------------------
+     Estaba DESPUÉS. Cuando el límite cortaba con un 429, la respuesta salía sin
+     cabeceras CORS y el navegador no la dejaba leer: la pantalla decía «el
+     servidor no responde» y en consola salía un error de CORS. Un límite que
+     se disfraza de caída del servidor no se diagnostica nunca. Lo cazó el
+     barrido de todas las pantallas con varios navegadores a la vez. */
+  // ---------------------------------------------------------------- CORS
+  //  ANTES: si CORS_ORIGIN no estaba definida se llamaba a enableCors() sin
+  //  argumentos, que permite CUALQUIER origen. Ese era el valor por DEFECTO, y
+  //  en producción significa que cualquier web que visite un usuario con la
+  //  sesión abierta puede llamar a esta API con su token.
+  //
+  //  AHORA falla en cerrado: en producción, sin lista blanca, el servidor NO
+  //  arranca. Un servidor que no levanta se arregla en dos minutos; uno que
+  //  levanta abierto no se nota nunca.
+  const corsEnv = process.env.CORS_ORIGIN;
+  const enProduccion = process.env.NODE_ENV === 'production';
+
+  if (corsEnv && corsEnv.trim()) {
+    const origins = corsEnv.split(',').map((o) => o.trim()).filter(Boolean);
+    // `allowedHeaders` explícito: por defecto CORS refleja lo que pida el
+    // navegador, y funciona — hasta el día que alguien lo endurece y la
+    // cabecera de aparato deja de llegar sin que nadie sepa por qué.
+    app.enableCors({
+      origin: origins,
+      credentials: true,
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Dispositivo'],
+    });
+  } else if (enProduccion) {
+    // eslint-disable-next-line no-console
+    console.error(
+      '\n[ARRANQUE ABORTADO] Falta la variable CORS_ORIGIN.\n' +
+      'En produccion hay que declarar desde que direcciones se acepta la API.\n' +
+      'Railway -> servicio backend -> Variables:\n' +
+      '  CORS_ORIGIN = https://tu-frontend.up.railway.app\n' +
+      'Se pueden poner varias separadas por coma.\n',
+    );
+    process.exit(1);
+  } else {
+    // Solo en desarrollo local: cualquier origen, para no estorbar.
+    app.enableCors();
+  }
+
+
   /* LÍMITE DE PETICIONES (bloque 26).
      Va ANTES que las cabeceras y que todo lo demás: si alguien está barriendo
      el servidor, cuanto menos trabajo se haga antes de cortarle, mejor.
@@ -33,6 +78,11 @@ async function bootstrap() {
      conseguiría gastarse su propio cupo. */
   const contador = new ContadorDePeticiones();
   app.use((req: any, res: any, next: any) => {
+    // Bloque 171: la consulta previa del navegador (OPTIONS) no cuenta. No
+    // lleva token, así que se contaba por IP — y en planta toda la gente sale
+    // por la MISMA IP (NAT): las consultas previas de todos gastaban un único
+    // cupo de 300 por minuto y acababan cortando a la planta entera.
+    if (!cuentaParaElLimite(req.method)) return next();
     let userId: string | undefined;
     const cab = String(req.headers?.authorization || '');
     if (cab.startsWith('Bearer ')) {
@@ -118,43 +168,6 @@ async function bootstrap() {
   );
   // Traduce errores técnicos a mensajes claros (no más "Internal server error").
   app.useGlobalFilters(new AllExceptionsFilter());
-
-  // ---------------------------------------------------------------- CORS
-  //  ANTES: si CORS_ORIGIN no estaba definida se llamaba a enableCors() sin
-  //  argumentos, que permite CUALQUIER origen. Ese era el valor por DEFECTO, y
-  //  en producción significa que cualquier web que visite un usuario con la
-  //  sesión abierta puede llamar a esta API con su token.
-  //
-  //  AHORA falla en cerrado: en producción, sin lista blanca, el servidor NO
-  //  arranca. Un servidor que no levanta se arregla en dos minutos; uno que
-  //  levanta abierto no se nota nunca.
-  const corsEnv = process.env.CORS_ORIGIN;
-  const enProduccion = process.env.NODE_ENV === 'production';
-
-  if (corsEnv && corsEnv.trim()) {
-    const origins = corsEnv.split(',').map((o) => o.trim()).filter(Boolean);
-    // `allowedHeaders` explícito: por defecto CORS refleja lo que pida el
-    // navegador, y funciona — hasta el día que alguien lo endurece y la
-    // cabecera de aparato deja de llegar sin que nadie sepa por qué.
-    app.enableCors({
-      origin: origins,
-      credentials: true,
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Dispositivo'],
-    });
-  } else if (enProduccion) {
-    // eslint-disable-next-line no-console
-    console.error(
-      '\n[ARRANQUE ABORTADO] Falta la variable CORS_ORIGIN.\n' +
-      'En produccion hay que declarar desde que direcciones se acepta la API.\n' +
-      'Railway -> servicio backend -> Variables:\n' +
-      '  CORS_ORIGIN = https://tu-frontend.up.railway.app\n' +
-      'Se pueden poner varias separadas por coma.\n',
-    );
-    process.exit(1);
-  } else {
-    // Solo en desarrollo local: cualquier origen, para no estorbar.
-    app.enableCors();
-  }
 
   // Documentación OpenAPI — contrato base para futura integración SAP/Zabbix
   const config = new DocumentBuilder()

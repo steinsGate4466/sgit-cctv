@@ -1,6 +1,10 @@
 import { IsBoolean, IsDateString, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 
-export const TRENES = ['T1', 'T2', 'T3'] as const;
+import { TRENES_ACEPTADOS } from '../../../common/tren-de-planta';
+
+/* Bloque 172 · antes ['T1','T2','T3']: pasaba la validación y lo rechazaba la
+   base (el campo es el enum PlantTrain). Ver common/tren-de-planta.ts. */
+export const TRENES = TRENES_ACEPTADOS;
 export const ESTADOS = ['ANUNCIADA', 'CONFIRMADA', 'EN_CURSO', 'TERMINADA', 'CANCELADA'] as const;
 export const ORIGENES = ['PRODUCCION', 'MANTENIMIENTO', 'FALLA', 'PROGRAMADA'] as const;
 

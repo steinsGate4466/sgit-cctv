@@ -1,5 +1,6 @@
 import { useEffect, useState, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
 import { api } from '../api/client';
 import { EsqueletoTablero } from '../components/Esqueleto';
 import AccesosRapidos from '../components/AccesosRapidos';
@@ -24,6 +25,7 @@ const CRIT_ES: Record<string, string> = { BAJA: 'Baja', MEDIA: 'Media', ALTA: 'A
 
 export default function Dashboard() {
   const nav = useNavigate();
+  const { can } = useAuth();
   const [kpis, setKpis] = useState<any>(null);
   const [ov, setOv] = useState<any>(null);
   const [metrics, setMetrics] = useState<any>(null);
@@ -36,13 +38,20 @@ export default function Dashboard() {
     Promise.all([
       api.get('/dashboard/kpis').then((r) => r.data).catch(() => null),
       api.get('/dashboard/overview').then((r) => r.data).catch(() => null),
-      api.get('/troubleshooting/metrics').then((r) => r.data).catch(() => null),
+      /* Bloque 171 · sólo si se puede leer: sin el permiso daba 403 y el aviso
+         «no tienes permiso» salía encima del Dashboard de quien SÍ lo tiene
+         en su menú (técnico, jefe de tren, consultor). */
+      can('troubleshooting.read')
+        ? api.get('/troubleshooting/metrics').then((r) => r.data).catch(() => null)
+        : Promise.resolve(null),
       api.get('/dashboard/root-causes').then((r) => r.data).catch(() => []),
       // La bandeja y los puntos criticos YA existian como pantallas; el
       // tablero solo trae su resumen para contestar lo primero que uno se
       // pregunta al abrir: "¿que hago primero?" y "¿donde me duele la red?".
       api.get('/dashboard/bandeja').then((r) => r.data).catch(() => null),
-      api.get('/network/criticos').then((r) => r.data?.equipos || []).catch(() => []),
+      can('red.read')
+        ? api.get('/network/criticos').then((r) => r.data?.equipos || []).catch(() => [])
+        : Promise.resolve([]),
       /* EL REPARTO DEL TRABAJO (bloque 80). Lo pidió el usuario aquí: es el
          quesito que el ingeniero dibujó en el centro de su hoja, y el Dashboard
          es la pantalla de ANÁLISIS. En Indicadores sigue estando con su meta
@@ -53,6 +62,7 @@ export default function Dashboard() {
       setKpis(k); setOv(o); setMetrics(m); setCauses(c || []);
       setBandeja(b); setCriticos(cr.slice(0, 3)); setReparto(rep); setLoading(false);
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (loading) return <EsqueletoTablero kpis={4} paneles={2} />;

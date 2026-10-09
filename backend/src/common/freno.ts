@@ -46,6 +46,24 @@ export interface Veredicto {
 export const CUPO_LOGIN: Cupo = { maximo: 20, ventanaMs: 5 * 60_000, castigoMs: 10 * 60_000 };
 
 /**
+ * RENOVAR LA SESIÓN NO ES INICIAR SESIÓN — bloque 170.
+ *
+ * `/auth/refresh` llevaba el cupo del login: 20 cada 5 minutos POR IP y diez
+ * minutos de castigo. Y en planta TODOS salen a internet por la misma IP
+ * pública (NAT/PAT del firewall corporativo): para Railway, la planta entera
+ * es UN solo origen. Con veinte personas renovando su token cada quince
+ * minutos —y el bug de las renovaciones en paralelo multiplicándolas— el cupo
+ * se agotaba, la renovación devolvía 429 y el navegador echaba a TODO el que
+ * estuviera trabajando, durante diez minutos.
+ *
+ * El freno del login existe porque una contraseña se puede adivinar. Un
+ * refresh token es una firma de 256 bits: no se adivina. Aquí el freno sólo
+ * tiene que parar una inundación, así que es ancho (pensado para ~300
+ * personas detrás de una IP) y el castigo es de un minuto.
+ */
+export const CUPO_RENOVAR: Cupo = { maximo: 600, ventanaMs: 5 * 60_000, castigoMs: 60_000 };
+
+/**
  * El PIN es MUCHO más estrecho que el login, y a propósito: son 4 cifras.
  * 10 intentos por minuto deja trabajar a quien se equivoca con el guante
  * puesto, y convierte 10.000 combinaciones en más de dieciséis horas.

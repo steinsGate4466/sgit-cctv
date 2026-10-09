@@ -5,6 +5,7 @@ import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
 import BotonConMotivo from '../components/BotonConMotivo';
 import { mensajeDeError, queFalta } from '../avisos';
+import { OpcionesDeTrenDePlanta, nombreDeTrenDePlanta } from '../ubicaciones';
 
 /**
  * DIRECCIONAMIENTO IP
@@ -220,7 +221,7 @@ export default function Ipam() {
           </p>
         </div>
       ) : (
-        <table className="tabla">
+        <div className="desliza"><table className="tabla">
           <thead><tr><th>Subred</th><th>Nombre</th><th>Propósito</th><th>VLAN</th>
             <th className="num">Útiles</th><th className="num">Ocupada</th><th></th></tr></thead>
           <tbody>
@@ -228,7 +229,7 @@ export default function Ipam() {
               <tr key={s.id}>
                 <td><strong style={{ fontFamily: 'monospace' }}>{s.cidr}</strong>
                   {s.gateway && <div className="muted" style={{ fontSize: 11.5 }}>gw {s.gateway}</div>}</td>
-                <td>{s.nombre}{s.tren && <span className="muted"> · {s.tren}</span>}</td>
+                <td>{s.nombre}{s.tren && <span className="muted"> · {nombreDeTrenDePlanta(s.tren)}</span>}</td>
                 <td>{PROPOSITO[s.proposito]}</td>
                 <td className="num">{s.vlan ?? <span className="muted">—</span>}</td>
                 <td className="num">{s.utiles}</td>
@@ -245,7 +246,7 @@ export default function Ipam() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
 
       {/* ---------- SIGUIENTE LIBRE ---------- */}
@@ -358,7 +359,7 @@ export default function Ipam() {
             <label className="campo"><span>Tren</span>
               <select value={nueva.tren} onChange={(e) => setNueva({ ...nueva, tren: e.target.value })}>
                 <option value="">No aplica</option>
-                {['T1', 'T2', 'T3'].map((t) => <option key={t} value={t}>{t}</option>)}
+                <OpcionesDeTrenDePlanta />
               </select></label>
             <label className="campo"><span>Pool DHCP · desde</span>
               <input value={nueva.dhcpDesde} onChange={(e) => setNueva({ ...nueva, dhcpDesde: e.target.value })}

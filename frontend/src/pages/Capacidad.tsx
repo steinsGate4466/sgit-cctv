@@ -161,7 +161,7 @@ export default function Capacidad() {
                 <p>En cuanto se den de alta, aquí aparece su capacidad.</p>
               </div>
             ) : (
-              <table className="tabla">
+              <div className="desliza"><table className="tabla">
                 <thead>
                   <tr>
                     <th>Switch</th><th>Dónde</th><th>Puertos</th>
@@ -225,7 +225,7 @@ export default function Capacidad() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             )
           )}
 
@@ -245,7 +245,7 @@ export default function Capacidad() {
                     </p>
                   </div>
                 )}
-                <table className="tabla">
+                <div className="desliza"><table className="tabla">
                   <thead>
                     <tr>
                       <th>Tipo</th><th>Marca y modelo</th><th>Cuántos</th><th>El más antiguo</th>
@@ -265,7 +265,7 @@ export default function Capacidad() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </table></div>
               </>
             )
           )}

@@ -8,7 +8,7 @@ import { CabinetsService } from './cabinets.service';
 import { CreateCabinetDto, UpdateCabinetDto } from './dto/cabinet.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
-import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { RequireAlguno, RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { AmbitoDe } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
@@ -56,11 +56,17 @@ export class CabinetsController {
   }
 
   /** Lo que se ve al escanear la etiqueta del gabinete. */
+  /* Bloque 171 · también el Jefe de Tren (`activos.mirar`): escanear la
+     etiqueta del gabinete de SU tren daba 403. El ámbito lo sigue recortando
+     el guard; la IP de los equipos sólo sale a quien puede ver la red. */
   @AmbitoDe('cabinet')
   @Get(':id/ficha')
-  @RequirePermissions('asset.read')
-  ficha(@Param('id') id: string) {
-    return this.cabinets.fichaRapida(id);
+  @RequireAlguno('asset.read', 'activos.mirar')
+  async ficha(@Param('id') id: string, @CurrentUser() user: any) {
+    const f: any = await this.cabinets.fichaRapida(id);
+    const veRed = (user?.permissions ?? []).some((p: string) => p === 'red.read' || p === 'credential.read' || p === 'asset.read');
+    if (!veRed && Array.isArray(f?.equipos)) f.equipos = f.equipos.map((e: any) => ({ ...e, ipAddress: undefined }));
+    return f;
   }
 
   @AmbitoDe('cabinet')

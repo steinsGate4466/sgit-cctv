@@ -18,6 +18,7 @@ import { ExportacionModule } from './modules/exportacion/exportacion.module';
 import { GruaModule } from './modules/grua/grua.module';
 import { PurgaModule } from './modules/purga/purga.module';
 import { PlanosModule } from './modules/planos/planos.module';
+import { SeguridadModule } from './modules/seguridad/seguridad.module';
 import { EquiposModule } from './modules/equipos/equipos.module';
 import { ParadasModule } from './modules/paradas/paradas.module';
 import { InstalacionModule } from './modules/instalacion/instalacion.module';
@@ -102,6 +103,7 @@ import { RiesgoModule } from './modules/riesgo/riesgo.module';
     IndicadoresModule,    // MTTR, MTBF, disponibilidad, backlog (22)
     PurgaModule,          // borrado definitivo de basura, solo el Jefe (15)
     PlanosModule,         // plano vivo: el plano real con cada equipo en su sitio (151)
+    SeguridadModule,      // la seguridad del trabajo, de lo declarado (168)
   ],
   controllers: [HealthController],
   providers: [

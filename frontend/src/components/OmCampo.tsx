@@ -8,6 +8,7 @@ import { useAuth } from '../auth/AuthContext';
 import { fh, duracion } from '../pages/omCatalogos';
 import OmHerramientas, { HerramientaMarcada } from './OmHerramientas';
 import RutinaEnCampo from './RutinaEnCampo';
+import SeguridadAlEmpezar, { Perfil } from './SeguridadAlEmpezar';
 import { useDialogos } from './Dialogos';
 
 /**
@@ -18,6 +19,15 @@ import { useDialogos } from './Dialogos';
  *   AVANCE   — una orden no siempre termina el mismo día; deja el % y el motivo.
  *   CERRAR   — el Jefe firma, pone la hora real y la causa encontrada.
  */
+
+/** Bloque 169 · por qué una orden se cierra sin foto: de una lista, no a criterio. */
+const SIN_FOTO = [
+  'Zona donde no se permite el celular',
+  'Equipo inaccesible después del trabajo (en altura o detrás del tablero)',
+  'Celular sin batería o sin cámara en campo',
+  'Trabajo remoto: no hubo intervención física',
+  'Trabajo de configuración: sin cambio visible',
+];
 
 interface Props {
   wo: any;                     // orden sobre la que se actúa
@@ -36,6 +46,9 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
   // ---- abrir ----
   const [inicio, setInicio] = useState('');
   const [acompanante, setAcompanante] = useState('');
+  // Bloque 168: la seguridad sale de lo declarado; el técnico marca, no decide qué.
+  const [seguridad, setSeguridad] = useState<string[]>([]);
+  const [perfilSeg, setPerfilSeg] = useState<Perfil | null>(null);
 
   // ---- avance ----
   const [pct, setPct] = useState<number>(wo?.progressPct ?? 0);
@@ -80,7 +93,8 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
     if (accion === 'abrir') {
       // Solo usuarios activos: no tiene sentido declarar como acompañante a
       // alguien dado de baja.
-      api.get('/users').then((r) => {
+      // Bloque 172 · acompañante = alguien que hace trabajo de campo.
+      api.get('/users/ejecutores').then((r) => {
         const lista = Array.isArray(r.data) ? r.data : r.data?.data || [];
         setTecnicos(lista.filter((u: any) => u.active !== false && u.id !== user?.id));
       }).catch(() => setTecnicos([]));
@@ -153,10 +167,19 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
     setGuardando(true);
     try {
       if (accion === 'abrir') {
+        /* Bloque 168: se avisa ANTES de pedir la firma. El servidor lo vuelve a
+           comprobar; esto sólo ahorra el viaje y dice qué falta. */
+        const sinMarcar = (perfilSeg?.requisitos || []).filter((r) => r.clave !== 'ACOMPANANTE' && !seguridad.includes(r.clave));
+        if (!perfilSeg) throw { response: { data: { message: 'Sin la seguridad del trabajo no se puede abrir la orden.' } } };
+        if (sinMarcar.length) throw { response: { data: { message: `Antes de empezar falta confirmar: ${sinMarcar.map((r) => r.texto).join(' · ')}.` } } };
+        if (perfilSeg.personasMinimas >= 2 && !acompanante) {
+          throw { response: { data: { message: 'En altura o con bloqueo eléctrico nunca se trabaja solo: elige a tu acompañante.' } } };
+        }
         await api.post('/work-orders/' + wo.id + '/open', {
           email, password,
           startedAt: iso(inicio),
           companionId: acompanante || undefined,
+          seguridad,
         });
         // La encuesta se guarda DESPUÉS de la apertura firmada. Al revés, si la
         // firma falla quedarían herramientas registradas para una orden que
@@ -184,9 +207,23 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
         // Bloque 163: lo primero que se mira es la evidencia. Si falta, se dice
         // ya, antes de hacer pasar al jefe por las preguntas de confirmación.
         if (fotos === 0 && sinFotoMotivo.trim().length < 10) {
-          setError('Falta la foto de evidencia. Súbela aquí mismo o escribe por qué no se pudo tomar (mínimo 10 letras).');
+          setError('Falta la foto de evidencia. Súbela aquí mismo o elige por qué no se pudo tomar.');
           setGuardando(false);
           return;
+        }
+        /* Bloque 169: una correctiva se cierra eligiendo síntoma, causa y
+           acción (el servidor también lo exige). Se dice qué falta, ya. */
+        if (esCorrectiva) {
+          const faltan = [
+            catalogos?.SINTOMA?.length && !sintoma && 'qué viste',
+            catalogos?.CAUSA?.length && !causa && 'la causa',
+            catalogos?.ACCION?.length && !accionRealizada && 'qué hiciste',
+          ].filter(Boolean);
+          if (faltan.length) {
+            setError(`Elige de la lista: ${faltan.join(', ')}.`);
+            setGuardando(false);
+            return;
+          }
         }
         // Cerrar una orden que no llegó al 100 % es válido —a veces se decide
         // no continuar— pero tiene que ser una decisión consciente.
@@ -248,6 +285,9 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
     } finally { setGuardando(false); }
   }
 
+  const esCorrectiva = wo?.type === 'CORRECTIVO';
+  const obligatorio = esCorrectiva ? ' (obligatorio)' : '';
+
   const titulo = accion === 'abrir' ? 'Abrir en campo · ' + wo.code
     : accion === 'avance' ? 'Reportar avance · ' + wo.code
     : 'Cerrar orden · ' + wo.code;
@@ -299,9 +339,11 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
               La que confirmaste por radio con Producción. Si lo dejas vacío se toma este momento.
             </div>
 
-            <label>Acompañante en campo
-              <select value={acompanante} onChange={(e) => setAcompanante(e.target.value)}>
-              <option value="">— sin acompañante —</option>
+            <SeguridadAlEmpezar ruta={'/seguridad/orden/' + wo.id} onChange={(m, p) => { setSeguridad(m); setPerfilSeg(p); }} />
+
+            <label>{perfilSeg && perfilSeg.personasMinimas >= 2 ? 'Acompañante en campo (obligatorio)' : 'Acompañante en campo'}
+              <select value={acompanante} aria-label="Acompañante en campo" onChange={(e) => setAcompanante(e.target.value)}>
+              <option value="">{perfilSeg && perfilSeg.personasMinimas >= 2 ? '— elige a tu acompañante —' : '— sin acompañante —'}</option>
               {tecnicos.map((t) => (
                 <option key={t.id} value={t.id}>{t.fullName} — {t.role?.name || t.roleName || ''}</option>
               ))}
@@ -423,7 +465,7 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
                 Mezclarlos es lo que hace que "no hay imagen" figure como causa
                 de 40 órdenes sin que nadie sepa por qué. */}
             <ListaCatalogo
-              etiqueta="¿Qué viste? (síntoma)"
+              etiqueta={'¿Qué viste? (síntoma)' + obligatorio}
               valor={sintoma}
               onChange={setSintoma}
               items={catalogos?.SINTOMA}
@@ -431,7 +473,7 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
             />
 
             <ListaCatalogo
-              etiqueta="Causa encontrada"
+              etiqueta={'Causa encontrada' + obligatorio}
               valor={causa}
               onChange={setCausa}
               items={catalogos?.CAUSA}
@@ -439,7 +481,7 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
             />
 
             <ListaCatalogo
-              etiqueta="¿Qué hiciste? (acción)"
+              etiqueta={'¿Qué hiciste? (acción)' + obligatorio}
               valor={accionRealizada}
               onChange={setAccionRealizada}
               items={catalogos?.ACCION}
@@ -482,9 +524,12 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
                     <input type="file" accept="image/*" capture="environment" hidden
                       onChange={(e) => subirFoto(e.target.files?.[0])} disabled={subiendoFoto} />
                   </label>
+                  {/* Bloque 169: el porqué, con clics. */}
                   <label>Si no se pudo tomar, ¿por qué?
-                    <input value={sinFotoMotivo} onChange={(e) => setSinFotoMotivo(e.target.value)}
-                      placeholder="Ej.: zona de grúa, no se permite celular" maxLength={300} />
+                    <select value={sinFotoMotivo} onChange={(e) => setSinFotoMotivo(e.target.value)}>
+                      <option value="">{'— elige —'}</option>
+                      {SIN_FOTO.map((m) => <option key={m} value={m}>{m}</option>)}
+                    </select>
                   </label>
                 </>
               )}

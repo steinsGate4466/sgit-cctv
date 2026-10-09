@@ -2,6 +2,8 @@ import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { DashboardService } from './dashboard.service';
 import { BandejaService } from './bandeja.service';
+import { ContadoresService } from './contadores.service';
+import { SinAmbito } from '../../common/ambito.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
@@ -15,7 +17,20 @@ export class DashboardController {
   constructor(
     private readonly dashboard: DashboardService,
     private readonly bandeja: BandejaService,
+    private readonly cuentas: ContadoresService,
   ) {}
+
+  /**
+   * LOS NÚMEROS DEL MENÚ — bloque 170. Sin permiso propio a propósito: cada
+   * número se calcula SÓLO si la persona puede abrir esa pantalla (ver el
+   * servicio). Pedir aquí `dashboard.read` dejaría sin números al técnico,
+   * que es quien más los necesita.
+   */
+  @Get('contadores')
+  @SinAmbito()
+  contadores(@CurrentUser() user: any) {
+    return this.cuentas.contadores(user);
+  }
 
   /**
    * LA BANDEJA: lo que espera una decisión, hoy, en una sola llamada.

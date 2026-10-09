@@ -1,8 +1,9 @@
-import { useState, FormEvent } from 'react';
+import { useEffect, useState, FormEvent } from 'react';
 import { api } from '../api/client';
 import Icono from './Iconos';
 import BotonConMotivo from './BotonConMotivo';
 import { queFalta } from '../avisos';
+import SelectorDeActivo from './SelectorDeActivo';
 
 /**
  * Formulario de solicitud de acceso especial (activo inaccesible / trabajo en altura).
@@ -74,14 +75,47 @@ export default function AccessRequestForm({ assetId, assetCode, assets, onDone }
 
   const enAltura = Number(f.heightMeters) >= ALTURA_MIN;
 
+  /* BLOQUE 168 · se rellena con lo DECLARADO del equipo y su zona, no a
+     criterio de quien pide: altura, medio, cómo llegar, PETAR, personas, EPP,
+     riesgos e impacto salen del perfil de seguridad (el mismo que exige la
+     orden al abrirse). Se puede corregir si en campo no es así. */
+  const [perfil, setPerfil] = useState<any>(null);
+  useEffect(() => {
+    if (!f.assetId) { setPerfil(null); return; }
+    let vivo = true;
+    api.get('/seguridad/activo/' + f.assetId).then((r) => {
+      if (!vivo) return;
+      const p = r.data;
+      setPerfil(p);
+      setF((x: any) => ({
+        ...x,
+        heightMeters: p.alturaM ?? x.heightMeters,
+        means: p.medio && MEANS.includes(p.medio) ? p.medio : x.means,
+        reason: p.medio === 'GRUA' ? 'ESTRUCTURA' : x.reason,
+        locationKind: p.medio === 'GRUA' ? 'Grúa / puente grúa' : x.locationKind,
+        accessRoute: p.comoLlegar || x.accessRoute,
+        requiresPetar: p.enAltura || x.requiresPetar,
+        personnelCount: Math.max(Number(x.personnelCount) || 0, p.personasMinimas),
+        eppDetail: p.epp.join(', '),
+        risks: p.riesgos.join('; '),
+        productionImpact: p.impactoProduccion,
+      }));
+    }).catch(() => { if (vivo) setPerfil(null); });
+    return () => { vivo = false; };
+  }, [f.assetId]);
+
   async function submitStep1(e: FormEvent) {
     e.preventDefault();
     setErr('');
     if (!f.assetId) { setErr('Selecciona el activo.'); return; }
-    if ((f.justification || '').trim().length < 20) {
-      setErr('Describe con detalle por qué es inaccesible (mínimo 20 caracteres). Es el sustento del gasto de manlift.');
-      return;
-    }
+    /* Bloque 169: el sustento se ARMA con lo elegido (altura, dónde está
+       montado, medio); el texto es un detalle opcional, no un requisito. */
+    const sustento = [
+      `Equipo${f.heightMeters ? ` a ${f.heightMeters} m` : ''} montado en ${String(f.locationKind || 'sitio').toLowerCase()}`,
+      `se llega en ${(MEANS_ES[f.means] || f.means || '').toLowerCase()}`,
+      Number(f.heightMeters) >= ALTURA_MIN ? 'trabajo en altura (desde 1,80 m)' : '',
+      (f.justification || '').trim(),
+    ].filter(Boolean).join('; ') + '.';
     setSaving(true);
     try {
       const motivo = REASONS.find((r) => r.v === f.reason)?.t || '';
@@ -89,7 +123,7 @@ export default function AccessRequestForm({ assetId, assetCode, assets, onDone }
         assetId: f.assetId,
         means: f.means,
         locationKind: f.locationKind || undefined,
-        justification: `[${motivo}] ${f.justification}`,
+        justification: `[${motivo}] ${sustento}`,
         accessRoute: f.accessRoute || undefined,
         requiresPetar: !!f.requiresPetar,
         hasIperc: !!f.hasIperc,
@@ -182,12 +216,11 @@ export default function AccessRequestForm({ assetId, assetCode, assets, onDone }
         </div>
       ) : (
         <>
-          <label>Activo inaccesible
-            <select value={f.assetId} onChange={(e) => setF({ ...f, assetId: e.target.value })} required>
-            <option value="">— selecciona —</option>
-            {(assets || []).map((a) => <option key={a.id} value={a.id}>{a.assetCode}</option>)}
-          </select>
-          </label>
+          {/* Bloque 172 · el mismo selector que el resto: agrupado por tipo, con
+              dónde está cada equipo y sin el teléfono IP (antes: una lista
+              plana de códigos de toda la planta). */}
+          <SelectorDeActivo etiqueta="Activo inaccesible" opciones={assets || []} valor={f.assetId}
+            onChange={(id) => setF({ ...f, assetId: id })} vacio="— selecciona —" />
         </>
       )}
 
@@ -225,10 +258,10 @@ export default function AccessRequestForm({ assetId, assetCode, assets, onDone }
       </select>
       </label>
 
-      <label>¿Por qué no se puede intervenir sin ese medio?
+      <label>{'Detalle adicional (opcional)'}
         <textarea value={f.justification} onChange={(e) => setF({ ...f, justification: e.target.value })}
-        rows={3} style={{ width: '100%', resize: 'vertical' }}
-        placeholder="Ej: cámara a 7 m sobre la estructura del puente grúa; no hay punto de anclaje ni escalera fija, y el tránsito de material impide armar andamio." required />
+        rows={2} style={{ width: '100%', resize: 'vertical' }}
+        placeholder="El sustento se arma solo con la altura, dónde está montado y el medio. Agrega aquí lo que falte." />
       </label>
 
       <label>Ruta de acceso / restricciones
@@ -237,6 +270,11 @@ export default function AccessRequestForm({ assetId, assetCode, assets, onDone }
       </label>
 
       <h4 style={{ marginTop: 16, marginBottom: 6 }}><Icono n="seguridad" size={15} /> Seguridad (SSOMA)</h4>
+      {perfil && (
+        <p className="seg-falta" style={{ marginTop: 0 }}>
+          {`Rellenado con lo declarado del equipo y su zona.${perfil.faltaDeclarar.length ? ` Sin declarar: ${perfil.faltaDeclarar.join(' · ')}.` : ''}`}
+        </p>
+      )}
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 400, margin: 0 }}>
           <input type="checkbox" checked={!!f.requiresPetar} onChange={(e) => setF({ ...f, requiresPetar: e.target.checked })} style={{ width: 'auto' }} />
@@ -252,7 +290,7 @@ export default function AccessRequestForm({ assetId, assetCode, assets, onDone }
         </label>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 12, color: 'var(--muted)' }}>Personal</span>
-          <input aria-label="Impacto en producción" type="number" min={1} value={f.personnelCount}
+          <input aria-label="Personal en campo" type="number" min={perfil?.personasMinimas ?? 1} value={f.personnelCount}
             onChange={(e) => setF({ ...f, personnelCount: e.target.value })} style={{ width: 70 }} />
         </div>
       </div>

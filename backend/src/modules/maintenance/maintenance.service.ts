@@ -2,6 +2,9 @@ import {
   BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException,
 } from '@nestjs/common';
 import { condicionDeOrigen } from '../indicadores/calculo';
+import { perfilDeSeguridadEn } from '../../common/seguridad-de-planta';
+import { requisitosSinMarcar } from '../../common/seguridad-del-trabajo';
+import { VENTANA_DIAS } from '../../common/reincidencia';
 import { Prisma } from '../../generated/prisma/client';
 import * as argon2 from 'argon2';
 import { randomUUID } from 'crypto';
@@ -26,6 +29,7 @@ import { ProgressWorkOrderDto } from './dto/progress-work-order.dto';
 import { computeEffectiveStatuses } from '../../common/asset-status';
 import { conReintentoDeCodigo, siguienteCorrelativo } from '../../common/correlativo';
 import { evidenciaDeCierre, notaSinFoto } from './evidencia-de-cierre';
+import { exigirEjecutor } from '../../common/ejecutores';
 import {
   EstadoIncidencia, alAbrirOrden, alCerrarOrden, porQueCambio,
 } from '../../common/incidencia-sigue-a-la-om';
@@ -34,7 +38,8 @@ import {
 const PDFDocument = require('pdfkit');
 
 const inc = {
-  asset: { select: { id: true, assetCode: true, type: true, status: true } },
+  // Bloque 169: lugar y ubicación del equipo, para que la zona de la intervención se rellene sola.
+  asset: { select: { id: true, assetCode: true, type: true, status: true, referencePlace: true, location: { select: { name: true } } } },
   location: { select: { id: true, code: true, name: true } },
   technician: { select: { id: true, fullName: true } },
   incident: { select: { id: true, code: true, title: true } },
@@ -95,6 +100,7 @@ export class MaintenanceService {
   }
 
   async create(dto: CreateWorkOrderDto, creadaPorId?: string | null) {
+    await exigirEjecutor(this.prisma, dto.technicianId); // bloque 172
     // Una orden tiene que decir SOBRE QUÉ es: un equipo concreto o una zona.
     // Sin ninguno de los dos, el técnico no sabe a dónde ir.
     if (!dto.assetId && !dto.locationId) {
@@ -229,6 +235,32 @@ export class MaintenanceService {
       throw new BadRequestException('El acompañante debe ser una persona distinta.');
     }
 
+    /* BLOQUE 168 · LA SEGURIDAD NO QUEDA A CRITERIO DE QUIEN ABRE.
+       -----------------------------------------------------------------------
+       Los requisitos salen de lo declarado del equipo y su zona (altura,
+       permiso eléctrico, parada, ambiente): `common/seguridad-del-trabajo.ts`.
+       Sin todos marcados no se abre; en altura o con bloqueo eléctrico, sin
+       acompañante tampoco. Lo marcado queda guardado con la orden. */
+    const perfil = await perfilDeSeguridadEn(this.prisma, { assetId: wo.assetId, locationId: wo.locationId });
+    const marcados = [...new Set(dto.seguridad || [])];
+    const faltan = requisitosSinMarcar(perfil, [...marcados, 'ACOMPANANTE']);
+    if (faltan.length) {
+      throw new BadRequestException(`Antes de empezar falta confirmar: ${faltan.map((r) => r.texto).join(' · ')}.`);
+    }
+    if (perfil.personasMinimas >= 2 && !dto.companionId) {
+      throw new BadRequestException(
+        `${perfil.enAltura ? 'Trabajo en altura' : 'Trabajo con bloqueo eléctrico'}: nunca se trabaja solo. Declara a tu acompañante.`,
+      );
+    }
+    const seguridadInicio = {
+      requisitos: perfil.requisitos.map((r) => r.clave),
+      marcados,
+      enAltura: perfil.enAltura, bloqueoElectrico: perfil.bloqueoElectrico, parada: perfil.parada,
+      epp: perfil.epp, riesgos: perfil.riesgos,
+      faltaDeclarar: perfil.faltaDeclarar,
+      en: new Date().toISOString(),
+    };
+
     /* Bloque 37: con guarda. Dos técnicos pueden escanear el mismo QR y abrir
        la misma orden. Quien firma la apertura queda registrado como
        responsable del trabajo en altura o en línea: que el segundo pise al
@@ -241,6 +273,7 @@ export class MaintenanceService {
         startedAt: dto.startedAt ? new Date(dto.startedAt) : new Date(),
         openedById: signer!.id,
         companionId: dto.companionId || undefined,
+        seguridadInicio: seguridadInicio as any,
         // Si nadie la tenía asignada, queda a nombre de quien la abre.
         technicianId: wo.technicianId || signer!.id,
       },
@@ -259,8 +292,18 @@ export class MaintenanceService {
         firmadoPor: signer!.email,
         inicioReal: updated.startedAt,
         acompanante: dto.companionId || null,
+        seguridad: seguridadInicio,
       },
     });
+    /* El ATS del día marcado al abrir completa también el permiso de acceso en
+       altura APROBADO del equipo: si no, la orden seguía diciendo «falta ATS
+       del día» aunque la cuadrilla ya lo hubiera firmado (bloque 168). */
+    if (wo.assetId && marcados.includes('ATS')) {
+      const permiso = await this.prisma.accessRequest.findFirst({
+        where: { assetId: wo.assetId, status: 'APROBADO' }, orderBy: { createdAt: 'desc' }, select: { id: true, hasAts: true },
+      });
+      if (permiso && !permiso.hasAts) await this.prisma.accessRequest.update({ where: { id: permiso.id }, data: { hasAts: true } });
+    }
     return updated;
   }
 
@@ -553,6 +596,7 @@ export class MaintenanceService {
   }
 
   async update(id: string, dto: UpdateWorkOrderDto, puedeMoverFecha = true) {
+    await exigirEjecutor(this.prisma, (dto as any).technicianId); // bloque 172
     const cur = await this.prisma.workOrder.findUnique({ where: { id } });
     if (!cur) throw new NotFoundException('Orden de mantenimiento no encontrada');
     const data: any = { ...dto };
@@ -708,10 +752,38 @@ export class MaintenanceService {
       );
     }
 
+    /* BLOQUE 169 · UNA CORRECTIVA SE CIERRA CON CLICS, NO CON CRITERIO.
+       Qué se vio, por qué falló y qué se hizo salen de los catálogos (síntoma,
+       causa, acción). Si el catálogo tiene opciones, elegir una es obligatorio:
+       sin eso no hay MTBF por causa ni se sabe qué arreglo funciona. Si
+       Mantenimiento vació un catálogo, no se exige (no se bloquea a nadie por
+       una lista que no existe). */
+    if (wo.type === 'CORRECTIVO') {
+      const faltanCat: string[] = [];
+      const exigir = async (kind: 'SINTOMA' | 'CAUSA' | 'ACCION', codigo: string | null | undefined, nombre: string) => {
+        const hay = await this.prisma.catalogItem.count({ where: { kind, active: true } }).catch(() => 0);
+        if (hay && !codigo) faltanCat.push(nombre);
+      };
+      await exigir('SINTOMA', dto.symptomCode, 'qué se vio (síntoma)');
+      await exigir('CAUSA', dto.rootCauseCode ?? dto.rootCause, 'por qué falló (causa)');
+      await exigir('ACCION', dto.actionCode, 'qué se hizo (acción)');
+      if (faltanCat.length) {
+        throw new BadRequestException(`Para cerrar una correctiva elige de la lista: ${faltanCat.join(', ')}.`);
+      }
+    }
+
     /* Bloque 163: sin foto no se cierra, salvo que se diga por qué. */
     const fotos = await this.prisma.workOrderEvidence.count({ where: { workOrderId: id } });
     const evidencia = evidenciaDeCierre(fotos, dto.sinFotoMotivo);
     if (!evidencia.ok) throw new BadRequestException(evidencia.error);
+    /* Bloque 168 · «¿ya había pasado?» no se deja a la memoria de quien cierra:
+       si el MISMO equipo tuvo otra correctiva cerrada en la ventana de reincidencia,
+       es reincidente aunque no se marque (marcarlo a mano sigue valiendo). */
+    const yaFalloAntes = wo.assetId && wo.type === 'CORRECTIVO'
+      ? (await this.prisma.workOrder.count({
+          where: { assetId: wo.assetId, type: 'CORRECTIVO', status: 'CERRADA', id: { not: wo.id }, endedAt: { gte: new Date(Date.now() - VENTANA_DIAS * 24 * 3600 * 1000) } },
+        }).catch(() => 0)) > 0
+      : false;
     const diagnosticoFinal = evidencia.motivo
       ? [dto.diagnosis ?? wo.diagnosis, notaSinFoto(evidencia.motivo)].filter(Boolean).join('\n')
       : (dto.diagnosis ?? wo.diagnosis);
@@ -739,7 +811,7 @@ export class MaintenanceService {
         symptomCode: dto.symptomCode ?? undefined,
         actionCode: dto.actionCode ?? undefined,
         rootCauseNote: dto.rootCauseNote ?? undefined,
-        isRecurrent: dto.isRecurrent ?? undefined,
+        isRecurrent: (dto.isRecurrent || yaFalloAntes) || undefined,
         // Si el técnico cerró sin haber abierto formalmente, se deja constancia
         // del inicio para que la duración no quede en blanco.
         startedAt: wo.startedAt || wo.executedDate || ahora,
@@ -1343,6 +1415,7 @@ export class MaintenanceService {
   }
 
   async asignar(dto: any, userId?: string | null, ip?: string | null) {
+    await exigirEjecutor(this.prisma, dto?.technicianId); // bloque 172
     const actividad = (dto?.activity || '').trim();
     if (!actividad) throw new BadRequestException('Escribe qué hay que hacer.');
     if (!dto?.assetId && !dto?.locationId) {
@@ -1456,6 +1529,7 @@ export class MaintenanceService {
    * qué se hizo.
    */
   async detallar(id: string, dto: any, userId?: string | null, ip?: string | null) {
+    await exigirEjecutor(this.prisma, dto?.technicianId); // bloque 172
     const wo = await this.prisma.workOrder.findUnique({ where: { id } });
     if (!wo) throw new NotFoundException('Orden de mantenimiento no encontrada');
     if (wo.status === 'CERRADA' || wo.status === 'CANCELADA') {

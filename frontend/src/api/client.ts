@@ -106,6 +106,74 @@ function hardLogout() {
   if (location.pathname !== '/login') location.href = '/login';
 }
 
+
+/* =============================================================================
+   UNA SOLA RENOVACIÓN A LA VEZ — bloque 170
+   -----------------------------------------------------------------------------
+   EL BUG: «cuando estás mucho tiempo, aunque estés moviendo todo y cambiando
+   de página, igual se sale».
+
+   Cada 15 minutos caduca el token de acceso. La pantalla que estás abriendo
+   lanza varias peticiones a la vez, todas reciben 401, y CADA UNA pedía
+   renovar con el mismo refresh token. El servidor rota el token en la primera;
+   la segunda llega tarde con el viejo y eso es exactamente la firma de un robo:
+   cierra todas tus sesiones. Lo mismo con dos pestañas abiertas.
+
+   Por eso aquí:
+     1. En esta pestaña, una sola renovación en vuelo: las demás peticiones
+        esperan a esa misma promesa en vez de lanzar la suya.
+     2. Entre pestañas, un candado del navegador (Web Locks). Quien entra
+        segundo mira primero si el token guardado ya cambió: si otra pestaña
+        ya renovó, usa ese y no gasta el refresh.
+     3. El servidor, además, perdona 30 s una reutilización por renovación
+        (be/src/modules/auth/rotacion.ts) por si algo se escapa de aquí.
+============================================================================= */
+/* `null` = la sesión ya no vale (el servidor dijo 401/403): hay que salir.
+   `'temporal'` = no se pudo renovar AHORA (sin red, servidor caído, 429): la
+   sesión puede seguir viva, así que NO se echa a nadie; falla esta petición y
+   la siguiente vuelve a probar. Antes, un 429 del freno echaba al usuario. */
+type Renovado = string | null | 'temporal';
+let enVuelo: Promise<Renovado> | null = null;
+
+async function renovarAhora(enviado: string): Promise<Renovado> {
+  // Otra pestaña (u otra petición) ya renovó mientras ésta esperaba.
+  const actual = localStorage.getItem('sgit_token');
+  if (actual && enviado && actual !== enviado) return actual;
+
+  const refresh = localStorage.getItem('sgit_refresh');
+  if (!refresh) return null;
+  try {
+    const { data } = await axios.post(`${baseURL}/auth/refresh`, { refreshToken: refresh });
+    localStorage.setItem('sgit_token', data.accessToken);
+    if (data.refreshToken) localStorage.setItem('sgit_refresh', data.refreshToken);
+
+    /* LOS PERMISOS NUEVOS TAMBIÉN SE GUARDAN — bloque 86.
+       La renovación trae los permisos frescos (el servidor los relee de la
+       base). Si sólo se guardara el token, el menú y los botones seguirían con
+       la lista del día en que la persona entró. Si no viene `user`, no se toca:
+       vaciarlo dejaría el menú en blanco. */
+    if (data.user) localStorage.setItem('sgit_user', JSON.stringify(data.user));
+    return data.accessToken as string;
+  } catch (e: any) {
+    // Puede que otra pestaña haya renovado justo en medio: si el token
+    // guardado ya no es el que se envió, ése vale.
+    const tras = localStorage.getItem('sgit_token');
+    if (tras && tras !== enviado) return tras;
+    const st = e?.response?.status;
+    return st === 401 || st === 403 ? null : 'temporal';
+  }
+}
+
+export function renovarUnaVez(enviado: string): Promise<Renovado> {
+  if (enVuelo) return enVuelo;
+  const locks: any = (globalThis.navigator as any)?.locks;
+  const tarea = locks?.request
+    ? locks.request('sgit-renovar-sesion', () => renovarAhora(enviado))
+    : renovarAhora(enviado);
+  enVuelo = Promise.resolve(tarea).finally(() => { enVuelo = null; });
+  return enVuelo;
+}
+
 // Ante un 401 (token de acceso expirado) NO se cierra sesión de golpe:
 // se intenta RENOVAR con el refresh token y se reintenta la petición original.
 // Solo si la renovación falla se cierra la sesión.
@@ -214,49 +282,33 @@ api.interceptors.response.use(
            rellenado —lo explica el propio formulario— y un 404 en una ficha
            concreta lo dice mejor la pantalla que lo pidió. */
         anunciar('No tienes permiso para ver esto. La pantalla puede salir vacía.', false);
+      } else if (status === 429) {
+        /* Bloque 171 · el freno del servidor. Antes llegaba sin cabeceras CORS
+           y se leía como «el servidor no responde». Ahora llega legible y se
+           dice lo que es, con cuánto esperar. */
+        const espera = Number(err?.response?.headers?.['retry-after']) || 0;
+        anunciar(espera
+          ? `Demasiadas consultas seguidas. Espera ${espera} s y vuelve a intentarlo.`
+          : 'Demasiadas consultas seguidas. Espera unos segundos y vuelve a intentarlo.', false);
       }
       // 400 y 404 NO se anuncian aquí: son respuestas con sentido y cada
       // pantalla las explica mejor en su contexto.
     }
 
-    // Los fallos de /auth/ (login/refresh) no disparan renovación ni logout aquí.
-    if (status === 401 && !original._retry && !url.includes('/auth/')) {
+    // Sólo login/refresh/logout quedan fuera: un 401 ahí no se arregla renovando.
+    // (/auth/me y /auth/sesiones SÍ se renuevan como cualquier otra petición.)
+    if (status === 401 && !original._retry && !/\/auth\/(login|refresh|logout)/.test(url)) {
       original._retry = true;
-      const refresh = localStorage.getItem('sgit_refresh');
-      if (refresh) {
-        try {
-          const { data } = await axios.post(`${baseURL}/auth/refresh`, { refreshToken: refresh });
-          localStorage.setItem('sgit_token', data.accessToken);
-          if (data.refreshToken) localStorage.setItem('sgit_refresh', data.refreshToken);
-
-          /* LOS PERMISOS NUEVOS TAMBIÉN SE GUARDAN — bloque 86.
-             -----------------------------------------------------------------
-             AQUÍ ESTABA LA MITAD DEL BUG QUE REPORTÓ EL USUARIO:
-
-               «Cuando actualizamos los roles, el rol Jefe de línea o cosas
-                así NO SE ACTUALIZAN para usuarios ya creados.»
-
-             La renovación SÍ traía los permisos frescos —el servidor los
-             relee de la base al construir el token— y aquí se guardaba sólo
-             el token, tirando el `user` que venía con él.
-
-             `can()` lee de `sgit_user`, así que el MENÚ y los BOTONES se
-             quedaban con la lista del día que la persona inició sesión. El
-             servidor ya aplicaba lo nuevo y la pantalla enseñaba lo viejo:
-             opciones que al pulsarlas daban 403, y opciones nuevas que no
-             aparecían nunca. Las dos caras confunden igual.
-
-             Si la respuesta no trae `user` no se toca nada: vaciarlo dejaría
-             a la persona con el menú en blanco por un cambio de formato del
-             servidor, que es peor que el problema. */
-          if (data.user) localStorage.setItem('sgit_user', JSON.stringify(data.user));
-
-          original.headers = original.headers || {};
-          original.headers.Authorization = `Bearer ${data.accessToken}`;
-          return api(original); // reintenta la petición original con el token nuevo
-        } catch {
-          // el refresh también falló: recién ahí cerramos sesión
-        }
+      const enviado = String(original.headers?.Authorization || '').replace(/^Bearer\s+/, '');
+      const nuevo = await renovarUnaVez(enviado);
+      if (nuevo === 'temporal') {
+        anunciar('No se pudo renovar la sesión ahora mismo. Sigues dentro; vuelve a intentarlo en un momento.', false);
+        return Promise.reject(err);
+      }
+      if (nuevo) {
+        original.headers = original.headers || {};
+        original.headers.Authorization = `Bearer ${nuevo}`;
+        return api(original); // reintenta la petición original con el token nuevo
       }
       hardLogout();
     }

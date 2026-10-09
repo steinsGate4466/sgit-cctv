@@ -121,7 +121,7 @@ export interface Reporte {
  * de madrugada y esa decisión la toma una persona mirando la planta, no una
  * tabla.
  */
-function prioridadDe(c: Criticidad): { prioridad: Prioridad; porque: string } {
+export function prioridadDe(c: Criticidad): { prioridad: Prioridad; porque: string } {
   switch (c) {
     case 'CRITICA':
       return {
@@ -253,4 +253,20 @@ export function reporteDeProduccion(e: EntradaDeReporte): Reporte {
  */
 export function firmaDeQuienReporta(nombre: string, tren: string | null): string {
   return tren ? `Reportó ${nombre} · ${tren}` : `Reportó ${nombre}`;
+}
+
+const ORDEN_PRIORIDAD: Prioridad[] = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
+/**
+ * BLOQUE 168 · LA PRIORIDAD DE UNA INCIDENCIA NO BAJA DE LO QUE DICE LA ZONA.
+ * El formulario del técnico arrancaba en MEDIA y nadie la tocaba: una cámara
+ * caída en una zona ALTA entraba como MEDIA. Ahora, sin elegir, manda la zona;
+ * y quien elige puede SUBIRLA (una persona mirando la planta), no bajarla.
+ */
+export function prioridadDeIncidencia(elegida: Prioridad | null | undefined, criticidadZona: Criticidad): { prioridad: Prioridad; porque: string } {
+  const zona = prioridadDe(criticidadZona);
+  if (!elegida) return zona;
+  if (ORDEN_PRIORIDAD.indexOf(elegida) >= ORDEN_PRIORIDAD.indexOf(zona.prioridad)) {
+    return { prioridad: elegida, porque: 'La eligió quien reporta.' };
+  }
+  return { prioridad: zona.prioridad, porque: `${zona.porque} No se puede bajar de ahí al reportar.` };
 }

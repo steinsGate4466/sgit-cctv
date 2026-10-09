@@ -5,6 +5,10 @@ import { fechaCorta } from '../fechas';/**
  */
 
 export const WO_TYPES = ['PREVENTIVO', 'CORRECTIVO', 'MEJORA', 'PREDICTIVO', 'MAPEO'];
+/** Bloque 172 · lo que se puede CREAR. Predictivo se retiró en el bloque 80 (en
+ *  CCTV no hay nada que predecir) pero seguía ofreciéndose al crear una orden.
+ *  Se queda en WO_TYPES para FILTRAR y ver las viejas. */
+export const WO_TYPES_NUEVA = WO_TYPES.filter((t) => t !== 'PREDICTIVO');
 
 export const WO_TYPE_ES: Record<string, string> = {
   PREVENTIVO: 'Preventivo',

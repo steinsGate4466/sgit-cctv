@@ -134,7 +134,7 @@ export default function MiCuenta() {
         </div>
       ) : (
         <>
-          <table className="tabla">
+          <div className="desliza"><table className="tabla">
             <thead><tr><th>Equipo</th><th>Desde dónde</th><th>Abierta</th><th>Último uso</th></tr></thead>
             <tbody>
               {sesiones.map((s) => (
@@ -147,7 +147,7 @@ export default function MiCuenta() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
 
           <div className="card peligro">
             <b>¿Ves una sesión que no reconoces?</b>

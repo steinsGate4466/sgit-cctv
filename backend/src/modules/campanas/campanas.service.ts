@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { defectosDeConjunto, revisarFicha, tieneBloqueantes, ActivoParaRevisar, Defecto } from './calidad-ficha';
+import { aTrenDePlanta } from '../../common/tren-de-planta';
 
 /**
  * CAMPAÑAS DE MAPEO (12.5) — el control de calidad del levantamiento
@@ -68,7 +69,7 @@ export class CampanasService {
       data: {
         codigo,
         nombre: String(dto.nombre || '').trim(),
-        tren: dto.tren || null,
+        tren: (aTrenDePlanta(dto.tren) as any) ?? null,
         descripcion: dto.descripcion?.trim() || null,
         responsableId: dto.responsableId || null,
         inicioPrevisto: dto.inicioPrevisto ? new Date(dto.inicioPrevisto) : null,

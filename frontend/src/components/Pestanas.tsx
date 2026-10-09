@@ -2,6 +2,8 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { pestanasDe } from '../pestanas';
 import { moduloDe, pantallasVisibles, rutaDueña } from '../modulos';
+import { useContadores } from '../contadores';
+import Insignia from './Insignia';
 
 /**
  * LAS PESTAÑAS — bloques 118 y 147.
@@ -22,6 +24,7 @@ import { moduloDe, pantallasVisibles, rutaDueña } from '../modulos';
 export default function Pestanas() {
   const loc = useLocation();
   const { can, user } = useAuth();
+  const contadores = useContadores();
 
   const modulo = moduloDe(loc.pathname);
   const delModulo = modulo ? pantallasVisibles(modulo, can, user) : [];
@@ -43,8 +46,10 @@ export default function Pestanas() {
               to={p.ruta}
               aria-current={p.ruta === dueña ? 'page' : undefined}
               className={() => 'subtab' + (p.ruta === dueña ? ' active' : '')}
+              title={p.nota}
             >
               {p.texto}
+              <Insignia c={contadores[p.ruta]} />
             </NavLink>
           ))}
         </nav>

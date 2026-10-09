@@ -4,14 +4,21 @@ import BotonPurgar from '../components/BotonPurgar';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
 import { useDialogos } from '../components/Dialogos';
+import { padresPosibles } from '../ubicaciones';
 
-const TYPES = ['EMPRESA', 'PLANTA', 'TREN', 'AREA', 'SALA', 'ZONA', 'RACK'];
+/** Bloque 172 · lo que se puede CREAR aquí (ver el desplegable de «Tipo»). */
+const TIPOS_NUEVA = ['PLANTA', 'TREN', 'AREA', 'SALA', 'ZONA'];
 const TYPE_ES: Record<string, string> = {
   EMPRESA: 'Empresa', PLANTA: 'Planta', TREN: 'Tren', AREA: 'Área',
   SALA: 'Sala', ZONA: 'Zona', RACK: 'Gabinete/Rack', ETAPA: 'Área del tren',
 };
 const CRIT_ES: Record<string, string> = {
   BAJA: 'Baja', MEDIA: 'Media', ALTA: 'Alta', CRITICA: 'Crítica',
+};
+
+const AMBIENTE_ES: Record<string, string> = {
+  CALOR_RADIANTE: 'Calor radiante (horno)', VAPOR_AGUA: 'Vapor y agua (tren)', POLVO_METALICO: 'Polvo metálico / cascarilla',
+  INTEMPERIE_SALINA: 'Intemperie (patio)', EMI_ALTA: 'Sala eléctrica / MCC', CLIMATIZADO: 'Climatizado (púlpito)',
 };
 
 export default function Locations() {
@@ -54,18 +61,28 @@ export default function Locations() {
   useEffect(() => { Promise.all([load(), loadStages()]).then(() => setLoading(false)); }, []);
 
   // ------------------------------------------------------------------ ubicaciones
-  function openNew() { setForm({ code: '', name: '', type: 'AREA', parentId: '', responsibleArea: '' }); }
+  function openNew() { setForm({ code: '', name: '', type: 'AREA', parentId: '', responsibleArea: '', howToGet: '', siglaTren: '', environment: '' }); }
   function openEdit(l: any) {
-    setForm({ id: l.id, code: l.code, name: l.name, type: l.type, parentId: l.parentId || '', responsibleArea: l.responsibleArea || '' });
+    setForm({ id: l.id, code: l.code, name: l.name, type: l.type, parentId: l.parentId || '', responsibleArea: l.responsibleArea || '',
+      howToGet: l.howToGet || '', siglaTren: l.siglaTren || '', environment: l.environment || '' });
   }
   async function submit(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
     try {
       if (form.id) {
-        await api.patch('/locations/' + form.id, { name: form.name, parentId: form.parentId || undefined, responsibleArea: form.responsibleArea || undefined });
+        await api.patch('/locations/' + form.id, {
+          name: form.name, parentId: form.parentId || undefined, responsibleArea: form.responsibleArea || undefined,
+          // Bloque 168: vacío = «no declarado» (se borra), no «sin cambios».
+          howToGet: form.howToGet, siglaTren: form.type === 'TREN' ? form.siglaTren.trim().toUpperCase() || null : undefined,
+          environment: form.environment || null,
+        });
       } else {
-        await api.post('/locations', { code: form.code, name: form.name, type: form.type, parentId: form.parentId || undefined, responsibleArea: form.responsibleArea || undefined });
+        await api.post('/locations', {
+          code: form.code, name: form.name, type: form.type, parentId: form.parentId || undefined, responsibleArea: form.responsibleArea || undefined,
+          howToGet: form.howToGet || undefined, siglaTren: form.type === 'TREN' ? form.siglaTren.trim().toUpperCase() || undefined : undefined,
+          environment: form.environment || undefined,
+        });
       }
       setForm(null);
       await load();
@@ -277,9 +294,15 @@ export default function Locations() {
                 </label>
                 <label>Tipo
                   <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-                  {TYPES.map((t) => <option key={t} value={t}>{TYPE_ES[t]}</option>)}
+                  {/* Bloque 172 · sin «Gabinete/Rack» ni «Empresa». Un gabinete
+                      creado aquí era una SEGUNDA verdad del de «Gabinetes» y
+                      luego salía como «zona» en todos los desplegables. */}
+                  {TIPOS_NUEVA.map((t) => <option key={t} value={t}>{TYPE_ES[t]}</option>)}
                 </select>
                 </label>
+                <div className="muted" style={{ fontSize: 11, marginTop: -6, marginBottom: 8 }}>
+                  {'Los gabinetes se registran en Ubicaciones › Gabinetes.'}
+                </div>
               </>
             )}
             <label>Nombre
@@ -288,11 +311,32 @@ export default function Locations() {
             <label>Pertenece a (ubicación padre)
               <select value={form.parentId} onChange={(e) => setForm({ ...form, parentId: e.target.value })}>
               <option value="">— ninguna (raíz) —</option>
-              {rows.filter((r) => r.id !== form.id).map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+              {/* Bloque 172 · sólo lo que puede ser su padre: de nivel mayor (un
+                  tren cuelga de la planta, una sala de un tren o un área), nunca
+                  ella misma ni algo que cuelga de ella (haría un círculo). */}
+              {[...padresPosibles(rows, form.type, form.id), ...rows.filter((r) => r.id === form.parentId)]
+                .filter((r, i, a) => a.findIndex((x) => x.id === r.id) === i)
+                .map((r) => <option key={r.id} value={r.id}>{r.name}{r.type ? ` · ${TYPE_ES[r.type] || r.type}` : ''}</option>)}
             </select>
             </label>
             <label>Área responsable
               <input value={form.responsibleArea} onChange={(e) => setForm({ ...form, responsibleArea: e.target.value })} />
+            </label>
+            {/* Bloque 168: alimentan la seguridad del trabajo y el rótulo. */}
+            {form.type === 'TREN' && (
+              <label>{'Sigla del tren (va en el rótulo)'}
+                <input value={form.siglaTren} maxLength={6} placeholder="T1" onChange={(e) => setForm({ ...form, siglaTren: e.target.value.toUpperCase() })} />
+              </label>
+            )}
+            <label>{'Cómo se llega'}
+              <textarea rows={2} value={form.howToGet} maxLength={600} style={{ width: '100%', resize: 'vertical' }}
+                placeholder="Ej: desde el púlpito del Tren 2, bajar la escalera norte, 20 m hacia el lecho" onChange={(e) => setForm({ ...form, howToGet: e.target.value })} />
+            </label>
+            <label>{'Ambiente del sitio (si difiere de su etapa)'}
+              <select value={form.environment} onChange={(e) => setForm({ ...form, environment: e.target.value })}>
+                <option value="">{'— el de su etapa —'}</option>
+                {Object.entries(AMBIENTE_ES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
             </label>
             <button className="btn" disabled={saving}>{saving ? 'Guardando…' : 'Guardar ubicación'}</button>
           </form>

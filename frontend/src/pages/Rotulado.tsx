@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client';
+import { OpcionesDeTren, useTrenes } from '../ubicaciones';
 
 /**
  * ESTÁNDAR DE ROTULADO — bloque 36.
@@ -51,6 +52,7 @@ const TIPOS = [
 ];
 
 export default function Rotulado() {
+  const trenesDelArbol = useTrenes();
   const [norma, setNorma] = useState<any>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
@@ -158,9 +160,8 @@ export default function Rotulado() {
           <div>
             <label htmlFor="rt-tren">Tren</label>
             <select id="rt-tren" value={tren} onChange={(e) => setTren(e.target.value)}>
-              <option value="T1">Tren 1</option>
-              <option value="T2">Tren 2</option>
-              <option value="T3">Tren 3</option>
+              {/* Bloque 172 · los trenes del árbol (con Grúas y Oficinas). */}
+              <OpcionesDeTren trenes={trenesDelArbol} />
               <option value="">Fuera de tren</option>
             </select>
           </div>

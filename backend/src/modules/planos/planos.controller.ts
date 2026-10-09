@@ -7,7 +7,7 @@ import type { Response } from 'express';
 import { PlanosService } from './planos.service';
 import { CalibrarPlanoDto, ColocarEquipoDto, CrearPlanoDto, ZonaDto } from './dto/planos.dto';
 import { RequireAlguno, RequirePermissions } from '../../common/decorators/permissions.decorator';
-import { SinAmbito } from '../../common/ambito.decorator';
+import { AmbitoDe, SinAmbito } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 /**
@@ -45,6 +45,15 @@ export class PlanosController {
   @RequireAlguno(...MIRAR)
   planta(@CurrentUser() u: any) {
     return this.planos.planta(u?.userId ?? null);
+  }
+
+  /** Bloque 171 (plan 154) · «Estás aquí»: en qué plano publicado está dibujado
+   *  un equipo. Lo usa el QR para abrir el mapa centrado en él. */
+  @AmbitoDe('asset', 'assetId')
+  @Get('donde/:assetId')
+  @RequireAlguno(...MIRAR)
+  donde(@Param('assetId') assetId: string, @CurrentUser() u: any) {
+    return this.planos.donde(assetId, u?.userId ?? null);
   }
 
   @SinAmbito()

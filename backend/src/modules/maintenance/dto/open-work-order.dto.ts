@@ -1,4 +1,4 @@
-import { IsEmail, IsISO8601, IsOptional, IsString } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsEmail, IsISO8601, IsOptional, IsString } from 'class-validator';
 
 /**
  * APERTURA de la orden en campo — firmada.
@@ -22,4 +22,11 @@ export class OpenWorkOrderDto {
    * técnico eléctrico acompaña. Queda declarado para trazabilidad y SSOMA.
    */
   @IsOptional() @IsString() companionId?: string;
+
+  /**
+   * Bloque 168 · las claves de seguridad que el técnico MARCÓ (ATS, PETAR_ALTURA,
+   * BLOQUEO_LOTO, EPP_…, PARADA…). El servidor calcula cuáles son obligatorias
+   * para ESTE equipo y no deja abrir si falta alguna.
+   */
+  @IsOptional() @IsArray() @ArrayMaxSize(30) @IsString({ each: true }) seguridad?: string[];
 }

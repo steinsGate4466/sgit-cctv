@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import MiPin from './MiPin';
@@ -9,9 +9,13 @@ import RestaurarScroll from './RestaurarScroll';
 import AvisoRed from './AvisoRed';
 import FechaDelDato from './FechaDelDato';
 import Pestanas from './Pestanas';
-import { MODULOS, Modulo, moduloDe, pantallasVisibles } from '../modulos';
+import { MODULOS, Modulo, Pantalla, moduloDe, pantallasVisibles, puedeAbrir, rutaDueña } from '../modulos';
+import { refrescarContadores, totalDelModulo, useContadores } from '../contadores';
+import Insignia from './Insignia';
+import PanelDeModulo from './PanelDeModulo';
 import AvisoPendientes from './AvisoPendientes';
 import ErrorBoundary from './ErrorBoundary';
+import PuertaDeRuta from './PuertaDeRuta';
 
 /**
  * LA ENTRADA DE UN MÓDULO — bloque 147.
@@ -21,12 +25,25 @@ import ErrorBoundary from './ErrorBoundary';
  * menú es el mapa, y si se apaga el usuario deja de saber dónde está. La
  * pertenencia sale de `modulos.ts`, la misma tabla que dibuja las pestañas.
  */
-function EnlaceDeModulo({ m, to }: { m: Modulo; to: string }) {
+function EnlaceDeModulo({ m, to, insignia, estrecha, onEntrar, onSalir }: {
+  m: Modulo;
+  to: string;
+  /** Bloque 170 · cuántas cosas esperan dentro del módulo. */
+  insignia?: React.ReactNode;
+  estrecha?: boolean;
+  onEntrar?: (el: HTMLElement) => void;
+  onSalir?: () => void;
+}) {
   const { pathname } = useLocation();
   const activo = moduloDe(pathname) === m;
   return (
-    <NavLink to={to} className={() => (activo ? 'active' : '')}>
-      <Icono n={m.icono} /> {m.titulo}
+    <NavLink to={to} className={() => (activo ? 'active' : '')}
+      onMouseEnter={(e) => onEntrar?.(e.currentTarget)} onMouseLeave={onSalir}
+      /* En la barra estrecha el texto se oculta: el nombre del módulo pasa al
+         `title` para que no quede un icono mudo. */
+      title={estrecha ? m.titulo : undefined}>
+      <Icono n={m.icono} /> <span className="nav-texto">{m.titulo}</span>
+      {insignia}
     </NavLink>
   );
 }
@@ -93,6 +110,12 @@ const TITLES: Record<string, string> = {
   /* Bloque 130: los catálogos de falla salen de «Ubicaciones». Una ubicación
      es un sitio; esto es el vocabulario con el que se cierra una orden. */
   '/catalogos': 'Catálogo de fallas',
+  '/modulos': 'Todos los módulos',
+  /* Bloque 171 · faltaban: la cabecera decía «SGIT-CCTV» en estas cuatro. */
+  '/tablero-om': 'Avance de órdenes',
+  '/retirados': 'Equipos retirados',
+  '/criticidad': 'Criticidad de activos',
+  '/hojas-de-ruta': 'Hojas de ruta',
 };
 
 /**
@@ -164,7 +187,12 @@ export default function Layout() {
     });
   }, [loc.pathname]);
 
-  const title = TITLES[loc.pathname] || 'SGIT-CCTV';
+  /* Bloque 171 · las pantallas del QR también dicen qué son; antes salía
+     «SGIT-CCTV» de título, como si no se supiera dónde se estaba. */
+  const title = TITLES[loc.pathname]
+    || (loc.pathname.startsWith('/a/') ? 'Ficha del equipo'
+      : loc.pathname.startsWith('/g/') ? 'Gabinete'
+        : loc.pathname.startsWith('/t/') ? 'Tablero eléctrico' : 'SGIT-CCTV');
   const initials = (user?.fullName || 'U')
     .split(' ')
     .map((s) => s[0])
@@ -193,6 +221,47 @@ export default function Layout() {
   const modulos = MODULOS
     .map((m) => ({ m, visibles: pantallasVisibles(m, can, user) }))
     .filter((x) => x.visibles.length > 0);
+
+  /* ===========================================================================
+     NÚMEROS Y PANEL DEL MÓDULO — bloque 170
+     ---------------------------------------------------------------------------
+     «Que los módulos sean más amigables visualmente, con todo lo que tenga que
+     ver con la visibilidad.» Dos cosas:
+
+     1. Cada módulo lleva un número con lo que espera dentro (incidencias
+        vivas, órdenes vencidas…). Se ve DÓNDE hay trabajo sin entrar a mirar.
+     2. Al dejar el ratón sobre un módulo sale un panel con sus pantallas y
+        para qué sirve cada una: se llega a la que se quiere de un clic.
+
+     El panel sale con un pequeño retraso (intención de pasar el ratón): sin
+     él, cruzar el menú de arriba abajo abriría y cerraría diez paneles. Y se
+     cierra con otro retraso, para poder llevar el ratón del menú al panel sin
+     que desaparezca por el camino.
+     =========================================================================== */
+  const contadores = useContadores(!!user);
+  useEffect(() => { refrescarContadores(); }, [loc.pathname]);
+
+  const [panel, setPanel] = useState<{ m: Modulo; visibles: Pantalla[]; top: number; left: number } | null>(null);
+  const reloj = useRef<number | undefined>(undefined);
+  const conPanel = !esMovil && !estrecha;
+  const abrirPanel = (m: Modulo, visibles: Pantalla[], el: HTMLElement) => {
+    if (!conPanel) return;
+    window.clearTimeout(reloj.current);
+    reloj.current = window.setTimeout(() => {
+      const r = el.getBoundingClientRect();
+      const alto = 92 + visibles.length * 46;
+      const top = Math.max(8, Math.min(r.top - 10, window.innerHeight - alto - 8));
+      setPanel({ m, visibles, top, left: r.right + 10 });
+    }, panel ? 60 : 280);
+  };
+  const cerrarPanel = () => {
+    window.clearTimeout(reloj.current);
+    reloj.current = window.setTimeout(() => setPanel(null), 220);
+  };
+  const mantenerPanel = () => window.clearTimeout(reloj.current);
+  // Al navegar, el panel se cierra: ya cumplió.
+  useEffect(() => { setPanel(null); }, [loc.pathname]);
+  useEffect(() => () => window.clearTimeout(reloj.current), []);
 
   return (
     /* La clase de «barra estrecha» va AQUÍ, en el contenedor, no sólo en el
@@ -244,14 +313,22 @@ export default function Layout() {
                   mano se convertiría en el destino de un <NavLink>. Al exigir
                   que la ruta exista en TITLES, sólo pueden salir pantallas
                   reales de la aplicación. */}
-              {recientes.filter((r) => r !== loc.pathname && TITLES[r]).slice(0, 3).map((r) => (
+              {recientes.filter((r) => r !== loc.pathname && TITLES[r] && puedeAbrir(r, can, user)).slice(0, 3).map((r) => (
                 <NavLink key={r} to={r} className="reciente">{TITLES[r]}</NavLink>
               ))}
             </div>
           )}
           {modulos.map(({ m, visibles }) => (
-            <EnlaceDeModulo key={m.titulo} m={m} to={visibles[0].ruta} />
+            <EnlaceDeModulo key={m.titulo} m={m} to={visibles[0].ruta} estrecha={estrecha}
+              insignia={<Insignia c={totalDelModulo(m, visibles.map((p) => p.ruta), contadores)} punto={estrecha} />}
+              onEntrar={(el) => abrirPanel(m, visibles, el)} onSalir={cerrarPanel} />
           ))}
+          {/* Bloque 170 · el índice de todo. En el celular sale PRIMERO en la
+              tira (CSS `order`), que es donde más falta hace: allí no hay panel. */}
+          <NavLink to="/modulos" className={({ isActive }) => 'nav-todos' + (isActive ? ' active' : '')}
+            title={estrecha ? 'Todos los módulos' : undefined}>
+            <Icono n="tablero" /> <span className="nav-texto">Todos los módulos</span>
+          </NavLink>
         </nav>
         <div className="foot">v0.6 · Infraestructura y CCTV</div>
       </aside>
@@ -309,10 +386,15 @@ export default function Layout() {
               nueva. Sin eso, una pantalla que falló dejaría el error puesto
               al navegar a otra, y parecería que todo el sistema está roto. */}
           <ErrorBoundary donde={title} key={loc.pathname}>
-            <Outlet />
+            <PuertaDeRuta><Outlet /></PuertaDeRuta>
           </ErrorBoundary>
         </main>
         {verPin && <MiPin onClose={() => setVerPin(false)} />}
+        {panel && conPanel && (
+          <PanelDeModulo m={panel.m} visibles={panel.visibles} actual={rutaDueña(loc.pathname)}
+            contadores={contadores} top={panel.top} left={panel.left}
+            onEntrar={mantenerPanel} onSalir={cerrarPanel} onElegir={() => setPanel(null)} />
+        )}
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { puedeAbrir } from '../modulos';
 
 /**
  * BUSCADOR RÁPIDO — Ctrl+K
@@ -92,7 +93,7 @@ const normalizar = (s: string) =>
   s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
 export default function BuscadorRapido() {
-  const { can } = useAuth();
+  const { can, user } = useAuth();
   const navegar = useNavigate();
   const [abierto, setAbierto] = useState(false);
   const [texto, setTexto] = useState('');
@@ -128,10 +129,13 @@ export default function BuscadorRapido() {
   }, [abierto]);
 
   const permitidos = useMemo(
-    () => DESTINOS.filter((d) => !d.permiso || can(d.permiso)),
-    // `can` viene del contexto y no cambia entre renders del mismo usuario.
+    /* Bloque 171 · además de su permiso, la MISMA regla que el menú
+       (`puedeAbrir`): esta lista llevaba permisos copiados a mano y se había
+       desfasado (IP pedía asset.read y la pantalla red.read). */
+    () => DESTINOS.filter((d) => (!d.permiso || can(d.permiso)) && puedeAbrir(d.ruta, can, user)),
+    // Se recalcula cuando llega el perfil fresco (permisos y trenes nuevos).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
+    [user],
   );
 
   const resultados = useMemo(() => {

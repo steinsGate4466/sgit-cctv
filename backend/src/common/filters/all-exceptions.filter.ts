@@ -57,6 +57,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
       code = 'PRISMA_VALIDACION';
       status = HttpStatus.BAD_REQUEST;
       message = 'Datos inválidos para esta operación (revisa los valores enviados).';
+    } else if (esServicioCaido(exception)) {
+      /* Bloque 171 · un servicio externo (almacén de archivos MinIO, base de
+         datos) que no contesta. Antes salía 500 «Error interno», que suena a
+         fallo del programa; es una dependencia caída y se arregla
+         levantándola. 503 dice exactamente eso, y el navegador lo anuncia
+         como «el servidor dio un error» sin mentir sobre la causa. */
+      code = 'SERVICIO_CAIDO';
+      status = HttpStatus.SERVICE_UNAVAILABLE;
+      message = 'Un servicio del sistema no responde (archivos o base de datos). Vuelve a intentarlo en un momento y, si sigue, avisa a TI.';
     }
 
     // ------------------------------------------------------------------ LOG
@@ -91,4 +100,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
       timestamp: new Date().toISOString(),
     });
   }
+}
+
+/** ¿Es una dependencia caída (conexión rechazada, sin respuesta)? Bloque 171. */
+export function esServicioCaido(e: unknown): boolean {
+  const c = (e as any)?.code ?? (e as any)?.cause?.code;
+  return ['ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'EHOSTUNREACH', 'ENOTFOUND'].includes(String(c));
 }

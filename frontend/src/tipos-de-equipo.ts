@@ -79,3 +79,15 @@ export const NOMBRE_DE_TIPO: Record<string, string> = Object.fromEntries(
 
 export const esEstructura = (tipo: string | null | undefined): boolean =>
   TIPOS_ESTRUCTURA.some((t) => t.valor === tipo);
+
+/* =============================================================================
+   DÓNDE SE MONTA CADA TIPO — bloque 172
+   -----------------------------------------------------------------------------
+   El formulario de alta enseñaba «Gabinete» y «…o dentro de un tablero
+   eléctrico» a TODOS los tipos: a una cámara le ofrecía meterla en un gabinete
+   de comunicaciones o en un tablero de fuerza, que no es donde está nunca. Se
+   enseña el campo sólo a los tipos que de verdad van ahí (y siempre a un equipo
+   que ya lo tenga guardado, para no esconder un dato).
+============================================================================= */
+export const VA_EN_GABINETE = ['NVR', 'SWITCH', 'SERVER', 'DECODER', 'ROUTER', 'FIREWALL', 'UPS', 'PSU', 'PC', 'OTHER'];
+export const VA_EN_TABLERO = ['SWITCH', 'UPS', 'PSU', 'OTHER'];

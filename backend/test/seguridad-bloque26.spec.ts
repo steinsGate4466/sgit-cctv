@@ -110,3 +110,25 @@ describe('política de contraseña', () => {
     expect(r.motivos.length).toBeGreaterThan(1);
   });
 });
+
+/* Bloque 171 · el límite no puede dejar sin CORS ni contar las consultas previas. */
+import { cuentaParaElLimite } from '../src/common/limite-peticiones';
+import * as fsB171 from 'fs';
+import * as pathB171 from 'path';
+
+describe('bloque 171 · límite de peticiones y CORS', () => {
+  it('la consulta previa (OPTIONS) no gasta cupo; el resto sí', () => {
+    expect(cuentaParaElLimite('OPTIONS')).toBe(false);
+    expect(cuentaParaElLimite('options')).toBe(false);
+    for (const m of ['GET', 'POST', 'PATCH', 'DELETE', undefined]) expect(cuentaParaElLimite(m)).toBe(true);
+  });
+
+  it('main.ts activa CORS ANTES del límite: un 429 tiene que llegar legible al navegador', () => {
+    const src = fsB171.readFileSync(pathB171.join(__dirname, '../src/main.ts'), 'utf8');
+    const cors = src.indexOf('app.enableCors(');
+    const limite = src.indexOf('contador.consultar(');
+    expect(cors).toBeGreaterThan(0);
+    expect(limite).toBeGreaterThan(0);
+    expect(cors).toBeLessThan(limite);
+  });
+});

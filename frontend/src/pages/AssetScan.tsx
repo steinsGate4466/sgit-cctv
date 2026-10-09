@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import { puedeAbrir } from '../modulos';
 import HistorialActivo from '../components/HistorialActivo';
 import Icono from '../components/Iconos';
 import { guardarPendiente } from '../cola-offline';
@@ -35,7 +36,7 @@ const STATUS_ES: Record<string, string> = {
 export default function AssetScan() {
   const { id } = useParams();
   const nav = useNavigate();
-  const { can } = useAuth();
+  const { can, user } = useAuth();
   const [a, setA] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
@@ -119,8 +120,14 @@ export default function AssetScan() {
     let vivo = true;
     api.get('/assets/' + id)
       .then((r) => { if (vivo) setA(r.data); })
-      .catch(() => {
-        if (vivo) setErr('No se encontró el activo. Verifica la etiqueta o consulta al Jefe de Mantenimiento.');
+      .catch((e) => {
+        if (!vivo) return;
+        // Bloque 171 · el servidor contesta 404 también cuando el equipo es de
+        // otro tren (a propósito: no confirma que exista). Se dice así.
+        const st = e?.response?.status;
+        setErr(st === 404 || st === 403
+          ? 'No se encontró el equipo, o no es de tu tren. Verifica la etiqueta o consulta al Jefe de Mantenimiento.'
+          : 'No se pudo cargar. Comprueba la señal y vuelve a intentarlo.');
       })
       .finally(() => { if (vivo) setLoading(false); });
     return () => { vivo = false; };
@@ -408,6 +415,13 @@ export default function AssetScan() {
         {!can('asset.read') && can('activos.mirar') && (
           <button className="btn-mini" onClick={() => nav('/mis-activos')}>
             Ver los activos de mi tren
+          </button>
+        )}
+        {/* Bloque 171 (plan 154) · el mapa centrado en este equipo, con
+            «Estás aquí» y cómo se llega. */}
+        {puedeAbrir('/mapa', can, user) && (
+          <button className="btn-mini" onClick={() => nav(`/mapa?activo=${a.id}`)}>
+            <Icono n="ubicacion" size={14} /> Ver dónde está en el mapa
           </button>
         )}
         {a.cabinet?.id && (

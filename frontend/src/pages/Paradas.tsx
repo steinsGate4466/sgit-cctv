@@ -8,6 +8,7 @@ import { useDialogos } from '../components/Dialogos';
 import { fechaCorta } from '../fechas';
 import BotonConMotivo from '../components/BotonConMotivo';
 import { mensajeDeError, queFalta } from '../avisos';
+import { OpcionesDeTrenDePlanta, nombreDeTrenDePlanta, trenDePlantaDeSigla } from '../ubicaciones';
 
 /**
  * VENTANAS DE PARADA
@@ -47,7 +48,7 @@ function dur(min: number | null | undefined) {
 
 export default function Paradas() {
   const { pedirTexto } = useDialogos();
-  const { can } = useAuth();
+  const { can, user } = useAuth();
   const puede = can('wo.update');
 
   const [lista, setLista] = useState<any[]>([]);
@@ -172,7 +173,7 @@ export default function Paradas() {
                 <div key={p.id} className="card" style={{ margin: 0, padding: 12, cursor: 'pointer' }}
                   onClick={() => abrirDetalle(p.id)}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                    <b style={{ fontSize: 17, color: 'var(--tinta-marca)' }}>{p.tren}</b>
+                    <b style={{ fontSize: 17, color: 'var(--tinta-marca)' }}>{nombreDeTrenDePlanta(p.tren)}</b>
                     <span className={'badge ' + p.estado}>{ESTADO_ES[p.estado]}</span>
                   </div>
                   <div style={{ fontSize: 14, marginTop: 4 }}>{fh(p.inicioPrevisto)}</div>
@@ -216,7 +217,7 @@ export default function Paradas() {
             <tbody>
               {fiab.trenes.map((t: any) => (
                 <tr key={t.tren}>
-                  <td><strong>{t.tren}</strong></td>
+                  <td><strong>{nombreDeTrenDePlanta(t.tren)}</strong></td>
                   <td className="num">{t.total}</td>
                   <td className="num">{t.pctMovidas}%</td>
                   <td className="num">{t.movimientosPorParada || '—'}</td>
@@ -240,7 +241,7 @@ export default function Paradas() {
           <label>Tren
             <select value={fTren} onChange={(e) => setFTren(e.target.value)}>
             <option value="">Todos</option>
-            {['T1', 'T2', 'T3'].map((t) => <option key={t} value={t}>{t}</option>)}
+            <OpcionesDeTrenDePlanta />
           </select>
           </label>
         </div>
@@ -255,7 +256,8 @@ export default function Paradas() {
         {puede && (
           <button className="btn-primary" onClick={() => {
             setError('');
-            setNueva({ tren: 'T1', origen: 'PRODUCCION', inicioPrevisto: paraInput(new Date()), finPrevisto: '', motivo: '', avisadoPor: '', canalAviso: 'Radio', notas: '' });
+            // Bloque 168: el tren por defecto es el del usuario (si tiene uno solo).
+            setNueva({ tren: (user?.ambitoTrenes?.length === 1 ? trenDePlantaDeSigla(String(user.ambitoTrenes[0])) : '') || 'TREN_1', origen: 'PRODUCCION', inicioPrevisto: paraInput(new Date()), finPrevisto: '', motivo: '', avisadoPor: '', canalAviso: 'Radio', notas: '' });
           }}>+ Apuntar parada</button>
         )}
       </div>
@@ -264,8 +266,7 @@ export default function Paradas() {
         <div className="card vacio">
           <h3>No hay paradas apuntadas</h3>
           <p>
-            En cuanto Producción avise de una, apúntala aquí aunque sea con la hora
-            aproximada. Se puede mover después: para eso está.
+            Apúntala en cuanto Producción avise, aunque la hora sea aproximada: se puede mover.
           </p>
         </div>
       ) : (
@@ -277,7 +278,7 @@ export default function Paradas() {
           <tbody>
             {lista.map((p) => (
               <tr key={p.id}>
-                <td><strong>{p.tren}</strong></td>
+                <td><strong>{nombreDeTrenDePlanta(p.tren)}</strong></td>
                 <td>{fh(p.inicioPrevisto)}</td>
                 <td>{fh(p.inicioReal)}</td>
                 <td>{dur(p.duracionRealMin ?? p.duracionPrevistaMin)}</td>
@@ -327,7 +328,7 @@ export default function Paradas() {
             <label className="campo">
               <span>Tren <b className="campo-req">*</b></span>
               <select value={nueva.tren} onChange={(e) => setNueva({ ...nueva, tren: e.target.value })}>
-                {['T1', 'T2', 'T3'].map((t) => <option key={t} value={t}>{t}</option>)}
+                <OpcionesDeTrenDePlanta />
               </select>
             </label>
             <label className="campo">
@@ -408,7 +409,7 @@ export default function Paradas() {
 
       {/* ---------- DETALLE ---------- */}
       {detalle && (
-        <Modal title={`Parada ${detalle.tren} · ${fh(detalle.inicioPrevisto)}`} onClose={() => setDetalle(null)} ancho
+        <Modal title={`Parada ${nombreDeTrenDePlanta(detalle.tren)} · ${fh(detalle.inicioPrevisto)}`} onClose={() => setDetalle(null)} ancho
           acciones={puede ? <>
             {detalle.estado === 'ANUNCIADA' && <button className="btn-mini" onClick={() => cambiarEstado(detalle, 'CONFIRMADA')}>Confirmar</button>}
             {['ANUNCIADA', 'CONFIRMADA'].includes(detalle.estado) && <button className="btn-mini" onClick={() => cambiarEstado(detalle, 'EN_CURSO')}>Empezó</button>}

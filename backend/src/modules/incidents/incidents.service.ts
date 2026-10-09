@@ -19,6 +19,7 @@ import { conReintentoDeCodigo, esChoqueDeUnicidad, siguienteCorrelativo } from '
 import {
   Criticidad,
   firmaDeQuienReporta,
+  prioridadDeIncidencia,
   reporteDeProduccion,
 } from './reporte-de-produccion';
 // PDF: require para no depender de @types en el build.
@@ -121,15 +122,30 @@ export class IncidentsService {
         }
       }
     }
+    /* Bloque 168: zona y prioridad salen del equipo y de su zona declarada,
+       no del criterio de quien llena. Ver `prioridadDeIncidencia`. */
+    let zonaDelEquipo: string | null = null;
+    let criticidadZona: Criticidad = null as any;
+    if (dto.assetId) {
+      const a = await this.prisma.asset.findUnique({
+        where: { id: dto.assetId }, select: { id: true, locationId: true, referencePlace: true, location: { select: { name: true } } },
+      }).catch(() => null);
+      if (a) {
+        zonaDelEquipo = a.referencePlace || a.location?.name || null;
+        const ctx = await resolverContextoDePlanta(this.prisma, [a]).catch(() => ({} as any));
+        criticidadZona = (ctx?.[a.id]?.criticidadProduccion ?? null) as Criticidad;
+      }
+    }
+    const prioridad = prioridadDeIncidencia(dto.priority as any, criticidadZona).prioridad;
     const inc = await this.prisma.incident.create({
       data: {
         code: await this.nextCode(),
         title: dto.title,
         description: dto.description,
         category: dto.category,
-        priority: dto.priority,
+        priority: prioridad as any,
         assetId: dto.assetId,
-        zone: (dto as any).zone,
+        zone: ((dto as any).zone || '').trim() || zonaDelEquipo,
         concurrentSessions: dto.concurrentSessions,
         affectedCameras: dto.affectedCameras,
         visionDownMin: dto.visionDownMin,

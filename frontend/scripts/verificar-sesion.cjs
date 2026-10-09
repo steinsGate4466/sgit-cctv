@@ -78,6 +78,36 @@ if (!reg) {
   );
 }
 
+/* ---- 3. Bloque 170: la actividad se comparte entre pestañas ------------- */
+if (!/leerCompartida\(\)/.test(s) || !/ultimaActividad\(/.test(s)) {
+  fallos.push(
+    'El reloj de inactividad ya no lee la actividad de las OTRAS pestañas. Con dos '
+    + 'pestañas abiertas, la que no se usa cierra la sesión de la que sí (bloque 170).',
+  );
+}
+
+/* ---- 4. Bloque 170: una sola renovación a la vez ------------------------ */
+const CLIENTE = path.join(__dirname, '..', 'src', 'api', 'client.ts');
+if (fs.existsSync(CLIENTE)) {
+  const c = fs.readFileSync(CLIENTE, 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/(^|[^:])\/\/[^\n]*/g, ' ');
+  const llamadas = (c.match(/\/auth\/refresh`/g) || []).length;
+  if (!/let enVuelo/.test(c) || !/function renovarUnaVez/.test(c)) {
+    fallos.push(
+      'api/client.ts ya no tiene la renovación ÚNICA (renovarUnaVez/enVuelo). Varias '
+      + 'peticiones que caducan a la vez renuevan con el mismo token, el servidor lo toma '
+      + 'por robo y cierra la sesión (bloque 170).',
+    );
+  }
+  if (llamadas !== 1) {
+    fallos.push(
+      `api/client.ts llama a /auth/refresh en ${llamadas} sitios; debe ser UNO, dentro de `
+      + 'renovarAhora. Una segunda llamada suelta vuelve a abrir la carrera del bloque 170.',
+    );
+  }
+}
+
 if (fallos.length) {
   console.error('');
   console.error('  LA SESIÓN PUEDE ECHAR A ALGUIEN QUE ESTÁ TRABAJANDO');
@@ -87,10 +117,10 @@ if (fallos.length) {
   console.error('');
   for (const f of fallos) console.error('  · ' + f);
   console.error('');
-  console.error('  Archivo: src/auth/useInactivity.ts');
+  console.error('  Archivos: src/auth/useInactivity.ts · src/api/client.ts');
   console.error('');
   process.exit(1);
 }
 
-console.log('Sesión verificada: mover el ratón cuenta como actividad, y trabajar retira el aviso.');
+console.log('Sesión verificada: el ratón cuenta, trabajar retira el aviso, las pestañas comparten actividad y se renueva una sola vez.');
 process.exit(0);

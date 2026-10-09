@@ -28,6 +28,21 @@ export class GruaController {
     return this.gruas.porGrua(u?.userId);
   }
 
+  /** Bloque 172 · las cámaras que se ofrecen en «Cámara inspeccionada». */
+  @Get('camaras')
+  @RequirePermissions('wo.update')
+  camaras(@CurrentUser() u: any) {
+    return this.gruas.camarasElegibles(u?.userId);
+  }
+
+  /** Bloque 168 · el formulario se abre rellenado con lo que ya se sabe de esa cámara. */
+  @AmbitoDe('asset', 'assetId')
+  @Get('propuesta/:assetId')
+  @RequirePermissions('wo.update')
+  propuesta(@Param('assetId') assetId: string) {
+    return this.gruas.propuesta(assetId);
+  }
+
   @AmbitoDe('inspeccionGrua', 'assetId')
   @Get('historial/:assetId')
   @RequirePermissions('wo.read')

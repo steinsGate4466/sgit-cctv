@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { perfilDeSeguridadEn } from '../../common/seguridad-de-planta';
 import { PrismaService } from '../../prisma/prisma.service';
 import { resolverContextoDePlanta } from '../../common/plant-context';
 import { alcanza, ambitoDelUsuario, noVeNada } from '../../common/ambito-usuario';
@@ -28,6 +29,50 @@ export class GruaService {
   ) {}
 
   /** Código correlativo por año: GRU-2026-0001. */
+  /**
+   * «CÁMARA INSPECCIONADA» — bloque 172.
+   *
+   * El desplegable traía TODAS las cámaras de la planta (las del horno, las del
+   * púlpito…) para una inspección que es sólo de cámaras montadas en grúa. Se
+   * marca `enGrua` a la que lo es por algo DECLARADO, no por adivinar:
+   *   · cuelga de la ubicación de grúas (tren «Grúas» / código …-GRU);
+   *   · su medio de acceso declarado es GRUA;
+   *   · ya tiene una inspección de grúa.
+   * Las demás se devuelven aparte para que la pantalla las ponga en su propio
+   * grupo («Otras cámaras»): si una cámara de grúa todavía no está declarada
+   * así, no se bloquea el trabajo — se ve que es la excepción.
+   */
+  async camarasElegibles(userId?: string | null) {
+    const ambito = await ambitoDelUsuario(this.prisma, userId);
+    if (noVeNada(ambito)) return [];
+    const [camaras, nodos, inspeccionadas] = await Promise.all([
+      this.prisma.asset.findMany({
+        where: { type: 'CAMERA', deletedAt: null, status: { notIn: ['BAJA'] } },
+        select: { id: true, assetCode: true, referencePlace: true, locationId: true, medioAcceso: true },
+        orderBy: { assetCode: 'asc' },
+      }),
+      this.prisma.location.findMany({ select: { id: true, parentId: true, type: true, code: true, name: true } }),
+      // Una fila por CÁMARA (no por inspección): acotado por el número de cámaras.
+      this.prisma.inspeccionGrua.groupBy({ by: ['assetId'] }),
+    ]);
+    const porId = new Map(nodos.map((n) => [n.id, n]));
+    const trenDe = (id: string | null) => {
+      for (let n = id ? porId.get(id) : undefined, i = 0; n && i < 20; n = n.parentId ? porId.get(n.parentId) : undefined, i++) {
+        if (n.type === 'TREN') return n;
+      }
+      return null;
+    };
+    const conInspeccion = new Set(inspeccionadas.map((x) => x.assetId));
+    return camaras
+      .map((c) => {
+        const t = trenDe(c.locationId);
+        const enGrua = !!(t && (/-GRU$/i.test(t.code) || /gr[uú]a/i.test(t.name)))
+          || c.medioAcceso === 'GRUA' || conInspeccion.has(c.id);
+        return { id: c.id, assetCode: c.assetCode, referencePlace: c.referencePlace, enGrua, tren: t?.code ?? null };
+      })
+      .filter((c) => alcanza(ambito, c.tren));
+  }
+
   private async siguienteCodigo(): Promise<string> {
     const anio = new Date().getFullYear();
     const ultima = await this.prisma.inspeccionGrua.findFirst({
@@ -124,6 +169,65 @@ export class GruaService {
     });
   }
 
+  /**
+   * EL FORMULARIO YA RELLENADO — bloque 168.
+   *
+   * «Formularios que no se autocompletan y dejan a criterio técnico.» La
+   * inspección de grúa pedía cada vez el nombre de la grúa, la posición, la
+   * altura, si hace falta manlift o parar la grúa, el canal del grabador… que
+   * ya estaban en la inspección anterior, en el acceso declarado del equipo
+   * (bloque 41), en su ficha de cámara y en su perfil de seguridad. Aquí se
+   * juntan. Lo que se INSPECCIONA (estado de cada componente, señal de hoy,
+   * hallazgos) NO se copia: eso se mira hoy o no se mira.
+   */
+  async propuesta(assetId: string) {
+    const activo = await this.prisma.asset.findFirst({
+      where: { id: assetId, deletedAt: null },
+      select: {
+        id: true, type: true, assetCode: true, locationId: true, referencePlace: true,
+        camera: { select: { nvrId: true, nvrChannel: true, wirelessUplinkId: true, poeSourcePortId: true } },
+      },
+    });
+    if (!activo) throw new NotFoundException('Esa cámara no existe.');
+    const [previa, perfil, permiso, orden] = await Promise.all([
+      this.prisma.inspeccionGrua.findFirst({ where: { assetId }, orderBy: { fecha: 'desc' } }),
+      perfilDeSeguridadEn(this.prisma, { assetId, locationId: activo.locationId }),
+      this.prisma.accessRequest.findFirst({ where: { assetId, status: 'APROBADO' }, orderBy: { createdAt: 'desc' }, select: { id: true, code: true } }),
+      this.prisma.workOrder.findFirst({
+        where: { assetId, status: { in: ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'] } }, orderBy: { createdAt: 'desc' }, select: { id: true, code: true },
+      }),
+    ]);
+    const p: any = previa || {};
+    return {
+      origen: {
+        anterior: previa ? previa.code : null,
+        permiso: permiso?.code ?? null,
+        orden: orden?.code ?? null,
+        faltaDeclarar: perfil.faltaDeclarar,
+      },
+      valores: {
+        grua: p.grua ?? '',
+        posicionEnGrua: p.posicionEnGrua ?? (activo.referencePlace || ''),
+        requiereManlift: perfil.medio ? perfil.medio === 'MANLIFT' : (p.requiereManlift ?? perfil.enAltura),
+        alturaMetros: perfil.alturaM ?? p.alturaMetros ?? '',
+        seBajaAPiso: p.seBajaAPiso ?? false,
+        requiereParada: perfil.parada || perfil.medio === 'GRUA' || !!p.requiereParada,
+        accessRequestId: permiso?.id ?? undefined,
+        workOrderId: orden?.id ?? undefined,
+        antenaAssetId: activo.camera?.wirelessUplinkId ?? p.antenaAssetId ?? undefined,
+        nvrAssetId: activo.camera?.nvrId ?? p.nvrAssetId ?? undefined,
+        canalNvr: activo.camera?.nvrChannel ?? p.canalNvr ?? '',
+        poe: activo.camera?.poeSourcePortId ? true : (p.poe ?? true),
+        grabadorLocal: p.grabadorLocal ?? false,
+        diasRetencion: p.diasRetencion ?? '',
+        enCadenaPortacables: p.enCadenaPortacables ?? false,
+        metrosAproximados: p.metrosAproximados ?? '',
+        fuenteAssetId: p.fuenteAssetId ?? undefined,
+      },
+      seguridad: { epp: perfil.epp, riesgos: perfil.riesgos, requisitos: perfil.requisitos, impacto: perfil.impactoProduccion },
+    };
+  }
+
   async crear(dto: CrearInspeccionGruaDto, userId?: string | null) {
     const activo = await this.prisma.asset.findFirst({
       where: { id: dto.assetId, deletedAt: null },
@@ -162,6 +266,18 @@ export class GruaService {
       select: { senalDbm: true },
     });
 
+    /* Bloque 169: los hallazgos salen de lo MARCADO (lente sucio, chicote
+       dañado…) si no se escribieron: lo que se vio con clics no se reescribe. */
+    if (!dto.hallazgos?.trim()) {
+      const vistos = [
+        dto.lenteSucio && 'Lente sucio', dto.carcasaDanada && 'Carcasa dañada', dto.soporteFlojo && 'Soporte flojo',
+        dto.antenaAlineada === false && 'Antena desalineada', dto.chicoteDanado && 'Chicote (tramo flexible) dañado',
+        dto.prensaestopaOk === false && 'Prensaestopa en mal estado', dto.conectorOxidado && 'Conector oxidado',
+        dto.grabaOk === false && 'No está grabando', dto.gabineteHermetico === false && 'Gabinete no hermético',
+        dto.senalDbm != null && dto.senalDbm <= -75 && `Señal baja (${dto.senalDbm} dBm)`,
+      ].filter(Boolean);
+      if (vistos.length) (dto as any).hallazgos = vistos.join('; ') + '.';
+    }
     const { workOrderId, proximaRevision, ...resto } = dto;
 
     const creada = await this.prisma.inspeccionGrua.create({

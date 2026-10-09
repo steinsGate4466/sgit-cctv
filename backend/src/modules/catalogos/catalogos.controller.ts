@@ -3,7 +3,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CatalogosService } from './catalogos.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
-import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { RequireAlguno, RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { SinAmbito } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
@@ -15,6 +15,14 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
  * catálogo de etapas del proceso: son la misma clase de decisión, cómo se
  * llaman las cosas en esta planta.
  */
+/* QUIÉN LEE LOS CATÁLOGOS — bloque 171.
+   Pedía `wo.read`. El Jefe de Tren y el de línea ven las órdenes con `om.mirar`
+   (sin `wo.read`): al abrir Órdenes recibían dos 403 y el aviso «no tienes
+   permiso» encima de una pantalla que SÍ es suya. Lo cazó el barrido por roles.
+   Un catálogo es vocabulario de planta, no un dato sensible: lo lee quien
+   trabaja con órdenes o con incidencias. Editar sigue pidiendo location.manage. */
+const LEEN_CATALOGOS = ['wo.read', 'om.mirar', 'incident.read'];
+
 @ApiTags('catalogos')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -24,14 +32,14 @@ export class CatalogosController {
 
   /** Todos los tipos a la vez. Va ANTES de ':kind' para que no lo capture. */
   @Get('todos')
-  @RequirePermissions('wo.read')
+  @RequireAlguno(...LEEN_CATALOGOS)
   todos() {
     return this.cat.todos();
   }
 
   @SinAmbito()  // catálogos de planta: son globales, no de un tren
   @Get(':kind')
-  @RequirePermissions('wo.read')
+  @RequireAlguno(...LEEN_CATALOGOS)
   listar(@Param('kind') kind: string, @Query('todas') todas?: string) {
     return this.cat.listar(kind.toUpperCase(), todas === 'true');
   }

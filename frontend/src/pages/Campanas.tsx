@@ -7,6 +7,7 @@ import { useAuth } from '../auth/AuthContext';
 import { fecha } from '../fechas';
 import BotonConMotivo from '../components/BotonConMotivo';
 import { mensajeDeError, queFalta } from '../avisos';
+import { OpcionesDeTrenDePlanta, OpcionesDeUbicacion, nombreDeTrenDePlanta, siglaDeTrenDePlanta } from '../ubicaciones';
 
 /**
  * CAMPAÑAS DE MAPEO — el control de calidad del levantamiento.
@@ -65,7 +66,7 @@ export default function Campanas() {
     api.get('/locations')
       .then((r) => { if (vivo) setUbicaciones(r.data?.items || r.data || []); })
       .catch(() => { if (vivo) setUbicaciones([]); });
-    api.get('/users')
+    api.get('/users/ejecutores') // bloque 172: a quién se le reparte una zona
       .then((r) => { if (vivo) setUsuarios(r.data || []); })
       .catch(() => { if (vivo) setUsuarios([]); });
     return () => { vivo = false; };
@@ -165,7 +166,7 @@ export default function Campanas() {
               <tr key={c.id}>
                 <td><strong>{c.codigo}</strong></td>
                 <td>{c.nombre}</td>
-                <td>{c.tren || <span className="muted">—</span>}</td>
+                <td>{nombreDeTrenDePlanta(c.tren) || <span className="muted">—</span>}</td>
                 <td><span className={'badge ' + c.estado}>{ESTADO_CAMPANA[c.estado]}</span></td>
                 <td className="num">{c._count.zonas}</td>
                 <td className="num">{c._count.activos}</td>
@@ -185,7 +186,7 @@ export default function Campanas() {
           acciones={puedeGestionar ? (
             <button className="btn-primary" onClick={() => {
               setError('');
-              setRepartir({ campanaId: abierta.campana.id, filas: [{ locationId: '', asignadoAId: '', esperados: '', notas: '' }] });
+              setRepartir({ campanaId: abierta.campana.id, tren: abierta.campana.tren, filas: [{ locationId: '', asignadoAId: '', esperados: '', notas: '' }] });
             }}>+ Repartir zonas</button>
           ) : undefined}>
 
@@ -344,7 +345,7 @@ export default function Campanas() {
               <span>Tren</span>
               <select value={nueva.tren} onChange={(e) => setNueva({ ...nueva, tren: e.target.value })}>
                 <option value="">Todos</option>
-                {['T1', 'T2', 'T3'].map((t) => <option key={t} value={t}>{t}</option>)}
+                <OpcionesDeTrenDePlanta />
               </select>
             </label>
             <label className="campo">
@@ -390,7 +391,8 @@ export default function Campanas() {
                   setRepartir({ ...repartir, filas });
                 }}>
                   <option value="">Elegir ubicación…</option>
-                  {ubicaciones.map((u: any) => <option key={u.id} value={u.id}>{u.path || u.name}</option>)}
+                  {/* Bloque 172 · sólo zonas del tren de la campaña. */}
+                  <OpcionesDeUbicacion uso="trabajo" lista={ubicaciones} tren={siglaDeTrenDePlanta(repartir.tren)} actual={f.locationId} />
                 </select>
               </label>
               <label className="campo">

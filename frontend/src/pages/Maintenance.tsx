@@ -14,12 +14,13 @@ import AsignarOm from '../components/AsignarOm';
 import DetallarOm from '../components/DetallarOm';
 import OmMateriales from '../components/OmMateriales';
 import { diaVencido, hoyParaInput } from '../fechas';
-import { WO_TYPES, WO_TYPE_ES, WO_STATUS_ES, CANALES, CANAL_ES, CAUSA_ES } from './omCatalogos';
+import { WO_TYPES, WO_TYPES_NUEVA, WO_TYPE_ES, WO_STATUS_ES, CANALES, CANAL_ES, CAUSA_ES } from './omCatalogos';
 import Icono from '../components/Iconos';
 import { useDialogos } from '../components/Dialogos';
 import { useVolverALaPantalla } from '../useVolverALaPantalla';
 import { fecha, fechaHora } from '../formato';
 import { useBusquedaEnVivo } from '../useBusquedaEnVivo';
+import { OpcionesDeUbicacion } from '../ubicaciones';
 
 const TYPES = WO_TYPES; // incluye MAPEO: el levantamiento también es una OM
 // Estados que el técnico puede fijar al registrar la intervención (el cierre lo hace el Jefe).
@@ -85,7 +86,7 @@ const ORIGEN_ES: Record<string, string> = {
 
 export default function Maintenance() {
   const { avisar } = useDialogos();
-  const { can } = useAuth();
+  const { can, user } = useAuth();
   const navegar = useNavigate();
   const [rows, setRows] = useState<any[]>([]);
   // Borrado DEFINITIVO de una orden. No es cancelar: cancelar deja constancia
@@ -163,7 +164,8 @@ export default function Maintenance() {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const FORM_VACIO = {
-    code: '', type: 'PREVENTIVO', assetId: '', locationId: '', activity: '', responsible: '',
+    // Bloque 168: el responsable por defecto es quien la crea (se puede cambiar).
+    code: '', type: 'PREVENTIVO', assetId: '', locationId: '', activity: '', responsible: user?.fullName || '',
     materials: '', zone: '', incidentId: '', scheduledDate: hoyParaInput(),
     requestedBy: '', requestChannel: '', externalRef: '',
     plannedStopAt: '', plannedDurationMin: '', subtipo: '',
@@ -273,6 +275,16 @@ export default function Maintenance() {
     return () => { vivo = false; };
   }, []);
 
+  /* Bloque 168: la referencia del sitio sale del equipo si nadie la escribió. */
+  const zonaDe = (id: string) => { const a = assets.find((x) => x.id === id); return a ? a.referencePlace || a.locationName || '' : ''; };
+  useEffect(() => {
+    if (showForm && form.assetId && !form.zone && assets.length) {
+      const z = zonaDe(form.assetId);
+      if (z) setForm((f: any) => ({ ...f, zone: z }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showForm, form.assetId, assets]);
+
   // ALTA PRELLENADA DESDE OTRA PANTALLA (3C).
   // Cableado manda aquí un tramo fuera de norma con la actividad ya redactada.
   // Se abre el formulario con todo puesto y el usuario solo revisa y guarda:
@@ -332,21 +344,41 @@ export default function Maintenance() {
     } finally { setSaving(false); }
   }
 
+  /* BLOQUE 169 · LA INTERVENCIÓN SE REGISTRA CON CLICS. Qué trabajo (catálogo
+     de trabajos), qué se encontró (síntomas) y qué se hizo (acciones); el
+     texto queda como detalle opcional. Los materiales van a su pantalla con
+     código SAP, no a un cuadro de texto. */
+  const [intCat, setIntCat] = useState<any>(null);
+  const [intSel, setIntSel] = useState({ trabajo: '', sintoma: '', accion: '', detalle: '' });
+  const [intWo, setIntWo] = useState<any>(null);
   function openIntervention(w: any) {
     setIntId(w.id);
-    setIntForm({ activity: w.activity || '', diagnosis: w.diagnosis || '', materials: w.materials || '', zone: w.zone || '', status: w.status === 'CERRADA' || w.status === 'CANCELADA' ? 'EN_PROCESO' : w.status, condition: w.condition || {} });
+    setIntWo(w);
+    setIntSel({ trabajo: w.subtipo || '', sintoma: '', accion: '', detalle: '' });
+    if (!intCat) api.get('/catalogos/todos').then((r) => setIntCat(r.data)).catch(() => setIntCat({}));
+    /* Bloque 168: la zona ya se sabe por el equipo o la ubicación de la orden. */
+    setIntForm({ activity: w.activity || '', diagnosis: w.diagnosis || '', materials: w.materials || '', zone: w.zone || w.asset?.referencePlace || w.asset?.location?.name || w.location?.name || '', status: w.status === 'CERRADA' || w.status === 'CANCELADA' ? 'EN_PROCESO' : w.status, condition: w.condition || {} });
   }
   async function submitIntervention(e: FormEvent) {
     e.preventDefault();
     setIntSaving(true);
     try {
+      const nombre = (lista: any[] | undefined, code: string) => (lista || []).find((x) => x.code === code)?.name;
+      const trabajo = trabajos.find((t) => t.code === intSel.trabajo);
+      const diag = [
+        nombre(intCat?.SINTOMA, intSel.sintoma) && `Se encontró: ${nombre(intCat?.SINTOMA, intSel.sintoma)}`,
+        nombre(intCat?.ACCION, intSel.accion) && `Se hizo: ${nombre(intCat?.ACCION, intSel.accion)}`,
+        intSel.detalle.trim(),
+      ].filter(Boolean).join('. ');
       await api.patch('/work-orders/' + intId, {
-        activity: intForm.activity || undefined,
-        diagnosis: intForm.diagnosis || undefined,
-        materials: intForm.materials || undefined,
+        activity: trabajo ? (trabajo.notes || trabajo.name) : intForm.activity || undefined,
+        diagnosis: diag || intForm.diagnosis || undefined,
         zone: intForm.zone || undefined,
         status: intForm.status,
-        condition: intForm.condition && Object.keys(intForm.condition).length ? intForm.condition : undefined,
+        condition: (() => {
+          const c = Object.fromEntries(Object.entries(intForm.condition || {}).filter(([, v]) => v));
+          return Object.keys(c).length ? c : undefined;
+        })(),
       });
       setIntId(null);
       await load();
@@ -392,7 +424,14 @@ export default function Maintenance() {
 
   if (loading) return <div className="loading">Cargando órdenes…</div>;
 
-  const openIncidents = incidents.filter((i) => i.status !== 'CERRADA');
+  /* Bloque 172 · «Incidencia relacionada»: sólo las VIVAS (antes salían también
+     las resueltas y canceladas), y las del equipo elegido primero y aparte:
+     relacionar la orden de la cámara A con una incidencia de la cámara B era
+     un clic equivocado que nadie veía. */
+  const VIVAS = ['ABIERTA', 'EN_DIAGNOSTICO', 'EN_PROCESO', 'EN_ESPERA'];
+  const openIncidents = incidents.filter((i) => VIVAS.includes(i.status));
+  const incidenciasDelEquipo = form?.assetId ? openIncidents.filter((i) => (i.assetId || i.asset?.id) === form.assetId) : [];
+  const incidenciasOtras = openIncidents.filter((i) => !incidenciasDelEquipo.includes(i));
 
   return (
     <div>
@@ -474,7 +513,7 @@ export default function Maintenance() {
       <div className="filters">
         <FiltroAmbito valor={ambito} onChange={setAmbito} />
         <div style={{ flex: 1, minWidth: 180 }}><label>Buscar<input placeholder="código OM, incidencia, actividad, zona…" value={fq} onChange={(e) => setFq(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} /></label></div>
-        <div><label>Tipo<select value={fType} onChange={(e) => setFType(e.target.value)}><option value="">Todos</option>{TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select></label></div>
+        <div><label>Tipo<select value={fType} onChange={(e) => setFType(e.target.value)}><option value="">Todos</option>{TYPES.map((t) => <option key={t} value={t}>{WO_TYPE_ES[t] || t}</option>)}</select></label></div>
         <div><label>Estado<select value={fStatus} onChange={(e) => setFStatus(e.target.value)}><option value="">Todos</option>{['ABIERTA', 'EN_PROCESO', 'EN_ESPERA', 'CERRADA', 'CANCELADA'].map((s) => <option key={s} value={s}>{s}</option>)}</select></label></div>
         <div><label>Desde<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></label></div>
         <div><label>Hasta<input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></label></div>
@@ -742,7 +781,7 @@ export default function Maintenance() {
             </label>
             <label>Tipo
               <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value, subtipo: '' })}>
-              {TYPES.map((t) => <option key={t} value={t}>{WO_TYPE_ES[t] || t}</option>)}
+              {WO_TYPES_NUEVA.map((t) => <option key={t} value={t}>{WO_TYPE_ES[t] || t}</option>)}
             </select>
             </label>
             {/* Bloque 136 · qué se va a hacer. Sólo sale si hay trabajos
@@ -768,7 +807,7 @@ export default function Maintenance() {
                 <label>Zona a levantar (obligatorio)
                   <select value={form.locationId} onChange={(e) => setForm({ ...form, locationId: e.target.value, assetId: '' })} required>
                   <option value="">— selecciona la ubicación —</option>
-                  {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  <OpcionesDeUbicacion uso="trabajo" lista={locations} actual={form.locationId} />
                 </select>
                 </label>
                 <div className="muted" style={{ fontSize: 11, marginTop: -6, marginBottom: 10 }}>
@@ -781,13 +820,13 @@ export default function Maintenance() {
                   etiqueta="Activo"
                   opciones={assets}
                   valor={form.assetId}
-                  onChange={(id) => setForm({ ...form, assetId: id })}
+                  onChange={(id) => setForm({ ...form, assetId: id, zone: form.zone.trim() && form.zone !== zonaDe(form.assetId) ? form.zone : zonaDe(id) })}
                   vacio="— selecciona —"
                 />
                 <label>O una zona entera (varios equipos)
                   <select value={form.locationId} onChange={(e) => setForm({ ...form, locationId: e.target.value })}>
                   <option value="">— ninguna —</option>
-                  {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  <OpcionesDeUbicacion uso="trabajo" lista={locations} actual={form.locationId} />
                 </select>
                 </label>
               </>
@@ -806,7 +845,16 @@ export default function Maintenance() {
             <label>Incidencia relacionada (opcional)
               <select value={form.incidentId} onChange={(e) => setForm({ ...form, incidentId: e.target.value })}>
               <option value="">— ninguna —</option>
-              {openIncidents.map((i) => <option key={i.id} value={i.id}>{i.code} — {i.title}</option>)}
+              {incidenciasDelEquipo.length > 0 && (
+                <optgroup label="De este equipo">
+                  {incidenciasDelEquipo.map((i) => <option key={i.id} value={i.id}>{i.code} — {i.title}</option>)}
+                </optgroup>
+              )}
+              {incidenciasOtras.length > 0 && (
+                <optgroup label={incidenciasDelEquipo.length ? 'Otras incidencias abiertas' : 'Incidencias abiertas'}>
+                  {incidenciasOtras.map((i) => <option key={i.id} value={i.id}>{i.code} — {i.title}{i.asset?.assetCode ? ` · ${i.asset.assetCode}` : ''}</option>)}
+                </optgroup>
+              )}
             </select>
             </label>
             <label>Actividad / descripción
@@ -873,25 +921,43 @@ export default function Maintenance() {
             <label>Zona de intervención
               <input value={intForm.zone} onChange={(e) => setIntForm({ ...intForm, zone: e.target.value })} placeholder="Ej: Horno, Tren 1, Púlpito…" />
             </label>
-            <label>Actividad realizada
-              <input value={intForm.activity} onChange={(e) => setIntForm({ ...intForm, activity: e.target.value })} />
+            {/* Bloque 169: con clics. El texto es sólo el detalle. */}
+            <label>{'Trabajo realizado'}
+              <select value={intSel.trabajo} onChange={(e) => setIntSel({ ...intSel, trabajo: e.target.value })}>
+                <option value="">{intForm.activity ? `— ${intForm.activity.slice(0, 60)} —` : '— elige —'}</option>
+                {trabajos.filter((t) => !t.group || t.group === intWo?.type).map((t) => <option key={t.code} value={t.code}>{t.name}</option>)}
+              </select>
             </label>
-            <label>Diagnóstico / detalle de la intervención
-              <input value={intForm.diagnosis} onChange={(e) => setIntForm({ ...intForm, diagnosis: e.target.value })} />
+            <label>{'Qué se encontró'}
+              <select value={intSel.sintoma} onChange={(e) => setIntSel({ ...intSel, sintoma: e.target.value })}>
+                <option value="">{'— elige —'}</option>
+                {(intCat?.SINTOMA || []).map((x: any) => <option key={x.code} value={x.code}>{x.name}</option>)}
+              </select>
             </label>
-            <label>Materiales utilizados (uno por línea)
-              <textarea value={intForm.materials} onChange={(e) => setIntForm({ ...intForm, materials: e.target.value })} rows={3} style={{ width: '100%', resize: 'vertical' }} placeholder="Ej: 2x Conector RJ45 / 1x Fuente PoE 48V" />
+            <label>{'Qué se hizo'}
+              <select value={intSel.accion} onChange={(e) => setIntSel({ ...intSel, accion: e.target.value })}>
+                <option value="">{'— elige —'}</option>
+                {(intCat?.ACCION || []).map((x: any) => <option key={x.code} value={x.code}>{x.name}</option>)}
+              </select>
             </label>
+            <label>{'Detalle (opcional)'}
+              <input value={intSel.detalle} onChange={(e) => setIntSel({ ...intSel, detalle: e.target.value })} />
+            </label>
+            <button type="button" className="btn-mini" style={{ marginBottom: 10 }} onClick={() => { const w = intWo; setIntId(null); setMatsFor(w); }}>
+              <Icono n="inventario" size={14} /> {'Materiales usados (con código SAP)'}
+            </button>
             <label>Condición del equipo (checklist)</label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 6 }}>
               {CONDITION_ITEMS.map((item) => (
                 <div key={item} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 13 }}>{item}</span>
                   <select aria-label="Condición del equipo (checklist)"
-                    value={intForm.condition?.[item] || 'OK'}
+                    value={intForm.condition?.[item] || ''}
                     onChange={(e) => setIntForm({ ...intForm, condition: { ...(intForm.condition || {}), [item]: e.target.value } })}
                     style={{ width: 140 }}
                   >
+                    {/* Bloque 168: lo no mirado NO sale «OK». Sin revisar ≠ conforme. */}
+                    <option value="">{'Sin revisar'}</option>
                     {COND_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>

@@ -20,7 +20,27 @@ const CATEGORY_GROUPS: { label: string; items: string[] }[] = [
   { label: 'Entorno de planta', items: ['FALLA_GABINETE', 'AMBIENTAL_SIDERURGICO', 'SEGURIDAD_FISICA', 'CONFIGURACION_FIRMWARE', 'GENERAL'] },
 ];
 const CATEGORIES = CATEGORY_GROUPS.flatMap((g) => g.items);
-const PRIORITIES = ['BAJA', 'MEDIA', 'ALTA', 'Crítica'];
+/* Bloque 172 · «Crítica» iba como VALOR: la base espera CRITICA y respondía
+   «priority must be one of…». Elegir prioridad crítica al reportar daba error. */
+const PRIORITIES = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
+const PRIORIDAD_ES: Record<string, string> = { BAJA: 'Baja', MEDIA: 'Media', ALTA: 'Alta', CRITICA: 'Crítica' };
+
+/* Bloque 172 · las categorías del tipo de equipo elegido, primero y aparte.
+   Con una cámara elegida, «Falla de UPS» o «Transformador» arriba del todo
+   invitaban a equivocarse de categoría; el resto sigue disponible debajo
+   (una cámara sin imagen puede ser, de verdad, un corte de energía). */
+const GRUPO_DEL_TIPO: Record<string, string> = {
+  CAMERA: 'CCTV / NVR', NVR: 'CCTV / NVR', DECODER: 'CCTV / NVR', PC: 'CCTV / NVR', PANTALLA: 'CCTV / NVR',
+  SWITCH: 'Red / Conectividad', WIRELESS: 'Red / Conectividad', ROUTER: 'Red / Conectividad',
+  FIREWALL: 'Red / Conectividad', SERVER: 'Red / Conectividad',
+  UPS: 'Eléctrico', PSU: 'Eléctrico',
+};
+function gruposDeCategoria(tipo?: string | null) {
+  const suyo = tipo ? GRUPO_DEL_TIPO[tipo] : null;
+  if (!suyo) return CATEGORY_GROUPS;
+  const g = CATEGORY_GROUPS.find((x) => x.label === suyo)!;
+  return [{ ...g, label: `${g.label} · para este equipo` }, ...CATEGORY_GROUPS.filter((x) => x.label !== suyo)];
+}
 const STATUSES = ['ABIERTA', 'EN_DIAGNOSTICO', 'EN_PROCESO', 'EN_ESPERA', 'RESUELTA', 'CERRADA'];
 // Estados que el técnico puede fijar. El cierre (RESUELTA/CERRADA) lo firma el Jefe.
 const NON_TERMINAL = ['ABIERTA', 'EN_DIAGNOSTICO', 'EN_PROCESO', 'EN_ESPERA'];
@@ -83,7 +103,12 @@ export default function Incidents() {
   // Alta
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState<any>({ title: '', category: 'GENERAL', priority: 'MEDIA', assetId: '', zone: '', description: '', affectedCameras: '' });
+  // Bloque 168: prioridad '' = la de la zona (el servidor no deja bajarla).
+  const [form, setForm] = useState<any>({ title: '', category: 'GENERAL', priority: '', assetId: '', zone: '', description: '', affectedCameras: '' });
+  const [causas, setCausas] = useState<any[]>([]);
+  const [acciones, setAcciones] = useState<any[]>([]);
+  /** La zona se sabe por el equipo: se rellena si nadie la escribió. */
+  const zonaDe = (id: string) => { const a = assets.find((x) => x.id === id); return a ? a.referencePlace || a.locationName || '' : ''; };
 
   /* `?nueva=1&activo=…` — bloque 159. Llega desde los accesos rápidos del
      Dashboard y de la bandeja: abre el alta con el equipo puesto (si lo hay).
@@ -157,15 +182,20 @@ export default function Incidents() {
       /* Bloque 139: quien sólo reporta no clasifica. Categoría y prioridad las
          pone el técnico después; mandarlas con el valor por defecto diría que
          alguien las eligió. */
-      const body: any = { title: form.title };
-      if (completaTecnico) { body.category = form.category; body.priority = form.priority; }
+      /* Bloque 169: el título, si no se escribe, se arma con lo ELEGIDO
+         (categoría + equipo). Prioridad vacía = la de la zona (no se manda). */
+      const equipo = assets.find((a) => a.id === form.assetId)?.assetCode;
+      const titulo = form.title.trim() || [completaTecnico && form.category !== 'GENERAL' ? catEs(form.category) : '', equipo].filter(Boolean).join(' — ');
+      if (titulo.length < 3) { await avisar('Elige la categoría y el equipo, o escribe qué pasa.'); return; }
+      const body: any = { title: titulo };
+      if (completaTecnico) { body.category = form.category; if (form.priority) body.priority = form.priority; }
       if (form.assetId) body.assetId = form.assetId;
       if (form.zone) body.zone = form.zone.trim();
       if (form.description) body.description = form.description;
       if (form.affectedCameras) body.affectedCameras = Number(form.affectedCameras);
       await api.post('/incidents', body);
       setShowForm(false);
-      setForm({ title: '', category: 'GENERAL', priority: 'MEDIA', assetId: '', zone: '', description: '', affectedCameras: '' });
+      setForm({ title: '', category: 'GENERAL', priority: '', assetId: '', zone: '', description: '', affectedCameras: '' });
       await load();
     } catch (err: any) {
       const m = err?.response?.data?.message;
@@ -175,7 +205,19 @@ export default function Incidents() {
 
   function openResolve(id: string) {
     setResolveId(id); setSigError(''); setTries(5);
-    setRf({ solution: '', rootCause: '', materials: '', interveners: '', responsibleName: '', observations: '', lineManagerNotified: false, affectedCameras: '', visionDownMin: '', email: user?.email || '', password: '' });
+    /* Bloque 168: lo que el sistema ya sabe no se teclea. Quien firma es el
+       responsable y uno de los que intervino; las cámaras afectadas vienen de
+       la incidencia; los minutos sin visión, de cuándo cayó hasta ahora. */
+    const i = rows.find((x) => x.id === id) || {};
+    const desde = i.occurredAt || i.reportedAt;
+    const minutos = desde ? Math.max(0, Math.round((Date.now() - new Date(desde).getTime()) / 60000)) : '';
+    const yo = user?.fullName || '';
+    setRf({ solution: '', accion: '', rootCause: '', rootCauseOtra: '', materials: '', interveners: yo, responsibleName: yo, observations: '', lineManagerNotified: false,
+      affectedCameras: i.affectedCameras ?? '', visionDownMin: String(minutos), email: user?.email || '', password: '' });
+    if (!causas.length) {
+      api.get('/catalogos/CAUSA').then((r) => setCausas(r.data?.items || [])).catch(() => setCausas([]));
+      api.get('/catalogos/ACCION').then((r) => setAcciones(r.data?.items || [])).catch(() => setAcciones([]));
+    }
   }
   async function submitResolve(e: FormEvent) {
     e.preventDefault();
@@ -183,6 +225,10 @@ export default function Incidents() {
     try {
       const body: any = { email: rf.email, password: rf.password };
       for (const k of ['solution', 'rootCause', 'materials', 'interveners', 'responsibleName', 'observations']) if (rf[k]) body[k] = rf[k];
+      if (rf.rootCause === '__OTRA__') body.rootCause = (rf.rootCauseOtra || '').trim() || undefined;
+      // Bloque 169: lo que se hizo, del catálogo de acciones; el texto es el detalle.
+      const accion = acciones.find((a) => a.code === rf.accion)?.name;
+      body.solution = [accion, (rf.solution || '').trim()].filter(Boolean).join('. ') || undefined;
       body.lineManagerNotified = !!rf.lineManagerNotified;
       if (rf.affectedCameras) body.affectedCameras = Number(rf.affectedCameras);
       if (rf.visionDownMin) body.visionDownMin = Number(rf.visionDownMin);
@@ -371,11 +417,15 @@ export default function Incidents() {
                     · La fecha exacta sigue haciendo falta —para el informe y
                       para discutir con Producción—, así que se queda debajo,
                       pequeña. No se quita: se ordena. */}
-                <td className="muted" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-                  <div style={{ color: 'var(--text)', fontWeight: 600 }}>
+                {/* Bloque 171 · `nowrap` sólo en la hora y la fecha. En toda la
+                    celda, el nombre y el cargo de quien reportó («Administrador
+                    SGIT · Jefe de Mantenimiento») la ensanchaban y el título de
+                    la incidencia quedaba en una columna de una palabra. */}
+                <td className="muted" style={{ fontSize: 12, minWidth: 130 }}>
+                  <div style={{ color: 'var(--text)', fontWeight: 600, whiteSpace: 'nowrap' }}>
                     {haceCuanto(i.reportedAt, '—')}
                   </div>
-                  <div style={{ fontSize: 11 }}>{fechaTabla(i.reportedAt, '—')}</div>
+                  <div style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{fechaTabla(i.reportedAt, '—')}</div>
 
                   {/* QUIÉN LA REPORTÓ — bloque 94.
                       Se agrupa en esta misma celda, que ya apila la hora y el
@@ -420,7 +470,7 @@ export default function Incidents() {
                 <td>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
                   {can('incident.update') && openIssue(i) && (
-                    <select aria-label="Filtrar por tren"
+                    <select aria-label="Estado de la incidencia"
                       value={NON_TERMINAL.includes(i.status) ? i.status : 'ABIERTA'}
                       onChange={(e) => changeStatus(i.id, e.target.value)}
                       title="Actualizar estado (avisa al Jefe de Mantenimiento)"
@@ -433,24 +483,33 @@ export default function Incidents() {
                       {NON_TERMINAL.map((s) => <option key={s} value={s}>{stEs(s)}</option>)}
                     </select>
                   )}
-                  {can('incident.update') && <button className="btn-mini" onClick={() => openPhotos(i.id)}>Fotos</button>}
-                  {can('incident.update') && openIssue(i) && (
-                    <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => openProposal(i)}>
-                      <><Icono n="nota" size={13} /> {i.proposal ? 'Propuesta ✓' : 'Propuesta'}</>
-                    </button>
-                  )}
-                  {can('incident.close') && openIssue(i) && <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => openResolve(i.id)}>Resolver</button>}
                   {can('wo.create') && openIssue(i) && (
-                    <button className="btn-mini" style={{ marginLeft: 4, fontWeight: 600 }}
+                    <button className="btn-mini" style={{ fontWeight: 600 }}
                       title="Crear la orden de trabajo con los datos de esta incidencia"
                       onClick={() => setConvirtiendo(i)}>
                       → OM
                     </button>
                   )}
-                  <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => downloadReport(i)}>Informe</button>
-
-                  {/* Borrado definitivo. Solo lo pinta si eres Jefe de Mantenimiento. */}
-                  <BotonPurgar recurso="incidencia" id={i.id} onBorrado={() => load()} />
+                  {can('incident.close') && openIssue(i) && <button className="btn-mini" onClick={() => openResolve(i.id)}>Resolver</button>}
+                  {/* BLOQUE 171 · seis botones por fila eran una pared (la misma
+                      queja que Órdenes en el bloque 133). Delante quedan el
+                      estado, «→ OM» y «Resolver», que deciden; lo demás va al
+                      menú «⋯». Nada se quita. */}
+                  <details className="acciones-fila">
+                    <summary className="btn-mini" style={{ cursor: 'pointer' }}
+                      aria-label="Más acciones de esta incidencia" title="Más acciones">⋯</summary>
+                    <div className="acciones-fila-menu">
+                      {can('incident.update') && <button className="btn-mini" onClick={() => openPhotos(i.id)}>Fotos</button>}
+                      {can('incident.update') && openIssue(i) && (
+                        <button className="btn-mini" onClick={() => openProposal(i)}>
+                          <><Icono n="nota" size={13} /> {i.proposal ? 'Propuesta ✓' : 'Propuesta'}</>
+                        </button>
+                      )}
+                      <button className="btn-mini" onClick={() => downloadReport(i)}>Informe</button>
+                      {/* Borrado definitivo. Solo lo pinta si eres Jefe de Mantenimiento. */}
+                      <BotonPurgar recurso="incidencia" id={i.id} onBorrado={() => load()} />
+                    </div>
+                  </details>
                   </div>
                 </td>
               </tr>
@@ -469,19 +528,7 @@ export default function Incidents() {
             <div className="sign-note">
               {completaTecnico ? 'Registra la falla, haya o no orden.' : 'Cuenta qué pasa. El técnico completa el resto.'}
             </div>
-            <label>{completaTecnico ? 'Título' : '¿Qué pasa?'}
-              <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required minLength={3}
-                placeholder={completaTecnico ? undefined : 'Ej.: la cámara del lecho se ve negra'} />
-            </label>
-            {completaTecnico && (
-            <div style={{ display: 'flex', gap: 10 }}>
-              <div style={{ flex: 1 }}><label>Categoría<select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>{CATEGORY_GROUPS.map((g) => <optgroup key={g.label} label={g.label}>{g.items.map((c) => <option key={c} value={c}>{catEs(c)}</option>)}</optgroup>)}</select></label></div>
-              <div style={{ flex: 1 }}><label>Prioridad<select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>{PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}</select></label></div>
-            </div>
-            )}
-            <label>Zona o área
-              <input value={form.zone} placeholder="Horno, laminación, púlpito…" onChange={(e) => setForm({ ...form, zone: e.target.value })} />
-            </label>
+            {/* Bloque 169: primero el equipo (rellena la zona y el título), después lo demás. */}
             {/* BLOQUE 121 · agrupado por tipo y con su ubicación. Una
                 incidencia puede ser de cualquier equipo, así que NO se filtra:
                 se agrupa. Filtrar dejaría fuera justo el que falló. */}
@@ -489,9 +536,22 @@ export default function Incidents() {
               etiqueta="Activo afectado (opcional)"
               opciones={assets}
               valor={form.assetId}
-              onChange={(id) => setForm({ ...form, assetId: id })}
+              onChange={(id) => setForm({ ...form, assetId: id, zone: form.zone.trim() && form.zone !== zonaDe(form.assetId) ? form.zone : zonaDe(id) })}
               vacio="— ninguno —"
             />
+            <label>{completaTecnico ? 'Título' : '¿Qué pasa?'}
+              <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required={!completaTecnico} minLength={3}
+                placeholder={completaTecnico ? 'Opcional: se arma con la categoría y el equipo' : 'Ej.: la cámara del lecho se ve negra'} />
+            </label>
+            {completaTecnico && (
+            <div style={{ display: 'flex', gap: 10 }}>
+              <div style={{ flex: 1 }}><label>Categoría<select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>{gruposDeCategoria(assets.find((a: any) => a.id === form.assetId)?.type).map((g) => <optgroup key={g.label} label={g.label}>{g.items.map((c) => <option key={c} value={c}>{catEs(c)}</option>)}</optgroup>)}</select></label></div>
+              <div style={{ flex: 1 }}><label>Prioridad<select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}><option value="">{'Según la zona'}</option>{PRIORITIES.map((p) => <option key={p} value={p}>{PRIORIDAD_ES[p]}</option>)}</select></label></div>
+            </div>
+            )}
+            <label>Zona o área
+              <input value={form.zone} placeholder="Horno, laminación, púlpito…" onChange={(e) => setForm({ ...form, zone: e.target.value })} />
+            </label>
             <label>Descripción del problema
               <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} style={{ width: '100%', resize: 'vertical' }} />
             </label>
@@ -515,7 +575,7 @@ export default function Incidents() {
                 reportó. Va primero: es lo que ordena la bandeja. */}
             <div style={{ display: 'flex', gap: 10 }}>
               <div style={{ flex: 1 }}><label>Categoría<select value={prop.category} onChange={(e) => setProp({ ...prop, category: e.target.value })}>{CATEGORY_GROUPS.map((g) => <optgroup key={g.label} label={g.label}>{g.items.map((c) => <option key={c} value={c}>{catEs(c)}</option>)}</optgroup>)}</select></label></div>
-              <div style={{ flex: 1 }}><label>Prioridad<select value={prop.priority} onChange={(e) => setProp({ ...prop, priority: e.target.value })}>{PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}</select></label></div>
+              <div style={{ flex: 1 }}><label>Prioridad<select value={prop.priority} onChange={(e) => setProp({ ...prop, priority: e.target.value })}>{PRIORITIES.map((p) => <option key={p} value={p}>{PRIORIDAD_ES[p]}</option>)}</select></label></div>
             </div>
             <label>Propuesta de solución
               <textarea value={prop.proposal} onChange={(e) => setProp({ ...prop, proposal: e.target.value })}
@@ -571,11 +631,26 @@ export default function Incidents() {
           <form onSubmit={submitResolve}>
             <div className="sign-note">Cómo se resolvió. Al final firmas con tu contraseña.</div>
             <label>¿Qué se hizo para resolverlo?
-              <textarea value={rf.solution} onChange={(e) => setRf({ ...rf, solution: e.target.value })} rows={2} style={{ width: '100%', resize: 'vertical' }} />
+              <select value={rf.accion} onChange={(e) => setRf({ ...rf, accion: e.target.value })} required={acciones.length > 0}>
+                <option value="">{'— elige del catálogo —'}</option>
+                {acciones.map((a) => <option key={a.code} value={a.code}>{a.name}</option>)}
+              </select>
+            </label>
+            <label>{'Detalle (opcional)'}
+              <input value={rf.solution} onChange={(e) => setRf({ ...rf, solution: e.target.value })} />
             </label>
             <label>Causa raíz
-              <input value={rf.rootCause} onChange={(e) => setRf({ ...rf, rootCause: e.target.value })} />
+              <select value={rf.rootCause} onChange={(e) => setRf({ ...rf, rootCause: e.target.value })} required>
+                <option value="">{'— elige del catálogo —'}</option>
+                {causas.map((c) => <option key={c.code} value={c.name}>{c.name}</option>)}
+                <option value="__OTRA__">{'Otra (no está en el catálogo)'}</option>
+              </select>
             </label>
+            {rf.rootCause === '__OTRA__' && (
+              <label>{'¿Cuál?'}
+                <input value={rf.rootCauseOtra} onChange={(e) => setRf({ ...rf, rootCauseOtra: e.target.value })} required minLength={3} />
+              </label>
+            )}
             <label>Materiales utilizados
               <textarea value={rf.materials} onChange={(e) => setRf({ ...rf, materials: e.target.value })} rows={2} style={{ width: '100%', resize: 'vertical' }} />
             </label>

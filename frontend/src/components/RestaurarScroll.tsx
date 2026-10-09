@@ -65,6 +65,19 @@ export default function RestaurarScroll() {
       const activa = document.querySelector('.nav a.active');
       activa?.scrollIntoView({ inline: 'center', block: 'nearest' });
     }
+
+    /* BLOQUE 170 · LA PESTAÑA ACTIVA, A LA VISTA. Las pestañas del módulo van
+       ahora en UNA fila deslizable (antes partían en dos líneas). Con diez,
+       la elegida podía quedar fuera por la derecha. Se mueve SÓLO la fila
+       (`scrollLeft`), nunca la página: `scrollIntoView` aquí subiría la
+       pantalla si el usuario ya había bajado. */
+    requestAnimationFrame(() => {
+      const sub = document.querySelector('.subtabs .subtab.active') as HTMLElement | null;
+      const fila = sub?.parentElement;
+      if (sub && fila && fila.scrollWidth > fila.clientWidth) {
+        fila.scrollLeft = Math.max(0, sub.offsetLeft - (fila.clientWidth - sub.offsetWidth) / 2);
+      }
+    });
   }, [key, tipo]);
 
   return null;

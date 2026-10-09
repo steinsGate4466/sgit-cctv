@@ -1,4 +1,4 @@
-import { padreDe } from './pestanas';
+import { padreDe, pestanasDe } from './pestanas';
 
 /**
  * LOS MÓDULOS — bloque 147.
@@ -28,11 +28,16 @@ export interface Pantalla {
   puede?: Puede;
   /** Texto distinto según quién mira (p. ej. «Mis propuestas»). */
   textoPara?: (can: Can) => string;
+  /** Bloque 170 · para qué sirve, en una línea corta. Sale al pasar el ratón
+   *  y en la página «Todos los módulos». */
+  nota?: string;
 }
 
 export interface Modulo {
   titulo: string;
   icono: string;
+  /** Bloque 170 · de qué trata el módulo, en una frase. */
+  descripcion: string;
   pantallas: Pantalla[];
 }
 
@@ -45,17 +50,18 @@ export const MODULOS: Modulo[] = [
      no lo es. */
   {
     titulo: 'Estado de planta',
+    descripcion: 'Qué se ve y qué no, ahora: mapa, trenes y cámaras.',
     icono: 'mapeo',
     pantallas: [
       /* Bloque 151 · el plano real con cada equipo en su sitio. */
-      { ruta: '/mapa', texto: 'Mapa', puede: alguno('asset.read', 'activos.mirar', 'om.mirar') },
-      { ruta: '/vista-general', texto: 'Resumen', puede: con('om.mirar') },
-      { ruta: '/mi-tren', texto: 'Mi tren',
+      { ruta: '/mapa', texto: 'Mapa', nota: 'El plano con cada equipo en su sitio', puede: alguno('asset.read', 'activos.mirar', 'om.mirar') },
+      { ruta: '/vista-general', texto: 'Resumen', nota: 'La planta entera en una pantalla', puede: con('om.mirar') },
+      { ruta: '/mi-tren', texto: 'Mi tren', nota: 'Sólo lo de tu tren',
         puede: (can, u) => (u?.ambitoTrenes?.length ?? 0) > 0 && can('dashboard.read') },
-      { ruta: '/por-tren', texto: 'Por tren', puede: con('om.mirar') },
-      { ruta: '/mis-camaras', texto: 'Mis cámaras', puede: con('om.mirar') },
-      { ruta: '/cobertura', texto: 'Zonas críticas', puede: con('cobertura.mirar') },
-      { ruta: '/dependencias', texto: 'Impacto de una caída', puede: con('om.mirar') },
+      { ruta: '/por-tren', texto: 'Por tren', nota: 'Comparar trenes', puede: con('om.mirar') },
+      { ruta: '/mis-camaras', texto: 'Mis cámaras', nota: 'Las cámaras que te tocan', puede: con('om.mirar') },
+      { ruta: '/cobertura', texto: 'Zonas críticas', nota: 'Zonas que no pueden quedarse sin imagen', puede: con('cobertura.mirar') },
+      { ruta: '/dependencias', texto: 'Impacto de una caída', nota: 'Qué cae si cae un equipo', puede: con('om.mirar') },
     ],
   },
   /* BLOQUE 155 · DOS ÁREAS DE TRABAJO, como pidió el usuario: «dos pantallas,
@@ -63,111 +69,120 @@ export const MODULOS: Modulo[] = [
      haciéndose». Cada orden y cada instalación guarda sus documentos. */
   {
     titulo: 'Mantenimiento',
+    descripcion: 'Incidencias, órdenes y su avance: el trabajo del día.',
     icono: 'orden',
     pantallas: [
-      { ruta: '/bandeja', texto: 'Mi bandeja', puede: con('dashboard.read') },
-      { ruta: '/incidents', texto: 'Incidencias', puede: con('incident.read') },
-      { ruta: '/maintenance', texto: 'Órdenes', puede: alguno('wo.read', 'om.mirar') },
-      { ruta: '/tablero-om', texto: 'Avance', puede: con('om.mirar') },
-      { ruta: '/hojas-de-ruta', texto: 'Hojas de ruta', puede: con('wo.read') },
-      { ruta: '/gruas', texto: 'Grúas', puede: con('wo.read') },
+      { ruta: '/bandeja', texto: 'Mi bandeja', nota: 'Lo que espera una decisión hoy', puede: con('dashboard.read') },
+      { ruta: '/incidents', texto: 'Incidencias', nota: 'Fallas reportadas y su estado', puede: con('incident.read') },
+      { ruta: '/maintenance', texto: 'Órdenes', nota: 'Preventivo, correctivo y mejora', puede: alguno('wo.read', 'om.mirar') },
+      { ruta: '/tablero-om', texto: 'Avance', nota: 'Cómo van las órdenes abiertas', puede: con('om.mirar') },
+      { ruta: '/hojas-de-ruta', texto: 'Hojas de ruta', nota: 'Recorridos de preventivo', puede: con('wo.read') },
+      { ruta: '/gruas', texto: 'Grúas', nota: 'Inspección de cámaras de grúa', puede: con('wo.read') },
     ],
   },
   {
     titulo: 'Instalaciones',
+    descripcion: 'Equipos nuevos: desde que se piden hasta que quedan montados.',
     icono: 'instalar',
     pantallas: [
-      { ruta: '/instalaciones', texto: 'Instalaciones', puede: con('asset.read') },
+      { ruta: '/instalaciones', texto: 'Instalaciones', nota: 'Pedidos, visitas y montaje', puede: con('asset.read') },
       /* Bloque 137 · Producción pide equipo nuevo. Quien ya ve la
          infraestructura pide desde «Instalaciones», con el formulario entero. */
-      { ruta: '/pedir-instalacion', texto: 'Pedir instalación',
+      { ruta: '/pedir-instalacion', texto: 'Pedir instalación', nota: 'Pedir una cámara o equipo nuevo',
         puede: (can) => can('om.mirar') && !can('asset.read') },
     ],
   },
   /* Qué hay montado en planta y cómo está su ficha. */
   {
     titulo: 'Equipos',
+    descripcion: 'Qué hay montado en planta y cómo está su ficha.',
     icono: 'activos',
     pantallas: [
-      { ruta: '/assets', texto: 'Activos', puede: con('asset.read') },
-      { ruta: '/mis-activos', texto: 'Mis activos', puede: con('activos.mirar') },
-      { ruta: '/criticidad', texto: 'Criticidad', puede: alguno('asset.read', 'activos.mirar') },
-      { ruta: '/access', texto: 'Acceso y altura', puede: con('access.read') },
-      { ruta: '/retirados', texto: 'Retirados', puede: alguno('asset.read', 'activos.mirar') },
-      { ruta: '/mapeo', texto: 'Estado de la información', puede: con('asset.read') },
-      { ruta: '/salud-de-datos', texto: 'Calidad de datos', puede: con('asset.update') },
+      { ruta: '/assets', texto: 'Activos', nota: 'Fichas de todos los equipos', puede: con('asset.read') },
+      { ruta: '/mis-activos', texto: 'Mis activos', nota: 'Los equipos de tu tren', puede: con('activos.mirar') },
+      { ruta: '/criticidad', texto: 'Criticidad', nota: 'A, B o C según el impacto', puede: alguno('asset.read', 'activos.mirar') },
+      { ruta: '/access', texto: 'Acceso y altura', nota: 'Permisos y trabajo en altura', puede: con('access.read') },
+      { ruta: '/retirados', texto: 'Retirados', nota: 'Equipos dados de baja', puede: alguno('asset.read', 'activos.mirar') },
+      { ruta: '/mapeo', texto: 'Estado de la información', nota: 'Qué fichas faltan completar', puede: con('asset.read') },
+      { ruta: '/salud-de-datos', texto: 'Calidad de datos', nota: 'Datos incoherentes que corregir', puede: con('asset.update') },
     ],
   },
   /* 220 V → switch → cámara. Una sola cadena, un solo módulo. */
   {
     titulo: 'Red y energía',
+    descripcion: 'La cadena 220 V → switch → cámara: puertos, IP y cableado.',
     icono: 'puertos',
     pantallas: [
-      { ruta: '/capacidad', texto: 'Capacidad', puede: alguno('red.read', 'infra.read', 'asset.read') },
-      { ruta: '/conexiones', texto: 'Conexiones', puede: con('red.read') },
-      { ruta: '/mapa-de-red', texto: 'Mapa de red', puede: con('red.read') },
-      { ruta: '/topologia', texto: 'Puntos críticos', puede: con('red.read') },
-      { ruta: '/grabadores', texto: 'Grabadores', puede: con('red.read') },
-      { ruta: '/ipam', texto: 'IP', puede: con('red.read') },
-      { ruta: '/cableado', texto: 'Cableado', puede: con('infra.read') },
-      { ruta: '/rotulado', texto: 'Rotulado', puede: con('infra.read') },
-      { ruta: '/electricidad', texto: 'Electricidad', puede: con('infra.read') },
-      { ruta: '/monitoreo', texto: 'Monitoreo', puede: con('monitor.read') },
+      { ruta: '/capacidad', texto: 'Capacidad', nota: 'Puertos libres y PoE por switch', puede: alguno('red.read', 'infra.read', 'asset.read') },
+      { ruta: '/conexiones', texto: 'Conexiones', nota: 'Qué está conectado a qué', puede: con('red.read') },
+      { ruta: '/mapa-de-red', texto: 'Mapa de red', nota: 'Red por gabinete y tablero', puede: con('red.read') },
+      { ruta: '/topologia', texto: 'Puntos críticos', nota: 'Equipos de los que cuelga mucho', puede: con('red.read') },
+      { ruta: '/grabadores', texto: 'Grabadores', nota: 'NVR, canales y disco', puede: con('red.read') },
+      { ruta: '/ipam', texto: 'IP', nota: 'Direcciones IP y VLAN', puede: con('red.read') },
+      { ruta: '/cableado', texto: 'Cableado', nota: 'Tendidos y rutas de cable', puede: con('infra.read') },
+      { ruta: '/rotulado', texto: 'Rotulado', nota: 'Estándar de etiquetas', puede: con('infra.read') },
+      { ruta: '/electricidad', texto: 'Electricidad', nota: 'Tableros, circuitos y UPS', puede: con('infra.read') },
+      { ruta: '/monitoreo', texto: 'Monitoreo', nota: 'Equipos que no responden', puede: con('monitor.read') },
     ],
   },
   /* Dónde está cada cosa. */
   {
     titulo: 'Ubicaciones',
+    descripcion: 'Dónde está cada cosa: árbol de planta, gabinetes y planos.',
     icono: 'ubicacion',
     pantallas: [
-      { ruta: '/locations', texto: 'Árbol de planta', puede: con('asset.read') },
-      { ruta: '/cabinets', texto: 'Gabinetes', puede: con('asset.read') },
-      { ruta: '/zonas', texto: 'Zonas vitales', puede: con('location.read') },
+      { ruta: '/locations', texto: 'Árbol de planta', nota: 'Trenes, áreas y salas', puede: con('asset.read') },
+      { ruta: '/cabinets', texto: 'Gabinetes', nota: 'Gabinetes y lo que llevan dentro', puede: con('asset.read') },
+      { ruta: '/zonas', texto: 'Zonas vitales', nota: 'Zonas que exigen vigilancia', puede: con('location.read') },
       /* Bloque 151 · subir, calibrar y colocar los equipos en el plano. */
-      { ruta: '/planos', texto: 'Planos', puede: con('location.manage') },
+      { ruta: '/planos', texto: 'Planos', nota: 'Subir y colocar equipos en planos', puede: con('location.manage') },
     ],
   },
   {
     titulo: 'Repuestos',
+    descripcion: 'Almacén y equipos que se quedan sin repuesto.',
     icono: 'inventario',
     pantallas: [
-      { ruta: '/inventory', texto: 'Almacén', puede: alguno('inventory.read', 'om.mirar') },
-      { ruta: '/riesgo', texto: 'Obsolescencia', puede: con('infra.read') },
+      { ruta: '/inventory', texto: 'Almacén', nota: 'Stock, entradas y salidas', puede: alguno('inventory.read', 'om.mirar') },
+      { ruta: '/riesgo', texto: 'Obsolescencia', nota: 'Modelos sin repuesto o descontinuados', puede: con('infra.read') },
     ],
   },
   {
     titulo: 'Documentos',
+    descripcion: 'Manuales, planos y el vocabulario para cerrar órdenes.',
     icono: 'etiqueta',
     pantallas: [
-      { ruta: '/documentos', texto: 'Manuales y planos', puede: con('document.read') },
-      { ruta: '/catalogos', texto: 'Catálogo de fallas', puede: con('location.manage') },
-      { ruta: '/mejoras-procedimiento', texto: 'Mejoras propuestas',
+      { ruta: '/documentos', texto: 'Manuales y planos', nota: 'Manuales y planos por equipo', puede: con('document.read') },
+      { ruta: '/catalogos', texto: 'Catálogo de fallas', nota: 'Síntomas, causas y acciones', puede: con('location.manage') },
+      { ruta: '/mejoras-procedimiento', texto: 'Mejoras propuestas', nota: 'Propuestas para mejorar procedimientos',
         puede: alguno('procedimiento.manage', 'wo.update'),
         textoPara: (can) => (can('procedimiento.manage') ? 'Mejoras propuestas' : 'Mis propuestas') },
     ],
   },
   {
     titulo: 'Indicadores',
+    descripcion: 'Cómo va la gestión, y los datos para sacarlos a Excel.',
     icono: 'indicadores',
     pantallas: [
-      { ruta: '/dashboard', texto: 'Dashboard', puede: con('dashboard.read') },
-      { ruta: '/exportar', texto: 'Exportar', puede: con('dashboard.read') },
+      { ruta: '/dashboard', texto: 'Dashboard', nota: 'Indicadores de gestión', puede: con('dashboard.read') },
+      { ruta: '/exportar', texto: 'Exportar', nota: 'Bajar los datos a Excel', puede: con('dashboard.read') },
     ],
   },
   /* No es un oficio: la cuenta de cada uno y la administración. Último a
      propósito. «Mi cuenta» y «Avisos» los ve cualquiera. */
   {
     titulo: 'Ajustes',
+    descripcion: 'Tu cuenta y la administración del sistema.',
     icono: 'usuarios',
     pantallas: [
-      { ruta: '/mi-cuenta', texto: 'Mi cuenta' },
-      { ruta: '/avisos', texto: 'Avisos' },
-      { ruta: '/users', texto: 'Usuarios', puede: con('user.manage') },
-      { ruta: '/sesiones', texto: 'Sesiones', puede: con('user.manage') },
-      { ruta: '/roles', texto: 'Roles', puede: con('role.manage') },
-      { ruta: '/equipos', texto: 'Equipos conocidos', puede: con('user.manage') },
-      { ruta: '/audit', texto: 'Auditoría', puede: con('audit.read') },
-      { ruta: '/limpieza', texto: 'Limpieza', puede: con('asset.delete') },
+      { ruta: '/mi-cuenta', texto: 'Mi cuenta', nota: 'Tus datos y contraseña' },
+      { ruta: '/avisos', texto: 'Avisos', nota: 'Lo que el sistema te avisa' },
+      { ruta: '/users', texto: 'Usuarios', nota: 'Altas, roles y trenes', puede: con('user.manage') },
+      { ruta: '/sesiones', texto: 'Sesiones', nota: 'Quién está conectado', puede: con('user.manage') },
+      { ruta: '/roles', texto: 'Roles', nota: 'Qué puede hacer cada rol', puede: con('role.manage') },
+      { ruta: '/equipos', texto: 'Equipos conocidos', nota: 'PCs y aparatos reconocidos', puede: con('user.manage') },
+      { ruta: '/audit', texto: 'Auditoría', nota: 'Quién hizo qué y cuándo', puede: con('audit.read') },
+      { ruta: '/limpieza', texto: 'Limpieza', nota: 'Purgar datos de prueba', puede: con('asset.delete') },
     ],
   },
 ];
@@ -222,4 +237,44 @@ export function inicioPara(can: Can, user: Usuario | null | undefined): string {
     if (v.length) return v[0].ruta;
   }
   return '/mi-cuenta';
+}
+
+/**
+ * ¿PUEDE ESTA PERSONA ABRIR ESTA RUTA? — bloque 171.
+ *
+ * El barrido por roles lo enseñó: si alguien llega a una pantalla que no está
+ * en su menú (un enlace viejo, un marcador, una URL pasada por WhatsApp), la
+ * pantalla se cargaba igual, pedía datos, recibía cuatro 403 y salía vacía con
+ * el aviso «no tienes permiso». Parece que el sistema está roto.
+ *
+ * La regla sale de la MISMA tabla que pinta el menú, así que no puede
+ * contradecirlo:
+ *   · ruta de un módulo → la puede abrir si el menú se la enseña;
+ *   · pestaña de una pantalla (Preventivo dentro de Órdenes) → si puede ver la
+ *     pantalla madre y tiene el permiso de la pestaña;
+ *   · cualquier otra (QR, Mi cuenta, Todos los módulos, rutas exentas) → sí:
+ *     cada una se protege a sí misma.
+ *
+ * NO es la seguridad —el servidor ya dice que no—: es que la persona entienda
+ * qué pasa en vez de ver una pantalla vacía.
+ */
+/* Rutas fuera del menú que siguen vivas (ver EXENTAS en verificar-menu): se
+   llega por enlaces viejos. Con su permiso escrito para no cargarlas a ciegas. */
+const SUELTAS: Record<string, Puede> = {
+  '/predictive': con('wo.read'),
+  '/campanas': con('asset.read'),
+  '/trains': con('dashboard.read'),
+  '/paradas': alguno('wo.read', 'om.mirar'),
+};
+
+export function puedeAbrir(ruta: string, can: Can, user: Usuario | null | undefined): boolean {
+  const madre = padreDe(ruta);
+  if (madre) {
+    const p = pestanasDe(ruta).find((x) => x.ruta === ruta);
+    if (p?.permiso && !can(p.permiso)) return false;
+    return puedeAbrir(madre, can, user);
+  }
+  const m = MODULOS.find((x) => x.pantallas.some((p) => p.ruta === ruta));
+  if (!m) return SUELTAS[ruta] ? SUELTAS[ruta](can, user) : true;
+  return pantallasVisibles(m, can, user).some((p) => p.ruta === ruta);
 }

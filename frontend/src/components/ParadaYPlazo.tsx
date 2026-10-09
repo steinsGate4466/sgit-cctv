@@ -46,6 +46,15 @@ export default function ParadaYPlazo({ wo, onClose, onHecho }: {
   const [hora, setHora] = useState(ahoraLocal());
   const [nuevaFecha, setNuevaFecha] = useState('');
   const [motivo, setMotivo] = useState('');
+  /* Bloque 168: el motivo de la prórroga sale del catálogo (MOTIVO_AVANCE),
+     con detalle opcional. Escrito a mano no se podía contar qué retrasa. */
+  const [motivoCodigo, setMotivoCodigo] = useState('');
+  const [motivos, setMotivos] = useState<any[]>([]);
+  useEffect(() => {
+    let vivo = true;
+    api.get('/catalogos/MOTIVO_AVANCE').then((r) => { if (vivo) setMotivos(r.data?.items || []); }).catch(() => { if (vivo) setMotivos([]); });
+    return () => { vivo = false; };
+  }, []);
   const [ocupado, setOcupado] = useState(false);
 
   const viva = orden.status !== 'CERRADA' && orden.status !== 'CANCELADA';
@@ -75,9 +84,9 @@ export default function ParadaYPlazo({ wo, onClose, onHecho }: {
     try {
       await api.post(`/work-orders/${wo.id}/prorrogas`, {
         fechaPedida: new Date(nuevaFecha + 'T08:00:00').toISOString(),
-        motivo,
+        motivo: [motivos.find((m) => m.code === motivoCodigo)?.name, motivo.trim()].filter(Boolean).join(': '),
       });
-      setNuevaFecha(''); setMotivo('');
+      setNuevaFecha(''); setMotivo(''); setMotivoCodigo('');
       await cargar(); onHecho();
     } catch (e) { await avisar(errorDe(e, 'No se pudo pedir la prórroga.')); }
     finally { setOcupado(false); }
@@ -160,8 +169,16 @@ export default function ParadaYPlazo({ wo, onClose, onHecho }: {
           <label>Nueva fecha
             <input type="date" required value={nuevaFecha} onChange={(e) => setNuevaFecha(e.target.value)} />
           </label>
-          <label>Motivo
-            <input required minLength={5} maxLength={500} value={motivo}
+          {motivos.length > 0 && (
+            <label>Motivo
+              <select required value={motivoCodigo} onChange={(e) => setMotivoCodigo(e.target.value)}>
+                <option value="">{'— elige —'}</option>
+                {motivos.map((m) => <option key={m.code} value={m.code}>{m.name}</option>)}
+              </select>
+            </label>
+          )}
+          <label>{motivos.length ? 'Detalle (opcional)' : 'Motivo'}
+            <input required={!motivos.length} minLength={motivos.length ? 0 : 5} maxLength={500} value={motivo}
               placeholder="Ej.: falta el manlift hasta el jueves"
               onChange={(e) => setMotivo(e.target.value)} />
           </label>

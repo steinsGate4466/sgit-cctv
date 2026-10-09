@@ -11,6 +11,7 @@ import { mensajeDeError } from '../avisos';
 import { useAuth } from '../auth/AuthContext';
 import { fechaTabla } from '../fechas';
 import OrigenDelReparto from '../components/OrigenDelReparto';
+import { OpcionesDeTren, useTrenes } from '../ubicaciones';
 
 /**
  * INDICADORES DE GESTIÓN
@@ -232,6 +233,8 @@ function MetaDelReparto({ meta, editando, onEditar, onCerrar, onGuardada }: any)
 }
 
 export default function Indicadores() {
+  /* Bloque 172 · los trenes del árbol, no T1-T3 escritos a mano (faltaban Grúas y Oficinas). */
+  const trenesDelArbol = useTrenes();
   const nav = useNavigate();
   const { avisar } = useDialogos();
   const [dias, setDias] = useState(90);
@@ -340,7 +343,7 @@ export default function Indicadores() {
         <div><label>Tren
             <select value={tren} onChange={(e) => setTren(e.target.value)}>
             <option value="">Toda la planta</option>
-            {['T1', 'T2', 'T3'].map((x) => <option key={x} value={x}>{x}</option>)}
+            <OpcionesDeTren trenes={trenesDelArbol} />
           </select>
           </label></div>
         {/* DESCARGA EN EXCEL — bloque 84.

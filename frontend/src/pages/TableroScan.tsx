@@ -70,9 +70,14 @@ export default function TableroScan() {
       .catch((e) => {
         if (!vivo) return;
         setFallo(
+          /* Bloque 171 · un 403 no es «sin señal»: es que este rol no puede
+             ver tableros. Decir «comprueba la señal» manda a buscar cobertura
+             a quien en realidad necesita un permiso. */
           e?.response?.status === 404
-            ? 'Este tablero ya no existe en el sistema.'
-            : 'No se pudo cargar. Comprueba la señal y vuelve a intentarlo.',
+            ? 'Este tablero no existe en el sistema, o no es de tu tren.'
+            : e?.response?.status === 403
+              ? 'Tu rol no puede ver la ficha de este tablero. Si la necesitas, pídeselo al Jefe de Mantenimiento.'
+              : 'No se pudo cargar. Comprueba la señal y vuelve a intentarlo.',
         );
       })
       .finally(() => { if (vivo) setCargando(false); });

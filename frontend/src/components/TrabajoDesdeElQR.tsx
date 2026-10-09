@@ -43,7 +43,7 @@
    3. NO SE PIDE CONFIRMACIÓN. Un parte de avance es reversible: se anota otro
       encima. Los diálogos se guardan para lo irreversible (bloque 15).
 ============================================================================= */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import Icono from './Iconos';
@@ -65,7 +65,7 @@ const PASOS: Paso[] = [
   { pct: 25, etiqueta: 'Empecé' },
   { pct: 60, etiqueta: 'Voy a medias' },
   { pct: 100, etiqueta: 'Ya está terminado' },
-  { pct: 0, etiqueta: 'No pude — falta material', exigeNota: true },
+  { pct: 0, etiqueta: 'No pude — elige qué faltó', exigeNota: true },
 ];
 
 export default function TrabajoDesdeElQR({
@@ -80,6 +80,16 @@ export default function TrabajoDesdeElQR({
   const { can } = useAuth();
   const [abierto, setAbierto] = useState<string | null>(null);
   const [nota, setNota] = useState('');
+  /* Bloque 168: «no pude» se dice con el catálogo de motivos (manlift,
+     material, parada, permiso…), no con texto libre: así se puede contar
+     qué frena el trabajo. La nota queda para el detalle. */
+  const [motivo, setMotivo] = useState('');
+  const [motivos, setMotivos] = useState<any[]>([]);
+  useEffect(() => {
+    let vivo = true;
+    api.get('/catalogos/MOTIVO_AVANCE').then((r) => { if (vivo) setMotivos(r.data?.items || []); }).catch(() => { if (vivo) setMotivos([]); });
+    return () => { vivo = false; };
+  }, []);
   const [guardando, setGuardando] = useState(false);
   const [hecho, setHecho] = useState<{ code: string; termino: boolean } | null>(null);
   const [error, setError] = useState('');
@@ -90,8 +100,8 @@ export default function TrabajoDesdeElQR({
   if (!ordenes.length) return null;
 
   async function anotar(orden: any, paso: Paso) {
-    if (paso.exigeNota && !nota.trim()) {
-      setError('Indica qué falta para continuar.');
+    if (paso.exigeNota && !motivo && !nota.trim()) {
+      setError(motivos.length ? 'Elige qué faltó para continuar.' : 'Indica qué falta para continuar.');
       return;
     }
     setError('');
@@ -99,8 +109,10 @@ export default function TrabajoDesdeElQR({
     try {
       await api.post(`/work-orders/${orden.id}/progress`, {
         pct: paso.pct,
+        reasonCode: motivo || undefined,
         note: nota.trim() || undefined,
       });
+      setMotivo('');
       setHecho({ code: orden.code, termino: paso.pct === 100 });
       setNota('');
       setAbierto(null);
@@ -152,6 +164,15 @@ export default function TrabajoDesdeElQR({
               {/* La etiqueta ENVUELVE al campo: así tocar el texto enfoca el
                   cuadro. Con guantes, en un móvil, ese margen de acierto de
                   más es la diferencia entre escribir la nota y no escribirla. */}
+              {motivos.length > 0 && (
+                <label className="qr-nota-lab">
+                  <span>{'Si no pudiste: ¿qué faltó?'}</span>
+                  <select value={motivo} onChange={(e) => setMotivo(e.target.value)}>
+                    <option value="">{'—'}</option>
+                    {motivos.map((m) => <option key={m.code} value={m.code}>{m.name}</option>)}
+                  </select>
+                </label>
+              )}
               <label className="qr-nota-lab">
                 <span>Nota</span>
                 <textarea

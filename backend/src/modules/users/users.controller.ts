@@ -39,6 +39,13 @@ export class UsersController {
     return this.users.findAll();
   }
 
+  /** Bloque 172 · los que pueden ejecutar una orden (para asignar y acompañar). */
+  @Get('ejecutores')
+  @RequireAlguno('wo.create', 'wo.update', 'wo.approve', 'asset.update', 'user.manage')
+  ejecutores() {
+    return this.users.ejecutores();
+  }
+
   // ==========================================================================
   //  PIN DE CAMPO — rutas SIN @RequirePermissions a propósito.
   //

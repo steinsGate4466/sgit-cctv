@@ -299,6 +299,7 @@ export default function Cableado() {
             <SelectorDeActivo
               etiqueta="Desde (equipo de origen)"
               opciones={opciones}
+              excluir={[]}
               valor={form.fromAssetId}
               onChange={(id) => setForm({ ...form, fromAssetId: id })}
               vacio="— sin definir —"
@@ -312,6 +313,7 @@ export default function Cableado() {
             <SelectorDeActivo
               etiqueta="Hasta (equipo de destino)"
               opciones={opciones}
+              excluir={[]}
               valor={form.toAssetId}
               onChange={(id) => setForm({ ...form, toAssetId: id })}
               vacio="— sin definir —"

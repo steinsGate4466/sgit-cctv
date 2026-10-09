@@ -4,6 +4,7 @@ import { DashboardController } from './dashboard.controller';
 import { InfraService } from './infra.service';
 import { InfraController } from './infra.controller';
 import { BandejaService } from './bandeja.service';
+import { ContadoresService } from './contadores.service';
 import { CamarasCaidasService } from './camaras-caidas.service';
 import { CamarasCaidasController } from './camaras-caidas.controller';
 import { ActivosPorTrenService } from './activos-por-tren.service';
@@ -31,7 +32,7 @@ import { CriticidadModule } from '../criticidad/criticidad.module';
   // queda tranquilo—, lo da al levantar. Por eso hay ahora una prueba que
   // compila el módulo de verdad: dashboard.module.spec.ts.
   providers: [
-    DashboardService, InfraService, BandejaService,
+    DashboardService, InfraService, BandejaService, ContadoresService,
     CamarasCaidasService, ActivosPorTrenService,
   ],
   exports: [InfraService],

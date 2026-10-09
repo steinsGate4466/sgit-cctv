@@ -1,4 +1,13 @@
 import { useEffect, useState, FormEvent } from 'react';
+import ElegirConClics from './ElegirConClics';
+import { paraInput } from '../fechas';
+
+/** Bloque 169 · por qué el técnico cambia el equipo de la orden. */
+const MOTIVOS_ALCANCE = [
+  'El equipo pedido está bien; la falla está en otro equipo',
+  'La orden tenía el equipo equivocado',
+  'Se amplía a otro equipo del mismo tramo',
+];
 import SelectorDeActivo from './SelectorDeActivo';
 import { api } from '../api/client';
 import Modal from './Modal';
@@ -22,9 +31,18 @@ export default function DetallarOm({ wo, onHecho, onClose }: {
     assetId: wo.assetId || '',
     activity: wo.activity || '',
     plannedDurationMin: wo.plannedDurationMin ?? '',
-    plannedStopAt: '',
+    // Bloque 169: si ya tenía parada estimada, se conserva (antes se vaciaba).
+    plannedStopAt: wo.plannedStopAt ? paraInput(wo.plannedStopAt) : '',
     scopeNote: '',
   });
+  /* Bloque 169 · qué se va a hacer, del catálogo de trabajos; por qué cambia
+     el equipo, de una lista. El texto queda para el detalle. */
+  const [trabajos, setTrabajos] = useState<any[]>([]);
+  useEffect(() => {
+    let vivo = true;
+    api.get('/catalogos/TRABAJO_OM').then((r) => { if (vivo) setTrabajos(r.data?.items || []); }).catch(() => { if (vivo) setTrabajos([]); });
+    return () => { vivo = false; };
+  }, []);
   const [activos, setActivos] = useState<any[]>([]);
   const [tipica, setTipica] = useState<any>(null);
   const [guardando, setGuardando] = useState(false);
@@ -92,14 +110,23 @@ export default function DetallarOm({ wo, onHecho, onClose }: {
             <div className="muted" style={{ fontSize: 11, margin: '4px 0 8px' }}>
               Explica por qué, para que el ingeniero pueda comparar lo pedido con lo hecho.
             </div>
-            <label>Motivo
-              <input value={form.scopeNote} required
-              onChange={(e) => setForm({ ...form, scopeNote: e.target.value })}
-              placeholder="ej. la cámara está bien; el que no da enlace es el switch del rack 3" />
-            </label>
+            <ElegirConClics etiqueta="Motivo" valor={MOTIVOS_ALCANCE.includes(form.scopeNote) ? [form.scopeNote] : []}
+              opciones={MOTIVOS_ALCANCE.map((m) => ({ valor: m, texto: m }))}
+              onChange={(v) => setForm({ ...form, scopeNote: v[0] || '' })} />
           </div>
         )}
 
+        {trabajos.some((t) => !t.group || t.group === wo.type) && (
+          <label>{'Trabajo'}
+            <select value="" onChange={(e) => {
+              const t = trabajos.find((x) => x.code === e.target.value);
+              if (t) setForm({ ...form, activity: t.notes || t.name });
+            }}>
+              <option value="">{'— elige del catálogo para llenar lo que se va a hacer —'}</option>
+              {trabajos.filter((t) => !t.group || t.group === wo.type).map((t) => <option key={t.code} value={t.code}>{t.name}</option>)}
+            </select>
+          </label>
+        )}
         <label>Qué se va a hacer
           <textarea rows={2} value={form.activity}
           onChange={(e) => setForm({ ...form, activity: e.target.value })} />

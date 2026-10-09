@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Headers, Ip, Post } from '@nestjs/common';
 import { UseGuards } from '@nestjs/common';
 import { FrenoGuard, Freno } from '../../common/guards/freno.guard';
-import { CUPO_LOGIN } from '../../common/freno';
+import { CUPO_LOGIN, CUPO_RENOVAR } from '../../common/freno';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -26,7 +26,7 @@ export class AuthController {
   }
 
   @Public()
-  @Freno(CUPO_LOGIN)
+  @Freno(CUPO_RENOVAR) // bloque 170: NO el del login — ver CUPO_RENOVAR
   @Post('refresh')
   refresh(@Body() dto: RefreshDto, @Ip() ip: string, @Headers('user-agent') ua: string) {
     return this.auth.refresh(dto.refreshToken, ip, ua);

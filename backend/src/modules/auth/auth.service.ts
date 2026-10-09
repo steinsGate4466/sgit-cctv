@@ -20,6 +20,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { normalizarIp, resumirAgente } from '../../common/origen';
 import { AuditService } from '../audit/audit.service';
 import { LoginDto } from './dto/login.dto';
+import { esRotacionConcurrente } from './rotacion';
 
 /**
  * AuthService — autenticación y emisión de tokens JWT.
@@ -185,7 +186,10 @@ export class AuthService {
       throw new UnauthorizedException('Esta sesión ya no existe. Vuelve a iniciar sesión.');
     }
 
-    if (sesion?.revocadaEn) {
+    // Bloque 170: la otra petición del mismo lote, no un robo. Ver rotacion.ts.
+    const concurrente = esRotacionConcurrente(sesion);
+
+    if (sesion?.revocadaEn && !concurrente) {
       // REUTILIZACIÓN DE UN TOKEN YA ROTADO.
       //
       // Cada refresh revoca el anterior. Si llega uno revocado, hay dos
@@ -214,7 +218,7 @@ export class AuthService {
 
     // ROTACIÓN: el token que se acaba de usar deja de valer. Es lo que
     // permite detectar el robo en el párrafo de arriba.
-    if (sesion) {
+    if (sesion && !concurrente) {
       await this.prisma.sesion.update({
         where: { id: sesion.id },
         data: { revocadaEn: new Date(), motivoRevocacion: 'rotado', ultimoUsoEn: new Date() },

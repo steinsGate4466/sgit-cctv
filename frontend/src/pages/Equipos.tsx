@@ -345,9 +345,7 @@ function DispositivosPanel({ disp, acceso, msg, error, setMsg, setError, decidir
           <b>Por MAC no se puede.</b> La MAC no llega al servidor. El filtrado por MAC se hace <b>en el switch</b>
           {' '}(802.1X o port-security), no en una web.
           <div style={{ marginTop: 6 }}>
-            <b>Por IP, sólo a medias.</b> Sirve para la red de planta, que sale por una
-            IP fija. No sirve para los técnicos con datos móviles: el operador les
-            cambia la IP todo el rato.
+            <b>Por IP, sólo a medias.</b> Vale para la red de planta (IP fija), no para datos móviles.
           </div>
           <div style={{ marginTop: 6 }}>
             <b>Por APARATO, sí.</b> Cada navegador trae un identificador estable. Se aprueba una vez.

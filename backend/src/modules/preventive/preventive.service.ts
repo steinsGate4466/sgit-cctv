@@ -119,10 +119,22 @@ export class PreventiveService {
     const asset = await this.prisma.asset.findUnique({ where: { id: dto.assetId } });
     if (!asset || asset.deletedAt) throw new NotFoundException('Activo no encontrado');
 
-    const interval = dto.intervalDays && dto.intervalDays > 0
-      ? dto.intervalDays
-      : (dto.zoneCritical ? 30 : 60);
-    const last = dto.lastServiceAt ? new Date(dto.lastServiceAt) : null;
+    /* Bloque 168: lo que el sistema ya sabe no se teclea. Sin intervalo, el
+       del AMBIENTE de su etapa (bloque 24); sin «último mantenimiento», el
+       último preventivo CERRADO de ese equipo. */
+    let interval = dto.intervalDays && dto.intervalDays > 0 ? dto.intervalDays : 0;
+    if (!interval) {
+      const ctx = await resolverContextoDePlanta(this.prisma, [{ id: asset.id, locationId: asset.locationId, criticality: asset.criticality }]).catch(() => ({} as any));
+      interval = dto.zoneCritical ? 30 : ((ctx as any)?.[asset.id]?.intervaloDias ?? 60);
+    }
+    let last = dto.lastServiceAt ? new Date(dto.lastServiceAt) : null;
+    if (!last) {
+      const ultimo = await this.prisma.workOrder.findFirst({
+        where: { assetId: asset.id, type: 'PREVENTIVO', status: 'CERRADA' },
+        orderBy: { executedDate: 'desc' }, select: { executedDate: true, endedAt: true },
+      });
+      last = ultimo?.endedAt ?? ultimo?.executedDate ?? null;
+    }
     const base = last || new Date();
     const nextDueAt = this.addDays(base, interval);
 
