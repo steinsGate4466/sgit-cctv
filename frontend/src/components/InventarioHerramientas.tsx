@@ -119,7 +119,7 @@ export default function InventarioHerramientas() {
               {faltantes.slice(0, 8).map((f) => (
                 <tr key={f.toolId}>
                   <td style={{ fontWeight: 600 }}>{f.name}</td>
-                  <td>{f.vecesFaltó}</td>
+                  <td>{f.vecesFalto}</td>
                   <td>{f.vecesRevisada}</td>
                   <td style={{ fontWeight: 700 }}>{f.porcentaje}%</td>
                 </tr>

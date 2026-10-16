@@ -157,7 +157,7 @@ export default function Dashboard() {
           label="Cámaras sin servicio" value={kpis?.camerasDown ?? 0}
           cls={kpis?.camerasDown ? 'crit' : 'ok'}
           hint="Fuera de servicio, con incidencia o en mantenimiento"
-          ir={() => nav('/assets?status=FUERA_SERVICIO')}
+          ir={() => nav('/assets?tipo=CAMERA&status=FUERA_SERVICIO')}
         />
         <Kpi
           label="Incidencias abiertas" value={kpis?.openIncidents ?? 0}

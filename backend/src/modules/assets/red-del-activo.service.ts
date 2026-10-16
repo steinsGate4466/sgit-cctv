@@ -65,11 +65,33 @@ export class RedDelActivoService {
     });
     if (!a || a.deletedAt) throw new NotFoundException('Activo no encontrado');
 
+    /* Bloque 173 · DÓNDE ESTÁ ENCHUFADO. Es lo primero que pregunta quien
+       está delante del equipo, y vivía sólo en Conexiones. Se lee del puerto
+       (la única puerta donde se escribe) y se enseña aquí, sin poder editarlo. */
+    const puerto = await this.prisma.switchPort.findFirst({
+      where: { connectedAssetId: a.id },
+      select: {
+        portNumber: true, poe: true, vlanNumber: true, switchId: true,
+        switchAsset: { select: { assetCode: true, referencePlace: true } },
+      },
+    });
+    const enchufado = puerto
+      ? {
+          switchId: puerto.switchId,
+          switchCode: puerto.switchAsset?.assetCode ?? null,
+          switchLugar: puerto.switchAsset?.referencePlace ?? null,
+          puerto: puerto.portNumber,
+          poe: puerto.poe,
+          vlan: puerto.vlanNumber,
+        }
+      : null;
+
     const { ip, campo } = this.ipDe(a);
     if (!ip) {
       return {
         assetCode: a.assetCode,
         ip: null,
+        enchufado,
         motivo: 'Este equipo no tiene dirección IP registrada.',
       };
     }
@@ -99,6 +121,7 @@ export class RedDelActivoService {
         assetCode: a.assetCode,
         ip,
         campo,
+        enchufado,
         subred: null,
         /* NI UNA MÁSCARA SUPUESTA. Ver el comentario de cabecera. */
         motivo: 'Esta IP no cae en ninguna subred declarada, así que no se puede '
@@ -114,6 +137,12 @@ export class RedDelActivoService {
       assetCode: a.assetCode,
       ip,
       campo,
+      enchufado,
+      /* Bloque 173 · LA VLAN DEL PUERTO contra la de la subred de su IP. Es el
+         fallo clásico de capa 2: el puerto está en la VLAN 20 y la cámara tiene
+         una IP de la red de la VLAN 10. El enlace sube, el led parpadea, y la
+         cámara no llega nunca a su gateway. Se dice con el equipo delante. */
+      vlanDelPuertoNoCuadra: !!(enchufado?.vlan != null && suya.vlan != null && enchufado.vlan !== suya.vlan),
       subred: {
         id: suya.id,
         cidr: suya.cidr,

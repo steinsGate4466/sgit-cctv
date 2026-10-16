@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ConexionesService } from './conexiones.service';
 import { NetworkService } from './network.service';
@@ -8,7 +8,7 @@ import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions, RequireAlguno } from '../../common/decorators/permissions.decorator';
 import { SinAmbito } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { GuardarPuertoDto, CrearEnlaceDto } from './dto/conexiones.dto';
+import { GuardarPuertoDto, CrearEnlaceDto, DeclararPuertosDto } from './dto/conexiones.dto';
 
 @ApiTags('conexiones')
 @ApiBearerAuth()
@@ -71,21 +71,32 @@ export class ConexionesController {
 
   @Get('candidatos')
   @RequirePermissions('red.read')
-  candidatos(@Query('q') q?: string) {
-    return this.conexiones.candidatos(q);
+  candidatos(@CurrentUser() user: any, @Query('q') q?: string, @Query('switchId') switchId?: string) {
+    return this.conexiones.candidatos(q, switchId || null, user?.userId);
   }
 
+  /* Bloque 173 · el ámbito del switch se comprueba en el servicio: el id
+     viaja en el cuerpo y el guard no lo ve. Antes no se comprobaba. */
   @Post('puertos')
   @RequirePermissions('asset.update')
-  guardarPuerto(@Body() dto: GuardarPuertoDto) {
-    return this.conexiones.guardarPuerto(dto);
+  guardarPuerto(@Body() dto: GuardarPuertoDto, @CurrentUser() user: any) {
+    return this.conexiones.guardarPuerto(dto, user?.userId);
   }
 
   @SinAmbito()  // conexiones: el ámbito se aplica en el servicio
   @Delete('puertos/:id')
   @RequirePermissions('asset.update')
-  vaciarPuerto(@Param('id') id: string) {
-    return this.conexiones.vaciarPuerto(id);
+  vaciarPuerto(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.conexiones.vaciarPuerto(id, user?.userId);
+  }
+
+  /* Bloque 173 · cuántos puertos tiene (y cuántos PoE), desde la misma
+     pantalla donde hace falta para dibujar la rejilla. */
+  @SinAmbito()  // conexiones: el ámbito se aplica en el servicio (404 si no es suyo)
+  @Patch('switches/:id/puertos')
+  @RequirePermissions('asset.update')
+  declararPuertos(@Param('id') id: string, @Body() dto: DeclararPuertosDto, @CurrentUser() user: any) {
+    return this.conexiones.declararPuertos(id, dto, user?.userId);
   }
 
   /**

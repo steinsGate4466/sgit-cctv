@@ -121,14 +121,29 @@ export default function LienzoPlano({
     }
     const a = arrastre.current;
     if (!a) return;
+    /* Bloque 173 · si el botón ya no está pulsado (se soltó FUERA del plano y
+       el navegador no avisó), el arrastre se termina aquí: antes el plano se
+       quedaba «pegado» al ratón y se movía solo. */
+    if (ev.pointerType === 'mouse' && ev.buttons === 0) { arrastre.current = null; return; }
     const dx = ev.clientX - a.cx, dy = ev.clientY - a.cy;
-    if (!a.movio && Math.abs(dx) + Math.abs(dy) > 4) a.movio = true;
+    /* Con el dedo, un toque siempre se mueve unos píxeles: con el umbral de
+       4 px un toque sobre un punto se leía como arrastre. */
+    const umbral = ev.pointerType === 'mouse' ? 4 : 10;
+    if (!a.movio && Math.abs(dx) + Math.abs(dy) > umbral) {
+      a.movio = true;
+      /* Capturar el puntero SÓLO al empezar a arrastrar: así el «soltar» llega
+         aunque sea fuera del plano, y un clic sin arrastre sigue llegando al
+         punto que se tocó (con la captura puesta desde el principio, el clic
+         se lo quedaría el lienzo). */
+      try { svg.current?.setPointerCapture(ev.pointerId); } catch { /* sin captura: el `buttons` de arriba lo cubre */ }
+    }
     if (a.movio) {
       const k = vb.w / (svg.current?.clientWidth || anchoPantalla);
       setVb((v) => ({ ...v, x: a.vx - dx * k, y: a.vy - dy * k }));
     }
   }
   function arriba(ev: React.PointerEvent) {
+    try { if (svg.current?.hasPointerCapture(ev.pointerId)) svg.current.releasePointerCapture(ev.pointerId); } catch { /* nada */ }
     dedos.current.delete(ev.pointerId);
     if (dedos.current.size < 2) pellizco.current = null;
     const a = arrastre.current;
@@ -154,7 +169,12 @@ export default function LienzoPlano({
   }
 
   return (
-    <div className="lienzo-plano" ref={caja} style={{ height: alto }}>
+    /* Bloque 173 · el alto sigue la FORMA del plano: un tren es largo y bajo
+       (360 × 160 m) y con 70 % de la pantalla quedaban dos franjas negras
+       enormes arriba y abajo, y el plano se veía pequeño. Nunca más alto que
+       `alto`, nunca menos de 320 px (230 en el celular). */
+    <div className="lienzo-plano" ref={caja}
+      style={{ height: `min(${alto}, ${Math.max(anchoPantalla < 600 ? 230 : 320, Math.round(anchoPantalla * (ENTERA.h / ENTERA.w)) + 8)}px)` }}>
       <svg
         ref={svg}
         viewBox={`${vb.x} ${vb.y} ${vb.w} ${vb.h}`}

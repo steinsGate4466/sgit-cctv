@@ -57,7 +57,8 @@ export default function Marcador({
   escala: number;
   seleccionado?: boolean;
   conEtiqueta?: boolean;
-  onPulsar?: () => void;
+  /** x, y: dónde se tocó, en píxeles del plano (sin ellos, p. ej. con teclado, no se pasan). */
+  onPulsar?: (x?: number, y?: number) => void;
 }) {
   const clase = 'marcador punto-' + e.estado + (seleccionado ? ' sel' : '');
   const icono = iconoDe(e);
@@ -66,7 +67,18 @@ export default function Marcador({
     <g
       className={clase}
       transform={`translate(${e.xPx} ${e.yPx}) scale(${escala})`}
-      onClick={(ev) => { ev.stopPropagation(); onPulsar?.(); }}
+      onClick={(ev) => {
+        ev.stopPropagation();
+        /* Bloque 173 · se pasa DÓNDE se tocó: si cae dentro de dos discos a la
+           vez, el mapa pregunta cuál en vez de abrir el de arriba. */
+        const svg = (ev.currentTarget as SVGGElement).ownerSVGElement;
+        const m = svg?.getScreenCTM();
+        if (svg && m) {
+          const p = svg.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY;
+          const r = p.matrixTransform(m.inverse());
+          onPulsar?.(r.x, r.y);
+        } else onPulsar?.();
+      }}
       onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); onPulsar?.(); } }}
       tabIndex={0}
       role="button"

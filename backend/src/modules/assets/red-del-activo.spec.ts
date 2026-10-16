@@ -8,10 +8,11 @@ const SUBREDES = [
     dns1: '10.20.0.10', dns2: null, dhcpDesde: '10.20.4.200', dhcpHasta: '10.20.4.250', tren: 'T2' },
 ];
 
-function montar(asset: any, subredes: any[] = SUBREDES) {
+function montar(asset: any, subredes: any[] = SUBREDES, puerto: any = null) {
   const prisma: any = {
     asset: { findUnique: jest.fn().mockResolvedValue(asset) },
     subred: { findMany: jest.fn().mockResolvedValue(subredes) },
+    switchPort: { findFirst: jest.fn().mockResolvedValue(puerto) },
   };
   return new RedDelActivoService(prisma);
 }
@@ -97,5 +98,17 @@ describe('red del activo', () => {
     await srv.del('A1');
     const prisma: any = (srv as any).prisma;
     expect(prisma.subred.findMany.mock.calls[0][0].where).toEqual({ activa: true });
+  });
+
+  /* Bloque 173 · dónde está enchufado, y la VLAN del puerto contra la de su IP. */
+  it('dice en qué switch y puerto está, y avisa si la VLAN del puerto no es la de su subred', async () => {
+    const puerto = { portNumber: 5, poe: true, vlanNumber: 20, switchId: 'SW', switchAsset: { assetCode: 'SW-T2', referencePlace: 'Sala' } };
+    const r: any = await montar(camara('10.20.4.33'), SUBREDES, puerto).del('A1');
+    expect(r.enchufado).toEqual(expect.objectContaining({ switchCode: 'SW-T2', puerto: 5, poe: true, vlan: 20 }));
+    expect(r.vlanDelPuertoNoCuadra).toBe(true);
+    const bien: any = await montar(camara('10.20.4.33'), SUBREDES, { ...puerto, vlanNumber: 40 }).del('A1');
+    expect(bien.vlanDelPuertoNoCuadra).toBe(false);
+    const sinIp: any = await montar(camara(null), SUBREDES, puerto).del('A1');
+    expect(sinIp.enchufado?.puerto).toBe(5);
   });
 });

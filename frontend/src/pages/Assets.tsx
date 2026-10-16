@@ -8,7 +8,7 @@ import AccessRequestForm, { MEANS_ES, STATUS_ES as ACC_STATUS_ES, STATUS_BADGE a
 import { TIPOS_ACTIVO, TIPOS_DE_EQUIPO, VA_EN_GABINETE, VA_EN_TABLERO } from '../tipos-de-equipo';
 import { useAuth } from '../auth/AuthContext';
 import { useAutoOcultar } from '../auth/useInactivity';
-import AssetSpecFields, { FICHA_DE } from '../components/AssetSpecFields';
+import AssetSpecFields, { FICHA_DE, MODO_ANTENA, ROL_SWITCH } from '../components/AssetSpecFields';
 import AssetPhotoPicker, { FotoPendiente } from '../components/AssetPhotoPicker';
 import HistorialActivo from '../components/HistorialActivo';
 import AparatoInstalado from '../components/AparatoInstalado';
@@ -189,9 +189,16 @@ export default function Assets() {
   // Antes se filtraba en el navegador sobre la lista completa. Con paginación
   // eso sería un error silencioso: el filtro solo miraría la página visible y
   // el usuario creería que no hay más coincidencias.
-  const [fq, setFq] = useState('');
-  const [fType, setFType] = useState('');
-  const [fStatus, setFStatus] = useState('');
+  /* Bloque 173 · `?q=` / `?buscar=` (Equipos retirados, Indicadores) y
+     `?status=` (Dashboard: «Cámaras sin servicio»). Antes se ignoraban y el
+     enlace abría la lista entera, como si el botón no hiciera nada. */
+  const [fq, setFq] = useState(() => params.get('q') || params.get('buscar') || params.get('search') || '');
+  const [fType, setFType] = useState(() => params.get('tipo') || '');
+  const [fStatus, setFStatus] = useState(() => params.get('status') || '');
+  const qDeUrl = params.get('q') || params.get('buscar') || params.get('search') || '';
+  const estadoDeUrl = params.get('status') || '';
+  useEffect(() => { if (qDeUrl) setFq(qDeUrl); }, [qDeUrl]);
+  useEffect(() => { if (estadoDeUrl) setFStatus(estadoDeUrl); }, [estadoDeUrl]);
   const [ambito, setAmbito] = useState<Ambito>(AMBITO_VACIO);
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState<any>({ total: 0, page: 1, pageSize: 50, pages: 1 });
@@ -1204,7 +1211,7 @@ export default function Assets() {
             )}
           </>)}
           {fichaTab === 'red' && (<>
-            <RedDelActivo assetId={detail.id} />
+            <RedDelActivo assetId={detail.id} tipo={detail.type} />
             {/* ---- POR DÓNDE VIAJA LA IMAGEN (bloque 47) ----
                 Sólo en las cámaras, y sólo dentro de su ficha. Es la pregunta
                 que se hace el técnico delante del equipo: «¿y esto por dónde
@@ -1233,7 +1240,8 @@ export default function Assets() {
                 {detail.camera && (<>
                   <Frow k="IP" v={detail.camera.ipAddress} />
                   <Frow k="MAC" v={detail.camera.macAddress} />
-                  <Frow k="NVR asociado" v={detail.camera.nvrId} />
+                  {/* Bloque 173 · era el identificador interno (un UUID): se enseña el código. */}
+                  <Frow k="Grabador" v={opciones.find((o: any) => o.id === detail.camera.nvrId)?.assetCode ?? (detail.camera.nvrId ? 'asignado' : null)} />
                 </>)}
                 {detail.nvr && (<>
                   <Frow k="Canales" v={detail.nvr.channels} />
@@ -1243,10 +1251,10 @@ export default function Assets() {
                 {detail.switchDev && (<>
                   <Frow k="IP de gestión" v={detail.switchDev.mgmtIp} />
                   <Frow k="Fabricante" v={detail.switchDev.vendor} />
-                  <Frow k="Rol" v={detail.switchDev.switchRole} />
+                  <Frow k="Rol" v={ROL_SWITCH[detail.switchDev.switchRole] || detail.switchDev.switchRole} />
                 </>)}
                 {detail.wireless && (<>
-                  <Frow k="Modo" v={detail.wireless.mode} />
+                  <Frow k="Modo" v={MODO_ANTENA[detail.wireless.mode] || detail.wireless.mode} />
                   <Frow k="Frecuencia" v={detail.wireless.frequency} />
                   <Frow k="Origen → Destino" v={[detail.wireless.originPoint, detail.wireless.destPoint].filter(Boolean).join(' → ')} />
                 </>)}

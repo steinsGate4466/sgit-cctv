@@ -585,10 +585,10 @@ export class InventoryService {
         toolId: f.toolId,
         name: nombres.get(f.toolId)?.name || '—',
         category: nombres.get(f.toolId)?.category || null,
-        vecesFaltó: f._count._all,
+        vecesFalto: f._count._all,
         vecesRevisada: total.get(f.toolId) || f._count._all,
         porcentaje: Math.round((f._count._all / (total.get(f.toolId) || 1)) * 100),
       }))
-      .sort((a, b) => b.vecesFaltó - a.vecesFaltó);
+      .sort((a, b) => b.vecesFalto - a.vecesFalto);
   }
 }

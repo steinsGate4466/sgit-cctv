@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import Modal from '../components/Modal';
 import Icono from '../components/Iconos';
@@ -8,6 +9,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useDialogos } from '../components/Dialogos';
 import BotonConMotivo from '../components/BotonConMotivo';
 import { mensajeDeError, queFalta } from '../avisos';
+import { TarjetaSwitch } from '../components/SwitchYPuertos';
 
 /**
  * CONEXIONES DE RED (bloque 12.1).
@@ -30,7 +32,7 @@ const TIPO: Record<string, string> = {
   DECODER: 'Decodificador', PC: 'PC / iVMS', OTHER: 'Otro',
 };
 const MEDIO: Record<string, string> = {
-  FIBRA: 'Fibra', COBRE: 'Cobre', INALAMBRICO: 'Inalámbrico',
+  FIBRA: 'Fibra', COBRE: 'Cobre', INALAMBRICO: 'Radioenlace',
 };
 
 /** Bloque 172 · qué equipos pueden ser extremo según el medio del enlace. */
@@ -52,13 +54,11 @@ export default function Conexiones() {
   const [cargando, setCargando] = useState(true);
   const [fallo, setFallo] = useState('');
 
-  // Edición de un puerto
-  const [editando, setEditando] = useState<any>(null);
-  const [candidatos, setCandidatos] = useState<any[]>([]);
-  const [busca, setBusca] = useState('');
-  const [elegido, setElegido] = useState('');
-  const [poe, setPoe] = useState(false);
-  const [vlan, setVlan] = useState('');
+  /* Bloque 173 · `?switch=<id>` llega desde la ficha de un equipo («ver en
+     Conexiones»): se abre ese switch y se lleva la vista hasta él. */
+  const [params] = useSearchParams();
+  const switchPedido = params.get('switch');
+  const [buscaSw, setBuscaSw] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [errorModal, setErrorModal] = useState('');
 
@@ -89,48 +89,6 @@ export default function Conexiones() {
 
   useEffect(() => { setCargando(true); cargar().finally(() => setCargando(false)); }, [cargar]);
 
-  async function pedirCandidatos(q: string) {
-    try {
-      const r = await api.get('/conexiones/candidatos', { params: q ? { q } : {} });
-      setCandidatos(r.data || []);
-    } catch { setCandidatos([]); }
-  }
-
-  function abrirPuerto(sw: any, numero: number, puerto: any) {
-    setEditando({ sw, numero, puerto });
-    setElegido(puerto?.equipo?.id || '');
-    setPoe(!!puerto?.poe);
-    setVlan(puerto?.vlan ? String(puerto.vlan) : '');
-    setBusca('');
-    setErrorModal('');
-    pedirCandidatos('');
-  }
-
-  async function guardarPuerto() {
-    if (!editando) return;
-    setGuardando(true);
-    setErrorModal('');
-    try {
-      await api.post('/conexiones/puertos', {
-        switchId: editando.sw.id,
-        numero: editando.numero,
-        connectedAssetId: elegido || null,
-        poe,
-        vlan: vlan.trim() ? Number(vlan) : null,
-      });
-      setEditando(null);
-      await cargar();
-    } catch (e: any) {
-      setErrorModal(mensajeDeError(e, 'guardar'));
-    } finally { setGuardando(false); }
-  }
-
-  async function vaciar(puertoId: string, code: string) {
-    if (!(await confirmar(`¿Desenchufar ${code}?\n\nEl equipo NO se borra: sólo deja de estar en este puerto.`))) return;
-    try { await api.delete(`/conexiones/puertos/${puertoId}`); await cargar(); }
-    catch { await avisar('No se pudo desenchufar.'); }
-  }
-
   async function abrirNuevoEnlace() {
     setNuevoEnlace(true);
     setLadoA(''); setLadoB(''); setMedio('FIBRA'); setAnillo(false);
@@ -159,7 +117,7 @@ export default function Conexiones() {
   async function borrarEnlace(id: string, texto: string) {
     if (!(await confirmar(`¿Borrar el enlace ${texto}?`))) return;
     try { await api.delete(`/conexiones/enlaces/${id}`); await cargar(); }
-    catch { await avisar('No se pudo borrar.'); }
+    catch (e) { await avisar(mensajeDeError(e, 'borrar el enlace')); }
   }
 
   return (
@@ -198,69 +156,38 @@ export default function Conexiones() {
             <h3>No hay switches registrados</h3>
             <p>
               Da de alta los switches como activos de tipo <strong>SWITCH</strong> en
-              la pantalla de Activos, y anota en su ficha <strong>cuántos puertos</strong>{' '}
-              tienen. Entonces aparecerán aquí para ir enchufando equipos.
+              la pantalla de Activos. Aparecerán aquí para ir enchufando equipos.
             </p>
           </div>
         ) : (
-          switches.map((sw) => (
-            <div key={sw.id} className="card" style={{ marginBottom: 14 }}>
-              <div className="sw-cabecera">
-                <div>
-                  <strong>{sw.code}</strong>
-                  <span className={`chip est-${sw.estado}`} style={{ marginLeft: 8 }}>{sw.estado}</span>
-                  <div className="muted" style={{ fontSize: 12.5 }}>
-                    {sw.lugar || sw.modelo || '—'}{sw.tren ? ` · ${sw.tren}` : ''}
-                  </div>
-                </div>
-                <div className="sw-cifras">
-                  <div><b>{sw.ocupados}</b><span>ocupados</span></div>
-                  <div><b>{sw.capacidad ?? '—'}</b><span>puertos</span></div>
-                  <div className={sw.libres === 0 ? 'lleno' : ''}>
-                    <b>{sw.libres ?? '?'}</b><span>libres</span>
-                  </div>
-                </div>
-              </div>
-
-              {sw.capacidad == null && (
-                <div className="tg-aviso" style={{ marginTop: 8 }}>
-                  Falta el número de puertos del switch. Sin ese dato no se calculan los libres.
-                </div>
-              )}
-
-              <div className="rejilla-puertos">
-                {Array.from({ length: Math.max(sw.capacidad || 0, ...sw.puertos.map((p: any) => p.numero), 0) }, (_, i) => i + 1).map((n) => {
-                  const p = sw.puertos.find((x: any) => x.número === n);
-                  const eq = p?.equipo;
-                  return (
-                    <div
-                      key={n}
-                      className={`puerto ${eq ? 'ocupado' : 'libre'} ${eq ? `est-${eq.estado}` : ''}`}
-                      onClick={puedeEditar ? () => abrirPuerto(sw, n, p) : undefined}
-                      role={puedeEditar ? 'button' : undefined}
-                    >
-                      <div className="p-num">{n}{p?.poe && <span className="p-poe" title="Puerto con PoE">PoE</span>}</div>
-                      {eq ? (
-                        <>
-                          <div className="p-code">{eq.code}</div>
-                          <div className="p-tipo">{TIPO[eq.tipo] || eq.tipo}</div>
-                          {puedeEditar && (
-                            <button
-                              className="canal-quitar"
-                              title="Desenchufar"
-                              onClick={(e) => { e.stopPropagation(); vaciar(p.id, eq.code); }}
-                            >×</button>
-                          )}
-                        </>
-                      ) : (
-                        <div className="p-libre">{puedeEditar ? '+ enchufar' : 'libre'}</div>
-                      )}
-                    </div>
-                  );
-                })}
+          <>
+            <div className="sw-barra">
+              <label className="campo" style={{ flex: 1, minWidth: 200, margin: 0 }}>
+                <span>Buscar switch</span>
+                <input value={buscaSw} onChange={(e) => setBuscaSw(e.target.value)} placeholder="Código, modelo o sitio" />
+              </label>
+              <div className="sw-leyenda" aria-label="Leyenda">
+                <span><i className="ley libre" /> libre</span>
+                <span><i className="ley ocupado" /> ocupado</span>
+                <span><span className="p-poe">PoE</span> da corriente</span>
+                <span><span className="p-vlan">V10</span> VLAN</span>
+                <span>↔ enlace</span>
               </div>
             </div>
-          ))
+            {switches
+              .filter((sw) => !switchPedido || sw.id === switchPedido || buscaSw)
+              .filter((sw) => {
+                const t = buscaSw.trim().toLowerCase();
+                return !t || [sw.code, sw.modelo, sw.lugar, sw.tren].some((x) => String(x || '').toLowerCase().includes(t));
+              })
+              .map((sw) => (
+                <TarjetaSwitch key={sw.id} sw={sw} puedeEditar={puedeEditar}
+                  resaltado={sw.id === switchPedido} onCambio={cargar} />
+              ))}
+            {switchPedido && !buscaSw && switches.length > 1 && (
+              <Link className="btn-mini" to="/conexiones">Ver todos los switches ({switches.length})</Link>
+            )}
+          </>
         )
       )}
 
@@ -311,64 +238,6 @@ export default function Conexiones() {
             </table>
           )}
         </>
-      )}
-
-      {/* ---------- MODAL: PUERTO ---------- */}
-      {editando && (
-        <Modal
-          title={`Puerto ${editando.numero} de ${editando.sw.code}`}
-          onClose={() => setEditando(null)}
-          acciones={
-            <>
-              <button className="btn-mini" onClick={() => setEditando(null)}>Cancelar</button>
-              <button className="btn-primary" onClick={guardarPuerto} disabled={guardando}>
-                {guardando ? 'Guardando…' : 'Guardar'}
-              </button>
-            </>
-          }
-        >
-          {errorModal && <div role="alert" className="aviso-error" style={{ marginBottom: 10 }}>{errorModal}</div>}
-
-          <label className="campo">
-            <span>Buscar el equipo</span>
-            <input
-              value={busca}
-              onChange={(e) => { setBusca(e.target.value); pedirCandidatos(e.target.value); }}
-              placeholder="Código, modelo o sitio"
-            />
-            <small className="muted">
-              Sólo salen los equipos que no están ya en otro puerto.
-            </small>
-          </label>
-
-          <div className="lista-elegir">
-            <label className={`fila-elegir ${elegido === '' ? 'sel' : ''}`}>
-              <input type="radio" name="eq" checked={elegido === ''} onChange={() => setElegido('')} />
-              <span><em>Dejar el puerto libre</em></span>
-            </label>
-            {candidatos.map((c) => (
-              <label key={c.id} className={`fila-elegir ${elegido === c.id ? 'sel' : ''}`}>
-                <input type="radio" name="eq" checked={elegido === c.id} onChange={() => setElegido(c.id)} />
-                <span><strong>{c.code}</strong> — {TIPO[c.tipo] || c.tipo}{c.lugar ? ` · ${c.lugar}` : ''}</span>
-              </label>
-            ))}
-          </div>
-
-          <div style={{ display: 'flex', gap: 14, marginTop: 12, flexWrap: 'wrap' }}>
-            <label style={{ display: 'flex', gap: 7, alignItems: 'center', fontSize: 13 }}>
-              <input type="checkbox" checked={poe} onChange={(e) => setPoe(e.target.checked)} />
-              Este puerto entrega PoE
-            </label>
-            <label style={{ display: 'flex', gap: 7, alignItems: 'center', fontSize: 13 }}>
-              VLAN
-              <input
-                type="number" min={1} value={vlan}
-                onChange={(e) => setVlan(e.target.value)}
-                style={{ width: 90 }} placeholder="—"
-              />
-            </label>
-          </div>
-        </Modal>
       )}
 
       {/* ---------- MODAL: ENLACE ---------- */}

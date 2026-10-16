@@ -6720,3 +6720,53 @@ Repaso de los 161 desplegables. Fallos encontrados y arreglados:
 
 Vigila: `npm run verificar:desplegables` (incluido en `verificar`).
 Pruebas: backend 107 suites / 1490 tests; e2e desplegables 15/15, spec 08, seguridad, clics.
+
+## §95 · BLOQUE 173 — PUERTOS DEL SWITCH, BOTONES DEL MAPA Y ENLACES QUE NO FILTRABAN (16/10/2026)
+
+«En el switch no se está guardando qué puertos se ha seleccionado; los botones del mapa no
+funcionan bien.» Reproducido en navegador antes de tocar nada.
+
+**Puertos (Red y energía › Conexiones)**
+- **El fallo**: SÍ se guardaba (201). La rejilla buscaba `x.número` (con tilde) y el servidor
+  manda `numero`: ningún puerto salía ocupado nunca. Mismo fallo mudo en Bandeja
+  (`w.técnico` → «sin asignar» siempre) y Por tren (`a.ubicación`, `g.ubicación` → «—»).
+  Nuevo verificador **`verificar:propiedades`** (analizador de TS, front y back): ningún
+  nombre de CAMPO con tilde (el texto sí). `vecesFaltó` → `vecesFalto` en los dos lados.
+- `components/SwitchYPuertos.tsx`: cada casilla es un botón real; la casilla enseña PoE,
+  **VLAN** y «↔ enlace» (switch/router/firewall = subida); cámara/antena sin PoE avisa
+  (inyector o fuente); cifras ocupados · libres · PoE usados/ficha; capa, gestionable y
+  «sin VLAN» de la ficha a la vista; buscar switch; `?switch=<id>` abre ese switch.
+- Modal: buscar al escribir, filtro por tipo, «del mismo tren que el switch» primero,
+  PoE desactivado si la ficha ya no da más, sin campo VLAN si el switch no la admite.
+- Backend `network/reglas-de-puerto.ts` (puro, `test/reglas-de-puerto.spec.ts`): VLAN 1–4094
+  (802.1Q), PoE ≤ `poePorts`, no se enchufan gabinete/tablero/pantalla/fuente, `esEnlace`,
+  `avisoDelPuerto`, `validarCapacidad`. `guardarPuerto`/`vaciarPuerto` comprueban el **ámbito
+  del switch** (antes no: el id viaja en el cuerpo) y en una transacción **sincronizan la
+  ficha** (`camera.switchPortId`, `camera.poeSourcePortId` si es PoE, `wireless.switchPortId`).
+  Desenchufar conserva VLAN y PoE del puerto (es configuración del switch).
+- `PATCH /conexiones/switches/:id/puertos` (`asset.update`): declarar cuántos puertos y PoE
+  desde la propia tarjeta («¿Cuántos puertos tiene?»), sin ir a la ficha.
+- Candidatos sin STOCK, sin estructura, sin el propio switch y con ámbito.
+- Ficha del equipo › Red: «Enchufado en SW · puerto N · PoE · VLAN» (enlace a Conexiones) y
+  aviso si la VLAN del puerto no es la de la subred de su IP. «NVR asociado» enseñaba un
+  UUID → código del grabador; rol y modo traducidos. El NVR ya no pide «switch al que va
+  conectado» (nadie lo leía): una sola puerta, el puerto.
+- Demo: `demo-infra` colgaba los equipos T1 de **Grúas** (primer TREN por ruta) → ahora el
+  Tren 1 por sigla y su sala; el switch plano ya no trae VLAN en sus puertos.
+
+**Mapa**
+- **Arrastre pegado**: soltar fuera del plano dejaba el plano siguiendo al ratón. Captura del
+  puntero al empezar a arrastrar + fin si `buttons === 0`. Umbral 10 px con el dedo.
+- **Puntos encimados**: en el celular el dedo abría el de al lado. Si el toque cae dentro de
+  más de un disco → «Aquí hay N equipos», elegir. Lo que tiene problema se dibuja encima.
+  En el celular, al tocar, la vista baja a la ficha.
+- El alto del lienzo sigue la forma del plano; migas + plano en una fila; zonas en una tira.
+  En 1366×768 el plano entero se ve sin bajar.
+
+**Enlaces que perdían su filtro** — nuevo **`verificar:enlaces`**: QR/ficha «Órdenes de este
+equipo» (`?q=`), Bandeja (`?status=`), Dashboard, Retirados e Indicadores (`/assets?…`) abrían
+la lista ENTERA. Órdenes y Activos leen ahora `q`/`buscar`/`status`/`tipo`, también si ya
+estabas en la pantalla. Favicon (404 en cada pantalla).
+
+Pruebas: backend 108 suites / 1499 tests; barrido 60 pantallas PC y celular sin errores;
+e2e de puertos, mapa (18/18 puntos con ratón y dedo) y flujos de enlaces.

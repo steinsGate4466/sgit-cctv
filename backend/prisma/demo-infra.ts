@@ -59,18 +59,26 @@ async function main() {
 
   /* Se cuelga del árbol real, igual que demo.ts: sin tren, las pantallas
      sectorizadas no sabrían dónde poner nada. */
-  const tren = await prisma.location.findFirst({
+  /* Bloque 173 · el PRIMER tren por ruta es «Grúas» (GRU < OFI < T1), y los
+     equipos DEMO-…-T1 acababan colgados de Grúas: el mapa y Conexiones decían
+     «AASA-PISCO-GRU» para un switch del Tren 1. Se busca el Tren 1 por su
+     sigla, y sólo si no existe se cae al primero. */
+  const trenes = await prisma.location.findMany({
     where: { type: 'TREN' }, orderBy: { path: 'asc' },
-    select: { id: true, name: true, code: true },
+    select: { id: true, name: true, code: true, path: true },
   });
+  const tren = trenes.find((t) => /(^|-)T1$/i.test(t.code)) ?? trenes[0];
   if (!tren) {
     console.error('No hay ningún TREN en el árbol. Ejecuta antes `npm run prisma:seed`.');
     process.exit(1);
   }
   console.log(`  Colgando la infraestructura de: ${tren.name}`);
 
+  /* La sala eléctrica DE ESE tren (antes cogía la primera de la planta, que
+     podía ser la del Tren 2 de la demo del plano). */
   const sala = await prisma.location.findFirst({
-    where: { name: { contains: 'ctrica' } }, select: { id: true, name: true },
+    where: { name: { contains: 'ctrica' }, path: { startsWith: `${tren.path}/` } },
+    select: { id: true, name: true },
   }) ?? tren;
 
   // ======================================================== 1. LA ENERGÍA
@@ -249,7 +257,10 @@ async function main() {
     await prisma.switchPort.upsert({
       where: { switchId_portNumber: { switchId: acceso.id, portNumber: n } },
       update: {},
-      create: { switchId: acceso.id, assetSwitchId: acceso.id, portNumber: n, poe: true, vlanNumber: 40 },
+      /* Bloque 173 · SIN VLAN: este switch es plano (capa 2, no gestionable,
+         `soportaVlan: false`). Ponerle VLAN 40 a sus puertos era contradecir su
+         propia ficha; la red la marca el puerto 2 del core que lo alimenta. */
+      create: { switchId: acceso.id, assetSwitchId: acceso.id, portNumber: n, poe: true, vlanNumber: null },
     });
   }
 

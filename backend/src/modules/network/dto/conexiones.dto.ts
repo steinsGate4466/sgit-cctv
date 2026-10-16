@@ -1,4 +1,4 @@
-import { IsBoolean, IsIn, IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 /**
@@ -20,7 +20,25 @@ export class GuardarPuertoDto {
 
   @IsOptional() @IsBoolean() poe?: boolean;
 
-  @IsOptional() @Type(() => Number) @IsInt() @Min(1) vlan?: number | null;
+  /** 802.1Q: 1–4094 (0 y 4095 están reservados). Bloque 173. */
+  @IsOptional() @Type(() => Number)
+  @IsInt({ message: 'La VLAN tiene que ser un número entero.' })
+  @Min(1, { message: 'La VLAN va de 1 a 4094.' })
+  @Max(4094, { message: 'La VLAN va de 1 a 4094 (802.1Q).' })
+  vlan?: number | null;
+}
+
+/** Bloque 173 · declarar cuántos puertos tiene el switch desde Conexiones. */
+export class DeclararPuertosDto {
+  @Type(() => Number)
+  @IsInt({ message: 'La cantidad de puertos tiene que ser un número entero.' })
+  @Min(1) @Max(96)
+  puertos!: number;
+
+  @IsOptional() @Type(() => Number)
+  @IsInt({ message: 'Los puertos PoE tienen que ser un número entero.' })
+  @Min(0) @Max(96)
+  poe?: number | null;
 }
 
 /** Medios admitidos por el enum LinkMedium del esquema. */

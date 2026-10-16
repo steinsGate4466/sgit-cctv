@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 
@@ -26,7 +27,32 @@ import { useAuth } from '../auth/AuthContext';
  *    estaba sólo en la pantalla de IPAM, que casi nadie abre; ahora sale con el
  *    equipo delante.
  */
-export default function RedDelActivo({ assetId }: { assetId: string }) {
+/* Bloque 173 · DÓNDE ESTÁ ENCHUFADO. Se lee del puerto del switch (la única
+   puerta donde se escribe, en Conexiones) y aquí sólo se enseña, con el enlace
+   para cambiarlo. Antes la ficha pedía «puerto PoE que la alimenta» y no había
+   dónde rellenarlo. */
+function Enchufado({ e, esSwitch, assetId }: { e: any; esSwitch?: boolean; assetId: string }) {
+  if (!e) {
+    return (
+      <p className="muted" style={{ margin: '6px 0 0', fontSize: 12.5 }}>
+        {esSwitch
+          ? <>Sus puertos se ven y se editan en <Link to={`/conexiones?switch=${assetId}`}>Conexiones</Link>.</>
+          : <>No consta en ningún puerto de switch. Se declara en <Link to="/conexiones">Conexiones</Link>.</>}
+      </p>
+    );
+  }
+  return (
+    <div className="enchufado">
+      <span className="muted">Enchufado en</span>{' '}
+      <Link to={`/conexiones?switch=${e.switchId}`}><b>{e.switchCode}</b> · puerto {e.puerto}</Link>
+      {e.poe && <span className="p-poe">PoE</span>}
+      {e.vlan != null && <span className="p-vlan">VLAN {e.vlan}</span>}
+      {e.switchLugar && <div className="muted" style={{ fontSize: 12 }}>{e.switchLugar}</div>}
+    </div>
+  );
+}
+
+export default function RedDelActivo({ assetId, tipo }: { assetId: string; tipo?: string }) {
   const { can } = useAuth();
   const [d, setD] = useState<any>(null);
 
@@ -40,7 +66,17 @@ export default function RedDelActivo({ assetId }: { assetId: string }) {
     return () => { vivo = false; };
   }, [assetId, can]);
 
-  if (!can('red.read') || !d || !d.ip) return null;
+  if (!can('red.read') || !d) return null;
+  const esSwitch = tipo === 'SWITCH';
+  if (!d.ip) {
+    return (
+      <div className="card" style={{ marginBottom: 12 }}>
+        <h3 style={{ margin: '0 0 6px', fontSize: 14 }}>Red</h3>
+        <p className="muted" style={{ margin: 0, fontSize: 13 }}>Sin dirección IP registrada.</p>
+        <Enchufado e={d.enchufado} esSwitch={esSwitch} assetId={assetId} />
+      </div>
+    );
+  }
 
   const s = d.subred;
   const desajusteVlan = s && d.vlanDeclarada && String(d.vlanDeclarada) !== String(s.vlan);
@@ -54,6 +90,7 @@ export default function RedDelActivo({ assetId }: { assetId: string }) {
         {s && <span className="muted">{s.prefijo}</span>}
         {d.campo && <span className="muted"> · {d.campo}</span>}
       </div>
+      <Enchufado e={d.enchufado} esSwitch={esSwitch} assetId={assetId} />
 
       {!s ? (
         <div className="card aviso" style={{ marginTop: 8 }}>
@@ -81,6 +118,15 @@ export default function RedDelActivo({ assetId }: { assetId: string }) {
           <b>Esta IP está dentro del rango que reparte el DHCP.</b>
           <p style={{ margin: '4px 0 0', fontSize: 13 }}>
             El servidor puede entregarla a otro equipo y dejar a los dos sin red.
+          </p>
+        </div>
+      )}
+
+      {d.vlanDelPuertoNoCuadra && (
+        <div className="card peligro" style={{ marginTop: 8 }}>
+          <b>El puerto está en la VLAN {String(d.enchufado?.vlan)} y la IP es de la VLAN {String(s?.vlan)}.</b>
+          <p style={{ margin: '4px 0 0', fontSize: 13 }}>
+            El enlace sube y el led parpadea, pero el equipo no llega a su puerta de enlace. Corrige el puerto o la IP.
           </p>
         </div>
       )}

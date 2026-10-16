@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
@@ -68,6 +68,10 @@ export default function Mapa() {
   const veImpacto = can('red.read');
   const [impacto, setImpacto] = useState(false);
   const [caen, setCaen] = useState<{ ids: Set<string>; resumen: string } | null>(null);
+  /* Bloque 173 · PUNTOS ENCIMADOS. En el celular dos cámaras a tres metros se
+     dibujan una sobre otra y el dedo abría la de al lado. Si al tocar hay más
+     de un punto bajo el dedo, se pregunta cuál, en vez de adivinar. */
+  const [cercanos, setCercanos] = useState<any[] | null>(null);
 
   // 1. Los planos que esta persona puede ver.
   useEffect(() => {
@@ -187,7 +191,27 @@ export default function Mapa() {
   const elegido = sel ? equipos.find((e) => e.assetId === sel) : null;
   const mpp = vista?.plano?.metrosPorPx ?? null;
 
+  /* En el celular el panel va DEBAJO del plano: al tocar un punto, se lleva
+     la vista hasta su ficha. Si no, el toque parecía no hacer nada. */
+  const panel = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if ((sel || cercanos) && window.matchMedia?.('(max-width: 960px)').matches) {
+      panel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [sel, cercanos]);
+
+  function pulsarPunto(e: any, escala: number, x?: number, y?: number) {
+    /* Los discos miden 19 px de radio en pantalla: se pregunta sólo si el
+       toque cae DENTRO de más de uno. Con teclado (sin x, y) se abre el pedido. */
+    if (x == null || y == null) { setCercanos(null); setSel(e.assetId); return; }
+    const radio = 19 * escala;
+    const juntos = visibles.filter((o) => Math.hypot(o.xPx - x, o.yPx - y) < radio);
+    if (juntos.length > 1) { setSel(null); setZonaSel(null); setCercanos(juntos); return; }
+    setCercanos(null); setSel(e.assetId);
+  }
+
   function irA(e: any) {
+    setCercanos(null);
     setSel(e.assetId);
     setEnfocar({ x: e.xPx, y: e.yPx, n: Date.now() });
   }
@@ -231,14 +255,17 @@ export default function Mapa() {
   return (
     <div className="mapa">
       <h1 className="page-title">Mapa</h1>
-      {(hayVariosPlanos || vista?.padre) && (
-        <nav className="mapa-migas" aria-label="Dónde estás">
-          {hayVariosPlanos && <button type="button" onClick={() => setModo('planta')}>Planta</button>}
-          {vista?.padre && <><span>›</span><button type="button" onClick={() => abrirPlano(vista.padre.id)}>{vista.padre.nombre}</button></>}
-          <span>›</span><b>{vista?.plano?.ubicacion ?? '…'}</b>
-        </nav>
-      )}
+      {/* Bloque 173 · las migas y el plano van en UNA fila, y las zonas en una
+          tira que se desliza: en la pantalla del púlpito (1366 × 768) el
+          plano empezaba a mitad de pantalla, debajo de cuatro filas de botones. */}
       <div className="mapa-barra">
+        {(hayVariosPlanos || vista?.padre) && (
+          <nav className="mapa-migas" aria-label="Dónde estás">
+            {hayVariosPlanos && <button type="button" onClick={() => setModo('planta')}>Planta</button>}
+            {vista?.padre && <><span>›</span><button type="button" onClick={() => abrirPlano(vista.padre.id)}>{vista.padre.nombre}</button></>}
+            <span>›</span>
+          </nav>
+        )}
         {planos.length > 1 ? (
           <select aria-label="Plano" value={planoId} onChange={(ev) => abrirPlano(ev.target.value)}>
             {planos.map((p) => <option key={p.id} value={p.id}>{p.location?.name} · {p.nombre}</option>)}
@@ -314,7 +341,7 @@ export default function Mapa() {
             altoPx={vista.plano.altoPx}
             metrosPorPx={mpp}
             enfocar={enfocar}
-            alPulsar={() => setSel(null)}
+            alPulsar={() => { setSel(null); setCercanos(null); }}
             hijos={(escala) => (
               <>
                 <ZonasDelPlano zonas={zonas} escala={escala} elegida={zonaSel} onElegir={(id) => elegirZona(zonaSel === id ? null : id)} />
@@ -324,9 +351,12 @@ export default function Mapa() {
                 {caen && visibles.filter((e) => caen.ids.has(e.assetId)).map((e) => (
                   <circle key={'i' + e.assetId} cx={e.xPx} cy={e.yPx} r={26 * escala} className="impacto-halo" />
                 ))}
-                {visibles.map((e) => (
+                {/* Lo que tiene problema se dibuja ENCIMA (en SVG manda el
+                    orden): un punto rojo no puede quedar tapado por uno verde. */}
+                {[...visibles].sort((a, b) => (ORDEN[b.estado] ?? 9) - (ORDEN[a.estado] ?? 9)
+                  || Number(a.assetId === sel) - Number(b.assetId === sel)).map((e) => (
                   <Marcador key={e.assetId} e={e} escala={escala} seleccionado={sel === e.assetId}
-                    conEtiqueta={etiquetas} onPulsar={() => setSel(e.assetId)} />
+                    conEtiqueta={etiquetas} onPulsar={(x, y) => pulsarPunto(e, escala, x, y)} />
                 ))}
                 {aqui && vista?.plano?.id === aqui.planoId && <EstasAqui x={aqui.xPx} y={aqui.yPx} escala={escala} />}
               </>
@@ -336,8 +366,28 @@ export default function Mapa() {
           <div className="card" style={{ padding: 24 }}>Cargando el plano…</div>
         )}
 
-        <div className="mapa-panel">
-          {elegido ? (
+        <div className="mapa-panel" ref={panel}>
+          {cercanos && !elegido ? (
+            <aside className="tarjeta-mapa">
+              <header className="tarjeta-mapa-cab">
+                <h2>Aquí hay {cercanos.length} equipos</h2>
+                <button type="button" className="tarjeta-mapa-cerrar" aria-label="Cerrar" onClick={() => setCercanos(null)}>×</button>
+              </header>
+              <div className="tarjeta-mapa-cuerpo">
+                <p className="muted" style={{ margin: 0, fontSize: 12 }}>Están muy juntos en el plano. Elige cuál:</p>
+                <ul className="mapa-lista">
+                  {cercanos.map((e) => (
+                    <li key={e.assetId}>
+                      <button type="button" onClick={() => irA(e)}>
+                        <IconoEquipo e={e} tam={20} /> <b>{e.codigo}</b>
+                        <span className="muted">{e.referencia || e.estadoTexto}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </aside>
+          ) : elegido ? (
             <TarjetaEquipo key={elegido.assetId} e={elegido} equipos={equipos} metrosPorPx={mpp} onCerrar={() => setSel(null)}
               onReportado={() => { cargarVista(planoId).then((r) => { if (r) setVista(r); }); }} />
           ) : zona ? (

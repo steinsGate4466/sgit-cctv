@@ -103,7 +103,13 @@ export default function Maintenance() {
      enlace no deja el módulo a secas, lo deja **filtrado por el problema del
      que se venía**. Si llegara sin filtro habría que buscar a mano la orden
      que ya se estaba mirando, que es el trabajo que el software debe quitar. */
-  const [fq, setFq] = useState(() => new URLSearchParams(window.location.search).get('om') || '');
+  /* Bloque 173 · también `?q=` (lo mandan el QR y la ficha: «Órdenes de este
+     equipo») y `?status=` (la bandeja: «Órdenes paradas»). Antes se ignoraban
+     y el botón dejaba la lista ENTERA: parecía que no hacía nada. */
+  const [fq, setFq] = useState(() => {
+    const u = new URLSearchParams(window.location.search);
+    return u.get('om') || u.get('q') || '';
+  });
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [fType, setFType] = useState(() => new URLSearchParams(window.location.search).get('filtroTipo') || '');
@@ -124,9 +130,15 @@ export default function Maintenance() {
     const creadasDesde = u.get('creadasDesde');
     return creadasDesde ? { creadasDesde, origen: u.get('origen') || '', sinCanceladas: u.get('sinCanceladas') === '1' } : null;
   });
-  const [fStatus, setFStatus] = useState('');
+  const [fStatus, setFStatus] = useState(() => new URLSearchParams(window.location.search).get('status') || '');
   const [ambito, setAmbito] = useState<Ambito>(AMBITO_VACIO);
   const [parametros, setParametros] = useSearchParams();
+  /* Si se llega a Órdenes estando ya en Órdenes (otro enlace del menú o del
+     buscador), la pantalla no se vuelve a montar: el filtro se pone igual. */
+  const qDeUrl = parametros.get('om') || parametros.get('q') || '';
+  const estadoDeUrl = parametros.get('status') || '';
+  useEffect(() => { if (qDeUrl) setFq(qDeUrl); }, [qDeUrl]);
+  useEffect(() => { if (estadoDeUrl) setFStatus(estadoDeUrl); }, [estadoDeUrl]);
   // Nombres de las causas del catálogo editable (3E). Sin esto, una causa
   // creada por el usuario saldría en crudo: PRENSAESTOPA_SUELTO.
   const [nombreCausa, setNombreCausa] = useState<Record<string, string>>({});

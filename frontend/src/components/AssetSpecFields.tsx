@@ -17,7 +17,7 @@
  */
 
 // ---- Catálogos, con los textos que se usan en planta ----
-const ROL_SWITCH: Record<string, string> = {
+export const ROL_SWITCH: Record<string, string> = {
   CORE_ANILLO: 'Core del anillo',
   DISTRIBUCION: 'Distribución',
   POE_ACCESO: 'Acceso PoE (campo)',
@@ -38,7 +38,7 @@ const CAPA_SWITCH: Record<string, string> = {
   CAPA_3: 'Capa 3 — además enruta entre redes (Fortinet del anillo)',
 };
 
-const MODO_ANTENA: Record<string, string> = {
+export const MODO_ANTENA: Record<string, string> = {
   PMP_BASE: 'AP principal (base punto-multipunto)',
   SUSCRIPTOR: 'Suscriptora (cuelga del AP)',
   PTP: 'Radioenlace punto a punto',
@@ -217,12 +217,12 @@ export default function AssetSpecFields({ tipo, spec, onChange, opciones, propio
             <input type="number" min={0} step="0.5" value={v.capacityTb ?? ''} onChange={num('capacityTb')} />
           </label>
 
-          <label>Switch al que va conectado directo
-            <select value={v.switchIdDirect || ''} onChange={txt('switchIdDirect')}>
-            <option value="">— sin definir —</option>
-            {de('SWITCH').map((o) => <option key={o.id} value={o.id}>{o.assetCode}{o.locationName ? ` · ${o.locationName}` : ''}</option>)}
-          </select>
-          </label>
+          {/* Bloque 173 · «Switch al que va conectado» se pedía aquí Y en
+              Conexiones, y lo que se escribía aquí no lo leía nadie (ni el mapa
+              de red ni el impacto). Una sola puerta: el puerto del switch. */}
+          <Nota>
+            El switch y el puerto donde va enchufado se declaran en <strong>Conexiones</strong>, puerto a puerto.
+          </Nota>
         </>
       )}
 

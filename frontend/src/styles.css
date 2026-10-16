@@ -1633,13 +1633,11 @@ textarea { resize: vertical; }
   grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
 }
 .puerto {
-  position: relative; border-radius: 8px; padding: 7px 8px 8px; min-height: 62px;
+  position: relative; border-radius: 8px; padding: 0; min-height: 62px;
   border: 1px solid var(--border, #dfe3ea);
   display: flex; flex-direction: column; gap: 1px;
   transition: border-color .15s, box-shadow .15s;
 }
-.puerto[role="button"] { cursor: pointer; }
-.puerto[role="button"]:hover { border-color: #6f8fbf; box-shadow: 0 3px 10px rgba(20,40,80,.10); }
 .puerto.libre { background: repeating-linear-gradient(45deg, #fafbfd, #fafbfd 6px, #f2f4f8 6px, #f2f4f8 12px); }
 .puerto.ocupado { background: #fff; border-color: #c9d4e6; }
 .p-num { font-size: 11px; font-weight: 700; color: var(--muted, #6b7280); letter-spacing: .4px; }
@@ -1652,10 +1650,72 @@ textarea { resize: vertical; }
 .p-code { font-size: 11.5px; font-weight: 600; word-break: break-all; line-height: 1.25; }
 .p-tipo { font-size: 10.5px; color: var(--muted, #6b7280); }
 .p-libre { margin-top: auto; font-size: 11px; color: #97a0ad; }
-.puerto[role="button"]:hover .p-libre { color: #1f4e79; }
+.puerto-abrir:hover:not(:disabled) .p-libre { color: var(--info-texto); }
+
+/* Bloque 173 · cada casilla es un BOTÓN de verdad (teclado y dedo), y la
+   casilla entera es su zona de toque. El × de desenchufar va aparte, encima. */
+.puerto-abrir {
+  all: unset; box-sizing: border-box; cursor: pointer; width: 100%; height: 100%;
+  min-height: inherit; padding: 7px 8px 8px; border-radius: 8px;
+  display: flex; flex-direction: column; gap: 1px;
+}
+.puerto-abrir:disabled { cursor: default; }
+.puerto-abrir:focus-visible { outline: 2px solid var(--info); outline-offset: 2px; }
+.puerto:has(.puerto-abrir:hover:not(:disabled)) { border-color: var(--info); box-shadow: var(--sombra-1); }
+.puerto.enlace { border-color: var(--indigo-borde); background: var(--indigo-fondo); }
+.puerto.enlace .p-tipo { color: var(--indigo-texto); font-weight: 600; }
+.puerto.con-falla { border-color: var(--crit-borde); background: var(--crit-fondo); }
+.puerto.recien { border-color: var(--ok); box-shadow: 0 0 0 3px var(--ok-borde); }
+.p-vlan {
+  margin-left: 4px; color: var(--info-texto); background: var(--info-fondo);
+  border: 1px solid var(--info-borde); border-radius: 4px;
+  padding: 0 4px; font-size: 9.5px; font-weight: 800; vertical-align: middle;
+}
+.sw-tarjeta { margin-bottom: 14px; scroll-margin-top: 80px; }
+.sw-tarjeta.resaltado { box-shadow: 0 0 0 2px var(--info), var(--sombra-1); }
+.sw-ficha { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.sw-ficha span {
+  font-size: 11px; padding: 1px 7px; border-radius: 999px;
+  background: var(--suave-fondo); border: 1px solid var(--border); color: var(--muted);
+}
+.sw-declarar {
+  margin-top: 10px; padding: 10px 12px; border-radius: 8px; font-size: 13px;
+  background: var(--warn-fondo); border: 1px solid var(--warn-borde); color: var(--warn-texto);
+}
+.sw-declarar-campos { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-top: 8px; }
+.sw-declarar-campos label { display: flex; flex-direction: column; font-size: 12px; gap: 3px; }
+.sw-declarar-campos input { width: 110px; }
+.sw-barra { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 12px; }
+.sw-leyenda { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); align-items: center; }
+.sw-leyenda > span { display: inline-flex; align-items: center; gap: 4px; }
+.sw-leyenda .p-poe, .sw-leyenda .p-vlan { margin-left: 0; }
+.ley { display: inline-block; width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--border); }
+.ley.libre { background: repeating-linear-gradient(45deg, var(--card), var(--card) 3px, var(--suave-fondo) 3px, var(--suave-fondo) 6px); }
+.ley.ocupado { background: var(--card); border-color: var(--info-borde); }
+.puerto-sec { margin: 14px 0 6px; font-size: 13px; }
+.puerto-sec:first-of-type { margin-top: 0; }
+.puerto-filtros { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 8px; }
+.puerto-filtros button {
+  border: 1px solid var(--border); background: var(--card); color: var(--muted);
+  border-radius: 999px; padding: 4px 11px; font-size: 12px; cursor: pointer;
+}
+.puerto-filtros button.activo { background: var(--info-fondo); border-color: var(--info-borde); color: var(--info-texto); font-weight: 600; }
+.lista-grupo {
+  padding: 6px 10px 4px; font-size: 10.5px; font-weight: 700; letter-spacing: .4px;
+  text-transform: uppercase; color: var(--muted); background: var(--suave-fondo);
+}
+.puerto-config { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; font-size: 13px; }
+.puerto-config .check, .puerto-config .vlan { display: flex; gap: 7px; align-items: center; }
+.puerto-config .vlan input { width: 96px; }
+.enchufado { margin-top: 8px; font-size: 13px; display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+.enchufado .p-poe, .enchufado .p-vlan { margin-left: 0; }
+.nota-info, .nota-aviso { margin-top: 8px; padding: 7px 10px; border-radius: 7px; font-size: 12.5px; }
+.nota-info { background: var(--indigo-fondo); border: 1px solid var(--indigo-borde); color: var(--indigo-texto); }
+.nota-aviso { background: var(--warn-fondo); border: 1px solid var(--warn-borde); color: var(--warn-texto); }
 @media (max-width: 560px) {
   .rejilla-puertos { grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 5px; }
-  .puerto { min-height: 56px; padding: 6px; }
+  .puerto { min-height: 56px; }
+  .puerto-abrir { padding: 6px; }
   .p-code { font-size: 10.5px; }
   .sw-cabecera { flex-direction: column; }
   .sw-cifras { align-self: flex-start; }
@@ -4466,6 +4526,7 @@ input::-webkit-datetime-edit { padding: 0; }
    Bloque 151 · PLANO VIVO
    ========================================================================= */
 .mapa-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-bottom: 10px; }
+.mapa-barra > select { width: auto; max-width: min(100%, 480px); }
 .mapa-contadores { display: flex; flex-wrap: wrap; gap: 6px; }
 .mapa-contador { display: inline-flex; align-items: center; gap: 6px; background: var(--card); border: 1px solid var(--border);
   border-radius: 999px; padding: 4px 10px; font-size: 12.5px; cursor: pointer; color: var(--text); }
@@ -4875,11 +4936,11 @@ tbody tr:hover td { background: var(--brillo); }
 .zona.atenuada { opacity: .35; }
 .zona text { /* tema: fijo — va sobre el plano, que es claro de día y de noche */ fill: #1d2a31; font-weight: 700; paint-order: stroke; stroke: #ffffff; stroke-width: 3px; stroke-opacity: .85; pointer-events: none; font-family: inherit; }
 .zona text.zona-hijo { font-weight: 600; fill: #1f4e79; }
-.mapa-migas { display: flex; align-items: center; gap: 6px; font-size: 13px; margin: -4px 0 8px; flex-wrap: wrap; }
+.mapa-migas { display: flex; align-items: center; gap: 6px; font-size: 13px; margin: 0; flex-wrap: wrap; }
 .mapa-migas button { background: none; border: none; padding: 0; color: var(--tinta-marca); cursor: pointer; font: inherit; text-decoration: underline; }
 .mapa-migas span { color: var(--muted); }
-.mapa-zonas { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
-.mapa-zonas button { display: inline-flex; align-items: center; gap: 6px; background: var(--card); border: 1px solid var(--border); border-radius: 999px; padding: 5px 11px; font-size: 12.5px; cursor: pointer; color: var(--text); }
+.mapa-zonas { display: flex; flex-wrap: nowrap; gap: 6px; margin: 0 0 10px; overflow-x: auto; padding-bottom: 3px; scrollbar-width: thin; }
+.mapa-zonas button { display: inline-flex; align-items: center; gap: 6px; background: var(--card); border: 1px solid var(--border); border-radius: 999px; padding: 5px 11px; font-size: 12.5px; cursor: pointer; color: var(--text); flex: none; white-space: nowrap; }
 .mapa-zonas button.activo { border-color: var(--navy); box-shadow: 0 0 0 1px var(--navy) inset; font-weight: 600; }
 .mapa-zona-chip i { width: 9px; height: 9px; border-radius: 3px; display: inline-block; background: var(--c-zona, #8a969c); }
 .mapa-zona-chip.estado-ok { --c-zona: #22a45d; }
