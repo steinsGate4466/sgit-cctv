@@ -1,6 +1,6 @@
 import { useEffect, useState, FormEvent } from 'react';
 import SelectorDeActivo from '../components/SelectorDeActivo';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, AvisoAmbito } from '../components/FiltroAmbito';
 import ParadaYPlazo from '../components/ParadaYPlazo';
@@ -482,8 +482,10 @@ export default function Maintenance() {
             La diferencia larga va en el `title`, no en la pantalla:
             `verificar:densidad` mide las palabras de la pantalla y esto es
             ayuda, no contenido. */}
-        {can('wo.create') && (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        {/* Bloque 174 · un solo bloque a la derecha (con `space-between` un
+            tercer hijo se iría al centro, bloque 91): botones + guía. */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {can('wo.create') && (<>
             <button
               className="btn-primary"
               title="Cinco campos: qué hay que hacer y a quién se lo encargas. La orden nace SIN DETALLAR y el técnico la completa en campo."
@@ -498,8 +500,9 @@ export default function Maintenance() {
             >
               Nueva OM · completa
             </button>
-          </div>
-        )}
+          </>)}
+          <Link className="btn-mini" to="/guia" aria-label="Cómo se trabaja: la guía de una OM" title="Producción crea la OM; Mantenimiento la atiende, el técnico la abre al llegar y el Jefe aprueba el cierre.">?</Link>
+        </div>
       </div>
 
       <AvisoAmbito valor={ambito} total={rows.length} />

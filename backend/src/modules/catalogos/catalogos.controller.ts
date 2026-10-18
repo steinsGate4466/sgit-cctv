@@ -6,6 +6,7 @@ import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequireAlguno, RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { SinAmbito } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { ActualizarCatalogoDto, CrearCatalogoDto } from './dto/catalogos.dto';
 
 /**
  * Catálogos editables del sistema.
@@ -46,14 +47,14 @@ export class CatalogosController {
 
   @Post()
   @RequirePermissions('location.manage')
-  crear(@Body() body: any, @CurrentUser() user: any, @Ip() ip: string) {
+  crear(@Body() body: CrearCatalogoDto, @CurrentUser() user: any, @Ip() ip: string) {
     return this.cat.crear(body, user?.userId, ip);
   }
 
   @SinAmbito()  // catálogos de planta: son globales, no de un tren
   @Patch(':id')
   @RequirePermissions('location.manage')
-  actualizar(@Param('id') id: string, @Body() body: any, @CurrentUser() user: any, @Ip() ip: string) {
+  actualizar(@Param('id') id: string, @Body() body: ActualizarCatalogoDto, @CurrentUser() user: any, @Ip() ip: string) {
     return this.cat.actualizar(id, body, user?.userId, ip);
   }
 

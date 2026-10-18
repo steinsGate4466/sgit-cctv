@@ -1,6 +1,8 @@
-import { Body, Controller, Get, Ip, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Ip, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CampanasService } from './campanas.service';
+import { CrearCampanaDto, DecidirZonaDto, RepartirZonasDto } from './dto/campanas.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
@@ -16,13 +18,13 @@ export class CampanasController {
 
   @Get()
   @RequirePermissions('asset.read')
-  listar(@Query('estado') estado?: string) {
-    return this.campanas.listar(estado);
+  listar(@Res({ passthrough: true }) res: Response, @Query('estado') estado?: string) {
+    return this.campanas.listar(estado, res);
   }
 
   @Post()
   @RequirePermissions('asset.update')
-  crear(@Body() dto: any, @CurrentUser() u: any, @Ip() ip: string) {
+  crear(@Body() dto: CrearCampanaDto, @CurrentUser() u: any, @Ip() ip: string) {
     return this.campanas.crear(dto, u?.userId, ip);
   }
 
@@ -36,7 +38,7 @@ export class CampanasController {
   @SinAmbito()  // idem
   @Post(':id/zonas')
   @RequirePermissions('asset.update')
-  repartir(@Param('id') id: string, @Body() dto: any) {
+  repartir(@Param('id') id: string, @Body() dto: RepartirZonasDto) {
     return this.campanas.repartir(id, dto?.zonas || []);
   }
 
@@ -58,7 +60,7 @@ export class CampanasController {
   @SinAmbito()  // idem
   @Patch('zona/:zonaId/decidir')
   @RequirePermissions('asset.update')
-  decidir(@Param('zonaId') zonaId: string, @Body() dto: any, @CurrentUser() u: any, @Ip() ip: string) {
+  decidir(@Param('zonaId') zonaId: string, @Body() dto: DecidirZonaDto, @CurrentUser() u: any, @Ip() ip: string) {
     return this.campanas.decidirZona(zonaId, !!dto?.aprobar, dto?.observaciones, u?.userId, ip);
   }
 }

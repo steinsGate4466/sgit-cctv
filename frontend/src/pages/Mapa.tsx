@@ -160,7 +160,12 @@ export default function Mapa() {
     let url: string | null = null;
     api.get(`/planos/${planoId}/imagen`, { responseType: 'blob' })
       .then((r) => { if (!vivo) return; url = URL.createObjectURL(r.data); setImagen(url); })
-      .catch(() => { if (vivo) setImagen(null); });
+      .catch((e) => {
+        if (!vivo) return;
+        setImagen(null);
+        /* Bloque 174 · sin imagen el plano salía en negro sin decir por qué. */
+        if (e?.response?.status === 404) setError('La imagen de este plano ya no está en el almacén: vuelve a subirla en Ubicaciones › Planos. Los equipos se siguen viendo en su sitio.');
+      });
     return () => { vivo = false; if (url) URL.revokeObjectURL(url); };
   }, [planoId]);
 

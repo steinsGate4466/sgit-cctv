@@ -6,6 +6,9 @@ import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { SinAmbito } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import {
+  ActualizarPlantillaDto, ActualizarPuntoDto, AgregarPuntoDto, CrearPlantillaDto, ResponderPuntoDto,
+} from './dto/checklist.dto';
 
 /**
  * Rutinas preventivas.
@@ -31,28 +34,28 @@ export class ChecklistController {
 
   @Post('plantillas')
   @RequirePermissions('location.manage')
-  crearPlantilla(@Body() body: any, @CurrentUser() user: any, @Ip() ip: string) {
+  crearPlantilla(@Body() body: CrearPlantillaDto, @CurrentUser() user: any, @Ip() ip: string) {
     return this.chk.crearPlantilla(body, user?.userId, ip);
   }
 
   @SinAmbito()  // plantillas de checklist: globales
   @Patch('plantillas/:id')
   @RequirePermissions('location.manage')
-  actualizarPlantilla(@Param('id') id: string, @Body() body: any) {
+  actualizarPlantilla(@Param('id') id: string, @Body() body: ActualizarPlantillaDto) {
     return this.chk.actualizarPlantilla(id, body);
   }
 
   @SinAmbito()  // plantillas de checklist: globales
   @Post('plantillas/:id/puntos')
   @RequirePermissions('location.manage')
-  agregarPunto(@Param('id') id: string, @Body() body: any, @CurrentUser() user: any, @Ip() ip: string) {
+  agregarPunto(@Param('id') id: string, @Body() body: AgregarPuntoDto, @CurrentUser() user: any, @Ip() ip: string) {
     return this.chk.agregarPunto(id, body, user?.userId, ip);
   }
 
   @SinAmbito()  // plantillas de checklist: globales
   @Patch('puntos/:id')
   @RequirePermissions('location.manage')
-  actualizarPunto(@Param('id') id: string, @Body() body: any) {
+  actualizarPunto(@Param('id') id: string, @Body() body: ActualizarPuntoDto) {
     return this.chk.actualizarPunto(id, body);
   }
 
@@ -76,7 +79,7 @@ export class ChecklistController {
   @SinAmbito()  // plantillas de checklist: globales
   @Post('orden/:woId')
   @RequirePermissions('wo.update')
-  responder(@Param('woId') woId: string, @Body() body: any, @CurrentUser() user: any, @Ip() ip: string) {
+  responder(@Param('woId') woId: string, @Body() body: ResponderPuntoDto, @CurrentUser() user: any, @Ip() ip: string) {
     return this.chk.responder(woId, body, user?.userId, ip);
   }
 }

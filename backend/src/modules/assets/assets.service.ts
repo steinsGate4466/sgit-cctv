@@ -6,7 +6,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { StorageService } from '../storage/storage.service';
 import { CriticidadService } from '../criticidad/criticidad.service';
-import { computeEffectiveStatuses, computeEffectiveStatus, motivoDelEstado } from '../../common/asset-status';
+import { computeEffectiveStatuses, computeEffectiveStatus, motivoDelEstado, INCIDENCIA_ABIERTA, WO_EN_CURSO } from '../../common/asset-status';
 import { resolverContextoDePlanta } from '../../common/plant-context';
 import { evaluarFicha, resumenPendiente } from '../../common/asset-completeness';
 import { filtroDeUbicaciones } from '../../common/ambito-planta';
@@ -30,6 +30,7 @@ import { UpdateNetworkDto } from './dto/update-network.dto';
 import { QueryAssetDto } from './dto/query-asset.dto';
 import { motivoParaNoCrearComoActivo } from '../../common/tipos-de-equipo';
 import { iconoDelEquipo } from '../planos/icono';
+import type { AssetStatus } from '../../generated/prisma/client';
 
 @Injectable()
 export class AssetsService {
@@ -182,6 +183,22 @@ export class AssetsService {
             ],
           }
         : {}),
+      AND: [
+        /* Bloque 174 · el ESTADO REAL, con las mismas reglas que
+           `computeEffectiveStatuses` (common/asset-status.ts): BAJA y STOCK
+           mandan (no cuentan), y si no, cuenta lo declarado como caído o una
+           orden o incidencia abierta. */
+        ...(q.sinServicio
+          ? [{
+              status: { notIn: ['BAJA', 'STOCK'] as AssetStatus[] },
+              OR: [
+                { status: { in: ['FUERA_SERVICIO', 'MANTENIMIENTO'] as AssetStatus[] } },
+                { workOrders: { some: { status: { in: WO_EN_CURSO } } } },
+                { incidents: { some: { status: { in: INCIDENCIA_ABIERTA } } } },
+              ],
+            }]
+          : []),
+      ],
     };
   }
 
@@ -484,10 +501,17 @@ export class AssetsService {
         status: true,
         // Bloque 168: con esto los formularios rellenan la zona solos.
         referencePlace: true,
+        locationId: true,
         location: { select: { name: true } },
+        /* Bloque 174 · el modo de la radio: «AP del que cuelga» ofrece sólo
+           los AP (base punto-multipunto), no otras suscriptoras. */
+        wireless: { select: { mode: true } },
       },
       orderBy: { assetCode: 'asc' },
     });
+    /* Bloque 174 · el tren de cada equipo, para ofrecer primero lo de la
+       misma zona en los desplegables de dependencia (AP, antena, switch). */
+    const ctx = await resolverContextoDePlanta(this.prisma, rows);
     return rows.map((a) => ({
       id: a.id,
       assetCode: a.assetCode,
@@ -495,6 +519,8 @@ export class AssetsService {
       status: a.status,
       locationName: a.location?.name || null,
       referencePlace: a.referencePlace || null,
+      tren: ctx[a.id]?.trenCode ?? null,
+      modoRadio: a.wireless?.mode ?? null,
     }));
   }
 

@@ -14,6 +14,7 @@ import { QueryWorkOrderDto } from './dto/query-work-order.dto';
 import { CloseWorkOrderDto } from './dto/close-work-order.dto';
 import { OpenWorkOrderDto } from './dto/open-work-order.dto';
 import { ProgressWorkOrderDto } from './dto/progress-work-order.dto';
+import { AsignarOmDto, DesdeIncidenciaDto, DetallarOmDto } from './dto/asignar-om.dto';
 import { RequirePermissions, RequireAlguno } from '../../common/decorators/permissions.decorator';
 import { AmbitoDe } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -93,7 +94,7 @@ export class MaintenanceController {
    */
   @Post('asignar')
   @RequirePermissions('wo.create')
-  asignar(@Body() body: any, @CurrentUser() user: any, @Ip() ip: string) {
+  asignar(@Body() body: AsignarOmDto, @CurrentUser() user: any, @Ip() ip: string) {
     return this.wo.asignar(body, user?.userId, ip);
   }
 
@@ -103,7 +104,7 @@ export class MaintenanceController {
   @RequirePermissions('wo.create')
   desdeIncidencia(
     @Param('incidentId') incidentId: string,
-    @Body() body: any,
+    @Body() body: DesdeIncidenciaDto,
     @CurrentUser() user: any,
     @Ip() ip: string,
   ) {
@@ -118,7 +119,7 @@ export class MaintenanceController {
   @AmbitoDe('workOrder')
   @Patch(':id/detallar')
   @RequirePermissions('wo.update')
-  detallar(@Param('id') id: string, @Body() body: any, @CurrentUser() user: any, @Ip() ip: string) {
+  detallar(@Param('id') id: string, @Body() body: DetallarOmDto, @CurrentUser() user: any, @Ip() ip: string) {
     return this.wo.detallar(id, body, user?.userId, ip);
   }
 

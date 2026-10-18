@@ -10,6 +10,7 @@ import { plural } from '../formato';
 import { fecha } from '../fechas';
 import BotonConMotivo from '../components/BotonConMotivo';
 import { queFalta } from '../avisos';
+import AvisoDeRecorte, { Recorte, recorteDe } from '../components/AvisoDeRecorte';
 
 /**
  * MEJORAS A LOS PROCEDIMIENTOS — bloque 58.
@@ -69,13 +70,14 @@ export default function Mejoras() {
   const [motivo, setMotivo] = useState('');
   const [comoPaso, setComoPaso] = useState(true);
   const [enviando, setEnviando] = useState('');
+  const [recorte, setRecorte] = useState<Recorte | null>(null);
 
   const cargar = useCallback(async () => {
     setError('');
     try {
       const [p, m] = await Promise.all([
         puedeDecidir
-          ? api.get('/procedimientos-mejoras/pendientes').then((r) => r.data)
+          ? api.get('/procedimientos-mejoras/pendientes').then((r) => { setRecorte(recorteDe(r)); return r.data; })
           : Promise.resolve([]),
         api.get('/procedimientos-mejoras/mias').then((r) => r.data),
       ]);
@@ -141,7 +143,7 @@ export default function Mejoras() {
 
   if (pendientes === null || mias === null) return <EsqueletoTablero />;
 
-  const nPend = pendientes.length;
+  const nPend = recorte?.total ?? pendientes.length; // bloque 174: el total, no lo que cupo
   const nMiasPend = mias.filter((m) => m.estado === 'PROPUESTA').length;
   const lista = vista === 'pendientes' ? pendientes : mias;
 
@@ -161,6 +163,8 @@ export default function Mejoras() {
         <div role="alert" className="aviso-error aviso-cerrable"
           onClick={() => setError('')} title="Toca para cerrar este aviso">{error}</div>
       )}
+
+      <AvisoDeRecorte recorte={recorte} cuales="propuestas más antiguas" como="Al decidir estas, salen las siguientes." />
 
       {/* El titular dice QUÉ HAY QUE HACER, no cuántos registros hay. */}
       {puedeDecidir && (

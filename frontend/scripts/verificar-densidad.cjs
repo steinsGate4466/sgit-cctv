@@ -51,6 +51,10 @@ const TOPE_INDICADORES = 6;
    Una lista corta y explicada es deuda controlada; una lista larga es una
    regla que se dejó de aplicar. Si esto crece, el problema es la regla. */
 const EXENTAS = {
+  'Guia.tsx':
+    'Bloque 174 · es la GUÍA del recorrido de una OM (Producción la crea, '
+    + 'Mantenimiento la atiende y la abre): el texto ES el contenido, y cada '
+    + 'paso es una línea corta con el detalle en el title.',
   'Rotulado.tsx':
     'Es un documento de norma, no un tablero: el texto ES el contenido. '
     + 'Explica ANSI/TIA-606-C, que es lo que se viene a consultar.',

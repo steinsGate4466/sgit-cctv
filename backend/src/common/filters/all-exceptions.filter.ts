@@ -57,6 +57,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
       code = 'PRISMA_VALIDACION';
       status = HttpStatus.BAD_REQUEST;
       message = 'Datos inválidos para esta operación (revisa los valores enviados).';
+    } else if (esArchivoQueYaNoEsta(exception)) {
+      /* Bloque 174 · el registro dice que hay un archivo (plano, foto,
+         documento) y el almacén ya no lo tiene. Era un 500 «error interno»;
+         es un archivo perdido, y se dice así para que se vuelva a subir. */
+      code = 'ARCHIVO_PERDIDO';
+      status = HttpStatus.NOT_FOUND;
+      message = 'El archivo ya no está en el almacén. Hay que volver a subirlo.';
     } else if (esServicioCaido(exception)) {
       /* Bloque 171 · un servicio externo (almacén de archivos MinIO, base de
          datos) que no contesta. Antes salía 500 «Error interno», que suena a
@@ -106,4 +113,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
 export function esServicioCaido(e: unknown): boolean {
   const c = (e as any)?.code ?? (e as any)?.cause?.code;
   return ['ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'EHOSTUNREACH', 'ENOTFOUND'].includes(String(c));
+}
+
+/** Bloque 174 · MinIO/S3 responde «NoSuchKey»: el archivo no está en el almacén. */
+export function esArchivoQueYaNoEsta(e: unknown): boolean {
+  const c = String((e as any)?.code ?? '');
+  return c === 'NoSuchKey' || (c === 'NotFound' && (e as any)?.name === 'S3Error');
 }

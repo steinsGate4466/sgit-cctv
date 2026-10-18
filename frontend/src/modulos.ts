@@ -78,6 +78,9 @@ export const MODULOS: Modulo[] = [
       { ruta: '/tablero-om', texto: 'Avance', nota: 'Cómo van las órdenes abiertas', puede: con('om.mirar') },
       { ruta: '/hojas-de-ruta', texto: 'Hojas de ruta', nota: 'Recorridos de preventivo', puede: con('wo.read') },
       { ruta: '/gruas', texto: 'Grúas', nota: 'Inspección de cámaras de grúa', puede: con('wo.read') },
+      /* Bloque 174 · el recorrido de una OM (Producción la crea, Mantenimiento
+         la atiende y la abre) explicado paso a paso. La ve todo el mundo. */
+      { ruta: '/guia', texto: 'Cómo se trabaja', nota: 'Quién hace cada paso de una OM' },
     ],
   },
   {

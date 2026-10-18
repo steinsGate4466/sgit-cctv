@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { AccesoVigenteGuard } from '../../common/guards/acceso-vigente.guard';
+import { avisarCambioDePermisos } from '../../common/aviso-de-permisos';
 import * as argon2 from 'argon2';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SetPinDto, VerifyPinDto } from './dto/pin.dto';
@@ -166,7 +166,7 @@ export class UsersService {
     const r = await this.prisma.user.update({ where: { id }, data, select: userSelect });
     /* Y se borra de la caché del guard para que el corte se note EN EL ACTO,
        no dentro de quince segundos. */
-    if (cambiaLoQuePuedeHacer) AccesoVigenteGuard.olvidar(id);
+    if (cambiaLoQuePuedeHacer) await avisarCambioDePermisos(this.prisma, id); // bloque 174: a TODAS las instancias
     return r;
   }
 
@@ -202,7 +202,7 @@ export class UsersService {
         },
       }),
     ]);
-    AccesoVigenteGuard.olvidar(id);
+    await avisarCambioDePermisos(this.prisma, id); // bloque 174: a TODAS las instancias
     return { ok: true, sesionesCerradas: sesiones.count };
   }
 
@@ -319,7 +319,7 @@ export class UsersService {
         data: { revocadaEn: new Date(), motivoRevocacion: 'usuario desactivado' },
       }),
     ]);
-    AccesoVigenteGuard.olvidar(id);
+    await avisarCambioDePermisos(this.prisma, id); // bloque 174: a TODAS las instancias
     return r;
   }
 

@@ -2,6 +2,7 @@ import {
   BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException,
 } from '@nestjs/common';
 import { WorkOrderStatus } from '../../generated/prisma/client';
+import { TOPE_LISTA_PANTALLA, cabecerasDeRecorte } from '../../common/tope-de-filas';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { BandejaSalidaService } from '../notificaciones/bandeja-salida.service';
@@ -555,8 +556,12 @@ export class ProcedimientosService {
   }
 
   /** Lo que espera decisión del Jefe. */
-  async mejorasPendientes() {
-    return this.prisma.mejoraProcedimiento.findMany({
+  async mejorasPendientes(res?: { setHeader: (k: string, v: string) => unknown }) {
+    /* Bloque 174 · con techo: las MÁS ANTIGUAS primero (son las que llevan más
+       esperando), y el total en X-Total para que la pantalla lo diga. */
+    const total = await this.prisma.mejoraProcedimiento.count({ where: { estado: 'PROPUESTA' } });
+    const filas = await this.prisma.mejoraProcedimiento.findMany({
+      take: TOPE_LISTA_PANTALLA,
       where: { estado: 'PROPUESTA' },
       select: {
         id: true, texto: true, minutosReales: true, createdAt: true,
@@ -566,5 +571,7 @@ export class ProcedimientosService {
       },
       orderBy: { createdAt: 'asc' },
     });
+    cabecerasDeRecorte(res, filas.length, total);
+    return filas;
   }
 }

@@ -86,8 +86,47 @@ jobs:
             exit 1
           fi
 
-      - name: Guardar el respaldo
+      # =======================================================================
+      # BLOQUE 174 · UN RESPALDO QUE NUNCA SE HA RESTAURADO NO ES UN RESPALDO.
+      # Se restaura en una base de usar y tirar (misma version que Railway) y
+      # se compara tabla por tabla con la original. Si falta una tabla, una
+      # migracion o una tabla sale vacia, el trabajo FALLA y llega el aviso.
+      # Procedimiento manual completo: docs/RESTAURAR_RESPALDO.md
+      # =======================================================================
+      - name: Restaurar el respaldo en una base de prueba
         if: steps.chequeo.outputs.listo == 'si'
+        run: |
+          docker run -d --name prueba -e POSTGRES_PASSWORD=prueba -p 5433:5432 "$IMAGEN"
+          for i in $(seq 1 30); do
+            docker exec prueba pg_isready -U postgres >/dev/null 2>&1 && break
+            sleep 2
+          done
+          docker exec -i prueba psql -U postgres -d postgres -v ON_ERROR_STOP=1 -q < "$ARCHIVO" > /dev/null
+          echo "Restaurado sin errores."
+
+      - uses: actions/checkout@v5
+        if: steps.chequeo.outputs.listo == 'si'
+        with:
+          path: repo
+
+      - uses: actions/setup-node@v5
+        if: steps.chequeo.outputs.listo == 'si'
+        with:
+          node-version: 24
+
+      - name: Comparar la restaurada con la original
+        if: steps.chequeo.outputs.listo == 'si'
+        run: |
+          mkdir -p /tmp/pg && cd /tmp/pg && npm init -y > /dev/null && npm install pg@8 --silent --no-audit --no-fund
+          cd "$GITHUB_WORKSPACE"
+          NODE_PATH=/tmp/pg/node_modules node repo/backend/scripts/probar-restauracion.js \
+            "${{ secrets.DATABASE_PUBLIC_URL }}" \
+            "postgresql://postgres:prueba@localhost:5433/postgres" --en-vivo
+
+      # Se guarda AUNQUE la comparacion falle: un respaldo dudoso sigue
+      # valiendo mas que ninguno, y el aviso en rojo dice que hay que mirarlo.
+      - name: Guardar el respaldo
+        if: always() && steps.chequeo.outputs.listo == 'si'
         uses: actions/upload-artifact@v5
         with:
           name: respaldo-bd

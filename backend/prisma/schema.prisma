@@ -2629,6 +2629,20 @@ model IntentoAcceso {
   @@map("intentos_acceso")
 }
 
+/// Bloque 174 · EL LÍMITE DE PETICIONES COMPARTIDO entre instancias. Antes
+/// vivía en la memoria de cada proceso y con dos réplicas el tope se duplicaba.
+/// Una fila por (quién + regla, ventana); `ventana` es el milisegundo en que
+/// empieza. Se limpia sola cada minuto (`common/contador-compartido.ts`).
+model LimitePeticiones {
+  clave   String
+  ventana BigInt
+  n       Int    @default(0)
+
+  @@id([clave, ventana])
+  @@index([ventana])
+  @@map("limite_peticiones")
+}
+
 /// Ajustes que hoy están en variables de entorno y que tiene sentido que
 /// cambie el ingeniero sin entrar al panel de despliegue.
 ///

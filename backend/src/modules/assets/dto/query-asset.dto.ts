@@ -1,4 +1,4 @@
-import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsEnum, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import { AssetType, AssetStatus } from '../../../generated/prisma/client';
 
@@ -8,6 +8,13 @@ export class QueryAssetDto {
   @IsOptional() @IsString() locationId?: string;
   @IsOptional() @IsString() cabinetId?: string;
   @IsOptional() @IsString() search?: string;
+
+  /* Bloque 174 · «sin servicio» por el ESTADO REAL (el que pinta la ficha):
+     fuera de servicio o en mantenimiento declarado, O con una orden o una
+     incidencia abierta. Es el mismo criterio de «Cámaras sin servicio» del
+     Dashboard; antes el enlace filtraba sólo lo declarado y la lista no
+     cuadraba con el número. */
+  @IsOptional() @IsIn(['1', 'true']) sinServicio?: string;
 
   // ---- Ámbito de planta (3B-2) ----
   // Código de la ubicación de tipo TREN y código de la etapa del proceso.

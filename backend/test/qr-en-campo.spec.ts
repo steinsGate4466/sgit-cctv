@@ -133,7 +133,9 @@ describe('el QR en campo no relaja el control', () => {
        `select` de `workOrders` no traía `id`, así que la ficha listaba órdenes
        sobre las que era imposible actuar. */
     const a = fs.readFileSync(ASSETS, 'utf8');
-    const i = a.indexOf('workOrders: {');
+    /* Bloque 174: anclado a `findOne` — el listado ya usa `workOrders: { some`
+       para filtrar por estado real, y el primer `workOrders: {` ya no es éste. */
+    const i = a.indexOf('workOrders: {', a.indexOf('async findOne('));
     expect(i).toBeGreaterThan(-1);
     expect(a.slice(i, i + 900)).toMatch(/\bid:\s*true\b/);
   });

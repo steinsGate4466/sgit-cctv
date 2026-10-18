@@ -5,7 +5,7 @@ import {
   estaDesfasado, informeDeDesfase, motivoParaNoPonerAlDia,
 } from '../../common/desfase-de-roles';
 import { motivoParaNoBorrar, motivoParaNoGuardar, normalizarAmbito } from './roles.guardas';
-import { AccesoVigenteGuard } from '../../common/guards/acceso-vigente.guard';
+import { avisarCambioDePermisos } from '../../common/aviso-de-permisos';
 
 /**
  * ROLES QUE CREA EL INGENIERO.
@@ -182,8 +182,9 @@ export class RolesService {
     /* La caché del guard vive en memoria y dura quince segundos. Se vacía
        entera —y no usuario por usuario— porque un cambio de rol afecta a
        todos los suyos y aquí no se sabe cuántos son sin otra consulta.
-       Vaciarla de más sólo cuesta una consulta a la base por persona. */
-    AccesoVigenteGuard.olvidarTodo();
+       Vaciarla de más sólo cuesta una consulta a la base por persona.
+       Bloque 174: y en TODAS las instancias (aviso por la base). */
+    await avisarCambioDePermisos(this.prisma, '*');
 
     return { ok: true, permisos: codigos.length };
   }

@@ -107,6 +107,7 @@ Dentro de cada módulo, lo que antes era una entrada del menú pasa a ser una **
 | **171** ✅ | Validación total (65 pantallas × 6 perfiles, PC/celular/noche, todos los GET): 429 sin CORS, 403 en pantallas propias, PuertaDeRuta, desbordes; ficha única (150), «Estás aquí» (154), capa de impacto (153), menos letras (149); recorrido e2e 08 |
 | **172** ✅ | Desplegables acordes a su campo: ubicaciones por uso (sin gabinetes ni empresa), tren de planta normalizado (paradas no se podían guardar), «Crítica» rechazada, asignar sólo a ejecutores, grúas, enlaces por medio, stock por tipo; `verificar-desplegables` |
 | **173** ✅ | Puertos del switch: la rejilla leía `x.número` (no se veía lo guardado); VLAN 1–4094, PoE contra la ficha, enlace/subida, declarar puertos en sitio, ficha sincronizada; mapa: arrastre pegado, puntos encimados, plano visible; enlaces que perdían su filtro; `verificar-propiedades` y `verificar-enlaces` |
+| **174** ✅ | Deuda cerrada: 45 endpoints con DTO (verificar-dto en 0), 3 listas con techo que lo dicen (topes en 0), límite de peticiones y corte de acceso compartidos entre instancias sin Redis (PostgreSQL), restauración del respaldo probada y en la CI nocturna; guía «Cómo se trabaja» (Producción crea la OM, Mantenimiento la atiende); AP del que cuelga sólo AP y de tu zona primero; «sin servicio» por estado real |
 | **154** ✅ | «Estás aquí» con QR y ruta a pie (texto: tren › zona, cómo llegar, altura) |
 
 Detalle: `docs/ARQUITECTURA_PLANO_VIVO.md`.

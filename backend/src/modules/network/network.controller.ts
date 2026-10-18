@@ -8,6 +8,7 @@ import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { SinAmbito } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { CrearEnlaceDto } from './dto/conexiones.dto';
 
 @ApiTags('red')
 @ApiBearerAuth()
@@ -93,9 +94,11 @@ export class NetworkController {
     return this.red.impacto(assetId);
   }
 
+  /* Mismo DTO que POST /conexiones/enlaces (bloque 174): las dos rutas llaman
+     a `crearEnlace`, y dos contratos para la misma alta acabarían divergiendo. */
   @Post('enlaces')
   @RequirePermissions('asset.update')
-  crear(@Body() dto: any) {
+  crear(@Body() dto: CrearEnlaceDto) {
     return this.red.crearEnlace(dto);
   }
 

@@ -95,6 +95,11 @@ export class HojasRutaService {
       malas.push(`El título tiene ${descripcion.length} caracteres (máximo ${MAX_CARACTERES_DESCRIPCION}).`);
     }
     for (const p of pasos) {
+      /* Bloque 174 · un paso sin descripción daba un 500 («reading length»):
+         se dice en palabras, como el resto. */
+      if (typeof p?.descripcion !== 'string' || !p.descripcion.trim()) {
+        throw new BadRequestException('Hay un paso sin texto. Escríbelo o quítalo.');
+      }
       if (p.descripcion.length > MAX_CARACTERES_DESCRIPCION) {
         malas.push(`«${p.descripcion}» tiene ${p.descripcion.length} caracteres (máximo ${MAX_CARACTERES_DESCRIPCION}).`);
       }

@@ -4,6 +4,7 @@ import { Prisma } from '../../generated/prisma/client';
 import { revisarImagen } from '../../common/archivos-seguros';
 import * as argon2 from 'argon2';
 import { randomUUID } from 'crypto';
+import { TOPE_LISTA_PANTALLA, cabecerasDeRecorte } from '../../common/tope-de-filas';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { StorageService } from '../storage/storage.service';
@@ -54,7 +55,7 @@ export class AccessService {
     return `${prefix}${String(n + 1).padStart(4, '0')}`;
   }
 
-  async findAll(q: QueryAccessRequestDto) {
+  async findAll(q: QueryAccessRequestDto, res?: { setHeader: (k: string, v: string) => unknown }) {
     // Tipado con el WhereInput que genera Prisma: si se escribe mal el
     // nombre de un campo o se anida un filtro dentro de otro, lo dice al
     // compilar en lugar de devolver un 400 en producción.
@@ -67,11 +68,17 @@ export class AccessService {
         { asset: { assetCode: { contains: t, mode: 'insensitive' } } },
       ];
     }
-    const rows = await this.prisma.accessRequest.findMany({
-      where,
-      include: { ...inc, _count: { select: { photos: true } } },
-      orderBy: { createdAt: 'desc' },
-    });
+    /* Bloque 174 · con techo, y el total para decirlo (cabeceras X-Total). */
+    const [rows, total] = await Promise.all([
+      this.prisma.accessRequest.findMany({
+        where,
+        include: { ...inc, _count: { select: { photos: true } } },
+        orderBy: { createdAt: 'desc' },
+        take: TOPE_LISTA_PANTALLA,
+      }),
+      this.prisma.accessRequest.count({ where }),
+    ]);
+    cabecerasDeRecorte(res, rows.length, total);
     return rows.map((r: any) => ({
       ...r,
       photoCount: r._count.photos,

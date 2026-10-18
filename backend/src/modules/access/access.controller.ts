@@ -23,8 +23,8 @@ export class AccessController {
 
   @Get()
   @RequirePermissions('access.read')
-  findAll(@Query() q: QueryAccessRequestDto) {
-    return this.access.findAll(q);
+  findAll(@Query() q: QueryAccessRequestDto, @Res({ passthrough: true }) res: Response) {
+    return this.access.findAll(q, res);
   }
 
   @Get('summary')

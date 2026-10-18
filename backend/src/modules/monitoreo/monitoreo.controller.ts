@@ -7,6 +7,7 @@ import { RequirePermissions } from '../../common/decorators/permissions.decorato
 import { Public } from '../../common/decorators/public.decorator';
 import { Freno, FrenoGuard } from '../../common/guards/freno.guard';
 import { CUPO_LOGIN } from '../../common/freno';
+import { CrearAgenteDto, ReporteAgenteDto } from './dto/monitoreo.dto';
 
 /**
  * Dos puertas distintas, y conviene verlas separadas:
@@ -37,7 +38,7 @@ export class MonitoreoController {
   @Freno(CUPO_LOGIN)
   @UseGuards(FrenoGuard)
   @Post('agente/reporte')
-  reporte(@Headers('x-agent-token') token: string, @Ip() ip: string, @Body() lote: any) {
+  reporte(@Headers('x-agent-token') token: string, @Ip() ip: string, @Body() lote: ReporteAgenteDto) {
     return this.mon.recibirReporte(token, ip, lote);
   }
 
@@ -63,7 +64,7 @@ export class MonitoreoController {
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Post('agentes')
   @RequirePermissions('monitor.manage')
-  crearAgente(@Body() dto: any) {
-    return this.mon.crearAgente(dto?.nombre);
+  crearAgente(@Body() dto: CrearAgenteDto) {
+    return this.mon.crearAgente(dto?.nombre as string);
   }
 }

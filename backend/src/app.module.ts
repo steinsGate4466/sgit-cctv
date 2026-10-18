@@ -54,6 +54,7 @@ import { ZonasModule } from './modules/zonas/zonas.module';
 import { ProcedimientosModule } from './modules/procedimientos/procedimientos.module';
 import { EstandaresModule } from './modules/estandares/estandares.module';
 import { RiesgoModule } from './modules/riesgo/riesgo.module';
+import { AvisoDePermisosService } from './common/aviso-de-permisos';
 
 @Module({
   imports: [
@@ -112,6 +113,9 @@ import { RiesgoModule } from './modules/riesgo/riesgo.module';
        chequeo que tumba el servicio convierte un problema de datos en una
        caida de planta. El objetivo es que estos fallos dejen de ser mudos. */
     AutochequeoService,
+    /* Bloque 174 · escucha «le cambiaron los permisos» de las OTRAS instancias
+       (LISTEN/NOTIFY de PostgreSQL) para que un corte valga en todas a la vez. */
+    AvisoDePermisosService,
     // Seguridad por defecto en TODOS los endpoints:
     // 0) RitmoGuard limita el VOLUMEN de peticiones (12.2). Va PRIMERO a
     //    proposito: un bucle sin token valido se corta antes de gastar

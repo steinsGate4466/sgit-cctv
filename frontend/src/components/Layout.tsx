@@ -111,6 +111,7 @@ const TITLES: Record<string, string> = {
      es un sitio; esto es el vocabulario con el que se cierra una orden. */
   '/catalogos': 'Catálogo de fallas',
   '/modulos': 'Todos los módulos',
+  '/guia': 'Cómo se trabaja',
   /* Bloque 171 · faltaban: la cabecera decía «SGIT-CCTV» en estas cuatro. */
   '/tablero-om': 'Avance de órdenes',
   '/retirados': 'Equipos retirados',

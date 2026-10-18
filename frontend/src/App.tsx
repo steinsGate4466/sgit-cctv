@@ -70,6 +70,7 @@ const Cobertura = lazyConReintento(() => import('./pages/Cobertura'));
 const MiCuenta = lazyConReintento(() => import('./pages/MiCuenta'));
 /* Bloque 170 · el mapa del sistema: cada módulo con sus pantallas. */
 const Modulos = lazyConReintento(() => import('./pages/Modulos'));
+const Guia = lazyConReintento(() => import('./pages/Guia'));
 const Indicadores = lazyConReintento(() => import('./pages/Indicadores'));
 const Avisos = lazyConReintento(() => import('./pages/Avisos'));
 const Incidents = lazyConReintento(() => import('./pages/Incidents'));
@@ -160,6 +161,7 @@ export default function App() {
           <Route path="/cobertura" element={<Cobertura />} />
           <Route path="/mi-cuenta" element={<MiCuenta />} />
           <Route path="/modulos" element={<Modulos />} />
+          <Route path="/guia" element={<Guia />} />
           <Route path="/indicadores" element={<Indicadores />} />
           <Route path="/avisos" element={<Avisos />} />
           <Route path="/incidents" element={<Incidents />} />

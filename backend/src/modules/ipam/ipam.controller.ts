@@ -6,6 +6,7 @@ import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { SinAmbito } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { CrearSubredDto, ReservarIpDto } from './dto/ipam.dto';
 
 @ApiTags('ipam')
 @ApiBearerAuth()
@@ -20,7 +21,7 @@ export class IpamController {
 
   @Post('subredes')
   @RequirePermissions('asset.update')
-  crear(@Body() dto: any, @CurrentUser() u: any, @Ip() ip: string) {
+  crear(@Body() dto: CrearSubredDto, @CurrentUser() u: any, @Ip() ip: string) {
     return this.ipam.crearSubred(dto, u?.userId, ip);
   }
 
@@ -48,7 +49,7 @@ export class IpamController {
 
   @Post('reservas')
   @RequirePermissions('asset.update')
-  reservar(@Body() dto: any, @CurrentUser() u: any, @Ip() ip: string) {
+  reservar(@Body() dto: ReservarIpDto, @CurrentUser() u: any, @Ip() ip: string) {
     return this.ipam.reservar(dto, u?.userId, ip);
   }
 

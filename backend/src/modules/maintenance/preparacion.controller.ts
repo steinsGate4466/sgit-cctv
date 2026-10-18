@@ -1,6 +1,9 @@
 import { Body, Controller, Delete, Get, Ip, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PreparacionService } from './preparacion.service';
+import {
+  AgregarMaterialDto, ActualizarMaterialDto, GenerarRetiroDto, RegistrarReemplazoDto,
+} from './dto/preparacion.dto';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { AmbitoDe } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -53,7 +56,7 @@ export class PreparacionController {
   @RequirePermissions('wo.update')
   agregarMaterial(
     @Param('id') id: string,
-    @Body() body: any,
+    @Body() body: AgregarMaterialDto,
     @CurrentUser() user: any,
     @Ip() ip: string,
   ) {
@@ -63,7 +66,7 @@ export class PreparacionController {
   @AmbitoDe('workOrder', 'materialId')
   @Patch('materials/:materialId')
   @RequirePermissions('wo.update')
-  actualizarMaterial(@Param('materialId') materialId: string, @Body() body: any) {
+  actualizarMaterial(@Param('materialId') materialId: string, @Body() body: ActualizarMaterialDto) {
     return this.prep.actualizarMaterial(materialId, body);
   }
 
@@ -100,7 +103,7 @@ export class PreparacionController {
   @RequirePermissions('inventory.manage')
   generarRetiro(
     @Param('id') id: string,
-    @Body() body: any,
+    @Body() body: GenerarRetiroDto,
     @CurrentUser() user: any,
     @Ip() ip: string,
   ) {
@@ -152,7 +155,7 @@ export class PreparacionController {
   @RequirePermissions('wo.update')
   registrarReemplazo(
     @Param('id') id: string,
-    @Body() body: any,
+    @Body() body: RegistrarReemplazoDto,
     @CurrentUser() user: any,
     @Ip() ip: string,
   ) {

@@ -11,6 +11,7 @@ import { QuerySpareDto } from './dto/query-spare.dto';
 import { MovementDto } from './dto/movement.dto';
 import { CheckDto } from './dto/check.dto';
 import { LinkAssetDto } from './dto/link-asset.dto';
+import { ActualizarHerramientaDto, CrearHerramientaDto } from './dto/herramienta.dto';
 import { RequireAlguno, RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { SinAmbito } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -99,14 +100,14 @@ export class InventoryController {
 
   @Post('tools')
   @RequirePermissions('inventory.manage')
-  crearHerramienta(@Body() dto: any) {
+  crearHerramienta(@Body() dto: CrearHerramientaDto) {
     return this.inv.crearHerramienta(dto);
   }
 
   @SinAmbito()  // almacén: es uno solo para toda la planta
   @Patch('tools/:toolId')
   @RequirePermissions('inventory.manage')
-  actualizarHerramienta(@Param('toolId') toolId: string, @Body() dto: any) {
+  actualizarHerramienta(@Param('toolId') toolId: string, @Body() dto: ActualizarHerramientaDto) {
     return this.inv.actualizarHerramienta(toolId, dto);
   }
 

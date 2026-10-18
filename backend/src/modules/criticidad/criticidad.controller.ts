@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CriticidadService } from './criticidad.service';
+import { DeclararCriticidadDto, ParametrosCriticidadDto, RiesgoDeZonaDto } from './dto/criticidad.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions, RequireAlguno } from '../../common/decorators/permissions.decorator';
@@ -57,7 +58,7 @@ export class CriticidadController {
   @RequirePermissions('wo.approve')
   // Sin ámbito: son los números de la planta entera, no de ningún equipo.
   @SinAmbito()
-  guardarParametros(@Body() dto: any, @CurrentUser() user: any) {
+  guardarParametros(@Body() dto: ParametrosCriticidadDto, @CurrentUser() user: any) {
     return this.criticidad.guardarParametros(dto, user?.userId);
   }
 
@@ -68,7 +69,7 @@ export class CriticidadController {
   @Put('zona/:id')
   @RequirePermissions('wo.approve')
   @AmbitoDe('location')
-  declararZona(@Param('id') id: string, @Body() dto: any, @CurrentUser() user: any) {
+  declararZona(@Param('id') id: string, @Body() dto: RiesgoDeZonaDto, @CurrentUser() user: any) {
     return this.criticidad.declararZona(id, dto, user?.userId);
   }
 
@@ -103,7 +104,7 @@ export class CriticidadController {
   @Post(':id')
   @RequirePermissions('wo.approve')
   @AmbitoDe('asset')
-  declarar(@Param('id') id: string, @Body() dto: any, @CurrentUser() user: any) {
+  declarar(@Param('id') id: string, @Body() dto: DeclararCriticidadDto, @CurrentUser() user: any) {
     return this.criticidad.declarar(id, dto, user?.userId);
   }
 }

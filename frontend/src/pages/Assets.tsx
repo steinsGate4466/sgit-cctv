@@ -32,7 +32,7 @@ import { fecha, plural } from '../formato';
 import { fechaTabla } from '../fechas';
 import { mensajeDeError } from '../avisos';
 import EnergiaDelActivo from '../components/EnergiaDelActivo';
-import { OpcionesDeUbicacion, delMismoTren } from '../ubicaciones';
+import { OpcionesDeUbicacion, delMismoTren, trenDe } from '../ubicaciones';
 import DocumentosDelActivo from '../components/DocumentosDelActivo';
 import { IconoEquipo, NOMBRE_ICONO, puntoDeEstado } from '../components/mapa/Marcador';
 
@@ -195,6 +195,8 @@ export default function Assets() {
   const [fq, setFq] = useState(() => params.get('q') || params.get('buscar') || params.get('search') || '');
   const [fType, setFType] = useState(() => params.get('tipo') || '');
   const [fStatus, setFStatus] = useState(() => params.get('status') || '');
+  /* Bloque 174 · «sin servicio» por el ESTADO REAL (como el Dashboard). */
+  const [sinServicio, setSinServicio] = useState(() => params.get('sinServicio') === '1');
   const qDeUrl = params.get('q') || params.get('buscar') || params.get('search') || '';
   const estadoDeUrl = params.get('status') || '';
   useEffect(() => { if (qDeUrl) setFq(qDeUrl); }, [qDeUrl]);
@@ -269,12 +271,13 @@ export default function Assets() {
     if (fType) params.type = fType;
     if (fStatus) params.status = fStatus;
     if (fLetra) params.letra = fLetra;
+    if (sinServicio) params.sinServicio = '1';
     const r = await api.get('/assets', { params }).then((x) => x.data).catch(() => null);
     if (!r) return;
     setRows(r.items || []);
     setMeta({ total: r.total, page: r.page, pageSize: r.pageSize, pages: r.pages });
     if (r.reparto) setReparto(r.reparto);
-  }, [page, fq, fType, fStatus, fLetra, ambito]);
+  }, [page, fq, fType, fStatus, fLetra, ambito, sinServicio]);
 
   // Catálogos que no cambian con el filtro: se cargan una sola vez.
   useEffect(() => {
@@ -524,6 +527,7 @@ export default function Assets() {
     if (fq.trim()) params.search = fq.trim();
     if (fType) params.type = fType;
     if (fStatus) params.status = fStatus;
+    if (sinServicio) params.sinServicio = '1';
     try {
       const res = await api.get('/assets/qr/sheet', { params, responseType: 'blob' });
       const nombre = ['etiquetas-qr', ambito.tren, ambito.etapa, fType].filter(Boolean).join('-');
@@ -799,6 +803,12 @@ export default function Assets() {
         <div role="status" className="aviso-ok aviso-cerrable" onClick={() => setMsg('')} title="Toca para cerrar este aviso">{msg}</div>
       )}
       <AvisoAmbito valor={ambito} total={meta?.total} />
+      {sinServicio && (
+        <button type="button" className="btn-mini" style={{ marginBottom: 10 }}
+          aria-label="Quitar el filtro «sin servicio»"
+          title="Sólo lo que está sin servicio por su estado real: fuera de servicio o en mantenimiento declarado, o con una orden o una incidencia abierta (el criterio del Dashboard). Pulsa para quitar el filtro."
+          onClick={() => setSinServicio(false)}>Sin servicio ✕</button>
+      )}
 
       <div className="filters">
         <FiltroAmbito valor={ambito} onChange={setAmbito} />
@@ -1478,7 +1488,7 @@ export default function Assets() {
             </>)}
             {CABINET_REQUIRED.includes(form.type) && !form.cabinetId && !form.tableroId && (
               <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
-                Di dónde está montado, para poder encontrarlo.
+                Di dónde está montado.
               </div>
             )}
             <label>Lugar de referencia (texto libre)
@@ -1493,6 +1503,7 @@ export default function Assets() {
               spec={spec}
               onChange={setSpec}
               opciones={opciones}
+              tren={trenDe(locations, form.locationId)?.code ?? null}
               propioId={form.id}
             />
 

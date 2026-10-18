@@ -5,6 +5,8 @@ import { Reflector } from '@nestjs/core';
 import {
   CupoRitmo, EstadoRitmo, RITMO_GENERAL, claveRitmo, estadoRitmoInicial, evaluarRitmo,
 } from '../ritmo';
+import { ContadorCompartido } from '../contador-compartido';
+import { PrismaService } from '../../prisma/prisma.service';
 
 export const RITMO = 'ritmo_cupo';
 
@@ -32,9 +34,18 @@ export class RitmoGuard implements CanActivate {
   private readonly mapa = new Map<string, EstadoRitmo>();
   private ultimaLimpieza = 0;
 
-  constructor(private readonly reflector: Reflector) {}
+  /* Bloque 174 · las rutas CARAS (Excel, PDF: 5/min) se cuentan en la base,
+     compartido entre instancias: con dos réplicas el tope ya no se duplica.
+     El cupo general sigue en memoria aquí porque ya lo cuenta, compartido,
+     el contador de `main.ts`; contarlo dos veces en la base sería pagar dos
+     escrituras por petición para decir lo mismo. */
+  private readonly compartido: ContadorCompartido;
 
-  canActivate(ctx: ExecutionContext): boolean {
+  constructor(private readonly reflector: Reflector, prisma: PrismaService) {
+    this.compartido = new ContadorCompartido(prisma);
+  }
+
+  async canActivate(ctx: ExecutionContext): Promise<boolean> {
     // Sólo peticiones HTTP. Un temporizador interno o un evento no pasan por
     // aquí, pero si algún día llegan, que no revienten.
     if (ctx.getType() !== 'http') return true;
@@ -60,26 +71,34 @@ export class RitmoGuard implements CanActivate {
     const familia = especifico ? (req.route?.path || req.url) : 'general';
     const k = claveRitmo(quien, familia);
 
+    if (especifico) {
+      const espera = await this.compartido.consultar(k, { maximo: cupo.maximo, ventanaMs: cupo.ventanaMs }, ahora);
+      if (espera !== null) this.frenar(res, espera);
+      return true;
+    }
+
     const estado = this.mapa.get(k) || estadoRitmoInicial();
     const v = evaluarRitmo(estado, cupo, ahora);
     this.mapa.set(k, v.estado);
 
-    if (!v.permitido) {
-      res?.setHeader?.('Retry-After', String(v.esperaSeg));
-      throw new HttpException(
-        {
-          statusCode: HttpStatus.TOO_MANY_REQUESTS,
-          message:
-            `Demasiadas peticiones seguidas. Espera ${v.esperaSeg} segundo(s) y vuelve a intentarlo. ` +
-            `Si no estabas haciendo nada raro, avisa: puede ser una pantalla repitiendo una llamada.`,
-          esperaSeg: v.esperaSeg,
-        },
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
+    if (!v.permitido) this.frenar(res, v.esperaSeg);
 
     res?.setHeader?.('X-RateLimit-Remaining', String(v.restantes));
     return true;
+  }
+
+  private frenar(res: any, esperaSeg: number): never {
+    res?.setHeader?.('Retry-After', String(esperaSeg));
+    throw new HttpException(
+      {
+        statusCode: HttpStatus.TOO_MANY_REQUESTS,
+        message:
+          `Demasiadas peticiones seguidas. Espera ${esperaSeg} segundo(s) y vuelve a intentarlo. ` +
+          `Si no estabas haciendo nada raro, avisa: puede ser una pantalla repitiendo una llamada.`,
+        esperaSeg,
+      },
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
   }
 
   /** IP real detrás del proxy de Railway. */

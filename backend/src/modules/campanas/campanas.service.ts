@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { TOPE_LISTA_PANTALLA, cabecerasDeRecorte } from '../../common/tope-de-filas';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { defectosDeConjunto, revisarFicha, tieneBloqueantes, ActivoParaRevisar, Defecto } from './calidad-ficha';
@@ -55,12 +56,20 @@ export class CampanasService {
     return `CAM-${anio}-${String(n).padStart(2, '0')}`;
   }
 
-  listar(estado?: string) {
-    return this.prisma.campanaMapeo.findMany({
-      where: estado ? { estado: estado as any } : undefined,
-      orderBy: { creadoEn: 'desc' },
-      include: { _count: { select: { zonas: true, activos: true } } },
-    });
+  /** Bloque 174 · con techo; el total viaja en X-Total para que la pantalla lo diga. */
+  async listar(estado?: string, res?: { setHeader: (k: string, v: string) => unknown }) {
+    const where = estado ? { estado: estado as any } : undefined;
+    const [filas, total] = await Promise.all([
+      this.prisma.campanaMapeo.findMany({
+        where,
+        orderBy: { creadoEn: 'desc' },
+        include: { _count: { select: { zonas: true, activos: true } } },
+        take: TOPE_LISTA_PANTALLA,
+      }),
+      this.prisma.campanaMapeo.count({ where }),
+    ]);
+    cabecerasDeRecorte(res, filas.length, total);
+    return filas;
   }
 
   async crear(dto: any, userId?: string | null, ip?: string | null) {

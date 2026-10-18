@@ -6770,3 +6770,42 @@ estabas en la pantalla. Favicon (404 en cada pantalla).
 
 Pruebas: backend 108 suites / 1499 tests; barrido 60 pantallas PC y celular sin errores;
 e2e de puertos, mapa (18/18 puntos con ratón y dedo) y flujos de enlaces.
+
+## §96 · BLOQUE 174 — LA DEUDA CERRADA, Y LA GUÍA DE LA OM (18/10/2026)
+
+**1 · 45 endpoints con DTO** (deuda del bloque 85). `common/validacion.ts`: decoradores TOLERANTES
+(`Texto`, `Numero`, `Entero`, `SiNo`, `Fecha`, `UnoDe`, `Lista`, `Objeto`, `Libre`): opcionales, NO
+transforman ('' no se vuelve 0) y con tope de longitud. Cada DTO declara TODA clave que mandan las
+pantallas (y el agente de monitoreo); probado con el `ValidationPipe` real, una prueba por llamada
+(`test/dto-bloque174-{a,b,c}.spec.ts`). HojasDeRuta mandaba la hoja entera del GET → ahora sólo los
+12 campos. `verificar-dto`: 0. Un paso de hoja sin texto daba 500 → 400 con mensaje.
+
+**2 · Topes** en permisos de acceso, campañas y mejoras por decidir (500). El total viaja en
+`X-Total`/`X-Recortado` (expuestas en CORS) y la pantalla lo dice (`AvisoDeRecorte`). `verificar-topes`: 0 deuda.
+
+**3 · Varias instancias, sin Redis.** `common/contador-compartido.ts`: el límite de peticiones (main.ts
+y rutas caras del RitmoGuard) cuenta en `limite_peticiones` con un `INSERT … ON CONFLICT … RETURNING`;
+si la base falla, cuenta en memoria. Migración `20261016010000_limite_compartido`. `common/aviso-de-permisos.ts`:
+cortar acceso / cambiar rol / desactivar hace `pg_notify('sgit_permisos', id|'*')` y cada instancia
+escucha con LISTEN. Probado con dos procesos: el corte llegó a la otra en el acto (401 sin esperar 15 s).
+
+**4 · Restauración probada.** `backend/scripts/probar-restauracion.js` compara original y restaurada
+(tablas, migraciones, filas; `--en-vivo` para Railway). Probado: volcado → restaurar → 87 tablas
+cuadran → la app arrancó contra la restaurada y listó activos; y detecta una pérdida de 3 filas.
+`.github/workflows/respaldo.yml` restaura y compara cada noche (el archivo .github no se puede escribir
+desde las herramientas remotas: lo copia Cristhian). Procedimiento: `docs/RESTAURAR_RESPALDO.md`.
+
+**5 · «Cómo se trabaja»** (`/guia`, Mantenimiento, lo ven todos; «?» en Órdenes): Producción reporta o
+crea la OM → nace sin detallar en la bandeja → el Jefe asigna → el técnico la detalla y la ABRE al
+llegar (seguridad) → avance → cierre con evidencia → el Jefe aprueba. También instalación y preventivo.
+
+**6 · Desplegables y filtros.** «AP del que cuelga»: sólo AP (PMP_BASE) o sin modo; antena, AP y NVR
+con «De esta zona» primero (`/assets/options` trae `tren` y `modoRadio`). `/assets?sinServicio=1`:
+estado REAL (declarado caído/mantenimiento u OM/incidencia abierta, mismas listas que
+`computeEffectiveStatuses`): la lista cuadra con «Cámaras sin servicio» del Dashboard (6 = 6).
+
+**7 · Archivo que el almacén ya no tiene** → 404 «hay que volver a subirlo» (antes 500); el Mapa lo dice.
+
+Nota: el aviso de Node «client.query() when the client is already executing» sale de
+`@prisma/adapter-pg` (transacciones), no de nuestro código.
+Pruebas: 113 suites / 1.662; barrido 61 pantallas PC y celular; e2e puertos, mapa, enlaces, guía.

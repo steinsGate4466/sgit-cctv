@@ -60,29 +60,6 @@ const SIN_VALIDAR = /@Body\(\s*\)\s*[a-zA-Z_$][\w$]*\s*:\s*any\b/;
      el resto, por volumen
 ============================================================================= */
 const DEUDA = {
-  'modules/electricidad/electricidad.controller.ts': 6,
-  'modules/checklist/checklist.controller.ts': 5,
-  'modules/procedimientos/procedimientos.controller.ts': 4,
-  'modules/maintenance/preparacion.controller.ts': 4,
-  'modules/maintenance/maintenance.controller.ts': 3,
-  'modules/criticidad/criticidad.controller.ts': 3,
-  'modules/campanas/campanas.controller.ts': 3,
-  'modules/zonas/zonas.controller.ts': 2,
-  /* TRES, no dos. Mi medición a mano decía dos: el `grep` con el que conté
-     usaba `[a-zA-Z]*` para el nombre del parámetro y NO casaba `_b`, que
-     lleva guion bajo (`@Body() _b: any`, línea 126).
-
-     Lo cazó este verificador al primer intento, y es justo para lo que sirve:
-     **una medición a ojo se equivoca, un verificador no.** La deuda real eran
-     54, no 53. */
-  'modules/notificaciones/notificaciones.controller.ts': 3,
-  'modules/monitoreo/monitoreo.controller.ts': 2,
-  'modules/ipam/ipam.controller.ts': 2,
-  'modules/inventory/inventory.controller.ts': 2,
-  'modules/catalogos/catalogos.controller.ts': 2,
-  'modules/acceso/acceso.controller.ts': 2,
-  'modules/network/network.controller.ts': 1,
-  'modules/hojas-ruta/hojas-ruta.controller.ts': 1,
 };
 
 function sinComentarios(s) {

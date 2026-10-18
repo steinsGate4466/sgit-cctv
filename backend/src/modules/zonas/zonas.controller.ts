@@ -2,6 +2,7 @@ import { Body, Controller, Get, Ip, Param, Patch, Query, UseGuards } from '@nest
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ZonasService } from './zonas.service';
 import { CoberturaService } from './cobertura.service';
+import { DeclararZonaDto, FirmarIntervencionDto } from './dto/zonas.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
@@ -63,7 +64,7 @@ export class ZonasController {
   @RequirePermissions('zona.intervencion')
   firmarIntervencion(
     @Param('id') id: string,
-    @Body() dto: any,
+    @Body() dto: FirmarIntervencionDto,
     @CurrentUser() u: any,
     @Ip() ip: string,
   ) {
@@ -75,7 +76,7 @@ export class ZonasController {
   @RequirePermissions('zona.criticidad')
   declarar(
     @Param('id') id: string,
-    @Body() dto: any,
+    @Body() dto: DeclararZonaDto,
     @CurrentUser() u: any,
     @Ip() ip: string,
   ) {

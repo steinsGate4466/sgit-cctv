@@ -8,6 +8,7 @@ import { fecha } from '../fechas';
 import BotonConMotivo from '../components/BotonConMotivo';
 import { mensajeDeError, queFalta } from '../avisos';
 import { OpcionesDeTrenDePlanta, OpcionesDeUbicacion, nombreDeTrenDePlanta, siglaDeTrenDePlanta } from '../ubicaciones';
+import AvisoDeRecorte, { Recorte, recorteDe } from '../components/AvisoDeRecorte';
 
 /**
  * CAMPAÑAS DE MAPEO — el control de calidad del levantamiento.
@@ -50,9 +51,10 @@ export default function Campanas() {
   const [revision, setRevision] = useState<any>(null);
   const [obs, setObs] = useState('');
   const [ocupado, setOcupado] = useState(false);
+  const [recorte, setRecorte] = useState<Recorte | null>(null);
 
   const cargar = useCallback(async () => {
-    const l = await api.get('/campanas').then((r) => r.data).catch(() => []);
+    const l = await api.get('/campanas').then((r) => { setRecorte(recorteDe(r)); return r.data; }).catch(() => []);
     setLista(l || []);
   }, []);
 
@@ -138,6 +140,7 @@ export default function Campanas() {
       </div>
 
       {msg && <div role="status" className="aviso-ok aviso-cerrable" onClick={() => setMsg('')} title="Toca para cerrar este aviso">{msg}</div>}
+      <AvisoDeRecorte recorte={recorte} cuales="campañas más recientes" como="Las anteriores siguen guardadas." />
       {error && <div role="alert" className="aviso-error aviso-cerrable" onClick={() => setError('')} title="Toca para cerrar este aviso">{error}</div>}
 
       <div className="filters">

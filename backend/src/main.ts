@@ -5,9 +5,11 @@ import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { StructuredLogger } from './common/logger.service';
 import {
-  ContadorDePeticiones, LIMITE_GENERAL, LIMITE_PESADO,
+  LIMITE_GENERAL, LIMITE_PESADO,
   claveDeOrigen, cuentaParaElLimite, esRutaPesada,
 } from './common/limite-peticiones';
+import { ContadorCompartido } from './common/contador-compartido';
+import { PrismaService } from './prisma/prisma.service';
 
 async function bootstrap() {
   // Registro estructurado: en producción (LOG_FORMAT=json) cada línea sale en
@@ -49,6 +51,9 @@ async function bootstrap() {
       origin: origins,
       credentials: true,
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Dispositivo'],
+      /* Bloque 174 · el total de una lista con techo: sin exponerlas, el
+         navegador las esconde y la pantalla no podría decir el recorte. */
+      exposedHeaders: ['X-Total', 'X-Recortado', 'Content-Disposition'],
     });
   } else if (enProduccion) {
     // eslint-disable-next-line no-console
@@ -76,8 +81,11 @@ async function bootstrap() {
      se lee del token sin verificar la firma — para CONTAR no hace falta, y
      verificarla aquí duplicaría el trabajo del guard. Un token falseado sólo
      conseguiría gastarse su propio cupo. */
-  const contador = new ContadorDePeticiones();
-  app.use((req: any, res: any, next: any) => {
+  /* Bloque 174 · el contador vive en la BASE, compartido por todas las
+     instancias (antes, en la memoria de cada una: con dos réplicas el tope se
+     duplicaba). Si la base falla, cuenta en memoria como antes. */
+  const contador = new ContadorCompartido(app.get(PrismaService));
+  app.use(async (req: any, res: any, next: any) => {
     // Bloque 171: la consulta previa del navegador (OPTIONS) no cuenta. No
     // lleva token, así que se contaba por IP — y en planta toda la gente sale
     // por la MISMA IP (NAT): las consultas previas de todos gastaban un único
@@ -94,7 +102,7 @@ async function bootstrap() {
       } catch { /* token ilegible: se cuenta por IP y ya */ }
     }
     const regla = esRutaPesada(req.originalUrl || req.url || '') ? LIMITE_PESADO : LIMITE_GENERAL;
-    const esperar = contador.consultar(claveDeOrigen(userId, req.ip), regla);
+    const esperar = await contador.consultar(claveDeOrigen(userId, req.ip), regla);
     if (esperar !== null) {
       res.setHeader('Retry-After', String(esperar));
       return res.status(429).json({

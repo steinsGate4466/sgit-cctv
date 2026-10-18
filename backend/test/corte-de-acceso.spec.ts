@@ -123,14 +123,15 @@ describe('Bloque 82 — el corte de acceso', () => {
 
     it('borra la caché para que el corte sea INMEDIATO', () => {
       /* Sin esto habría hasta 15 segundos de retraso. Con esto, el corte se
-         nota en la siguiente petición. */
-      expect(corte).toContain('AccesoVigenteGuard.olvidar');
+         nota en la siguiente petición. Bloque 174: en TODAS las instancias
+         (avisarCambioDePermisos borra la propia y avisa a las demás). */
+      expect(corte).toContain('avisarCambioDePermisos(this.prisma, id)');
     });
 
     it('las tres van juntas: hacer sólo una deja media puerta abierta', () => {
       const c = corte;
       expect(c.includes('increment') && c.includes('sesion.updateMany')
-        && c.includes('olvidar')).toBe(true);
+        && c.includes('avisarCambioDePermisos')).toBe(true);
     });
 
     it('NO desactiva al usuario: son dos decisiones distintas', () => {

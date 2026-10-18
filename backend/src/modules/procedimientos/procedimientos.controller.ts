@@ -7,6 +7,9 @@ import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequireAlguno, RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { AmbitoDe, SinAmbito } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import {
+  DecidirMejoraDto, DejarNotaDto, GuardarProcedimientoDto, ProponerMejoraDto,
+} from './dto/procedimientos.dto';
 
 @ApiTags('procedimientos')
 @ApiBearerAuth()
@@ -31,7 +34,7 @@ export class ProcedimientosController {
   @AmbitoDe('asset')
   @Post('activos/:id/notas')
   @RequirePermissions('wo.update')
-  dejarNota(@Param('id') id: string, @Body() dto: any, @CurrentUser() u: any, @Ip() ip: string) {
+  dejarNota(@Param('id') id: string, @Body() dto: DejarNotaDto, @CurrentUser() u: any, @Ip() ip: string) {
     return this.svc.dejarNota(id, dto, u?.userId, ip);
   }
 
@@ -50,7 +53,7 @@ export class ProcedimientosController {
   @SinAmbito()
   @Post('procedimientos')
   @RequirePermissions('procedimiento.manage')
-  guardar(@Body() dto: any, @CurrentUser() u: any, @Ip() ip: string) {
+  guardar(@Body() dto: GuardarProcedimientoDto, @CurrentUser() u: any, @Ip() ip: string) {
     return this.svc.guardarProcedimiento(dto, u?.userId, ip);
   }
 
@@ -59,7 +62,7 @@ export class ProcedimientosController {
   @SinAmbito()
   @Post('procedimientos/:id/mejoras')
   @RequirePermissions('wo.update')
-  proponer(@Param('id') id: string, @Body() dto: any, @CurrentUser() u: any, @Ip() ip: string) {
+  proponer(@Param('id') id: string, @Body() dto: ProponerMejoraDto, @CurrentUser() u: any, @Ip() ip: string) {
     return this.svc.proponerMejora(id, dto, u?.userId, ip);
   }
 
@@ -77,7 +80,7 @@ export class ProcedimientosController {
   @SinAmbito()
   @Get('procedimientos-mejoras/pendientes')
   @RequirePermissions('procedimiento.manage')
-  pendientes() { return this.svc.mejorasPendientes(); }
+  pendientes(@Res({ passthrough: true }) res: Response) { return this.svc.mejorasPendientes(res); }
 
   /**
    * LO QUE YO PROPUSE, Y EN QUÉ QUEDÓ — bloque 58.
@@ -104,7 +107,7 @@ export class ProcedimientosController {
   @SinAmbito()
   @Patch('procedimientos-mejoras/:id')
   @RequirePermissions('procedimiento.manage')
-  decidir(@Param('id') id: string, @Body() dto: any, @CurrentUser() u: any, @Ip() ip: string) {
+  decidir(@Param('id') id: string, @Body() dto: DecidirMejoraDto, @CurrentUser() u: any, @Ip() ip: string) {
     return this.svc.decidirMejora(id, dto, u?.permissions, u?.userId, ip);
   }
 }

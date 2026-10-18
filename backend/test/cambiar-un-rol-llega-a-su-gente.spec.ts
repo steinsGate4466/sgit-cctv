@@ -84,7 +84,8 @@ describe('Bloque 86 — el cambio de rol llega a quien ya estaba dentro', () => 
     });
 
     it('vacía la caché del guard: si no, hasta 15 segundos de retraso', () => {
-      expect(actualizar).toContain('AccesoVigenteGuard.olvidarTodo');
+      // Bloque 174: '*' vacía la caché de esta instancia y avisa a las demás.
+      expect(actualizar).toContain("avisarCambioDePermisos(this.prisma, '*')");
     });
 
     it('NO les cierra la sesión: cambiar un permiso no es dar de baja', () => {

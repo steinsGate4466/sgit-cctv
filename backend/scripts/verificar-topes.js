@@ -181,12 +181,12 @@ const EXENTOS = {
     motivo: 'Las notas de campo de UN activo (la entrega de turno).' },
 
   /* ---- DEUDA DECLARADA · SÓLO PUEDE ENCOGER ----------------------------- */
-  'modules/access/access.service.ts::accessRequest': { n: 2, cat: 'DEUDA',
-    motivo: 'DEUDA · `findAll` alimenta la pantalla de permisos de acceso, que NO tiene paginador ni total: devuelve un array plano y la pantalla pinta lo que llegue. Poner un tope aquí sin decirlo sería el recorte silencioso que este bloque cierra, y decirlo exige cambiar la forma de la respuesta y las DOS llamadas de Access.tsx. Bloque propio, no una nota al pie de éste. (`summary` del mismo archivo sí es un cálculo.)' },
-  'modules/campanas/campanas.service.ts::campanaMapeo': { n: 1, cat: 'DEUDA',
-    motivo: 'DEUDA · La lista de campañas de mapeo. Crece despacio —una campaña no es un evento diario— pero crece. Mismo motivo que la anterior: el tope exige que la pantalla lo diga.' },
-  'modules/procedimientos/procedimientos.service.ts::mejoraProcedimiento': { n: 1, cat: 'DEUDA',
-    motivo: 'DEUDA · Las mejoras propuestas por los técnicos, pendientes de decisión. Crece con el uso. Se cierra con su pantalla.' },
+  /* Bloque 174 · LA DEUDA QUEDA EN CERO. Las tres listas (permisos de acceso,
+     campañas, mejoras por decidir) llevan techo y dicen el total en las
+     cabeceras X-Total / X-Recortado, que la pantalla lee y enseña. Lo que
+     queda de access.service es el CÁLCULO del resumen. */
+  'modules/access/access.service.ts::accessRequest': { n: 1, cat: 'CALCULO',
+    motivo: 'Bloque 174. `summary`: equipos DISTINTOS con manlift o grúa aprobados (distinct por equipo). Es un recuento para agrupar el alquiler del manlift: con tope diría que hacen falta menos subidas de las que hay.' },
 };
 
 /* -----------------------------------------------------------------------------

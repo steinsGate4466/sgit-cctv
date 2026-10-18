@@ -153,7 +153,17 @@ export default function HojasDeRuta() {
   async function guardar() {
     setGuardando(true); setError('');
     try {
-      await api.post('/hojas-de-ruta', edita);
+      /* Sólo lo que lee el servidor (bloque 174). `edita` lleva la hoja entera
+         tal como llegó del GET —id, fechas, quién la aprobó— y con el DTO
+         cualquier clave de más rechaza el guardado entero. */
+      const {
+        tipoEquipo, descripcion, ubicacionSap, grupoPlanif, frecuencia, puestoTrabajo,
+        centro, trabajoTotalH, numPersonas, duracionH, activa, operaciones,
+      } = edita;
+      await api.post('/hojas-de-ruta', {
+        tipoEquipo, descripcion, ubicacionSap, grupoPlanif, frecuencia, puestoTrabajo,
+        centro, trabajoTotalH, numPersonas, duracionH, activa, operaciones,
+      });
       setMsg('Hoja de ruta guardada.');
       setEdita(null);
       await cargar();

@@ -15,6 +15,7 @@
 //  work_orders(assetId,status) e incidents(assetId,status,priority).
 // =============================================================================
 import { PrismaService } from '../prisma/prisma.service';
+import type { IncidentStatus, WorkOrderStatus } from '../generated/prisma/client';
 
 export type EffectiveStatus =
   | 'OPERATIVO'
@@ -27,6 +28,11 @@ export type EffectiveStatus =
 // Estados que cuentan como "abierto / en curso".
 const ACTIVE_WO_STATUS = ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'];
 const OPEN_INCIDENT_STATUS = ['ABIERTA', 'EN_DIAGNOSTICO', 'EN_PROCESO'];
+/* Bloque 174 · las mismas listas, tipadas, para FILTRAR por estado real en la
+   lista de Activos («sin servicio»). Una sola fuente: si cambian aquí, el
+   filtro y el estado que pinta la ficha cambian juntos. */
+export const WO_EN_CURSO = ACTIVE_WO_STATUS as WorkOrderStatus[];
+export const INCIDENCIA_ABIERTA = OPEN_INCIDENT_STATUS as IncidentStatus[];
 const HIGH_PRIORITY = ['ALTA', 'CRITICA'];
 
 interface AssetLike {

@@ -10,6 +10,7 @@ import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { SinAmbito } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { GuardarAppUrlDto, GuardarTokenTelegramDto, ProbarCanalDto } from './dto/notificaciones.dto';
 
 @ApiTags('avisos')
 @ApiBearerAuth()
@@ -54,7 +55,7 @@ export class NotificacionesController {
 
   @Post('configuracion/token')
   @RequirePermissions('notify.manage')
-  async guardarToken(@Body() dto: any, @CurrentUser() user: any) {
+  async guardarToken(@Body() dto: GuardarTokenTelegramDto, @CurrentUser() user: any) {
     const token = String(dto?.token || '').trim();
     if (!token) {
       // Vaciar el token es la forma de APAGAR los avisos sin desplegar nada.
@@ -71,7 +72,7 @@ export class NotificacionesController {
 
   @Post('configuracion/app-url')
   @RequirePermissions('notify.manage')
-  async guardarAppUrl(@Body() dto: any, @CurrentUser() user: any) {
+  async guardarAppUrl(@Body() dto: GuardarAppUrlDto, @CurrentUser() user: any) {
     // No es secreto: es la dirección pública del sistema.
     await this.config.guardar('APP_URL', String(dto?.url || '').trim(), false, user?.userId);
     return { ok: true };
@@ -123,7 +124,7 @@ export class NotificacionesController {
   /** Prueba de canal: manda un mensaje a quien lo pide. */
   @Post('probar')
   @RequirePermissions('notify.manage')
-  async probar(@CurrentUser() user: any, @Body() _b: any) {
+  async probar(@CurrentUser() user: any, @Body() _b: ProbarCanalDto) {
     const u = await this.prisma.user.findUnique({
       where: { id: user.userId },
       select: { telegramChatId: true },

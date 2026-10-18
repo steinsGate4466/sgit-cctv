@@ -148,3 +148,24 @@ export function lineaDePortada(hoja: string, r: Recorte): string | null {
   return `· La hoja «${hoja}» está recortada a las ${r.incluidas.toLocaleString('es-PE')} `
     + `más recientes de ${r.total.toLocaleString('es-PE')}.`;
 }
+
+/* =============================================================================
+   BLOQUE 174 · EL TECHO DE UNA LISTA DE PANTALLA, DICHO EN LA RESPUESTA
+   -----------------------------------------------------------------------------
+   Tres listas (permisos de acceso, campañas, mejoras por decidir) devolvían la
+   tabla ENTERA. Ponerles tope sin decirlo sería el recorte silencioso del
+   bloque 101. Para no cambiar la forma de la respuesta (un array, que leen
+   varias pantallas), el total viaja en dos cabeceras:
+
+       X-Total       cuántas hay
+       X-Recortado   «1» si se devolvieron menos
+
+   La pantalla las lee y lo dice («se muestran las 500 más recientes de 812»).
+============================================================================= */
+export const TOPE_LISTA_PANTALLA = 500;
+
+export function cabecerasDeRecorte(res: { setHeader: (k: string, v: string) => unknown } | undefined, incluidas: number, total: number) {
+  if (!res) return;
+  res.setHeader('X-Total', String(total));
+  res.setHeader('X-Recortado', incluidas < total ? '1' : '0');
+}

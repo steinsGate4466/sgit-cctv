@@ -7,6 +7,7 @@ import { useAuth } from '../auth/AuthContext';
 import Icono from '../components/Iconos';
 import { useDialogos } from '../components/Dialogos';
 import { fecha } from '../formato';
+import AvisoDeRecorte, { Recorte, recorteDe } from '../components/AvisoDeRecorte';
 
 /**
  * Bandeja de Accesibilidad y Trabajo en Altura.
@@ -32,17 +33,18 @@ export default function Access() {
   const [signing, setSigning] = useState(false);
   const [sigError, setSigError] = useState('');
   const [tries, setTries] = useState(5);
+  const [recorte, setRecorte] = useState<Recorte | null>(null);
 
   async function load(status = fStatus) {
     const [r, s] = await Promise.all([
-      api.get('/access-requests' + (status ? `?status=${status}` : '')).then((x) => x.data).catch(() => []),
+      api.get('/access-requests' + (status ? `?status=${status}` : '')).then((x) => { setRecorte(recorteDe(x)); return x.data; }).catch(() => []),
       api.get('/access-requests/summary').then((x) => x.data).catch(() => null),
     ]);
     setRows(r || []); setSummary(s);
   }
   useEffect(() => {
     Promise.all([
-      api.get('/access-requests').then((r) => r.data).catch(() => []),
+      api.get('/access-requests').then((r) => { setRecorte(recorteDe(r)); return r.data; }).catch(() => []),
       api.get('/access-requests/summary').then((r) => r.data).catch(() => null),
       api.get('/assets/options').then((r) => r.data).catch(() => []),
     ]).then(([r, s, a]) => { setRows(r || []); setSummary(s); setAssets(a || []); setLoading(false); });
@@ -158,6 +160,7 @@ export default function Access() {
         </div>
         {can('access.request') && <button className="btn-primary" onClick={() => setShowNew(true)}>+ Nueva solicitud</button>}
       </div>
+      <AvisoDeRecorte recorte={recorte} cuales="solicitudes más recientes" como="Filtra por estado para ver las anteriores." />
 
       <div className="kpi-grid">
         <div className="kpi warn"><div className="label">Esperan revisión</div><div className="value">{summary?.pendientes ?? 0}</div><div className="hint">Requieren visto bueno del Jefe</div></div>

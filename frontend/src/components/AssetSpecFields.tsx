@@ -84,9 +84,11 @@ interface Props {
   opciones: any[];
   /** Bloque 172 · el propio equipo, para que no salga como su propio padre. */
   propioId?: string | null;
+  /** Bloque 174 · el tren (código) donde va el equipo: lo de ahí sale primero. */
+  tren?: string | null;
 }
 
-export default function AssetSpecFields({ tipo, spec, onChange, opciones, propioId }: Props) {
+export default function AssetSpecFields({ tipo, spec, onChange, opciones, propioId, tren }: Props) {
   const bloque = FICHA_DE[tipo];
   if (!bloque) {
     return (
@@ -109,6 +111,28 @@ export default function AssetSpecFields({ tipo, spec, onChange, opciones, propio
      cuelga» de sí misma, y un switch como su propio switch de subida. */
   const de = (t: string) => opciones.filter((o) => o.type === t && o.id !== propioId);
 
+  /* Bloque 174 · LO DE TU ZONA PRIMERO. Con cuarenta antenas en planta, una
+     lista alfabética obliga a adivinar cuál es la de tu tren. Las del mismo
+     tren van arriba; las demás debajo, en su grupo (no se esconden: una grúa
+     puede colgar de un AP de otra nave). */
+  const opcionesPorZona = (lista: any[]) => {
+    const fila = (o: any) => <option key={o.id} value={o.id}>{o.assetCode}{o.locationName ? ` · ${o.locationName}` : ''}</option>;
+    const aqui = tren ? lista.filter((o) => o.tren === tren) : [];
+    if (!aqui.length) return lista.map(fila);
+    const fuera = lista.filter((o) => o.tren !== tren);
+    return (
+      <>
+        <optgroup label="De esta zona">{aqui.map(fila)}</optgroup>
+        {fuera.length > 0 && <optgroup label="Otras zonas">{fuera.map(fila)}</optgroup>}
+      </>
+    );
+  };
+  /* «AP del que cuelga»: sólo los AP (base punto-multipunto), más las radios
+     que aún no declaran su modo —para no dejar fuera las antiguas— y la que ya
+     esté puesta. Antes salían también las otras suscriptoras. */
+  const apsPosibles = (actual?: string) => de('WIRELESS')
+    .filter((o) => o.id === actual || o.modoRadio === 'PMP_BASE' || o.modoRadio == null);
+
   const Nota = ({ children }: { children: any }) => (
     <div className="muted" style={{ fontSize: 11, marginTop: -6, marginBottom: 8 }}>{children}</div>
   );
@@ -129,7 +153,7 @@ export default function AssetSpecFields({ tipo, spec, onChange, opciones, propio
           <label>Grabador al que entra
             <select value={v.nvrId || ''} onChange={txt('nvrId')}>
             <option value="">— sin definir —</option>
-            {de('NVR').map((o) => <option key={o.id} value={o.id}>{o.assetCode}{o.locationName ? ` · ${o.locationName}` : ''}</option>)}
+            {opcionesPorZona(de('NVR'))}
           </select>
           </label>
 
@@ -176,7 +200,7 @@ export default function AssetSpecFields({ tipo, spec, onChange, opciones, propio
           <label>Antena de la que cuelga
             <select value={v.wirelessUplinkId || ''} onChange={txt('wirelessUplinkId')}>
             <option value="">— sin definir / va por cable —</option>
-            {de('WIRELESS').map((o) => <option key={o.id} value={o.id}>{o.assetCode}{o.locationName ? ` · ${o.locationName}` : ''}</option>)}
+            {opcionesPorZona(de('WIRELESS'))}
           </select>
           </label>
           <Nota>
@@ -333,7 +357,7 @@ export default function AssetSpecFields({ tipo, spec, onChange, opciones, propio
           <label>AP del que cuelga
             <select value={v.parentWirelessId || ''} onChange={txt('parentWirelessId')}>
             <option value="">— ninguno (es el AP principal) —</option>
-            {de('WIRELESS').map((o) => <option key={o.id} value={o.id}>{o.assetCode}{o.locationName ? ` · ${o.locationName}` : ''}</option>)}
+            {opcionesPorZona(apsPosibles(v.parentWirelessId))}
           </select>
           </label>
           )}
@@ -387,7 +411,7 @@ export default function AssetSpecFields({ tipo, spec, onChange, opciones, propio
           <label>Grabador del que consume el video
             <select value={v.sourceNvrId || ''} onChange={txt('sourceNvrId')}>
             <option value="">— sin definir —</option>
-            {de('NVR').map((o) => <option key={o.id} value={o.id}>{o.assetCode}{o.locationName ? ` · ${o.locationName}` : ''}</option>)}
+            {opcionesPorZona(de('NVR'))}
           </select>
           </label>
 

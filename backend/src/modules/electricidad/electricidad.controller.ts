@@ -7,6 +7,9 @@ import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { AmbitoDe, SinAmbito } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import {
+  ColgarActivoDto, CrearCircuitoDto, CrearTableroDto, EditarCircuitoDto, EditarTableroDto, MedicionDto,
+} from './dto/electricidad.dto';
 
 @ApiTags('electricidad')
 @ApiBearerAuth()
@@ -25,7 +28,7 @@ export class ElectricidadController {
 
   @Post('tableros')
   @RequirePermissions('asset.create')
-  crearTablero(@Body() dto: any, @CurrentUser() u: any, @Ip() ip: string) {
+  crearTablero(@Body() dto: CrearTableroDto, @CurrentUser() u: any, @Ip() ip: string) {
     return this.e.crearTablero(dto, u?.userId, ip);
   }
 
@@ -62,21 +65,21 @@ export class ElectricidadController {
   @SinAmbito()  // idem
   @Patch('tableros/:id')
   @RequirePermissions('asset.update')
-  editarTablero(@Param('id') id: string, @Body() dto: any, @CurrentUser() u: any, @Ip() ip: string) {
+  editarTablero(@Param('id') id: string, @Body() dto: EditarTableroDto, @CurrentUser() u: any, @Ip() ip: string) {
     return this.e.editarTablero(id, dto, u?.userId, ip);
   }
 
   @SinAmbito()  // idem
   @Post('tableros/:id/circuitos')
   @RequirePermissions('asset.update')
-  crearCircuito(@Param('id') id: string, @Body() dto: any, @CurrentUser() u: any, @Ip() ip: string) {
+  crearCircuito(@Param('id') id: string, @Body() dto: CrearCircuitoDto, @CurrentUser() u: any, @Ip() ip: string) {
     return this.e.crearCircuito(id, dto, u?.userId, ip);
   }
 
   @SinAmbito()  // el circuito cuelga de su tablero
   @Patch('circuitos/:id')
   @RequirePermissions('asset.update')
-  editarCircuito(@Param('id') id: string, @Body() dto: any, @CurrentUser() u: any, @Ip() ip: string) {
+  editarCircuito(@Param('id') id: string, @Body() dto: EditarCircuitoDto, @CurrentUser() u: any, @Ip() ip: string) {
     return this.e.editarCircuito(id, dto, u?.userId, ip);
   }
 
@@ -97,7 +100,7 @@ export class ElectricidadController {
   @SinAmbito()  // idem
   @Post('circuitos/:id/activos')
   @RequirePermissions('asset.update')
-  colgar(@Param('id') id: string, @Body() dto: any, @CurrentUser() u: any, @Ip() ip: string) {
+  colgar(@Param('id') id: string, @Body() dto: ColgarActivoDto, @CurrentUser() u: any, @Ip() ip: string) {
     return this.e.colgarActivo(id, dto?.assetId, !!dto?.viaPoe, dto?.notas, u?.userId, ip);
   }
 
@@ -116,7 +119,7 @@ export class ElectricidadController {
 
   @Post('mediciones')
   @RequirePermissions('asset.update')
-  medir(@Body() dto: any, @CurrentUser() u: any, @Ip() ip: string) {
+  medir(@Body() dto: MedicionDto, @CurrentUser() u: any, @Ip() ip: string) {
     return this.e.anotarMedicion(dto, u?.userId, ip);
   }
 }

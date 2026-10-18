@@ -7,6 +7,7 @@ import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { SinAmbito } from '../../common/ambito.decorator';
+import { GuardarHojaRutaDto } from './dto/hojas-ruta.dto';
 
 /* =============================================================================
    HOJAS DE RUTA — bloque 75
@@ -81,7 +82,7 @@ export class HojasRutaController {
   /** Crear o reemplazar. Sólo el Jefe de Mantenimiento — ver la cabecera. */
   @Post()
   @RequirePermissions('wo.approve')
-  guardar(@Body() dto: any, @CurrentUser() user: any) {
+  guardar(@Body() dto: GuardarHojaRutaDto, @CurrentUser() user: any) {
     return this.hojas.guardar(dto, user?.userId);
   }
 
