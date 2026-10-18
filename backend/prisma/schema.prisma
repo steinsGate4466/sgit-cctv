@@ -3133,6 +3133,11 @@ model CampanaMapeo {
   id             String        @id @default(uuid())
   codigo         String        @unique // CAM-2026-01
   nombre         String
+  /// Bloque 175 · el tipo es LIBRE: Mapeo, Instalación, Rotulado… lo que la
+  /// planta necesite. NULL = campaña vieja, que eran todas de mapeo.
+  tipo           String?
+  /// En qué se mide la meta de cada zona: «equipos», «rótulos», «metros»…
+  unidad         String?
   estado         EstadoCampana @default(PLANIFICADA)
   tren           PlantTrain?
   descripcion    String?
@@ -3166,6 +3171,12 @@ model ZonaCampana {
   /// bueno y "faltan 3" sería una alarma falsa.
   esperados     Int?
   notas         String?
+  /// Bloque 175 · el plan de la zona y cuánto se lleva hecho. En una campaña
+  /// de MAPEO lo hecho se cuenta solo (los equipos cargados); en las demás lo
+  /// anota quien la trabaja.
+  inicioPrevisto DateTime?
+  finPrevisto    DateTime?
+  hechos         Int?
 
   /// Quién dijo "terminé" y quién lo revisó. Tienen que ser distintos.
   cargadaPorId  String?

@@ -112,7 +112,7 @@ const LINEA_BASE = {
   'Paradas.tsx':           [238, 10, 0],
   'Ipam.tsx':              [187, 7, 0],
   'Maintenance.tsx':      [187, 7, 0],
-  'Campanas.tsx':          [180, 7, 0],
+  'Campanas.tsx':          [177, 6, 0],
   'Topologia.tsx':         [218, 6, 0],
   // Convertida a medias en el bloque 38: el titular y las acciones ya están
   // arriba, pero dentro lleva OCHO vistas con su propio texto. Bajar de aquí

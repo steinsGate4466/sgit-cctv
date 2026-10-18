@@ -64,6 +64,16 @@ const FLUJOS: Flujo[] = [
       { quien: 'Técnico', que: 'La atiende como cualquier OM, con los pasos de su hoja.', detalle: 'Los pasos vienen copiados de la hoja de ruta: si la hoja cambia mañana, la orden emitida no cambia.' },
     ],
   },
+  {
+    id: 'campana',
+    titulo: 'Una campaña (rotulado, instalación, mapeo…)',
+    pasos: [
+      { quien: 'Jefe', que: 'Crea la campaña: de qué es, fechas y responsable.', detalle: 'El tipo es libre: se elige uno ya usado o se escribe uno nuevo. La meta se mide en lo que diga quien planifica: equipos, rótulos, metros…', ruta: '/campanas', boton: 'Campañas' },
+      { quien: 'Jefe', que: 'Reparte las zonas: quién, desde, hasta y cuánto.', detalle: 'Si no se sabe cuántos hay, la meta se deja vacía: un número inventado deja una alarma falsa.' },
+      { quien: 'Técnico', que: 'Anota lo que lleva hecho y, al acabar, dice «terminé».', detalle: 'En una campaña de mapeo el avance son los equipos cargados en la zona: se cuenta solo.' },
+      { quien: 'Jefe', que: 'Otra persona revisa y aprueba. Sólo lo aprobado cuenta.', detalle: 'Quien hizo el trabajo no puede aprobarlo. Una zona cuyo último día pasó sin aprobar sale ATRASADA.' },
+    ],
+  },
 ];
 
 const COLOR: Record<Paso['quien'], string> = {

@@ -5253,3 +5253,19 @@ tbody tr:hover td { background: var(--brillo); }
   .guia-quien { justify-self: start; }
   .guia-que, .guia-pasos li .btn-mini { grid-column: 2; }
 }
+
+/* =============================================================================
+   Bloque 175 · CAMPAÑAS planificables: el plan de cada zona como una barra
+   dentro del tramo de toda la campaña, con la línea de HOY encima.
+============================================================================= */
+.campana-cabeza { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+.campana-pct { font-size: 34px; font-weight: 800; color: var(--tinta-marca); line-height: 1; }
+.campana-datos { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; flex: 1; min-width: 220px; }
+.campana-acciones { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.chip.plan-en-plazo { background: var(--info-fondo); color: var(--info-texto); border-color: var(--info-borde); }
+.plan-linea { position: relative; height: 8px; margin-top: 6px; background: var(--suave-fondo); border-radius: 4px; }
+.plan-tramo { position: absolute; top: 0; bottom: 0; border-radius: 4px; background: var(--info); }
+.plan-tramo.ATRASADA { background: var(--crit); }
+.plan-tramo.TERMINADA { background: var(--ok); }
+.plan-tramo.POR_EMPEZAR, .plan-tramo.SIN_PLAN { background: var(--border); }
+.plan-hoy { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--tinta-marca); }

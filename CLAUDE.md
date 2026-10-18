@@ -6809,3 +6809,43 @@ estado REAL (declarado caído/mantenimiento u OM/incidencia abierta, mismas list
 Nota: el aviso de Node «client.query() when the client is already executing» sale de
 `@prisma/adapter-pg` (transacciones), no de nuestro código.
 Pruebas: 113 suites / 1.662; barrido 61 pantallas PC y celular; e2e puertos, mapa, enlaces, guía.
+
+## §97 · BLOQUE 175 — CAMPAÑAS DE CUALQUIER TIPO, Y PLANIFICABLES (18/10/2026)
+
+Pedido: «que se pueda crear campaña de instalación, campaña de rotulado… a libre
+albedrío, pero que se pueda planificar correctamente». Revierte en parte el bloque
+130 (que las sacó del menú cuando sólo eran de mapeo): ahora son la herramienta de
+PLAN de un trabajo grande por zonas. El trabajo diario sigue siendo la OM.
+
+- **Tipo libre** (`CampanaMapeo.tipo`): se elige con un clic entre los ya usados
+  (`GET /campanas/tipos`, groupBy) y los ejemplos del usuario, o se escribe uno.
+  `tipoCanonico` reutiliza el ya escrito: «rotulado» = «Rotulado» = «ROTULADO».
+  Sin tipo = campaña vieja = Mapeo (no se rellena la base).
+- **Plan**: responsable, fechas de la campaña y de CADA zona (heredan las de la
+  campaña), meta por zona con su `unidad` (equipos, rótulos, metros…). Un día del
+  calendario se guarda a MEDIODÍA de planta (a medianoche UTC salía un día antes).
+- **Estado del plan** (`plan-de-campana.ts`, puro): APROBADA → hecha; sin fin →
+  «sin fechas» (no se inventa plazo); su día ya pasó → ATRASADA (mismo corte que
+  una OM vencida); aún no empieza → por empezar. Barra de cada zona dentro del
+  tramo de la campaña, con la línea de hoy.
+- **Avance**: en MAPEO se cuenta solo (equipos cargados en la zona, groupBy) y no
+  se deja escribir; en lo demás lo anota quien trabaja la zona
+  (`PATCH /campanas/zona/:id/avance`, `asset.create` o `wo.update`). «Terminé» sin
+  número no se acepta. La meta total no da porcentaje si alguna zona no tiene meta.
+- **Revisión**: quien hizo el trabajo no aprueba (todas). Fichas defectuosas
+  bloquean sólo en mapeo; en lo demás se aprueba lo que alguien dio por terminado.
+- **Cerrar** sólo con todas las zonas aprobadas; **cancelar** exige motivo (auditoría);
+  cerrada o cancelada sólo se reabre. Mover el plazo de una zona se audita con la
+  fecha de antes. Reparto: se valida todo antes de escribir y se dice cuántas ya estaban.
+- Menú: Mantenimiento › Campañas (`asset.read` o `wo.read`). Guía: flujo «Una campaña».
+- `cobertura-permisos.spec` ahora reconoce `@RequireAlguno` (probado quitándolo).
+- Migración aditiva `20261018010000_campanas_libres`.
+
+**Método nuevo — `prisma generate` SÍ corre en el entorno del agente**:
+`PRISMA_SCHEMA_ENGINE_BINARY=/bin/true npx prisma generate`. Generar no usa el
+motor de esquema; sólo se descargaba para comprobarlo y esa descarga es la que da
+403. Con esto el cliente se genera de verdad: ya no hace falta el parche a mano
+(`parche-cliente-prisma-b76.js`) para campos ni modelos nuevos.
+Pruebas: 114 suites / 1.673; e2e: crear, repartir, técnico anota y dice «terminé»,
+otro aprueba, cerrar con zonas pendientes rechazado; celular sin desborde.
+

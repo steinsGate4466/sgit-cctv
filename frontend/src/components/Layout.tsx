@@ -92,7 +92,7 @@ const TITLES: Record<string, string> = {
   '/pedir-instalacion': 'Pedir instalación',
   '/mapa': 'Mapa',
   '/planos': 'Planos',
-  '/campanas': 'Campañas de mapeo',
+  '/campanas': 'Campañas',
   '/electricidad': 'Electricidad',
   '/ipam': 'Direccionamiento IP',
   '/zonas': 'Declarar zonas vitales',

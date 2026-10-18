@@ -68,10 +68,6 @@ const EXENTAS = {
     + 'mantener a mano con un dato que caduca en horas invita a confiar en una '
     + 'hora que ya cambió. El dato de parada se mueve DENTRO de la orden '
     + '(bloque 138, pendiente). Hasta entonces la ruta se consulta.',
-  '/campanas': 'Bloque 130: «el mapeo debe ser sólo una OM» (usuario). Era un '
-    + 'segundo sistema de reparto de trabajo en paralelo al de las órdenes, y '
-    + 'con dos sistemas nadie sabe cuál manda. La ruta queda para ver las '
-    + 'campañas ya cargadas.',
 };
 
 const leer = (f) => fs.readFileSync(path.join(SRC, f), 'utf8');

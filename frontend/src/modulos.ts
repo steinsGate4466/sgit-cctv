@@ -78,6 +78,10 @@ export const MODULOS: Modulo[] = [
       { ruta: '/tablero-om', texto: 'Avance', nota: 'Cómo van las órdenes abiertas', puede: con('om.mirar') },
       { ruta: '/hojas-de-ruta', texto: 'Hojas de ruta', nota: 'Recorridos de preventivo', puede: con('wo.read') },
       { ruta: '/gruas', texto: 'Grúas', nota: 'Inspección de cámaras de grúa', puede: con('wo.read') },
+      /* Bloque 175 · vuelven al menú, de cualquier tipo (mapeo, instalación,
+         rotulado…) y con plan por zona. El bloque 130 las había sacado cuando
+         sólo eran de mapeo. Las ve también quien anota avance (`wo.read`). */
+      { ruta: '/campanas', texto: 'Campañas', nota: 'Trabajos por zonas, con fechas y meta', puede: alguno('asset.read', 'wo.read') },
       /* Bloque 174 · el recorrido de una OM (Producción la crea, Mantenimiento
          la atiende y la abre) explicado paso a paso. La ve todo el mundo. */
       { ruta: '/guia', texto: 'Cómo se trabaja', nota: 'Quién hace cada paso de una OM' },
@@ -265,7 +269,6 @@ export function inicioPara(can: Can, user: Usuario | null | undefined): string {
    llega por enlaces viejos. Con su permiso escrito para no cargarlas a ciegas. */
 const SUELTAS: Record<string, Puede> = {
   '/predictive': con('wo.read'),
-  '/campanas': con('asset.read'),
   '/trains': con('dashboard.read'),
   '/paradas': alguno('wo.read', 'om.mirar'),
 };

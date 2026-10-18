@@ -72,6 +72,8 @@ describe('cobertura de permisos', () => {
         const escribe = /@(Post|Patch|Put|Delete)\(/.test(decoradores);
         if (!escribe) continue;
         if (/@RequirePermissions\(/.test(decoradores)) continue;
+        // Bloque 175 · @RequireAlguno también declara permiso: exige UNO de la lista.
+        if (/@RequireAlguno\(\s*'[^']+'/.test(decoradores)) continue;
         const clave = `${nombre}:${metodo}`;
         if (EXCEPCIONES[clave]) continue;
         huerfanos.push(clave);
