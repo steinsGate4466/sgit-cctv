@@ -24,7 +24,7 @@ export interface AlArrastrar {
 }
 
 export default function LienzoPlano({
-  imagenUrl, anchoPx, altoPx, metrosPorPx, hijos, alPulsar, enfocar, alto = 'clamp(420px, 70vh, 780px)', alArrastrar,
+  imagenUrl, anchoPx, altoPx, metrosPorPx, hijos, alPulsar, enfocar, alto = 'clamp(420px, 70vh, 780px)', alArrastrar, llenar = false,
 }: {
   imagenUrl: string | null;
   anchoPx: number;
@@ -33,6 +33,8 @@ export default function LienzoPlano({
   hijos: (escala: number, aPlano: APlano) => ReactNode;
   /** Con esto, arrastrar con UN dedo o el ratón DIBUJA; la rueda, los botones y dos dedos siguen acercando. */
   alArrastrar?: AlArrastrar | null;
+  /** Bloque 177 · ocupar todo `alto` (pantalla completa), no sólo lo que pide la forma del plano. */
+  llenar?: boolean;
   /** Clic en un punto vacío del plano, en píxeles de la imagen. */
   alPulsar?: (x: number, y: number) => void;
   /** Si cambia, se centra ahí (x, y en píxeles de la imagen). Con `w`, encuadra ese ancho (una zona). */
@@ -204,7 +206,7 @@ export default function LienzoPlano({
        enormes arriba y abajo, y el plano se veía pequeño. Nunca más alto que
        `alto`, nunca menos de 320 px (230 en el celular). */
     <div className="lienzo-plano" ref={caja}
-      style={{ height: `min(${alto}, ${Math.max(anchoPantalla < 600 ? 230 : 320, Math.round(anchoPantalla * (ENTERA.h / ENTERA.w)) + 8)}px)` }}>
+      style={{ height: llenar ? alto : `min(${alto}, ${Math.max(anchoPantalla < 600 ? 230 : 320, Math.round(anchoPantalla * (ENTERA.h / ENTERA.w)) + 8)}px)` }}>
       <svg
         ref={svg}
         className={alArrastrar ? 'lienzo-dibujar' : undefined}

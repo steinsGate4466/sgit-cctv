@@ -74,6 +74,8 @@ export default function PlanosEditor() {
   const [cableSel, setCableSel] = useState<string | null>(null);
   const [cablePuntos, setCablePuntos] = useState<P[]>([]);
   const [arrastreEq, setArrastreEq] = useState<{ assetId: string; x: number; y: number } | null>(null);
+  /* Bloque 177 · los códigos de TODOS los equipos se encimaban: por defecto sólo el elegido. */
+  const [codigos, setCodigos] = useState(false);
   const [planos, setPlanos] = useState<any[]>([]);
   const [ubicaciones, setUbicaciones] = useState<any[]>([]);
   const [abierto, setAbierto] = useState<string | null>(null);
@@ -400,23 +402,31 @@ export default function PlanosEditor() {
 
       {abierto && plano && (
         <>
+          {/* Bloque 177 · las herramientas como PESTAÑAS en una sola barra redondeada. */}
           <div className="planos-herramientas">
-            <b>{plano.nombre} · v{plano.version}</b>
-            <span className="muted">{ESTADO_ES[plano.estado]}{plano.metrosPorPx ? ` · ${(plano.anchoPx * plano.metrosPorPx).toFixed(0)} × ${(plano.altoPx * plano.metrosPorPx).toFixed(0)} m` : ' · sin calibrar'}</span>
+            <div className="planos-titulo">
+              <b>{plano.nombre} · v{plano.version}</b>
+              <span className="muted">{ESTADO_ES[plano.estado]}{plano.metrosPorPx ? ` · ${(plano.anchoPx * plano.metrosPorPx).toFixed(0)} × ${(plano.altoPx * plano.metrosPorPx).toFixed(0)} m` : ' · sin calibrar'}</span>
+            </div>
             {!archivado && (
-              <>
-                <button type="button" className={'btn-mini' + (modo === 'calibrar' ? ' activo' : '')} onClick={() => { setModo('calibrar'); setPuntos([]); }}>1 · Calibrar</button>
-                <button type="button" className={'btn-mini' + (modo === 'colocar' ? ' activo' : '')} onClick={() => setModo('colocar')}>2 · Colocar</button>
-                <button type="button" className={'btn-mini' + (modo === 'zona' ? ' activo' : '')} onClick={() => { setModo('zona'); setSel(null); setZonaPuntos([]); }}>Zonas</button>
-                <button type="button" className={'btn-mini' + (modo === 'riesgo' ? ' activo' : '')}
-                  title="Marcar áreas de alto riesgo, eléctricas, de altura, calor o zona vital"
-                  onClick={() => { setModo('riesgo'); setSel(null); setCableSel(null); setRiesgoEd(null); }}>Riesgo</button>
-                <button type="button" className={'btn-mini' + (modo === 'cable' ? ' activo' : '')}
-                  title="Dar forma al cable de cada equipo hasta su switch"
-                  onClick={() => { setModo('cable'); setSel(null); setRiesgoEd(null); setCableSel(null); }}>Cableado</button>
-                {plano.estado === 'BORRADOR' && <button type="button" className="btn-primary" disabled={ocupado} onClick={publicar}>3 · Publicar</button>}
-              </>
+              <div className="planos-pestanas" role="tablist" aria-label="Herramienta">
+                {([
+                  ['calibrar', '📏', 'Calibrar', 'Dos puntos con distancia real: da la escala', () => { setModo('calibrar'); setPuntos([]); }],
+                  ['colocar', '📍', 'Colocar', 'Poner y jalar los equipos en su sitio', () => setModo('colocar')],
+                  ['zona', '▦', 'Zonas', 'Las salas y áreas del plano', () => { setModo('zona'); setSel(null); setZonaPuntos([]); }],
+                  ['riesgo', '⚠', 'Riesgo', 'Áreas de alto riesgo, eléctricas, de altura, calor o zona vital', () => { setModo('riesgo'); setSel(null); setCableSel(null); setRiesgoEd(null); }],
+                  ['cable', '⌇', 'Cableado', 'Dar forma al cable de cada equipo hasta su switch', () => { setModo('cable'); setSel(null); setRiesgoEd(null); setCableSel(null); }],
+                ] as [Modo, string, string, string, () => void][]).map(([m, ic, t, ayuda, ir]) => (
+                  <button key={m} type="button" role="tab" aria-selected={modo === m} title={ayuda}
+                    className={modo === m ? 'activo' : undefined} onClick={ir}>
+                    <span aria-hidden="true">{ic}</span> {t}
+                  </button>
+                ))}
+              </div>
             )}
+            <button type="button" className={'mapa-capa-btn' + (codigos ? ' on' : '')} aria-pressed={codigos}
+              title="Ver el código de todos los equipos" onClick={() => setCodigos(!codigos)}># Códigos</button>
+            {!archivado && plano.estado === 'BORRADOR' && <button type="button" className="btn-primary" disabled={ocupado} onClick={publicar}>Publicar</button>}
           </div>
 
           {modo === 'calibrar' && !archivado && (
@@ -540,7 +550,7 @@ export default function PlanosEditor() {
                   {equipos.map((e) => {
                     const q = arrastreEq?.assetId === e.assetId ? { ...e, xPx: arrastreEq.x, yPx: arrastreEq.y } : e;
                     return (
-                      <Marcador key={e.assetId} e={q} escala={escala} seleccionado={sel === e.assetId} conEtiqueta
+                      <Marcador key={e.assetId} e={q} escala={escala} seleccionado={sel === e.assetId} conEtiqueta={codigos || sel === e.assetId}
                         onPulsar={() => { if (modo === 'colocar') setSel(e.assetId); }} />
                     );
                   })}

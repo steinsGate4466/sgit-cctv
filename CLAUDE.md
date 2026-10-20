@@ -6891,3 +6891,18 @@ ocupados y libres» y «métricas de estándares dentro del mapa, como un videoj
 Pruebas: 115 suites / 1.685; e2e: capas, switch con puertos, cámara en área de riesgo,
 fuera de norma, dibujar y jalar un área, trazar un cable, celular sin desborde.
 
+## §99 · BLOQUE 177 — EL MAPA, MÁS GRANDE Y MÁS LIMPIO (20/10/2026)
+
+«Se ve feo… que se pueda agrandar… bonito, encajadito, con cuadritos redondos».
+- Capas (Cobertura, Códigos, Riesgo, Cableado, Impacto) como botones redondos encendidos
+  /apagados en una cápsula, en vez de casillas. En el celular, una fila que se desliza.
+- **Ampliar** (se recuerda en el navegador): plano a todo el ancho y el panel abajo en
+  columnas. **Pantalla completa** (Fullscreen API; sin ella, amplía): el panel flota a la
+  derecha. `LienzoPlano` acepta `llenar` para ocupar toda la altura.
+- Lienzo claro y redondeado (sin marco negro), controles de zoom en una cajita, escala en
+  tarjeta. Cada sección de la tarjeta del mapa en su cuadrito; «Fuera de norma» como
+  tarjetas con borde de color.
+- Editor de planos: herramientas como pestañas en una barra; códigos de equipos sólo del
+  elegido (botón «Códigos» para verlos todos) — antes se encimaban.
+- Sólo frontend y estilos (sin colores a mano: tokens). Verificadores y lint en verde.
+

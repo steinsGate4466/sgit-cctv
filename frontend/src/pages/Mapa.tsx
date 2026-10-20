@@ -82,6 +82,27 @@ export default function Mapa() {
   const [capaCables, setCapaCables] = useState(true);
   const [resaltar, setResaltar] = useState<Set<string> | null>(null);
   const [riesgoSel, setRiesgoSel] = useState<string | null>(null);
+  /* Bloque 177 · AGRANDAR. «Ampliar» lleva el plano a todo el ancho (el panel
+     baja); «Pantalla completa» se usa en el púlpito o para presentar. */
+  const [ampliado, setAmpliado] = useState<boolean>(() => {
+    try { return localStorage.getItem('sgit:mapa-ampliado') === '1'; } catch { return false; }
+  });
+  useEffect(() => { try { localStorage.setItem('sgit:mapa-ampliado', ampliado ? '1' : '0'); } catch { /* sin persistencia */ } }, [ampliado]);
+  const escenario = useRef<HTMLDivElement | null>(null);
+  const [completa, setCompleta] = useState(false);
+  useEffect(() => {
+    const alCambiar = () => setCompleta(document.fullscreenElement === escenario.current && !!escenario.current);
+    document.addEventListener('fullscreenchange', alCambiar);
+    return () => document.removeEventListener('fullscreenchange', alCambiar);
+  }, []);
+  function pantallaCompleta() {
+    const el = escenario.current;
+    if (!el) return;
+    if (document.fullscreenElement) { document.exitFullscreen?.().catch(() => null); return; }
+    // Sin pantalla completa (iPhone) se amplía, que es lo más cerca.
+    if (!el.requestFullscreen) { setAmpliado(true); return; }
+    el.requestFullscreen().catch(() => setAmpliado(true));
+  }
 
   // 1. Los planos que esta persona puede ver.
   useEffect(() => {
@@ -304,21 +325,28 @@ export default function Mapa() {
             </button>
           ))}
         </div>
-        <label className="mapa-capa"><input type="checkbox" checked={conos} onChange={(ev) => setConos(ev.target.checked)} /> Cobertura</label>
-        <label className="mapa-capa"><input type="checkbox" checked={etiquetas} onChange={(ev) => setEtiquetas(ev.target.checked)} /> Códigos</label>
-        <label className="mapa-capa" title="Bordes de color: alto riesgo, eléctrico, altura, calor y zona vital">
-          <input type="checkbox" checked={capaRiesgo} onChange={(ev) => setCapaRiesgo(ev.target.checked)} /> Riesgo
-        </label>
-        {vista && (cables.length > 0 || (vista.enlaces?.length ?? 0) > 0) && (
-          <label className="mapa-capa" title="Del switch a cada equipo, con sus metros">
-            <input type="checkbox" checked={capaCables} onChange={(ev) => setCapaCables(ev.target.checked)} /> Cableado
-          </label>
-        )}
-        {veImpacto && (
-          <label className="mapa-capa" title="Elige un equipo: se marca lo que dejaría de verse si cae">
-            <input type="checkbox" checked={impacto} onChange={(ev) => setImpacto(ev.target.checked)} /> Impacto
-          </label>
-        )}
+        {/* Bloque 177 · las capas, como botones redondos encendidos/apagados en una
+            sola cajita: las casillas sueltas se veían como un formulario. */}
+        <div className="mapa-capas" role="group" aria-label="Capas del mapa">
+          <Capa on={conos} set={setConos} icono="◔" texto="Cobertura" ayuda="Hacia dónde mira cada cámara" />
+          <Capa on={etiquetas} set={setEtiquetas} icono="#" texto="Códigos" ayuda="El código de cada equipo" />
+          <Capa on={capaRiesgo} set={setCapaRiesgo} icono="⚠" texto="Riesgo" ayuda="Bordes de color: alto riesgo, eléctrico, altura, calor y zona vital" />
+          {vista && (cables.length > 0 || (vista.enlaces?.length ?? 0) > 0) && (
+            <Capa on={capaCables} set={setCapaCables} icono="⌇" texto="Cableado" ayuda="Del switch a cada equipo, con sus metros" />
+          )}
+          {veImpacto && (
+            <Capa on={impacto} set={setImpacto} icono="◎" texto="Impacto" ayuda="Elige un equipo: se marca lo que dejaría de verse si cae" />
+          )}
+        </div>
+        <div className="mapa-capas" role="group" aria-label="Tamaño del mapa">
+          <button type="button" className={'mapa-capa-btn' + (ampliado ? ' on' : '')} aria-pressed={ampliado}
+            title="El plano a todo el ancho; el panel pasa abajo" onClick={() => setAmpliado(!ampliado)}>
+            <span aria-hidden="true">{ampliado ? '⇲' : '⇱'}</span> {ampliado ? 'Reducir' : 'Ampliar'}
+          </button>
+          <button type="button" className="mapa-capa-btn" title="Pantalla completa (Esc para salir)" onClick={pantallaCompleta}>
+            <span aria-hidden="true">⛶</span> Pantalla completa
+          </button>
+        </div>
         {vista && (
           <span className="muted" style={{ fontSize: 12 }}>
             {vista.hayMonitoreo ? 'Monitoreo' : 'Estado declarado'} · {hora(vista.datoDe)}
@@ -363,9 +391,10 @@ export default function Mapa() {
         </section>
       )}
 
-      <div className="mapa-escenario">
+      <div className={'mapa-escenario' + (ampliado ? ' ampliado' : '') + (completa ? ' completa' : '')} ref={escenario}>
         {vista ? (
           <LienzoPlano key={vista.plano.id}
+            alto={completa ? 'calc(100vh - 24px)' : ampliado ? 'calc(100vh - 210px)' : undefined} llenar={completa}
             imagenUrl={imagen}
             anchoPx={vista.plano.anchoPx}
             altoPx={vista.plano.altoPx}
@@ -519,3 +548,13 @@ export default function Mapa() {
     </div>
   );
 }
+
+/** Bloque 177 · un botón de capa: redondo, encendido o apagado. */
+function Capa({ on, set, icono, texto, ayuda }: { on: boolean; set: (v: boolean) => void; icono: string; texto: string; ayuda: string }) {
+  return (
+    <button type="button" className={'mapa-capa-btn' + (on ? ' on' : '')} aria-pressed={on} title={ayuda} onClick={() => set(!on)}>
+      <span aria-hidden="true">{icono}</span> {texto}
+    </button>
+  );
+}
+
