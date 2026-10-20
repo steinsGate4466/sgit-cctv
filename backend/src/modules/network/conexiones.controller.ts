@@ -59,8 +59,8 @@ export class ConexionesController {
 
   @Get('switches')
   @RequirePermissions('red.read')
-  switches(@CurrentUser() user: any, @Query('tren') tren?: string) {
-    return this.conexiones.switches(user?.userId, tren);
+  switches(@CurrentUser() user: any, @Query('tren') tren?: string, @Query('id') id?: string) {
+    return this.conexiones.switches(user?.userId, tren, id);
   }
 
   @Get('enlaces')

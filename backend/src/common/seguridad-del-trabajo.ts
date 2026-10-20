@@ -66,6 +66,14 @@ export interface DatosDeSeguridad {
   riesgoPersonas?: boolean | null;
   riesgoPersonasMotivo?: string | null;
   tablero?: { codigo: string; requierePermiso: boolean; riesgos?: string | null } | null;
+  /** Bloque 176 · áreas de riesgo DIBUJADAS en el mapa que contienen al equipo. */
+  zonasDeRiesgo?: ZonaDeRiesgoDelMapa[];
+}
+
+export interface ZonaDeRiesgoDelMapa {
+  nivel: 'ALTO_RIESGO' | 'ALTURA' | 'ELECTRICO' | 'CALOR' | 'VITAL';
+  nombre: string;
+  motivo: string;
 }
 
 export interface Requisito {
@@ -126,15 +134,21 @@ export function perfilDeSeguridad(d: DatosDeSeguridad): PerfilDeSeguridad {
   const medio: Medio | null = d.medioAcceso ?? (d.zonaRequiereAltura ? 'MANLIFT' : null);
   const medioOrigen = d.medioAcceso ? 'equipo' : medio ? 'zona' : null;
 
-  const enAltura = (alturaM != null && alturaM >= ALTURA_SSOMA_M)
+  /* Bloque 176 · lo que dice el MAPA: un área dibujada por el Jefe de
+     Mantenimiento con su motivo. Sólo SUMA exigencias, nunca las quita. */
+  const delMapa = d.zonasDeRiesgo ?? [];
+  const mapa = (n: ZonaDeRiesgoDelMapa['nivel']) => delMapa.find((z) => z.nivel === n) ?? null;
+  const altoRiesgo = mapa('ALTO_RIESGO');
+
+  const enAltura = !!mapa('ALTURA') || (alturaM != null && alturaM >= ALTURA_SSOMA_M)
     || (!!d.medioAcceso && MEDIOS_DE_ALTURA.includes(d.medioAcceso))
     || nivel === 'CON_PERMISO_ALTURA'
     || (!declaroAcceso && !!d.zonaRequiereAltura);
-  const bloqueoElectrico = nivel === 'CON_PERMISO_ELECTRICO'
+  const bloqueoElectrico = !!mapa('ELECTRICO') || nivel === 'CON_PERMISO_ELECTRICO'
     || !!d.tablero?.requierePermiso
     || d.tipoEquipo === 'TABLERO_ELECTRICO' || d.tipoEquipo === 'UPS';
   const parada = nivel === 'EXIGE_PARADA' || nivel === 'SIN_CLASIFICAR';
-  const personasMinimas = enAltura || bloqueoElectrico ? 2 : 1;
+  const personasMinimas = enAltura || bloqueoElectrico || altoRiesgo ? 2 : 1;
 
   const requisitos: Requisito[] = [
     { clave: 'ATS', texto: 'ATS del día firmado por la cuadrilla', porque: 'Todo trabajo en planta empieza con su Análisis de Trabajo Seguro.' },
@@ -143,7 +157,8 @@ export function perfilDeSeguridad(d: DatosDeSeguridad): PerfilDeSeguridad {
   if (enAltura) {
     requisitos.push({
       clave: 'PETAR_ALTURA', texto: 'PETAR de trabajo en altura aprobado',
-      porque: alturaM != null && alturaM >= ALTURA_SSOMA_M
+      porque: mapa('ALTURA') ? `Está dentro de «${mapa('ALTURA')!.nombre}», marcada en el mapa como trabajo en altura.`
+        : alturaM != null && alturaM >= ALTURA_SSOMA_M
         ? `El equipo está a ${alturaM} m (desde ${ALTURA_SSOMA_M} m es trabajo en altura).`
         : medio && MEDIOS_DE_ALTURA.includes(medio) ? `Se llega en ${medio.toLowerCase().replace('_', ' ')}.` : 'La zona exige subir para llegar al equipo.',
     });
@@ -158,7 +173,8 @@ export function perfilDeSeguridad(d: DatosDeSeguridad): PerfilDeSeguridad {
   if (bloqueoElectrico) {
     requisitos.push({
       clave: 'BLOQUEO_LOTO', texto: 'Bloqueo y etiquetado (LOTO) con verificación de energía cero',
-      porque: d.tablero?.requierePermiso ? `Lo alimenta o lo contiene ${d.tablero.codigo}, que pide permiso.`
+      porque: mapa('ELECTRICO') ? `Está dentro de «${mapa('ELECTRICO')!.nombre}», marcada en el mapa con riesgo eléctrico.`
+        : d.tablero?.requierePermiso ? `Lo alimenta o lo contiene ${d.tablero.codigo}, que pide permiso.`
         : nivel === 'CON_PERMISO_ELECTRICO' ? 'La zona se interviene con permiso eléctrico.' : 'El equipo está energizado (tablero o UPS).',
     });
     requisitos.push({ clave: 'EPP_ELECTRICO', texto: `EPP eléctrico: ${EPP_ELECTRICO.join(', ').toLowerCase()}`, porque: 'Riesgo eléctrico.' });
@@ -171,8 +187,18 @@ export function perfilDeSeguridad(d: DatosDeSeguridad): PerfilDeSeguridad {
         : 'La zona exige parada para intervenir.',
     });
   }
+  if (altoRiesgo) {
+    requisitos.push({
+      clave: 'ZONA_ALTO_RIESGO', texto: `Ingreso a «${altoRiesgo.nombre}» coordinado con el supervisor de la zona`,
+      porque: `Marcada en el mapa como zona de alto riesgo: ${altoRiesgo.motivo}`,
+    });
+  }
   if (personasMinimas >= 2) {
-    requisitos.push({ clave: 'ACOMPANANTE', texto: 'Segunda persona en campo (acompañante)', porque: 'En altura o con bloqueo eléctrico nunca se trabaja solo.' });
+    requisitos.push({ clave: 'ACOMPANANTE', texto: 'Segunda persona en campo (acompañante)', porque: 'En altura, con bloqueo eléctrico o en zona de alto riesgo nunca se trabaja solo.' });
+  }
+  const calor = mapa('CALOR');
+  if (calor && d.ambiente !== 'CALOR_RADIANTE') {
+    requisitos.push({ clave: 'EPP_CALOR', texto: `EPP de calor: ${EPP_AMBIENTE.CALOR_RADIANTE.join(', ').toLowerCase()}`, porque: `Dentro de «${calor.nombre}»: ${calor.motivo}` });
   }
   if (d.ambiente && EPP_AMBIENTE[d.ambiente]) {
     requisitos.push({ clave: 'EPP_AMBIENTE', texto: `EPP del ambiente: ${EPP_AMBIENTE[d.ambiente].join(', ').toLowerCase()}`, porque: `Ambiente de la etapa: ${d.ambiente.toLowerCase().replace(/_/g, ' ')}.` });
@@ -183,9 +209,12 @@ export function perfilDeSeguridad(d: DatosDeSeguridad): PerfilDeSeguridad {
     ...(enAltura ? EPP_ALTURA : []),
     ...(bloqueoElectrico ? EPP_ELECTRICO : []),
     ...(d.ambiente ? EPP_AMBIENTE[d.ambiente] ?? [] : []),
+    ...(calor ? EPP_AMBIENTE.CALOR_RADIANTE : []),
   ]);
 
   const riesgos = sinRepetir([
+    // Lo que escribió quien dibujó el área, tal cual: es información de planta.
+    ...delMapa.filter((z) => z.nivel !== 'VITAL').map((z) => `${z.nombre}: ${z.motivo}`),
     d.riesgoPersonas ? d.riesgoPersonasMotivo || 'Zona declarada con riesgo para personas' : null,
     d.tablero?.riesgos,
     enAltura ? 'Caída a distinto nivel' : null,
@@ -196,11 +225,15 @@ export function perfilDeSeguridad(d: DatosDeSeguridad): PerfilDeSeguridad {
     d.ambiente ? RIESGO_AMBIENTE[d.ambiente] : null,
   ]);
 
-  const impactoProduccion = parada
+  const vital = mapa('VITAL');
+  const impactoBase = parada
     ? `Requiere parar el tren o esperar una ventana de parada.${d.impactoSiSeCae ? ` Si este punto queda sin vista: ${d.impactoSiSeCae}` : ''}`
     : nivel === 'EN_MARCHA' ? 'Se trabaja con el tren en marcha; coordinar el ingreso con el púlpito.'
     : nivel === 'CON_PERMISO_ELECTRICO' ? 'Sin parada de tren, con permiso y bloqueo eléctrico.'
     : 'Sin parada de tren, con permiso de altura.';
+  const impactoProduccion = vital
+    ? `${impactoBase} Zona vital de Producción («${vital.nombre}»): avisar al púlpito antes de entrar.`
+    : impactoBase;
 
   const faltaDeclarar: string[] = [];
   if (!declaroAcceso) faltaDeclarar.push('Cómo se llega al equipo (altura y medio de acceso)');

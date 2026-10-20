@@ -34,7 +34,10 @@ if (fs.existsSync(dir)) for (const f of fs.readdirSync(dir)) if (/\.tsx?$/.test(
 
 /* Componentes de fuera que el mapa puede usar: los de dibujo y los DOS
    formularios de reporte del QR. Nada más. */
-const PERMITIDOS = new Set(['Iconos', 'DibujoEquipo', 'ReportarCaida', 'ReportarAveria']);
+/* Bloque 176 · `RejillaDePuertos`: la MISMA rejilla del switch que usa
+   Red › Conexiones, separada para que el mapa la enseñe. No escribe nada (no
+   importa ni `api`): en el mapa, tocar un puerto sólo resalta su cable. */
+const PERMITIDOS = new Set(['Iconos', 'DibujoEquipo', 'ReportarCaida', 'ReportarAveria', 'RejillaDePuertos']);
 
 const fallos = [];
 for (const f of archivos) {

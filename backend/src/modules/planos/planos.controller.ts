@@ -5,7 +5,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { PlanosService } from './planos.service';
-import { CalibrarPlanoDto, ColocarEquipoDto, CrearPlanoDto, ZonaDto } from './dto/planos.dto';
+import { CalibrarPlanoDto, ColocarEquipoDto, CrearPlanoDto, QuitarRiesgoDto, RiesgoDto, TrazadoDto, ZonaDto } from './dto/planos.dto';
 import { RequireAlguno, RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { AmbitoDe, SinAmbito } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -25,6 +25,15 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 const MIRAR = ['asset.read', 'activos.mirar', 'om.mirar'];
 const gestiona = (u: any) => (u?.permissions || []).includes('location.manage');
 const veRed = (u: any) => (u?.permissions || []).includes('asset.read');
+/**
+ * Bloque 176 · QUIÉN DIBUJA, MUEVE Y TRAZA. Decidido por el usuario: «sólo el
+ * ingeniero» (el Jefe de Mantenimiento). Por CAPACIDAD, no por nombre de rol:
+ * `location.manage` (mantiene el árbol de planta) Y `wo.approve`, que sólo
+ * tiene el Jefe (bloque 78). Mover un equipo cambia los metros de su cable y
+ * dibujar un área de riesgo cambia lo que se exige al abrir una orden: son
+ * decisiones, no trámites.
+ */
+const EDITA = ['location.manage', 'wo.approve'] as const;
 
 @ApiTags('planos')
 @ApiBearerAuth()
@@ -58,7 +67,7 @@ export class PlanosController {
 
   @SinAmbito()
   @Post()
-  @RequirePermissions('location.manage')
+  @RequirePermissions(...EDITA)
   @UseInterceptors(FileInterceptor('archivo', { limits: { fileSize: 25 * 1024 * 1024 } }))
   crear(@UploadedFile() archivo: any, @Body() dto: CrearPlanoDto, @CurrentUser() u: any, @Ip() ip: string) {
     return this.planos.crear(archivo, dto, u?.userId ?? null, ip);
@@ -96,14 +105,14 @@ export class PlanosController {
 
   @SinAmbito()
   @Patch(':id/calibrar')
-  @RequirePermissions('location.manage')
+  @RequirePermissions(...EDITA)
   calibrar(@Param('id') id: string, @Body() dto: CalibrarPlanoDto, @CurrentUser() u: any, @Ip() ip: string) {
     return this.planos.calibrarPlano(id, dto, u?.userId ?? null, ip);
   }
 
   @SinAmbito()
   @Put(':id/posiciones/:assetId')
-  @RequirePermissions('location.manage')
+  @RequirePermissions(...EDITA)
   colocar(@Param('id') id: string, @Param('assetId') assetId: string, @Body() dto: ColocarEquipoDto,
     @CurrentUser() u: any, @Ip() ip: string) {
     return this.planos.colocar(id, assetId, dto, u?.userId ?? null, ip);
@@ -111,7 +120,7 @@ export class PlanosController {
 
   @SinAmbito()
   @Delete(':id/posiciones/:assetId')
-  @RequirePermissions('location.manage')
+  @RequirePermissions(...EDITA)
   quitar(@Param('id') id: string, @Param('assetId') assetId: string, @CurrentUser() u: any, @Ip() ip: string) {
     return this.planos.quitar(id, assetId, u?.userId ?? null, ip);
   }
@@ -119,7 +128,7 @@ export class PlanosController {
   /** Bloque 165 · dibujar (o volver a dibujar) la zona de una ubicación sobre el plano. */
   @SinAmbito()
   @Put(':id/zonas/:locationId')
-  @RequirePermissions('location.manage')
+  @RequirePermissions(...EDITA)
   guardarZona(@Param('id') id: string, @Param('locationId') locationId: string, @Body() dto: ZonaDto,
     @CurrentUser() u: any, @Ip() ip: string) {
     return this.planos.guardarZona(id, locationId, dto.puntos, u?.userId ?? null, ip);
@@ -127,15 +136,51 @@ export class PlanosController {
 
   @SinAmbito()
   @Delete(':id/zonas/:locationId')
-  @RequirePermissions('location.manage')
+  @RequirePermissions(...EDITA)
   borrarZona(@Param('id') id: string, @Param('locationId') locationId: string, @CurrentUser() u: any, @Ip() ip: string) {
     return this.planos.borrarZona(id, locationId, u?.userId ?? null, ip);
   }
 
   @SinAmbito()
   @Post(':id/publicar')
-  @RequirePermissions('location.manage')
+  @RequirePermissions(...EDITA)
   publicar(@Param('id') id: string, @CurrentUser() u: any, @Ip() ip: string) {
     return this.planos.publicar(id, u?.userId ?? null, ip);
+  }
+
+  // ------------------------------------------- bloque 176 · regular el mapa
+  /** Dibujar un área de riesgo (nivel, nombre, motivo y polígono). */
+  @SinAmbito()
+  @Post(':id/riesgos')
+  @RequirePermissions(...EDITA)
+  crearRiesgo(@Param('id') id: string, @Body() dto: RiesgoDto, @CurrentUser() u: any, @Ip() ip: string) {
+    return this.planos.guardarRiesgo(id, null, dto, u?.userId ?? null, ip);
+  }
+
+  /** Corregirla: jalar sus esquinas, cambiar el nivel. El motivo se vuelve a pedir. */
+  @SinAmbito()
+  @Put(':id/riesgos/:riesgoId')
+  @RequirePermissions(...EDITA)
+  editarRiesgo(@Param('id') id: string, @Param('riesgoId') riesgoId: string, @Body() dto: RiesgoDto,
+    @CurrentUser() u: any, @Ip() ip: string) {
+    return this.planos.guardarRiesgo(id, riesgoId, dto, u?.userId ?? null, ip);
+  }
+
+  /** Quitarla, con motivo. POST y no DELETE: un DELETE con cuerpo lo pierden algunos proxys. */
+  @SinAmbito()
+  @Post(':id/riesgos/:riesgoId/quitar')
+  @RequirePermissions(...EDITA)
+  quitarRiesgo(@Param('id') id: string, @Param('riesgoId') riesgoId: string, @Body() dto: QuitarRiesgoDto,
+    @CurrentUser() u: any, @Ip() ip: string) {
+    return this.planos.borrarRiesgo(id, riesgoId, dto?.motivo, u?.userId ?? null, ip);
+  }
+
+  /** Trazar el cable de un equipo a su switch. Lista vacía = volver al estimado. */
+  @SinAmbito()
+  @Put(':id/cables/:assetId')
+  @RequirePermissions(...EDITA)
+  trazar(@Param('id') id: string, @Param('assetId') assetId: string, @Body() dto: TrazadoDto,
+    @CurrentUser() u: any, @Ip() ip: string) {
+    return this.planos.guardarTrazado(id, assetId, dto?.puntos ?? [], u?.userId ?? null, ip);
   }
 }

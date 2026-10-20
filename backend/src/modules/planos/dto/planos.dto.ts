@@ -1,4 +1,4 @@
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 /** Subir un plano. La imagen va en el campo `archivo` del multipart. */
@@ -32,4 +32,22 @@ export class ColocarEquipoDto {
 /** Bloque 165 · el polígono de una zona, en píxeles de la imagen: [[x, y], …]. */
 export class ZonaDto {
   @IsArray() @ArrayMinSize(3) @ArrayMaxSize(60) puntos!: [number, number][];
+}
+
+/** Bloque 176 · un área de riesgo dibujada. El servicio vuelve a validar todo. */
+export class RiesgoDto {
+  @IsIn(['ALTO_RIESGO', 'ALTURA', 'ELECTRICO', 'CALOR', 'VITAL'], { message: 'Elige el nivel del área.' }) nivel!: string;
+  @IsString() @MaxLength(80) nombre!: string;
+  @IsString() @MaxLength(500) motivo!: string;
+  @IsArray() @ArrayMinSize(3) @ArrayMaxSize(60) puntos!: [number, number][];
+}
+
+/** Bloque 176 · quitar un área de riesgo exige decir por qué. */
+export class QuitarRiesgoDto {
+  @IsString() @MaxLength(500) motivo!: string;
+}
+
+/** Bloque 176 · los puntos intermedios del cable, del switch al equipo. */
+export class TrazadoDto {
+  @IsArray() @ArrayMaxSize(60) puntos!: [number, number][];
 }

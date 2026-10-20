@@ -36,9 +36,10 @@ export class ConexionesService {
   constructor(private readonly prisma: PrismaService) {}
 
   /** Switches visibles con sus puertos y qué cuelga de cada uno. */
-  async switches(userId?: string | null, tren?: string | null) {
+  async switches(userId?: string | null, tren?: string | null, id?: string | null) {
     const equipos = await this.prisma.asset.findMany({
-      where: { deletedAt: null, type: 'SWITCH', status: { notIn: ['BAJA'] } },
+      // Bloque 176 · `id`: el mapa pide UN switch (el que se tocó), no los 40.
+      where: { deletedAt: null, type: 'SWITCH', status: { notIn: ['BAJA'] }, ...(id ? { id } : {}) },
       select: {
         id: true, assetCode: true, model: true, status: true,
         referencePlace: true, locationId: true,

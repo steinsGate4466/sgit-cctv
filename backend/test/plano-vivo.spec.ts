@@ -56,7 +56,7 @@ describe('PlanosService — reglas de gestión', () => {
         update: jest.fn().mockResolvedValue({ ...plano, metrosPorPx: 0.1 }),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
-      posicionEnPlano: { count: jest.fn().mockResolvedValue(extra.colocados ?? 0), upsert: jest.fn().mockResolvedValue({}) },
+      posicionEnPlano: { count: jest.fn().mockResolvedValue(extra.colocados ?? 0), upsert: jest.fn().mockResolvedValue({}), findUnique: jest.fn().mockResolvedValue(null) },
       asset: { findFirst: jest.fn().mockResolvedValue(extra.activo ?? null) },
       location: { findMany: jest.fn().mockResolvedValue(extra.nodos ?? [{ id: 'area', parentId: null, type: 'AREA', code: 'A' }]) },
       user: { findUnique: jest.fn().mockResolvedValue(extra.usuario ?? { ambitoTrenes: [], role: { exigeAmbito: false } }) },

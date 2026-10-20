@@ -20,8 +20,10 @@ export interface Zona {
 /** «Sala eléctrica T2 (demo)» → «Sala eléctrica»: en el plano sobra lo que ya dice el plano. */
 export const nombreCorto = (n: string) => n.replace(/\s+\(demo\)$/i, '').replace(/\s+T\d+$/i, '');
 
-export default function ZonasDelPlano({ zonas, escala, elegida, onElegir }: {
+export default function ZonasDelPlano({ zonas, escala, elegida, onElegir, interactiva = true }: {
   zonas: Zona[]; escala: number; elegida: string | null; onElegir: (id: string) => void;
+  /** Bloque 176 · en el editor, trazando un cable, tocar dentro de una zona es marcar un quiebre: la zona no se lo queda. */
+  interactiva?: boolean;
 }) {
   if (!zonas.length) return null;
   return (
@@ -35,8 +37,8 @@ export default function ZonasDelPlano({ zonas, escala, elegida, onElegir }: {
         const rx = z.rotulo?.x ?? z.caja.cx;
         const ry = z.rotulo?.y ?? z.caja.cy;
         return (
-        <g key={z.id} className={'zona zona-' + z.estado + (elegida === z.id ? ' elegida' : '') + (elegida && elegida !== z.id ? ' atenuada' : '')}
-          onClick={(ev) => { ev.stopPropagation(); onElegir(z.id); }}>
+        <g key={z.id} className={'zona zona-' + z.estado + (elegida === z.id ? ' elegida' : '') + (elegida && elegida !== z.id ? ' atenuada' : '') + (interactiva ? '' : ' inerte')}
+          onClick={interactiva ? (ev) => { ev.stopPropagation(); onElegir(z.id); } : undefined}>
           <polygon points={z.puntos.map((p) => p.join(',')).join(' ')} style={{ strokeWidth: 2 * escala }} />
           {cabe && <text x={rx} y={ry} style={{ fontSize: tam }} textAnchor="middle">{nombre}</text>}
           {cabe && z.planoHijo && (

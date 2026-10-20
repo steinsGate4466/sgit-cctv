@@ -4,6 +4,7 @@ import Modal from './Modal';
 import { useDialogos } from './Dialogos';
 import { mensajeDeError } from '../avisos';
 import { NOMBRE_DE_TIPO } from '../tipos-de-equipo';
+import RejillaDePuertos, { CifrasDePuertos, Puerto } from './RejillaDePuertos';
 
 /* =============================================================================
    UN SWITCH Y SUS PUERTOS — bloque 173
@@ -25,11 +26,7 @@ import { NOMBRE_DE_TIPO } from '../tipos-de-equipo';
    · Cada casilla es un botón de verdad: se abre con teclado y con el dedo.
 ============================================================================= */
 
-export interface Puerto {
-  id: string; numero: number; poe: boolean; vlan: number | null;
-  enlace?: boolean; aviso?: string | null;
-  equipo: null | { id: string; code: string; tipo: string; estado: string; lugar?: string | null; modelo?: string | null };
-}
+export type { Puerto };
 
 const CAPA: Record<string, string> = { CAPA_2: 'Capa 2', CAPA_3: 'Capa 3' };
 const ESTADO: Record<string, string> = {
@@ -59,7 +56,6 @@ export function TarjetaSwitch({ sw, puedeEditar, resaltado, onCambio }: {
     if (resaltado) ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [resaltado]);
 
-  const porNumero = new Map<number, Puerto>((sw.puertos as Puerto[]).map((p) => [p.numero, p]));
   const total = Math.max(sw.capacidad || 0, ...(sw.puertos as Puerto[]).map((p) => p.numero), 0);
   const ficha = comoEs(sw);
 
@@ -81,13 +77,7 @@ export function TarjetaSwitch({ sw, puedeEditar, resaltado, onCambio }: {
           </div>
           {ficha.length > 0 && <div className="sw-ficha">{ficha.map((f) => <span key={f}>{f}</span>)}</div>}
         </div>
-        <div className="sw-cifras">
-          <div><b>{sw.ocupados}</b><span>ocupados</span></div>
-          <div className={sw.libres === 0 ? 'lleno' : ''}><b>{sw.libres ?? '?'}</b><span>libres</span></div>
-          <div title="Puertos marcados con PoE, contra los que dice la ficha">
-            <b>{sw.poeUsados}{sw.poePuertos != null ? `/${sw.poePuertos}` : ''}</b><span>PoE</span>
-          </div>
-        </div>
+        <CifrasDePuertos sw={sw} />
       </div>
 
       {sw.capacidad == null && (
@@ -95,47 +85,8 @@ export function TarjetaSwitch({ sw, puedeEditar, resaltado, onCambio }: {
       )}
 
       {total > 0 && (
-        <div className="rejilla-puertos" role="list" aria-label={`Puertos de ${sw.code}`}>
-          {Array.from({ length: total }, (_, i) => i + 1).map((n) => {
-            const p = porNumero.get(n) || null;
-            const eq = p?.equipo;
-            const clases = ['puerto', eq ? 'ocupado' : 'libre'];
-            if (p?.enlace) clases.push('enlace');
-            if (eq && eq.estado !== 'OPERATIVO') clases.push('con-falla');
-            if (recien === n) clases.push('recien');
-            /* En un switch sin VLAN, una VLAN guardada es un resto: no se pinta. */
-            const vlan = sw.soportaVlan === false ? null : p?.vlan ?? null;
-            const etiqueta = `Puerto ${n}${p?.poe ? ', con PoE' : ''}${vlan != null ? `, VLAN ${vlan}` : ''}: ${eq ? `${eq.code}` : 'libre'}`;
-            return (
-              <div key={n} className={clases.join(' ')} role="listitem">
-                <button type="button" className="puerto-abrir" disabled={!puedeEditar}
-                  aria-label={etiqueta} title={p?.aviso || etiqueta}
-                  onClick={() => setAbierto({ numero: n, puerto: p })}>
-                  <span className="p-num">
-                    {n}
-                    {p?.poe && <span className="p-poe" title="Este puerto da corriente (PoE)">PoE</span>}
-                    {vlan != null && <span className="p-vlan" title={`VLAN ${vlan}`}>V{vlan}</span>}
-                  </span>
-                  {eq ? (
-                    <>
-                      <span className="p-code">{eq.code}</span>
-                      <span className="p-tipo">
-                        {p?.enlace ? '↔ enlace · ' : ''}{NOMBRE_DE_TIPO[eq.tipo] || eq.tipo}
-                        {p?.aviso ? ' ⚠' : ''}
-                      </span>
-                    </>
-                  ) : (
-                    <span className="p-libre">{puedeEditar ? '+ enchufar' : 'libre'}</span>
-                  )}
-                </button>
-                {eq && puedeEditar && (
-                  <button type="button" className="canal-quitar" aria-label={`Desenchufar ${eq.code} del puerto ${n}`}
-                    title="Desenchufar" onClick={() => desenchufar(p!)}>×</button>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        <RejillaDePuertos sw={sw} puedeEditar={puedeEditar} recien={recien}
+          onAbrir={puedeEditar ? (n, p) => setAbierto({ numero: n, puerto: p }) : undefined} onDesenchufar={desenchufar} />
       )}
 
       {abierto && (

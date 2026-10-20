@@ -190,6 +190,76 @@ async function cargarTren(tren: Nodo, sigla: string, camaras: Cam[], sitios: Rec
   return { plano, zonaLoc };
 }
 
+/**
+ * BLOQUE 176 · CABLEADO Y RIESGO DE DEMO. Para que el mapa enseñe lo que hace
+ * con datos de verdad: dos switches de campo con sus puertos, las cámaras del
+ * tren enchufadas a ellos (sólo las que no tenían puerto), un cable TRAZADO que
+ * se pasa de 90 m, dos áreas de riesgo dibujadas y dos zonas que ya declaran
+ * su riesgo. Todo con prefijo DEMO / «(demo)»: lo borra `demo:borrar`.
+ */
+const SW_DE_LINEA: { codigo: string; sitio: Sitio; lugar: string; camaras: string[] }[] = [
+  { codigo: 'DEMO-SW-T1-L1', sitio: { xm: 110, ym: 40, alturaM: 3 }, lugar: 'Gabinete de campo, inicio de línea (ejemplo)',
+    camaras: ['DEMO-CAM-T1-CARGA', 'DEMO-CAM-T1-DESB', 'DEMO-CAM-T1-CIZ1', 'DEMO-CAM-T1-INT'] },
+  { codigo: 'DEMO-SW-T1-L2', sitio: { xm: 230, ym: 45, alturaM: 3 }, lugar: 'Gabinete de campo, fin de línea (ejemplo)',
+    camaras: ['DEMO-CAM-T1-ACAB', 'DEMO-CAM-T1-DIV', 'DEMO-CAM-T1-FRIO', 'DEMO-CAM-T1-ATADO', 'DEMO-CAM-T1-DESP'] },
+];
+const m2px = (xm: number, ym: number): [number, number] => [Math.round(xm / M_POR_PX), Math.round(ym / M_POR_PX)];
+
+async function cableadoYRiesgoDeDemo(planoId: string, zonaLoc: Map<string, string>) {
+  for (const sw of SW_DE_LINEA) {
+    const a = await prisma.asset.upsert({
+      where: { assetCode: sw.codigo },
+      update: {},
+      create: {
+        assetCode: sw.codigo, type: 'SWITCH', status: 'OPERATIVO', criticality: 'ALTA',
+        brand: 'TP-Link', model: 'TL-SG1016PE', referencePlace: sw.lugar, locationId: zonaLoc.get('LINEA')!,
+      },
+    });
+    await prisma.assetSwitch.upsert({
+      where: { assetId: a.id }, update: {},
+      create: { assetId: a.id, portCount: 16, poePorts: 8, vendor: 'TP-Link', switchRole: 'POE_ACCESO', capa: 'CAPA_2', gestionable: true, soportaVlan: true },
+    });
+    await colocar(planoId, a.id, enPx(sw.sitio), sw.sitio);
+    let n = 0;
+    for (const codigo of sw.camaras) {
+      n += 1;
+      const cam = await prisma.asset.findUnique({ where: { assetCode: codigo }, select: { id: true } });
+      if (!cam) continue;
+      const ya = await prisma.switchPort.findUnique({ where: { connectedAssetId: cam.id } });
+      if (ya) continue; // una cámara que ya cuelga de otro puerto no se mueve
+      await prisma.switchPort.upsert({
+        where: { switchId_portNumber: { switchId: a.id, portNumber: n } },
+        update: {},
+        create: { switchId: a.id, assetSwitchId: a.id, portNumber: n, poe: true, vlanNumber: 40, connectedAssetId: cam.id },
+      });
+    }
+  }
+  // Un cable TRAZADO que da la vuelta por la bandeja del muro: pasa de 90 m.
+  const desp = await prisma.asset.findUnique({ where: { assetCode: 'DEMO-CAM-T1-DESP' }, select: { id: true } });
+  if (desp) {
+    const puntos = [m2px(230, 105), m2px(258, 105)];
+    await prisma.trazadoCable.upsert({
+      where: { planoId_assetId: { planoId, assetId: desp.id } },
+      update: { puntos: puntos as any }, create: { planoId, assetId: desp.id, puntos: puntos as any },
+    });
+  }
+  // Dos áreas de riesgo DIBUJADAS (se rehacen en cada carga de la demo).
+  await prisma.zonaDeRiesgo.deleteMany({ where: { planoId, nombre: { endsWith: '(demo)' } } });
+  await prisma.zonaDeRiesgo.createMany({
+    data: [
+      { planoId, nivel: 'ALTO_RIESGO', nombre: 'Paso del puente grúa (demo)', motivo: 'Carga suspendida sobre el pasillo en cada cambio de rodillos (ejemplo).',
+        puntos: [m2px(118, 22), m2px(156, 22), m2px(156, 58), m2px(118, 58)] as any },
+      { planoId, nivel: 'CALOR', nombre: 'Lecho de enfriamiento (demo)', motivo: 'Barras a más de 600 °C a menos de 3 m (ejemplo).',
+        puntos: [m2px(245, 22), m2px(320, 22), m2px(320, 62), m2px(245, 62)] as any },
+    ],
+  });
+  // Dos zonas que ya DECLARAN su riesgo en Ubicaciones: salen con borde sin dibujarlas.
+  const pul = zonaLoc.get('PULPITO'), sala = zonaLoc.get('SALAE');
+  if (pul) await prisma.location.update({ where: { id: pul }, data: { criticidadProduccion: 'CRITICA', porQueEsVital: 'Púlpito de ejemplo: desde aquí se ve la línea entera.' } });
+  if (sala) await prisma.location.update({ where: { id: sala }, data: { intervencionFirmada: 'CON_PERMISO_ELECTRICO', intervencionMotivo: 'Sala eléctrica de ejemplo: se entra con permiso y bloqueo.' } });
+  console.log('  Cableado de demo: 2 switches de línea con sus cámaras, un cable trazado de más de 90 m, 2 áreas de riesgo.');
+}
+
 async function main() {
   console.log('Cargando PLANOS DE DEMO: trenes, zonas y sala eléctrica (todo con prefijo DEMO)…');
   const nodosArbol = (await prisma.location.findMany({
@@ -220,8 +290,12 @@ async function main() {
 
   // ---- TREN 1 (el de las cámaras de demo)
   const camarasT1: Cam[] = [...CAMARAS_DEL_TREN, { codigo: CAMARA_SALA_T1.codigo, lugar: CAMARA_SALA_T1.lugar, estado: 'OPERATIVO', criticidad: 'MEDIA' }];
-  await cargarTren(t1, sigla1, camarasT1, { ...SITIOS_M, [CAMARA_SALA_T1.codigo]: CAMARA_SALA_T1.sitio },
+  const r1 = await cargarTren(t1, sigla1, camarasT1, {
+    ...SITIOS_M, [CAMARA_SALA_T1.codigo]: CAMARA_SALA_T1.sitio,
+    ...Object.fromEntries(SW_DE_LINEA.map((x) => [x.codigo, x.sitio])),
+  },
     'DEMO · Tren y púlpito (referencial)', `${t1.name} y púlpito (referencial)`);
+  await cableadoYRiesgoDeDemo(r1.plano.id, r1.zonaLoc);
 
   // ---- TREN 2: sólo si existe en el árbol. No se inventa un tren.
   const t2 = nodosArbol.find((n) => n.type === 'TREN' && n.id !== t1!.id

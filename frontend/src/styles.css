@@ -5269,3 +5269,78 @@ tbody tr:hover td { background: var(--brillo); }
 .plan-tramo.TERMINADA { background: var(--ok); }
 .plan-tramo.POR_EMPEZAR, .plan-tramo.SIN_PLAN { background: var(--border); }
 .plan-hoy { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--tinta-marca); }
+
+/* =============================================================================
+   Bloque 176 · EL MAPA REGULA — riesgo, cableado y asas que se jalan.
+   Los colores del plano son FIJOS (van sobre la imagen del plano, que es la
+   misma de día y de noche), como los de las zonas del bloque 165.
+============================================================================= */
+.riesgo, .riesgo-borde, .riesgo-borrador, .riesgo-chip { --c-riesgo: #d93025; }
+.riesgo-ALTO_RIESGO { --c-riesgo: #d93025; }
+.riesgo-ELECTRICO   { --c-riesgo: #e8a400; }
+.riesgo-ALTURA      { --c-riesgo: #ea580c; }
+.riesgo-CALOR       { --c-riesgo: #c026d3; }
+.riesgo-VITAL       { --c-riesgo: #2563eb; }
+.riesgo polygon { fill: var(--c-riesgo); fill-opacity: .10; stroke: var(--c-riesgo); stroke-opacity: .95; stroke-linejoin: round; cursor: pointer; }
+.riesgo:hover polygon, .riesgo.elegida polygon { fill-opacity: .2; }
+.riesgo text { /* tema: fijo */ fill: #1d2a31; font-weight: 800; paint-order: stroke; stroke: #ffffff; stroke-width: 3px; pointer-events: none; font-family: inherit; }
+.riesgo-borde { pointer-events: none; }
+.riesgo-borde polygon { fill: none; stroke: var(--c-riesgo); stroke-opacity: .7; stroke-dasharray: 2 5; stroke-linecap: round; }
+.riesgo-borde text { fill: var(--c-riesgo); font-weight: 800; paint-order: stroke; stroke: #ffffff; stroke-width: 3px; font-family: inherit; }
+.riesgo-borrador { fill: var(--c-riesgo); fill-opacity: .16; stroke: var(--c-riesgo); stroke-dasharray: 8 4; pointer-events: none; }
+.riesgo-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; }
+.riesgo-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+  color: var(--c-riesgo); border: 1.5px solid var(--c-riesgo); background: var(--card); white-space: nowrap; }
+.tarjeta-mapa-cab.riesgo-cab { border-top: 4px solid var(--c-riesgo); }
+.perfil-lista { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.55; }
+.perfil-detalle { margin-top: 6px; font-size: 12.5px; }
+.perfil-detalle summary { cursor: pointer; font-weight: 600; }
+.perfil-detalle ul { margin: 4px 0; padding-left: 18px; line-height: 1.5; }
+
+/* El cable: del switch al equipo. Discontinuo = estimado; continuo = trazado. */
+.cable { cursor: pointer; }
+.cable-toque { fill: none; stroke: transparent; }
+.cable-linea { fill: none; stroke: #1f6feb; stroke-opacity: .85; stroke-linejoin: round; stroke-linecap: round; }
+.cable.estimado .cable-linea { stroke-dasharray: 7 5; stroke-opacity: .6; }
+.cable.subida .cable-linea { stroke: #6d28d9; }
+.cable.fuera .cable-linea { stroke: #d93025; stroke-opacity: .95; }
+.cable.resaltado .cable-linea { stroke-opacity: 1; filter: drop-shadow(0 0 2px #ffffff); }
+.cable.atenuado { opacity: .25; }
+.cable-metros { /* tema: fijo */ fill: #0b3a8f; font-weight: 800; paint-order: stroke; stroke: #ffffff; stroke-width: 3px; pointer-events: none; font-family: inherit; }
+.cable.fuera .cable-metros, .cable-metros.fuera { fill: #b3261e; }
+.cable-editando { fill: none; stroke: #f59e0b; stroke-linejoin: round; stroke-linecap: round; pointer-events: none; }
+.enlace-red { fill: none; stroke-opacity: .7; pointer-events: stroke; }
+.enlace-FIBRA { stroke: #0ea5a4; }
+.enlace-COBRE { stroke: #1f6feb; stroke-dasharray: 3 3; }
+.enlace-INALAMBRICO { stroke: #7c3aed; stroke-dasharray: 1 6; stroke-linecap: round; }
+
+/* Las asas: se jalan con el dedo o el ratón. */
+.lienzo-dibujar { cursor: crosshair; }
+.asa { cursor: grab; outline: none; }
+.asa:active { cursor: grabbing; }
+.asa-toque { fill: transparent; }
+.asa-punto { fill: #ffffff; stroke: #0f1a20; stroke-width: 2; }
+.asa:focus-visible .asa-punto { stroke: #1f6feb; stroke-width: 3; }
+.asa-medio .asa-punto { fill: #f59e0b; stroke-width: 1.5; }
+.asa-cable .asa-punto { fill: #f59e0b; }
+.asa-equipo .asa-punto { fill: transparent; stroke: #f59e0b; stroke-width: 3; stroke-dasharray: 5 4; }
+
+/* «Fuera de norma» en el panel del mapa. */
+.mapa-norma { margin-top: 10px; }
+.mapa-norma summary { cursor: pointer; font-weight: 700; font-size: 13px; }
+.mapa-norma button { align-items: flex-start; flex-wrap: nowrap; font-size: 12.5px; text-align: left; }
+.mapa-norma button i { flex: none; width: 9px; height: 9px; border-radius: 50%; margin-top: 4px; background: var(--muted); }
+.mapa-norma button.norma-grave i { background: var(--crit); }
+.mapa-norma button.norma-aviso i { background: var(--warn); }
+.mapa-norma button.norma-info i { background: var(--muted); }
+.mapa-lista button.norma-grave { border-color: var(--crit-borde); }
+.texto-grave { color: var(--crit-texto); }
+.zona.inerte { pointer-events: none; }
+/* Bloque 176 · la rejilla de puertos dentro de la tarjeta del mapa, compacta:
+   16 casillas grandes empujaban el plano fuera de la pantalla. */
+.tarjeta-mapa .rejilla-puertos { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+.tarjeta-mapa .rejilla-puertos .puerto-abrir { min-height: 0; padding: 4px 5px; font-size: 11px; }
+.tarjeta-mapa .rejilla-puertos .p-tipo, .tarjeta-mapa .rejilla-puertos .p-libre { display: none; }
+.tarjeta-mapa .rejilla-puertos .p-code { font-size: 10.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+.tarjeta-mapa .sw-cifras { margin-bottom: 6px; }
+.tarjeta-mapa .rejilla-puertos .p-vlan { display: none; }

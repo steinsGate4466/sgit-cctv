@@ -1,4 +1,9 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useAuth } from '../auth/AuthContext';
+import Asa from '../components/mapa/Asa';
+import RiesgosDelPlano from '../components/mapa/RiesgosDelPlano';
+import CablesDelPlano, { Cable } from '../components/mapa/CablesDelPlano';
+import { NIVEL, NIVELES } from '../components/mapa/riesgos';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { useDialogos } from '../components/Dialogos';
@@ -22,8 +27,22 @@ import { OpcionesDeUbicacion, tiposPara } from '../ubicaciones';
  *   4. PUBLICAR: pasa a ser el plano de esa zona; el anterior queda archivado.
  *
  * Todo con `location.manage`. Lo que se ve en el Mapa sale de aquí.
+ *
+ * BLOQUE 176 · EL MAPA REGULA. Dos herramientas más, y un cambio de quién:
+ *   · RIESGO: se arrastra en el plano para marcar un área (alto riesgo,
+ *     eléctrico, altura, calor, zona vital), con nombre y MOTIVO; luego se
+ *     jalan sus esquinas para ajustarla. Todo equipo dentro la hereda en su
+ *     perfil de seguridad: la orden no se abre sin marcarla.
+ *   · CABLEADO: la línea del switch a cada equipo sale de los puertos
+ *     declarados; aquí sólo se le da FORMA tocando por dónde va y jalando
+ *     los quiebres. Los metros cambian en vivo.
+ *   · Los equipos se MUEVEN jalándolos.
+ * Escribe sólo quien tiene `location.manage` Y `wo.approve` (el Jefe de
+ * Mantenimiento, decisión del usuario). Cada cambio queda auditado con su antes.
  */
-type Modo = 'colocar' | 'calibrar' | 'apuntar' | 'mover' | 'zona';
+type Modo = 'colocar' | 'calibrar' | 'apuntar' | 'mover' | 'zona' | 'riesgo' | 'cable';
+type P = [number, number];
+const largo = (l: P[]) => l.reduce((t, p, i) => (i ? t + Math.hypot(p[0] - l[i - 1][0], p[1] - l[i - 1][1]) : 0), 0);
 
 const ESTADO_ES: Record<string, string> = { BORRADOR: 'Borrador', PUBLICADO: 'Publicado', ARCHIVADO: 'Archivado' };
 
@@ -46,7 +65,15 @@ async function medir(archivo: File): Promise<{ ancho: number; alto: number }> {
 }
 
 export default function PlanosEditor() {
-  const { confirmar, avisar } = useDialogos();
+  const { confirmar, avisar, pedirTexto } = useDialogos();
+  const { can } = useAuth();
+  const puedeEditar = can('location.manage') && can('wo.approve');
+  /* Bloque 176 · el área de riesgo que se dibuja o corrige, y el cable que se traza. */
+  const [riesgoEd, setRiesgoEd] = useState<{ id: string | null; nivel: string; nombre: string; motivo: string; puntos: P[] } | null>(null);
+  const inicioRect = useRef<P | null>(null);
+  const [cableSel, setCableSel] = useState<string | null>(null);
+  const [cablePuntos, setCablePuntos] = useState<P[]>([]);
+  const [arrastreEq, setArrastreEq] = useState<{ assetId: string; x: number; y: number } | null>(null);
   const [planos, setPlanos] = useState<any[]>([]);
   const [ubicaciones, setUbicaciones] = useState<any[]>([]);
   const [abierto, setAbierto] = useState<string | null>(null);
@@ -99,7 +126,7 @@ export default function PlanosEditor() {
   const plano = vista?.plano;
   const equipos: any[] = useMemo(() => vista?.equipos ?? [], [vista]);
   const elegido = sel ? equipos.find((e) => e.assetId === sel) : null;
-  const archivado = plano?.estado === 'ARCHIVADO';
+  const archivado = plano?.estado === 'ARCHIVADO' || !puedeEditar;
   const zonas: Zona[] = useMemo(() => vista?.zonas ?? [], [vista]);
   /* Las ubicaciones que pueden ser zona de este plano: las que cuelgan de la
      suya (no ella misma). Lo vuelve a comprobar el servidor. */
@@ -132,6 +159,92 @@ export default function PlanosEditor() {
     catch (e) { await avisar(mensajeDeError(e, 'borrar la zona')); }
     finally { setOcupado(false); }
   }
+
+  // ------------------------------------------------ bloque 176 · riesgo
+  const areas: any[] = useMemo(() => vista?.riesgos ?? [], [vista]);
+  const cables: Cable[] = useMemo(() => vista?.cables ?? [], [vista]);
+
+  function nuevaArea() {
+    setSel(null); setCableSel(null);
+    setRiesgoEd({ id: null, nivel: 'ALTO_RIESGO', nombre: '', motivo: '', puntos: [] });
+  }
+  function editarArea(id: string) {
+    const a = areas.find((x) => x.id === id);
+    if (a) setRiesgoEd({ id: a.id, nivel: a.nivel, nombre: a.nombre, motivo: a.motivo, puntos: a.puntos.map((p: P) => [...p] as P) });
+  }
+  async function guardarArea() {
+    if (!riesgoEd) return;
+    setOcupado(true);
+    try {
+      const cuerpo = { nivel: riesgoEd.nivel, nombre: riesgoEd.nombre, motivo: riesgoEd.motivo, puntos: riesgoEd.puntos };
+      if (riesgoEd.id) await api.put(`/planos/${abierto}/riesgos/${riesgoEd.id}`, cuerpo);
+      else await api.post(`/planos/${abierto}/riesgos`, cuerpo);
+      setRiesgoEd(null);
+      await cargarPlano(abierto!);
+    } catch (e) { await avisar(mensajeDeError(e, 'guardar el área de riesgo')); }
+    finally { setOcupado(false); }
+  }
+  async function quitarArea() {
+    if (!riesgoEd?.id) { setRiesgoEd(null); return; }
+    const motivo = await pedirTexto({
+      titulo: `Quitar «${riesgoEd.nombre}»`, mensaje: 'Quitar un área de riesgo es una decisión: queda en la auditoría con su motivo.',
+      aceptar: 'Quitar', peligro: true, obligatorio: true,
+    });
+    if (!motivo || motivo.trim().length < 5) { if (motivo !== null) await avisar('Escribe el motivo (5 letras o más).'); return; }
+    setOcupado(true);
+    try { await api.post(`/planos/${abierto}/riesgos/${riesgoEd.id}/quitar`, { motivo }); setRiesgoEd(null); await cargarPlano(abierto!); }
+    catch (e) { await avisar(mensajeDeError(e, 'quitar el área')); }
+    finally { setOcupado(false); }
+  }
+  const moverVertice = (i: number, x: number, y: number) =>
+    setRiesgoEd((r) => (r ? { ...r, puntos: r.puntos.map((p, k) => (k === i ? [Math.round(x), Math.round(y)] as P : p)) } : r));
+  const insertarVertice = (i: number) =>
+    setRiesgoEd((r) => {
+      if (!r || r.puntos.length >= 60) return r;
+      const a = r.puntos[i], b = r.puntos[(i + 1) % r.puntos.length];
+      const m: P = [Math.round((a[0] + b[0]) / 2), Math.round((a[1] + b[1]) / 2)];
+      return { ...r, puntos: [...r.puntos.slice(0, i + 1), m, ...r.puntos.slice(i + 1)] };
+    });
+  const quitarVertice = (i: number) =>
+    setRiesgoEd((r) => (r && r.puntos.length > 3 ? { ...r, puntos: r.puntos.filter((_, k) => k !== i) } : r));
+
+  // ------------------------------------------------ bloque 176 · cable
+  const cableElegido = cableSel ? cables.find((c) => c.assetId === cableSel) ?? null : null;
+  const extremos = (c: Cable | null) => {
+    if (!c) return null;
+    const sw = equipos.find((e) => e.assetId === c.switchId);
+    const eq = equipos.find((e) => e.assetId === c.assetId);
+    return sw && eq ? { sw: [sw.xPx, sw.yPx] as P, eq: [eq.xPx, eq.yPx] as P } : null;
+  };
+  const ext = extremos(cableElegido);
+  /* Sin quiebres, en L como lo estima el servidor (por bandeja, no en diagonal):
+     si no, al elegir un cable los metros saltarían sin haber tocado nada. */
+  const lineaViva: P[] = !ext ? [] : cablePuntos.length ? [ext.sw, ...cablePuntos, ext.eq] : [ext.sw, [ext.eq[0], ext.sw[1]], ext.eq];
+  const metrosVivos = plano?.metrosPorPx && lineaViva.length ? Math.round(largo(lineaViva) * plano.metrosPorPx) : null;
+  function elegirCable(c: Cable) {
+    setSel(null); setRiesgoEd(null);
+    setCableSel(c.assetId); setCablePuntos(c.puntos.map((p) => [...p] as P));
+  }
+  async function guardarCable(puntos: P[]) {
+    if (!cableSel) return;
+    setOcupado(true);
+    try {
+      const r = await api.put(`/planos/${abierto}/cables/${cableSel}`, { puntos });
+      await cargarPlano(abierto!);
+      setCablePuntos(puntos);
+      if (r.data?.metros != null) await avisar(puntos.length ? `Trazado guardado: ${r.data.metros} m.` : `Vuelve al estimado: ${r.data.metros} m en L.`);
+    } catch (e) { await avisar(mensajeDeError(e, 'guardar el trazado')); }
+    finally { setOcupado(false); }
+  }
+  const insertarQuiebre = (i: number) => setCablePuntos((ps) => {
+    if (!ext) return ps;
+    // Sin quiebres, la esquina de la L pasa a ser un quiebre de verdad: así el «+» cae donde se ve.
+    const base: P[] = ps.length ? ps : [[ext.eq[0], ext.sw[1]]];
+    const l: P[] = [ext.sw, ...base, ext.eq];
+    const a = l[i], b = l[i + 1];
+    const m: P = [Math.round((a[0] + b[0]) / 2), Math.round((a[1] + b[1]) / 2)];
+    return [...base.slice(0, i), m, ...base.slice(i)];
+  });
 
   async function subir(ev: FormEvent) {
     ev.preventDefault();
@@ -194,6 +307,12 @@ export default function PlanosEditor() {
       setZonaPuntos((p) => (p.length >= 60 ? p : [...p, [Math.round(x), Math.round(y)]]));
       return;
     }
+    if (modo === 'riesgo') return; // se dibuja ARRASTRANDO, no tocando
+    if (modo === 'cable') {
+      // Cada toque es un quiebre más, del switch hacia el equipo.
+      if (cableSel) setCablePuntos((p) => (p.length >= 60 ? p : [...p, [Math.round(x), Math.round(y)]]));
+      return;
+    }
     if (modo === 'apuntar' && elegido) {
       // Hacia dónde mira y hasta dónde: el punto que se tocó es lo que vigila.
       const rumbo = Math.round((Math.atan2(y - elegido.yPx, x - elegido.xPx) * 180) / Math.PI);
@@ -238,8 +357,8 @@ export default function PlanosEditor() {
   return (
     <div className="page">
       <h1 className="page-title">Planos</h1>
-      <p className="muted" style={{ margin: '0 0 12px' }}>
-        Sube el plano de un área, calibra la escala, coloca los equipos y publícalo. Lo publicado se ve en el <Link to="/mapa">Mapa</Link>.
+      <p className="muted" style={{ margin: '0 0 12px' }} title="Sube el plano de un área, calibra la escala, coloca los equipos, marca el riesgo y el cableado, y publícalo.">
+        Lo publicado se ve en el <Link to="/mapa">Mapa</Link>.
       </p>
 
       <div className="planos-cabecera">
@@ -289,6 +408,12 @@ export default function PlanosEditor() {
                 <button type="button" className={'btn-mini' + (modo === 'calibrar' ? ' activo' : '')} onClick={() => { setModo('calibrar'); setPuntos([]); }}>1 · Calibrar</button>
                 <button type="button" className={'btn-mini' + (modo === 'colocar' ? ' activo' : '')} onClick={() => setModo('colocar')}>2 · Colocar</button>
                 <button type="button" className={'btn-mini' + (modo === 'zona' ? ' activo' : '')} onClick={() => { setModo('zona'); setSel(null); setZonaPuntos([]); }}>Zonas</button>
+                <button type="button" className={'btn-mini' + (modo === 'riesgo' ? ' activo' : '')}
+                  title="Marcar áreas de alto riesgo, eléctricas, de altura, calor o zona vital"
+                  onClick={() => { setModo('riesgo'); setSel(null); setCableSel(null); setRiesgoEd(null); }}>Riesgo</button>
+                <button type="button" className={'btn-mini' + (modo === 'cable' ? ' activo' : '')}
+                  title="Dar forma al cable de cada equipo hasta su switch"
+                  onClick={() => { setModo('cable'); setSel(null); setRiesgoEd(null); setCableSel(null); }}>Cableado</button>
                 {plano.estado === 'BORRADOR' && <button type="button" className="btn-primary" disabled={ocupado} onClick={publicar}>3 · Publicar</button>}
               </>
             )}
@@ -320,7 +445,23 @@ export default function PlanosEditor() {
               </BotonConMotivo>
             </div>
           )}
-          {modo === 'apuntar' && <div className="aviso-mapa" style={{ marginBottom: 8 }}>Toca lo que vigila la cámara: de ahí salen hacia dónde mira y su alcance.</div>}
+          {modo === 'riesgo' && !archivado && (
+            <div className="aviso-mapa" style={{ marginBottom: 8 }}>
+              {!riesgoEd ? 'Elige un área o crea una nueva.'
+                : !riesgoEd.puntos.length ? 'Arrastra en el plano para marcar el área.'
+                  : 'Jala las esquinas. «+» añade una; tocarla la quita.'}
+            </div>
+          )}
+          {modo === 'cable' && !archivado && (
+            <div className="aviso-mapa" style={{ marginBottom: 8 }}>
+              {!cableSel ? 'Elige un cable.'
+                : 'Toca por dónde va; jala o toca los quiebres.'}
+            </div>
+          )}
+          {!puedeEditar && (
+            <div className="aviso-mapa" style={{ marginBottom: 8 }} title="Dibujar, mover y trazar cambia lo que se exige al abrir una orden: lo decide el ingeniero.">Sólo el Jefe de Mantenimiento edita los planos.</div>
+          )}
+          {modo === 'apuntar' && <div className="aviso-mapa" style={{ marginBottom: 8 }}>Toca lo que vigila la cámara.</div>}
           {modo === 'mover' && <div className="aviso-mapa" style={{ marginBottom: 8 }}>Toca el nuevo sitio del equipo.</div>}
           {paraColocar && modo === 'colocar' && <div className="aviso-mapa" style={{ marginBottom: 8 }}>Toca el plano donde está el equipo.</div>}
 
@@ -331,9 +472,63 @@ export default function PlanosEditor() {
               altoPx={plano.altoPx}
               metrosPorPx={plano.metrosPorPx}
               alPulsar={alPulsar}
-              hijos={(escala) => (
+              alArrastrar={modo === 'riesgo' && riesgoEd && !riesgoEd.puntos.length && !archivado ? {
+                inicio: (x, y) => { inicioRect.current = [Math.round(x), Math.round(y)]; },
+                mover: (x, y) => {
+                  const a = inicioRect.current; if (!a) return;
+                  const b: P = [Math.round(x), Math.round(y)];
+                  setRiesgoEd((r) => (r ? { ...r, puntos: [a, [b[0], a[1]], b, [a[0], b[1]]] } : r));
+                },
+                fin: () => {
+                  inicioRect.current = null;
+                  // Un toque sin arrastrar no es un área.
+                  setRiesgoEd((r) => (r && r.puntos.length === 4 && Math.abs(r.puntos[2][0] - r.puntos[0][0]) * Math.abs(r.puntos[2][1] - r.puntos[0][1]) < 200 ? { ...r, puntos: [] } : r));
+                },
+              } : null}
+              hijos={(escala, aPlano) => (
                 <>
-                  <ZonasDelPlano zonas={zonas} escala={escala} elegida={null}
+                  <RiesgosDelPlano areas={areas.filter((a) => a.id !== riesgoEd?.id)} zonas={zonas as any} escala={escala}
+                    onElegir={modo === 'riesgo' && !archivado ? (id) => { setCableSel(null); editarArea(id); } : undefined}
+                    borrador={riesgoEd && riesgoEd.puntos.length ? { nivel: riesgoEd.nivel, puntos: riesgoEd.puntos } : null} />
+                  {modo === 'riesgo' && riesgoEd && riesgoEd.puntos.length > 2 && !archivado && (
+                    <>
+                      {riesgoEd.puntos.map((p, i) => {
+                        const q = riesgoEd.puntos[(i + 1) % riesgoEd.puntos.length];
+                        return <Asa key={'m' + i} x={(p[0] + q[0]) / 2} y={(p[1] + q[1]) / 2} escala={escala} aPlano={aPlano} radio={4}
+                          clase="asa-medio" etiqueta="Añadir una esquina aquí" onPulsar={() => insertarVertice(i)} />;
+                      })}
+                      {riesgoEd.puntos.map((p, i) => (
+                        <Asa key={'v' + i} x={p[0]} y={p[1]} escala={escala} aPlano={aPlano} etiqueta={`Esquina ${i + 1}`}
+                          onMover={(x, y) => moverVertice(i, x, y)} onSoltar={(x, y) => moverVertice(i, x, y)} onPulsar={() => quitarVertice(i)} />
+                      ))}
+                    </>
+                  )}
+                  <CablesDelPlano cables={modo === 'cable' ? cables.filter((c) => c.assetId !== cableSel) : cables}
+                    enlaces={vista?.enlaces ?? []} escala={escala}
+                    resaltar={modo === 'cable' ? null : sel ? new Set([sel]) : null}
+                    onPulsar={modo === 'cable' && !archivado && !cableSel ? elegirCable : undefined} />
+                  {modo === 'cable' && cableElegido && ext && (
+                    <>
+                      <polyline points={lineaViva.map((p) => p.join(',')).join(' ')} className="cable-editando" style={{ strokeWidth: 4 * escala }} />
+                      {metrosVivos != null && (
+                        <text x={lineaViva[Math.floor(lineaViva.length / 2)][0]} y={lineaViva[Math.floor(lineaViva.length / 2)][1] - 8 * escala}
+                          style={{ fontSize: 13 * escala }} textAnchor="middle" className={'cable-metros' + (!cableElegido.esEnlace && metrosVivos > (vista?.topeUtpM ?? 90) ? ' fuera' : '')}>
+                          {`${metrosVivos} m`}
+                        </text>
+                      )}
+                      {!archivado && lineaViva.slice(0, -1).map((p, i) => {
+                        const q = lineaViva[i + 1];
+                        return <Asa key={'cm' + i} x={(p[0] + q[0]) / 2} y={(p[1] + q[1]) / 2} escala={escala} aPlano={aPlano} radio={4}
+                          clase="asa-medio" etiqueta="Añadir un quiebre aquí" onPulsar={() => insertarQuiebre(i)} />;
+                      })}
+                      {!archivado && cablePuntos.map((p, i) => (
+                        <Asa key={'c' + i} x={p[0]} y={p[1]} escala={escala} aPlano={aPlano} etiqueta={`Quiebre ${i + 1}`} clase="asa-cable"
+                          onMover={(x, y) => setCablePuntos((ps) => ps.map((q, k) => (k === i ? [Math.round(x), Math.round(y)] as P : q)))}
+                          onPulsar={() => setCablePuntos((ps) => ps.filter((_, k) => k !== i))} />
+                      ))}
+                    </>
+                  )}
+                  <ZonasDelPlano zonas={zonas} escala={escala} elegida={null} interactiva={modo === 'zona'}
                     onElegir={(id) => { if (modo === 'zona') { const z = zonas.find((q) => q.id === id); if (z) { setZonaLoc(z.locationId); setZonaPuntos(z.puntos); } } }} />
                   {zonaPuntos.length > 0 && (
                     <polygon points={zonaPuntos.map((p) => p.join(',')).join(' ')} className="zona-borrador" style={{ strokeWidth: 2 * escala }} />
@@ -342,10 +537,24 @@ export default function PlanosEditor() {
                     <g key={'z' + i} transform={`translate(${x} ${y}) scale(${escala})`}><circle r={5} className="punto-calibrar" /></g>
                   ))}
                   {equipos.filter((e) => e.tipo === 'CAMERA').map((e) => <ConoDeVision key={'c' + e.assetId} e={e} metrosPorPx={plano.metrosPorPx} />)}
-                  {equipos.map((e) => (
-                    <Marcador key={e.assetId} e={e} escala={escala} seleccionado={sel === e.assetId} conEtiqueta
-                      onPulsar={() => { if (modo === 'colocar') setSel(e.assetId); }} />
-                  ))}
+                  {equipos.map((e) => {
+                    const q = arrastreEq?.assetId === e.assetId ? { ...e, xPx: arrastreEq.x, yPx: arrastreEq.y } : e;
+                    return (
+                      <Marcador key={e.assetId} e={q} escala={escala} seleccionado={sel === e.assetId} conEtiqueta
+                        onPulsar={() => { if (modo === 'colocar') setSel(e.assetId); }} />
+                    );
+                  })}
+                  {/* Bloque 176 · el equipo elegido se JALA a su nuevo sitio. */}
+                  {modo === 'colocar' && elegido && !archivado && (
+                    <Asa x={arrastreEq?.assetId === elegido.assetId ? arrastreEq.x : elegido.xPx}
+                      y={arrastreEq?.assetId === elegido.assetId ? arrastreEq.y : elegido.yPx}
+                      escala={escala} aPlano={aPlano} radio={22} clase="asa-equipo" etiqueta={`Jalar ${elegido.codigo} a otro sitio`}
+                      onMover={(x, y) => setArrastreEq({ assetId: elegido.assetId, x: Math.round(x), y: Math.round(y) })}
+                      onSoltar={async (x, y) => {
+                        await guardarPosicion(elegido.assetId, { ...datosDe(elegido), xPx: Math.round(x), yPx: Math.round(y) });
+                        setArrastreEq(null);
+                      }} />
+                  )}
                   {puntos.map((p, i) => (
                     <g key={i} transform={`translate(${p.x} ${p.y}) scale(${escala})`}>
                       <circle r={7} className="punto-calibrar" />
@@ -357,7 +566,101 @@ export default function PlanosEditor() {
             />
 
             <div className="mapa-panel">
-              {modo === 'zona' ? (
+              {modo === 'riesgo' ? (
+                <aside className="tarjeta-mapa">
+                  <header className="tarjeta-mapa-cab"><h2>{riesgoEd ? (riesgoEd.id ? 'Corregir área' : 'Nueva área de riesgo') : `Áreas de riesgo (${areas.length})`}</h2></header>
+                  <div className="tarjeta-mapa-cuerpo">
+                    {riesgoEd ? (
+                      <>
+                        <div className="chips-elegir" role="group" aria-label="Nivel del área">
+                          {NIVELES.map((n) => (
+                            <button key={n.nivel} type="button" title={n.ayuda} aria-pressed={riesgoEd.nivel === n.nivel}
+                              className={riesgoEd.nivel === n.nivel ? 'activo' : undefined}
+                              onClick={() => setRiesgoEd({ ...riesgoEd, nivel: n.nivel })}>{n.icono} {n.texto}</button>
+                          ))}
+                        </div>
+                        <label>Nombre
+                          <input value={riesgoEd.nombre} maxLength={80} placeholder="Ej.: Paso de grúa 2"
+                            onChange={(ev) => setRiesgoEd({ ...riesgoEd, nombre: ev.target.value })} />
+                        </label>
+                        <label>Motivo
+                          <textarea value={riesgoEd.motivo} maxLength={500} placeholder="Ej.: carga suspendida sobre el pasillo en cada cambio de rodillo"
+                            onChange={(ev) => setRiesgoEd({ ...riesgoEd, motivo: ev.target.value })} />
+                        </label>
+                        <div className="tarjeta-mapa-acciones">
+                          <BotonConMotivo className="btn-primary" ocupado={ocupado} onClick={guardarArea}
+                            falta={queFalta([riesgoEd.puntos.length < 3, 'Arrastra en el plano para marcar el área.'],
+                              [riesgoEd.nombre.trim().length < 3, 'Ponle nombre al área.'],
+                              [riesgoEd.motivo.trim().length < 5, 'Di por qué es de riesgo.'])}>
+                            Guardar
+                          </BotonConMotivo>
+                          {riesgoEd.puntos.length > 0 && <button type="button" className="btn-mini" onClick={() => setRiesgoEd({ ...riesgoEd, puntos: [] })}>Redibujar</button>}
+                          {riesgoEd.id && <button type="button" className="btn-mini" onClick={quitarArea}>Quitar área</button>}
+                          <button type="button" className="btn-mini" onClick={() => setRiesgoEd(null)}>Cancelar</button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        {!archivado && <button type="button" className="btn-primary" onClick={nuevaArea}>+ Nueva área</button>}
+                        <ul className="mapa-lista">
+                          {areas.map((a) => (
+                            <li key={a.id}>
+                              <button type="button" onClick={() => !archivado && editarArea(a.id)}>
+                                <span className={'riesgo-chip riesgo-' + a.nivel}>{NIVEL[a.nivel]?.icono} {NIVEL[a.nivel]?.texto}</span>
+                                <b>{a.nombre}</b> <span className="muted">{a.motivo}</span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                        {!areas.length && <p className="muted" title="Las zonas que ya declaran su riesgo en Ubicaciones salen solas con su borde.">Ninguna área marcada.</p>}
+                      </>
+                    )}
+                  </div>
+                </aside>
+              ) : modo === 'cable' ? (
+                <aside className="tarjeta-mapa">
+                  <header className="tarjeta-mapa-cab"><h2>{cableElegido ? `Cable de ${cableElegido.codigo}` : `Cables (${cables.length})`}</h2></header>
+                  <div className="tarjeta-mapa-cuerpo">
+                    {cableElegido ? (
+                      <>
+                        <p style={{ margin: 0 }}>{`${cableElegido.switchCodigo} · puerto ${cableElegido.puerto} → ${cableElegido.codigo}`}</p>
+                        <p style={{ margin: 0 }}>
+                          <b className={!cableElegido.esEnlace && metrosVivos != null && metrosVivos > (vista?.topeUtpM ?? 90) ? 'texto-grave' : undefined}>
+                            {metrosVivos != null ? `${metrosVivos} m` : 'Sin escala'}
+                          </b>
+                          {` ${cablePuntos.length ? `· ${cablePuntos.length} quiebres` : '· en L (estimado)'}`}
+                        </p>
+                        {!cableElegido.esEnlace && metrosVivos != null && metrosVivos > (vista?.topeUtpM ?? 90) && (
+                          <div className="aviso-mapa grave">Pasa de 90 m (TIA-568).</div>
+                        )}
+                        <div className="tarjeta-mapa-acciones">
+                          <button type="button" className="btn-primary" disabled={ocupado || archivado} onClick={() => guardarCable(cablePuntos)}>Guardar trazado</button>
+                          <button type="button" className="btn-mini" disabled={ocupado} onClick={() => setCablePuntos(cableElegido.puntos.map((p) => [...p] as P))}>Deshacer cambios</button>
+                          {cableElegido.puntos.length > 0 && (
+                            <button type="button" className="btn-mini" disabled={ocupado || archivado}
+                              onClick={async () => { if (await confirmar('¿Borrar el trazado? Vuelve a la estimación en L.')) await guardarCable([]); }}>Volver al estimado</button>
+                          )}
+                          <button type="button" className="btn-mini" onClick={() => setCableSel(null)}>Cerrar</button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <ul className="mapa-lista">
+                          {cables.map((c) => (
+                            <li key={c.assetId}>
+                              <button type="button" className={c.fueraDeNorma ? 'norma-grave' : undefined} onClick={() => elegirCable(c)}>
+                                <b>{c.codigo}</b>
+                                <span className="muted">{`${c.switchCodigo}:${c.puerto} · ${c.metros ?? '?'} m ${c.estimado ? 'estimado' : 'trazado'}`}</span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                        {!cables.length && <p className="muted" title="Hace falta que el equipo y su switch estén colocados aquí y que el puerto esté declarado en Red › Conexiones.">Ningún cable para dibujar.</p>}
+                      </>
+                    )}
+                  </div>
+                </aside>
+              ) : modo === 'zona' ? (
                 <aside className="tarjeta-mapa">
                   <header className="tarjeta-mapa-cab"><h2>{`Zonas (${zonas.length})`}</h2></header>
                   <div className="tarjeta-mapa-cuerpo">
@@ -371,7 +674,7 @@ export default function PlanosEditor() {
                         </li>
                       ))}
                     </ul>
-                    {!deLaZona.length && <p className="muted">Crea en Ubicaciones las salas o áreas que cuelgan de esta zona.</p>}
+                    {!deLaZona.length && <p className="muted" title="Crea en Ubicaciones las salas o áreas que cuelgan de esta zona.">Sin salas para dibujar.</p>}
                   </div>
                 </aside>
               ) : elegido ? (

@@ -43,6 +43,7 @@ export interface Modulo {
 
 const con = (p: string): Puede => (can) => can(p);
 const alguno = (...ps: string[]): Puede => (can) => ps.some((p) => can(p));
+const todos = (...ps: string[]): Puede => (can) => ps.every((p) => can(p));
 
 export const MODULOS: Modulo[] = [
   /* Qué se ve y qué no, ahora. Pasará a ser el Mapa (plano vivo) cuando
@@ -142,7 +143,9 @@ export const MODULOS: Modulo[] = [
       { ruta: '/cabinets', texto: 'Gabinetes', nota: 'Gabinetes y lo que llevan dentro', puede: con('asset.read') },
       { ruta: '/zonas', texto: 'Zonas vitales', nota: 'Zonas que exigen vigilancia', puede: con('location.read') },
       /* Bloque 151 · subir, calibrar y colocar los equipos en el plano. */
-      { ruta: '/planos', texto: 'Planos', nota: 'Subir y colocar equipos en planos', puede: con('location.manage') },
+      /* Bloque 176 · dibujar, mover y trazar en el plano: sólo el Jefe de
+         Mantenimiento (decisión del usuario). `wo.approve` sólo lo tiene él. */
+      { ruta: '/planos', texto: 'Planos', nota: 'Colocar equipos, zonas de riesgo y cableado', puede: todos('location.manage', 'wo.approve') },
     ],
   },
   {

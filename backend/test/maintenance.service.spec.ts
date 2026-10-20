@@ -64,6 +64,9 @@ describe('MaintenanceService — ejecución de OM en campo', () => {
       asset: { findUnique: jest.fn().mockResolvedValue(over.activo ?? null) },
       location: { findMany: jest.fn().mockResolvedValue(over.ubicaciones ?? []) },
       processStage: { findMany: jest.fn().mockResolvedValue([]) },
+      // Bloque 176: las áreas de riesgo del mapa que contienen al equipo (aquí, ninguna).
+      posicionEnPlano: { findMany: jest.fn().mockResolvedValue([]) },
+      zonaDeRiesgo: { findMany: jest.fn().mockResolvedValue([]) },
       accessRequest: {
         findFirst: jest.fn().mockResolvedValue(over.permiso ?? null),
         update: jest.fn().mockImplementation(({ data }: any) => ({ id: 'acc1', ...data })),

@@ -14,15 +14,25 @@ import { ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } 
  * con eso los íconos se dibujan siempre del mismo tamaño, cerca o lejos.
  */
 export interface Vista { x: number; y: number; w: number; h: number }
+/** Bloque 176 · pasa de pantalla a píxeles del plano (para las asas que se jalan). */
+export type APlano = (clientX: number, clientY: number) => { x: number; y: number };
+/** Bloque 176 · arrastrar para DIBUJAR en vez de mover el plano (área de riesgo). */
+export interface AlArrastrar {
+  inicio: (x: number, y: number) => void;
+  mover: (x: number, y: number) => void;
+  fin: (x: number, y: number) => void;
+}
 
 export default function LienzoPlano({
-  imagenUrl, anchoPx, altoPx, metrosPorPx, hijos, alPulsar, enfocar, alto = 'clamp(420px, 70vh, 780px)',
+  imagenUrl, anchoPx, altoPx, metrosPorPx, hijos, alPulsar, enfocar, alto = 'clamp(420px, 70vh, 780px)', alArrastrar,
 }: {
   imagenUrl: string | null;
   anchoPx: number;
   altoPx: number;
   metrosPorPx?: number | null;
-  hijos: (escala: number) => ReactNode;
+  hijos: (escala: number, aPlano: APlano) => ReactNode;
+  /** Con esto, arrastrar con UN dedo o el ratón DIBUJA; la rueda, los botones y dos dedos siguen acercando. */
+  alArrastrar?: AlArrastrar | null;
   /** Clic en un punto vacío del plano, en píxeles de la imagen. */
   alPulsar?: (x: number, y: number) => void;
   /** Si cambia, se centra ahí (x, y en píxeles de la imagen). Con `w`, encuadra ese ancho (una zona). */
@@ -39,6 +49,7 @@ export default function LienzoPlano({
   const dedos = useRef(new Map<number, { x: number; y: number }>());
   const pellizco = useRef<number | null>(null);
   const recienArrastrado = useRef(false);
+  const dibujando = useRef(false);
 
   // Si cambia el plano, se vuelve a ver entero.
   useEffect(() => { setVb(ENTERA); }, [anchoPx, altoPx]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -104,6 +115,14 @@ export default function LienzoPlano({
       const [a, b] = [...dedos.current.values()];
       pellizco.current = Math.hypot(a.x - b.x, a.y - b.y);
       arrastre.current = null;
+      dibujando.current = false; // dos dedos = acercar, aunque se estuviera dibujando
+      return;
+    }
+    if (alArrastrar && ev.button === 0) {
+      const p = aPlano(ev.clientX, ev.clientY);
+      dibujando.current = true;
+      try { svg.current?.setPointerCapture(ev.pointerId); } catch { /* sin captura */ }
+      alArrastrar.inicio(p.x, p.y);
       return;
     }
     arrastre.current = { cx: ev.clientX, cy: ev.clientY, vx: vb.x, vy: vb.y, movio: false };
@@ -117,6 +136,11 @@ export default function LienzoPlano({
       zoom(pellizco.current / d, c.x, c.y);
       pellizco.current = d;
       recienArrastrado.current = true;
+      return;
+    }
+    if (dibujando.current && alArrastrar) {
+      const p = aPlano(ev.clientX, ev.clientY);
+      alArrastrar.mover(p.x, p.y);
       return;
     }
     const a = arrastre.current;
@@ -146,6 +170,12 @@ export default function LienzoPlano({
     try { if (svg.current?.hasPointerCapture(ev.pointerId)) svg.current.releasePointerCapture(ev.pointerId); } catch { /* nada */ }
     dedos.current.delete(ev.pointerId);
     if (dedos.current.size < 2) pellizco.current = null;
+    if (dibujando.current) {
+      dibujando.current = false;
+      recienArrastrado.current = true; setTimeout(() => { recienArrastrado.current = false; }, 0);
+      if (alArrastrar) { const p = aPlano(ev.clientX, ev.clientY); alArrastrar.fin(p.x, p.y); }
+      return;
+    }
     const a = arrastre.current;
     arrastre.current = null;
     if (a?.movio) { recienArrastrado.current = true; setTimeout(() => { recienArrastrado.current = false; }, 0); }
@@ -177,6 +207,7 @@ export default function LienzoPlano({
       style={{ height: `min(${alto}, ${Math.max(anchoPantalla < 600 ? 230 : 320, Math.round(anchoPantalla * (ENTERA.h / ENTERA.w)) + 8)}px)` }}>
       <svg
         ref={svg}
+        className={alArrastrar ? 'lienzo-dibujar' : undefined}
         viewBox={`${vb.x} ${vb.y} ${vb.w} ${vb.h}`}
         preserveAspectRatio="xMidYMid meet"
         onPointerDown={abajo} onPointerMove={mueve} onPointerUp={arriba} onPointerCancel={arriba}
@@ -186,7 +217,7 @@ export default function LienzoPlano({
       >
         <rect x={0} y={0} width={anchoPx} height={altoPx} className="lienzo-fondo" />
         {imagenUrl && <image className="lienzo-imagen" href={imagenUrl} x={0} y={0} width={anchoPx} height={altoPx} preserveAspectRatio="none" />}
-        {hijos(escala)}
+        {hijos(escala, aPlano)}
       </svg>
       <div className="lienzo-controles">
         <button type="button" aria-label="Acercar" onClick={() => zoom(1 / 1.4, vb.x + vb.w / 2, vb.y + vb.h / 2)}>+</button>

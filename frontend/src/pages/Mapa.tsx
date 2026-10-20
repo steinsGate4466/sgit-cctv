@@ -11,6 +11,9 @@ import VistaDePlanta from '../components/mapa/VistaDePlanta';
 import EstasAqui from '../components/mapa/EstasAqui';
 import Icono from '../components/Iconos';
 import ZonasDelPlano, { Zona, nombreCorto } from '../components/mapa/ZonasDelPlano';
+import RiesgosDelPlano from '../components/mapa/RiesgosDelPlano';
+import CablesDelPlano, { Cable } from '../components/mapa/CablesDelPlano';
+import { NIVEL, NIVELES } from '../components/mapa/riesgos';
 import { hora } from '../fechas';
 
 /**
@@ -72,6 +75,13 @@ export default function Mapa() {
      dibujan una sobre otra y el dedo abría la de al lado. Si al tocar hay más
      de un punto bajo el dedo, se pregunta cuál, en vez de adivinar. */
   const [cercanos, setCercanos] = useState<any[] | null>(null);
+  /* BLOQUE 176 · EL MAPA REGULA. Dos capas más: el RIESGO (bordes de color por
+     área) y el CABLEADO (del switch a cada equipo, con sus metros). Y la lista
+     «Fuera de norma» al costado: tocar un aviso lleva al punto. */
+  const [capaRiesgo, setCapaRiesgo] = useState(true);
+  const [capaCables, setCapaCables] = useState(true);
+  const [resaltar, setResaltar] = useState<Set<string> | null>(null);
+  const [riesgoSel, setRiesgoSel] = useState<string | null>(null);
 
   // 1. Los planos que esta persona puede ver.
   useEffect(() => {
@@ -195,6 +205,13 @@ export default function Mapa() {
   const atencion = equipos.filter((e) => e.estado !== 'ok').sort((a, b) => ORDEN[a.estado] - ORDEN[b.estado]);
   const elegido = sel ? equipos.find((e) => e.assetId === sel) : null;
   const mpp = vista?.plano?.metrosPorPx ?? null;
+  const cables: Cable[] = useMemo(() => vista?.cables ?? [], [vista]);
+  const avisos: any[] = useMemo(() => vista?.avisos ?? [], [vista]);
+  const areas: any[] = useMemo(() => vista?.riesgos ?? [], [vista]);
+  const riesgo = riesgoSel ? areas.find((a) => a.id === riesgoSel) ?? null : null;
+  /* Al elegir un equipo se resalta SU cable; si es un switch, todos los suyos. */
+  const resaltados = resaltar ?? (sel ? new Set([sel]) : null);
+  const nivelesEnPlano = [...new Set([...areas.map((a) => a.nivel), ...zonas.flatMap((z: any) => (z.riesgos || []).map((r: any) => r.nivel))])];
 
   /* En el celular el panel va DEBAJO del plano: al tocar un punto, se lleva
      la vista hasta su ficha. Si no, el toque parecía no hacer nada. */
@@ -212,11 +229,11 @@ export default function Mapa() {
     const radio = 19 * escala;
     const juntos = visibles.filter((o) => Math.hypot(o.xPx - x, o.yPx - y) < radio);
     if (juntos.length > 1) { setSel(null); setZonaSel(null); setCercanos(juntos); return; }
-    setCercanos(null); setSel(e.assetId);
+    setCercanos(null); setResaltar(null); setRiesgoSel(null); setSel(e.assetId);
   }
 
   function irA(e: any) {
-    setCercanos(null);
+    setCercanos(null); setResaltar(null); setRiesgoSel(null);
     setSel(e.assetId);
     setEnfocar({ x: e.xPx, y: e.yPx, n: Date.now() });
   }
@@ -233,7 +250,7 @@ export default function Mapa() {
       <div className="card vacio">
         <h3>Todavía no hay un plano publicado</h3>
         <p>El mapa necesita el plano de un área (exportado de AutoCAD a PNG o SVG), calibrado y con sus equipos colocados.</p>
-        {can('location.manage') && <Link className="btn-primary" to="/planos">Subir el plano de un área</Link>}
+        {can('location.manage') && can('wo.approve') && <Link className="btn-primary" to="/planos">Subir el plano de un área</Link>}
         {/* Bloque 166: sin plano real todavía, la demostración se carga desde la app (también en Railway). */}
         {can('asset.delete') && <Link className="btn-mini" to="/limpieza?pestana=demo" style={{ marginLeft: 8 }}>Cargar la demostración</Link>}
         {/* Bloque 160: Producción entra aquí. Sin plano, que no se quede mirando una pantalla vacía. */}
@@ -289,6 +306,14 @@ export default function Mapa() {
         </div>
         <label className="mapa-capa"><input type="checkbox" checked={conos} onChange={(ev) => setConos(ev.target.checked)} /> Cobertura</label>
         <label className="mapa-capa"><input type="checkbox" checked={etiquetas} onChange={(ev) => setEtiquetas(ev.target.checked)} /> Códigos</label>
+        <label className="mapa-capa" title="Bordes de color: alto riesgo, eléctrico, altura, calor y zona vital">
+          <input type="checkbox" checked={capaRiesgo} onChange={(ev) => setCapaRiesgo(ev.target.checked)} /> Riesgo
+        </label>
+        {vista && (cables.length > 0 || (vista.enlaces?.length ?? 0) > 0) && (
+          <label className="mapa-capa" title="Del switch a cada equipo, con sus metros">
+            <input type="checkbox" checked={capaCables} onChange={(ev) => setCapaCables(ev.target.checked)} /> Cableado
+          </label>
+        )}
         {veImpacto && (
           <label className="mapa-capa" title="Elige un equipo: se marca lo que dejaría de verse si cae">
             <input type="checkbox" checked={impacto} onChange={(ev) => setImpacto(ev.target.checked)} /> Impacto
@@ -350,6 +375,14 @@ export default function Mapa() {
             hijos={(escala) => (
               <>
                 <ZonasDelPlano zonas={zonas} escala={escala} elegida={zonaSel} onElegir={(id) => elegirZona(zonaSel === id ? null : id)} />
+                {capaRiesgo && (
+                  <RiesgosDelPlano areas={areas} zonas={zonas as any} escala={escala} elegida={riesgoSel}
+                    onElegir={(id) => { setSel(null); setZonaSel(null); setCercanos(null); setRiesgoSel(riesgoSel === id ? null : id); }} />
+                )}
+                {capaCables && (
+                  <CablesDelPlano cables={cables} enlaces={vista.enlaces ?? []} escala={escala} resaltar={resaltados}
+                    onPulsar={(c) => { setCercanos(null); setRiesgoSel(null); setSel(c.assetId); setResaltar(new Set([c.assetId])); }} />
+                )}
                 {conos && visibles.filter((e) => e.tipo === 'CAMERA').map((e) => (
                   <ConoDeVision key={'c' + e.assetId} e={e} metrosPorPx={mpp} />
                 ))}
@@ -393,8 +426,27 @@ export default function Mapa() {
               </div>
             </aside>
           ) : elegido ? (
-            <TarjetaEquipo key={elegido.assetId} e={elegido} equipos={equipos} metrosPorPx={mpp} onCerrar={() => setSel(null)}
+            <TarjetaEquipo key={elegido.assetId} e={elegido}
+              cable={cables.find((c) => c.assetId === elegido.assetId) ?? null}
+              cablesDelSwitch={cables.filter((c) => c.switchId === elegido.assetId)}
+              onCerrar={() => { setSel(null); setResaltar(null); }}
+              onPuerto={(id) => setResaltar(id ? new Set([id]) : new Set([elegido.assetId]))}
               onReportado={() => { cargarVista(planoId).then((r) => { if (r) setVista(r); }); }} />
+          ) : riesgo ? (
+            <aside className="tarjeta-mapa">
+              <header className={'tarjeta-mapa-cab riesgo-cab riesgo-' + riesgo.nivel}>
+                <span className="tarjeta-mapa-tipo">{NIVEL[riesgo.nivel]?.icono} {NIVEL[riesgo.nivel]?.texto}</span>
+                <h2>{riesgo.nombre}</h2>
+                <button type="button" className="tarjeta-mapa-cerrar" aria-label="Cerrar" onClick={() => setRiesgoSel(null)}>×</button>
+              </header>
+              <div className="tarjeta-mapa-cuerpo">
+                <p style={{ margin: 0 }}>{riesgo.motivo}</p>
+                <p className="muted" style={{ margin: 0, fontSize: 12 }}>{NIVEL[riesgo.nivel]?.ayuda}</p>
+                <p className="muted" style={{ margin: 0, fontSize: 12 }}>
+                  {`Marcada${riesgo.dibujadoPor ? ` por ${riesgo.dibujadoPor}` : ''}. Todo equipo dentro la exige al abrir su orden.`}
+                </p>
+              </div>
+            </aside>
           ) : zona ? (
             <TarjetaZona key={zona.id} z={zona} equipos={equipos} onIrA={irA} onAbrirPlano={abrirPlano} onCerrar={() => elegirZona(null)} />
           ) : (
@@ -416,6 +468,34 @@ export default function Mapa() {
                   </ul>
                 )}
                 <p className="muted" style={{ fontSize: 12 }}>Toca un punto del plano para ver su ficha.</p>
+                {avisos.length > 0 && (
+                  <details className="mapa-norma" open={avisos.some((a) => a.gravedad === 'grave')}>
+                    <summary>{`Fuera de norma (${avisos.length})`}</summary>
+                    <ul className="mapa-lista">
+                      {avisos.map((a, i) => (
+                        <li key={a.clave + (a.assetId ?? '') + i}>
+                          <button type="button" className={'norma-' + a.gravedad}
+                            onClick={() => {
+                              const e = a.assetId ? equipos.find((x) => x.assetId === a.assetId) : null;
+                              if (e) irA(e); else setEnfocar({ x: a.xPx, y: a.yPx, n: Date.now() });
+                            }}>
+                            <i aria-hidden="true" /> <span>{a.texto}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+                {capaRiesgo && nivelesEnPlano.length > 0 && (
+                  <details className="mapa-iconos">
+                    <summary>Qué es cada borde</summary>
+                    <ul>
+                      {NIVELES.filter((n) => nivelesEnPlano.includes(n.nivel)).map((n) => (
+                        <li key={n.nivel}><span className={'riesgo-chip riesgo-' + n.nivel}>{n.icono} {n.texto}</span><span className="muted">{n.ayuda}</span></li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
                 {/* Bloque 161: qué es cada dibujo. Sólo los que hay en ESTE plano. */}
                 {equipos.length > 0 && (
                   <details className="mapa-iconos">

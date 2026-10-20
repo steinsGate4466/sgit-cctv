@@ -6849,3 +6849,45 @@ motor de esquema; sólo se descargaba para comprobarlo y esa descarga es la que 
 Pruebas: 114 suites / 1.673; e2e: crear, repartir, técnico anota y dice «terminé»,
 otro aprueba, cerrar con zonas pendientes rechazado; celular sin desborde.
 
+## §98 · BLOQUE 176 — EL MAPA REGULA: RIESGO, CABLEADO Y NORMA (20/10/2026)
+
+Pedido: «un borde rojo en la zona crítica, zona de riesgo, púlpito… para regular zonas
+específicas», «del switch, cableado hacia la cámara… yo le doy vida, jalo para acá, jalo
+para allá, todo auditado, sólo el ingeniero», «en el switch un gráfico de puertos
+ocupados y libres» y «métricas de estándares dentro del mapa, como un videojuego».
+
+- **Quién edita** (decisión del usuario): sólo el Jefe de Mantenimiento. Por capacidad:
+  todas las escrituras de planos piden `location.manage` **y** `wo.approve` (`EDITA` en
+  `planos.controller.ts`). El Supervisor TI ya no edita planos ni ve la entrada Planos.
+- **Áreas de riesgo** (`ZonaDeRiesgo`, enum `NivelRiesgoMapa`): en Planos › Riesgo se
+  arrastra un rectángulo y se jalan sus esquinas («+» añade una, tocarla la quita). Nombre
+  y MOTIVO obligatorios; quitarla también pide motivo (se audita ANTES de borrar).
+  Las zonas que ya declaran riesgo en Ubicaciones (riesgo para personas, exige parada,
+  permiso eléctrico/altura, criticidad de Producción ALTA/CRÍTICA) salen con un segundo
+  borde sin dibujarlas (`riesgosDeUbicacion`). Relleno = estado de equipos; borde = peligro.
+- **El mapa regula de verdad**: si un equipo está dentro de un área en un plano PUBLICADO,
+  `perfilDeSeguridadEn` la suma: ALTURA → PETAR; ELÉCTRICO → LOTO; ALTO RIESGO → requisito
+  `ZONA_ALTO_RIESGO` + acompañante; CALOR → EPP de calor; VITAL → aviso al púlpito. Sólo
+  SUMA, nunca quita. La OM no se abre sin marcarlo (bloque 168).
+- **Cableado** (`TrazadoCable`): la línea sale de los puertos declarados (no se dibuja a
+  mano) y sólo si los dos extremos están en el plano. Sin trazar = en L, «estimado»; en
+  Planos › Cableado se toca por dónde va y se jalan los quiebres, con metros en vivo.
+  Auditoría con metros antes y después. Mover un equipo (jalándolo) se audita con su antes.
+- **Switch en el mapa**: la MISMA rejilla de Conexiones, separada en
+  `components/RejillaDePuertos.tsx` (no escribe; `verificar:mapa` la permite). Tocar un
+  puerto resalta su cable. `GET /conexiones/switches?id=`.
+- **Fuera de norma** (`regulacion.ts › avisosDeNorma`): UTP > 90 m (TIA-568, enlace fijo;
+  las subidas entre switches no), cable que cruza alto riesgo/eléctrico/calor, switch sin
+  puertos o con todo su PoE usado (si tiene PoE), sin ficha de puertos, equipo sin conexión
+  declarada, switch fuera del plano. Lista al costado; tocar lleva al punto.
+- Demo: `demo:plano` crea 2 switches de línea con sus cámaras, un cable trazado de 94 m,
+  dos áreas de riesgo y dos zonas con riesgo declarado. Todo DEMO.
+- Fallos cazados en el e2e: las zonas del plano se quedaban el clic al trazar un cable
+  (ahora `interactiva` sólo en modo Zonas); al tener un cable elegido, tocar otro lo
+  cambiaba; los metros vivos iban en diagonal y el servidor en L.
+- Migración aditiva `20261020010000_mapa_riesgo_cableado`.
+
+**Método:** `prisma validate` también corre aquí con `PRISMA_SCHEMA_ENGINE_BINARY=/bin/true`.
+Pruebas: 115 suites / 1.685; e2e: capas, switch con puertos, cámara en área de riesgo,
+fuera de norma, dibujar y jalar un área, trazar un cable, celular sin desborde.
+

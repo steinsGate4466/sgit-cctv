@@ -1,4 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { api } from '../../api/client';
+import RejillaDePuertos, { CifrasDePuertos, Puerto } from '../RejillaDePuertos';
+import type { Cable } from './CablesDelPlano';
+import { NIVEL } from './riesgos';
 import { haceCuanto } from '../../fechas';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
@@ -28,23 +32,43 @@ import ReportarAveria from '../ReportarAveria';
 const ESTADO: Record<string, string> = { ok: 'Operativo', alerta: 'Con alerta', caida: 'Sin servicio', sindato: 'Sin dato' };
 const TOPE_TIA = 90;
 
-export default function TarjetaEquipo({ e, equipos, metrosPorPx, onCerrar, onReportado }: {
+export default function TarjetaEquipo({ e, cable, cablesDelSwitch, onCerrar, onReportado, onPuerto }: {
   e: any;
-  equipos: any[];
-  metrosPorPx: number | null;
+  /** Bloque 176 · el cable de este equipo a su switch, como lo calcula el servidor. */
+  cable?: Cable | null;
+  /** Si es un switch: los cables que salen de él en este plano. */
+  cablesDelSwitch?: Cable[];
   onCerrar: () => void;
   /** Tras reportar, el mapa vuelve a pedir el estado para pintar el punto. */
   onReportado?: () => void;
+  /** Bloque 176 · tocar un puerto del switch: el mapa resalta su cable. */
+  onPuerto?: (assetId: string | null) => void;
 }) {
   const { can } = useAuth();
   const tecnico = can('asset.read');
 
-  /* Cable estimado: si el switch también está dibujado, la distancia en L
-     (por donde va de verdad un cable: por bandeja, no en diagonal). */
-  const sw = e.switch ? equipos.find((x) => x.assetId === e.switch.assetId) : null;
-  const cableM = sw && metrosPorPx
-    ? Math.round((Math.abs(sw.xPx - e.xPx) + Math.abs(sw.yPx - e.yPx)) * metrosPorPx)
-    : null;
+  /* Bloque 176 · LA SEGURIDAD DEL SITIO: la misma que se exige al abrir la
+     orden (bloque 168), incluidas las áreas de riesgo dibujadas en el mapa.
+     Se lee al abrir la tarjeta; si no hay permiso o falla, no se enseña. */
+  const [perfil, setPerfil] = useState<any>(null);
+  useEffect(() => {
+    let vivo = true;
+    setPerfil(null);
+    api.get(`/seguridad/activo/${e.assetId}`).then((r) => { if (vivo) setPerfil(r.data); }).catch(() => { if (vivo) setPerfil(null); });
+    return () => { vivo = false; };
+  }, [e.assetId]);
+
+  /* Bloque 176 · un SWITCH enseña su rejilla de puertos (la de Conexiones). */
+  const esSwitch = e.tipo === 'SWITCH' && can('red.read');
+  const [sw, setSw] = useState<any>(null);
+  const [puertoMarcado, setPuertoMarcado] = useState<number | null>(null);
+  useEffect(() => {
+    if (!esSwitch) return;
+    let vivo = true;
+    api.get('/conexiones/switches', { params: { id: e.assetId } })
+      .then((r) => { if (vivo) setSw((r.data || [])[0] ?? null); }).catch(() => { if (vivo) setSw(null); });
+    return () => { vivo = false; };
+  }, [esSwitch, e.assetId]);
 
   /* La OM sale con el equipo, la actividad y —si la hay— la incidencia ya
      puestos: quien la genera sólo revisa y guarda. Correctiva si el punto no
@@ -91,15 +115,73 @@ export default function TarjetaEquipo({ e, equipos, metrosPorPx, onCerrar, onRep
           </section>
         )}
 
+        {/* Bloque 176 · el riesgo del sitio, para todos: también para Producción. */}
+        {(e.riesgos?.length > 0 || perfil) && (
+          <section>
+            <h3>Seguridad del sitio</h3>
+            {e.riesgos?.length > 0 && (
+              <div className="riesgo-chips">
+                {e.riesgos.map((n: string) => (
+                  <span key={n} className={'riesgo-chip riesgo-' + n} title={NIVEL[n]?.ayuda}>{NIVEL[n]?.icono} {NIVEL[n]?.texto ?? n}</span>
+                ))}
+              </div>
+            )}
+            {perfil && (
+              <>
+                <ul className="perfil-lista">
+                  {perfil.enAltura && <li>En altura{perfil.alturaM != null ? ` (${perfil.alturaM} m)` : ''}{perfil.medio ? ` · ${String(perfil.medio).toLowerCase().replace('_', ' ')}` : ''}</li>}
+                  {perfil.bloqueoElectrico && <li>Bloqueo eléctrico (LOTO) antes de tocarlo</li>}
+                  {perfil.parada && <li>Con el tren parado</li>}
+                  {perfil.personasMinimas >= 2 && <li>Nunca solo: {perfil.personasMinimas} personas</li>}
+                  {perfil.comoLlegar && <li>Cómo llegar: {perfil.comoLlegar}</li>}
+                </ul>
+                {tecnico && (
+                  <details className="perfil-detalle">
+                    <summary>{`Qué exige al abrir la orden (${perfil.requisitos?.length ?? 0})`}</summary>
+                    <ul>{(perfil.requisitos || []).map((r: any) => <li key={r.clave} title={r.porque}>{r.texto}</li>)}</ul>
+                    {perfil.riesgos?.length > 0 && <p className="muted">Riesgos: {perfil.riesgos.join(' · ')}</p>}
+                  </details>
+                )}
+                {perfil.faltaDeclarar?.length > 0 && (
+                  <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>Sin declarar: {perfil.faltaDeclarar.join('; ').toLowerCase()}.</p>
+                )}
+              </>
+            )}
+          </section>
+        )}
+
         {tecnico && e.switch && (
           <section>
             <h3>Conexión</h3>
             <dl className="kv">
               <dt>Switch</dt><dd>{e.switch.codigo} · puerto {e.switch.puerto}</dd>
-              {cableM != null && <><dt>Cable est.</dt><dd>{cableM} m de {TOPE_TIA} m</dd></>}
+              {cable?.metros != null && (
+                <><dt>Cable</dt><dd>{cable.metros} m de {TOPE_TIA} m {cable.estimado ? '(estimado, sin trazar)' : `(trazado${cable.trazadoPor ? ` por ${cable.trazadoPor}` : ''})`}</dd></>
+              )}
             </dl>
-            {cableM != null && cableM > TOPE_TIA && (
+            {cable && !cable.esEnlace && cable.metros != null && cable.metros > TOPE_TIA && (
               <div className="aviso-mapa grave">Pasa de 90 m (TIA-568): revisar el trazado o poner un extensor.</div>
+            )}
+            {cable?.cruza.filter((z) => z.nivel !== 'VITAL' && z.nivel !== 'ALTURA').map((z) => (
+              <div key={z.nombre} className="aviso-mapa">El cable pasa por «{z.nombre}» ({(NIVEL[z.nivel]?.texto ?? z.nivel).toLowerCase()}): tenderlo o repararlo exige ese permiso.</div>
+            ))}
+            {!cable && <p className="muted" style={{ margin: 0, fontSize: 12 }}>Su switch no está dibujado en este plano: no se puede medir el cable.</p>}
+          </section>
+        )}
+
+        {esSwitch && (
+          <section>
+            <h3>Puertos</h3>
+            {!sw ? <p className="muted" style={{ margin: 0, fontSize: 12 }}>Cargando puertos…</p> : (
+              <>
+                <CifrasDePuertos sw={sw} />
+                {sw.capacidad == null && <p className="muted" style={{ margin: '4px 0', fontSize: 12 }}>Falta declarar cuántos puertos tiene.</p>}
+                <RejillaDePuertos sw={sw} puedeEditar={false} marcado={puertoMarcado}
+                  onAbrir={(n: number, p: Puerto | null) => { setPuertoMarcado(n); onPuerto?.(p?.equipo?.id ?? null); }} />
+                <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>
+                  {`${cablesDelSwitch?.length ?? 0} cables dibujados en este plano. Toca un puerto para ver su cable.`}
+                </p>
+              </>
             )}
           </section>
         )}
@@ -143,6 +225,9 @@ export default function TarjetaEquipo({ e, equipos, metrosPorPx, onCerrar, onRep
           )}
           {(can('asset.read') || can('activos.mirar')) && (
             <Link className="btn-mini" to={`/a/${e.assetId}`}>Ficha</Link>
+          )}
+          {esSwitch && can('asset.update') && (
+            <Link className="btn-mini" to={`/conexiones?switch=${encodeURIComponent(e.assetId)}`}>Editar puertos</Link>
           )}
         </div>
 

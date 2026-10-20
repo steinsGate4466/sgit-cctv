@@ -12,6 +12,14 @@ import {
 } from './geometria';
 import { CalibrarPlanoDto, ColocarEquipoDto, CrearPlanoDto } from './dto/planos.dto';
 import { iconoDelEquipo } from './icono';
+import {
+  NivelRiesgo, ORDEN_RIESGO, TOPE_UTP_M, avisosDeNorma, esNivel, largoPx, lineaPasaPorZona,
+  nivelesEnPunto, recorrido, riesgosDeUbicacion, validarTrazado,
+} from './regulacion';
+
+const ES_RED = ['SWITCH', 'ROUTER', 'FIREWALL'];
+/** Lo que se espera ver colgado de un puerto: sin él, «sin conexión declarada». */
+const CUELGA_DE_PUERTO = ['CAMERA', 'WIRELESS', 'NVR'];
 
 /** Un plano exportado a PNG a buena resolución pesa más que una foto. */
 const MAX_BYTES_PLANO = 25 * 1024 * 1024;
@@ -149,6 +157,15 @@ export class PlanosService {
     const { equipos, hayMonitoreo } = await this.equiposDe(p, veRed, ahora);
     const resumen = contar(equipos);
     const { zonas, padre } = await this.zonasDe(p, equipos, ahora);
+    /* Bloque 176 · el riesgo: las áreas DIBUJADAS y lo que las zonas ya
+       declaran en Ubicaciones. Cada equipo sabe en qué niveles está. */
+    const riesgos = await this.riesgosDe(p.id);
+    const areas = [
+      ...riesgos.map((r) => ({ nivel: r.nivel, nombre: r.nombre, puntos: r.puntos })),
+      ...zonas.flatMap((z: any) => z.riesgos.map((r: any) => ({ nivel: r.nivel as NivelRiesgo, nombre: z.nombre, puntos: z.puntos }))),
+    ];
+    for (const e of equipos as any[]) e.riesgos = nivelesEnPunto(e.xPx, e.yPx, areas);
+    const red = veRed ? await this.redDe(p, equipos, areas) : null;
 
     return {
       plano: {
@@ -160,6 +177,11 @@ export class PlanosService {
       resumen,
       zonas,
       padre,
+      riesgos,
+      cables: red?.cables ?? [],
+      enlaces: red?.enlaces ?? [],
+      avisos: red?.avisos ?? [],
+      topeUtpM: TOPE_UTP_M,
       hayMonitoreo,
       datoDe: new Date(ahora).toISOString(),
     };
@@ -267,7 +289,16 @@ export class PlanosService {
     const [filas, nodos, publicados] = await Promise.all([
       this.prisma.zonaEnPlano.findMany({
         where: { planoId: p.id },
-        include: { location: { select: { name: true, type: true } } },
+        include: {
+          location: {
+            select: {
+              name: true, type: true,
+              // Bloque 176 · lo que la zona ya declara de su riesgo.
+              riesgoPersonas: true, riesgoPersonasMotivo: true, requiereAltura: true,
+              intervencionFirmada: true, criticidadProduccion: true,
+            },
+          },
+        },
         orderBy: { dibujadoEn: 'asc' },
       }),
       this.prisma.location.findMany({ select: { id: true, parentId: true, type: true, code: true, stageId: true } }),
@@ -306,6 +337,7 @@ export class PlanosService {
            se corrige a escondidas (puede estar mal el dibujo o la ficha). */
         conOtraUbicacion: dentro.filter((e) => !e.ubicacionId || !rama.has(e.ubicacionId)).map((e) => e.assetId),
         planoHijo: hijo ? { id: hijo.id, nombre: hijo.nombre, resumen: resumenHijo } : null,
+        riesgos: riesgosDeUbicacion(z.location as any),
       });
     }
 
@@ -316,6 +348,136 @@ export class PlanosService {
       if (x) { padre = { id: x.id, nombre: x.nombre }; break; }
     }
     return { zonas, padre };
+  }
+
+  /** Bloque 176 · las áreas de riesgo dibujadas en el plano, con quién las dibujó. */
+  private async riesgosDe(planoId: string) {
+    const filas = await this.prisma.zonaDeRiesgo.findMany({ where: { planoId }, orderBy: { dibujadoEn: 'asc' } });
+    const ids = [...new Set(filas.map((f) => f.dibujadoPorId).filter(Boolean) as string[])];
+    const gente = ids.length ? await this.prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, fullName: true } }) : [];
+    const nombre = new Map(gente.map((u) => [u.id, u.fullName]));
+    return filas
+      .map((f) => {
+        const pol = (f.puntos as unknown as Punto[]) || [];
+        return {
+          id: f.id, nivel: f.nivel as NivelRiesgo, nombre: f.nombre, motivo: f.motivo, puntos: pol,
+          caja: cajaDeZona(pol), rotulo: rotuloDeZona(pol),
+          dibujadoPor: f.dibujadoPorId ? nombre.get(f.dibujadoPorId) ?? null : null, editadoEn: f.editadoEn,
+        };
+      })
+      .sort((a, b) => ORDEN_RIESGO[b.nivel] - ORDEN_RIESGO[a.nivel]); // lo más grave se dibuja encima
+  }
+
+  /**
+   * Bloque 176 · LA RED SOBRE EL PLANO: el cable de cada puerto del switch al
+   * equipo enchufado, los enlaces declarados (fibra, radio, cobre), el
+   * resumen de puertos de cada switch y los avisos de norma. Sólo a quien ve
+   * la red. Nada se inventa: una línea sale sólo si el puerto está declarado
+   * y los DOS extremos están dibujados en este plano.
+   */
+  private async redDe(
+    p: { id: string; metrosPorPx: number | null },
+    equipos: any[],
+    areas: { nivel: NivelRiesgo; nombre: string; puntos: Punto[] }[],
+  ) {
+    const mpp = p.metrosPorPx;
+    const pos = new Map<string, any>(equipos.map((e) => [e.assetId, e]));
+    const ids = [...pos.keys()];
+    const switchesAqui = equipos.filter((e) => e.tipo === 'SWITCH').map((e) => e.assetId);
+    const [puertos, trazados, enlacesBd, fichas] = await Promise.all([
+      this.prisma.switchPort.findMany({
+        where: { OR: [{ connectedAssetId: { in: ids } }, { switchId: { in: switchesAqui } }] },
+        select: {
+          switchId: true, portNumber: true, poe: true, connectedAssetId: true,
+          switchAsset: { select: { assetCode: true } },
+          connectedAsset: { select: { type: true } },
+        },
+      }),
+      this.prisma.trazadoCable.findMany({ where: { planoId: p.id } }),
+      this.prisma.networkLink.findMany({
+        where: { endpointAId: { in: ids }, endpointBId: { in: ids } },
+        select: { id: true, medium: true, isRing: true, endpointAId: true, endpointBId: true },
+      }),
+      this.prisma.assetSwitch.findMany({ where: { assetId: { in: switchesAqui } }, select: { assetId: true, portCount: true, poePorts: true } }),
+    ]);
+    const trazadoDe = new Map(trazados.map((t) => [t.assetId, t]));
+    const ids2 = [...new Set(trazados.map((t) => t.trazadoPorId).filter(Boolean) as string[])];
+    const gente = ids2.length ? await this.prisma.user.findMany({ where: { id: { in: ids2 } }, select: { id: true, fullName: true } }) : [];
+    const quien = new Map(gente.map((u) => [u.id, u.fullName]));
+    const aM = (px: number) => (mpp ? Math.round(px * mpp) : null);
+    const medioDe = (l: Punto[]) => l[Math.floor(l.length / 2)] ?? l[0];
+    const cruzaDe = (linea: Punto[]) => {
+      const vistos = new Set<string>();
+      return areas
+        .filter((z) => lineaPasaPorZona(linea, z.puntos))
+        .filter((z) => { const k = z.nivel + z.nombre; return vistos.has(k) ? false : (vistos.add(k), true); })
+        .map((z) => ({ nivel: z.nivel, nombre: z.nombre }));
+    };
+
+    const cables: any[] = [];
+    const conPuerto = new Set<string>();
+    const switchFuera: any[] = [];
+    for (const pt of puertos) {
+      if (!pt.connectedAssetId) continue;
+      const eq = pos.get(pt.connectedAssetId);
+      if (eq) conPuerto.add(eq.assetId);
+      const sw = pos.get(pt.switchId);
+      if (eq && !sw) {
+        switchFuera.push({ assetId: eq.assetId, codigo: eq.codigo, switchCodigo: pt.switchAsset.assetCode, xPx: eq.xPx, yPx: eq.yPx });
+        continue;
+      }
+      if (!eq || !sw) continue;
+      const t = trazadoDe.get(eq.assetId);
+      const puntos = t ? ((t.puntos as unknown as Punto[]) || []) : null;
+      const linea = recorrido({ x: sw.xPx, y: sw.yPx }, { x: eq.xPx, y: eq.yPx }, puntos);
+      const metros = aM(largoPx(linea));
+      const esEnlace = ES_RED.includes(pt.connectedAsset?.type ?? '');
+      const cruza = cruzaDe(linea);
+      cables.push({
+        assetId: eq.assetId, codigo: eq.codigo, switchId: sw.assetId, switchCodigo: sw.codigo,
+        puerto: pt.portNumber, poe: pt.poe, esEnlace,
+        linea, puntos: puntos ?? [], metros, estimado: !t,
+        trazadoPor: t?.trazadoPorId ? quien.get(t.trazadoPorId) ?? null : null, trazadoEn: t?.trazadoEn ?? null,
+        cruza,
+        fueraDeNorma: (!esEnlace && metros != null && metros > TOPE_UTP_M) || cruza.some((z) => z.nivel !== 'VITAL' && z.nivel !== 'ALTURA'),
+        medio: medioDe(linea),
+      });
+    }
+
+    const enlaces = enlacesBd.map((l) => {
+      const a = pos.get(l.endpointAId), b = pos.get(l.endpointBId);
+      const linea: Punto[] = [[a.xPx, a.yPx], [b.xPx, b.yPx]];
+      return {
+        id: l.id, medio: l.medium, anillo: l.isRing, aId: a.assetId, bId: b.assetId,
+        codigo: `${a.codigo} ↔ ${b.codigo}`, linea, metros: aM(largoPx(linea)),
+      };
+    });
+
+    const fichaDe = new Map(fichas.map((f) => [f.assetId, f]));
+    const switches = switchesAqui.map((id) => {
+      const e = pos.get(id);
+      const suyos = puertos.filter((x) => x.switchId === id);
+      const f = fichaDe.get(id);
+      const r = {
+        assetId: id, codigo: e.codigo, xPx: e.xPx, yPx: e.yPx,
+        capacidad: f?.portCount ?? null, ocupados: suyos.filter((x) => x.connectedAssetId).length,
+        poeUsados: suyos.filter((x) => x.poe).length, poePuertos: f?.poePorts ?? null,
+      };
+      e.puertos = { capacidad: r.capacidad, ocupados: r.ocupados, libres: r.capacidad != null ? Math.max(0, r.capacidad - r.ocupados) : null,
+        poeUsados: r.poeUsados, poePuertos: r.poePuertos };
+      return r;
+    });
+
+    const sinConexion = equipos
+      .filter((e) => CUELGA_DE_PUERTO.includes(e.tipo) && !conPuerto.has(e.assetId))
+      .map((e) => ({ assetId: e.assetId, codigo: e.codigo, xPx: e.xPx, yPx: e.yPx }));
+
+    // Un enlace de cobre declarado también tiene el tope de 90 m.
+    const deCobre = enlaces.filter((l) => l.medio === 'COBRE').map((l) => ({
+      assetId: l.aId, codigo: l.codigo, metros: l.metros, estimado: true, esEnlace: false, cruza: [], medio: medioDe(l.linea),
+    }));
+    const avisos = avisosDeNorma({ cables: [...cables, ...deCobre], switches, sinConexion, switchFuera });
+    return { cables, enlaces, avisos };
   }
 
   /**
@@ -465,6 +627,7 @@ export class PlanosService {
       anguloVision: dto.anguloVision ?? null, alcanceM: dto.alcanceM ?? null,
       colocadoPorId: userId, colocadoEn: new Date(),
     };
+    const antes = await this.prisma.posicionEnPlano.findUnique({ where: { planoId_assetId: { planoId: id, assetId } } });
     const r = await this.prisma.posicionEnPlano.upsert({
       where: { planoId_assetId: { planoId: id, assetId } },
       create: { planoId: id, assetId, ...datos },
@@ -472,7 +635,9 @@ export class PlanosService {
     });
     await this.audit.record({
       userId, ip, action: 'PLANO_COLOCAR', entity: 'posiciones_en_plano', entityId: `${id}:${assetId}`,
-      after: { equipo: activo.assetCode, xPx: dto.xPx, yPx: dto.yPx },
+      // Bloque 176 · con el ANTES: mover un equipo cambia los metros de su cable.
+      before: antes ? { xPx: antes.xPx, yPx: antes.yPx, alturaM: antes.alturaM, rumbo: antes.rumbo } : undefined,
+      after: { equipo: activo.assetCode, xPx: dto.xPx, yPx: dto.yPx, alturaM: dto.alturaM ?? null, rumbo: dto.rumbo ?? null },
     });
     return r;
   }
@@ -526,6 +691,111 @@ export class PlanosService {
       userId, ip, action: 'PLANO_ZONA_BORRAR', entity: 'zonas_en_plano', entityId: `${id}:${locationId}`,
     });
     return { borradas: r.count };
+  }
+
+  // ------------------------------------------- bloque 176 · regular el mapa
+  /**
+   * DIBUJAR O CORREGIR UNA ZONA DE RIESGO. El motivo es obligatorio siempre,
+   * también al corregir: es lo que se lee en la auditoría cuando alguien
+   * pregunta por qué ese borde es rojo.
+   */
+  async guardarRiesgo(
+    id: string, riesgoId: string | null,
+    dto: { nivel?: string; nombre?: string; motivo?: string; puntos?: unknown },
+    userId: string | null, ip?: string,
+  ) {
+    const p = await this.plano(id);
+    if (p.estado === 'ARCHIVADO') throw new BadRequestException('Un plano archivado no se toca: sube una versión nueva.');
+    if (!esNivel(dto.nivel)) throw new BadRequestException('Elige el nivel: alto riesgo, altura, eléctrico, calor o zona vital.');
+    const nombre = String(dto.nombre || '').trim();
+    if (nombre.length < 3) throw new BadRequestException('Ponle nombre al área (ej. «Paso de grúa 2»).');
+    const motivo = String(dto.motivo || '').trim();
+    if (motivo.length < 5) throw new BadRequestException('Di por qué es de riesgo. Un borde sin motivo no se puede defender en una auditoría.');
+    const v = validarZona(dto.puntos, p.anchoPx, p.altoPx);
+    if ('error' in v) throw new BadRequestException(v.error);
+
+    const datos = { nivel: dto.nivel as any, nombre: nombre.slice(0, 80), motivo: motivo.slice(0, 500), puntos: v.puntos as any, dibujadoPorId: userId };
+    if (riesgoId) {
+      const antes = await this.prisma.zonaDeRiesgo.findFirst({ where: { id: riesgoId, planoId: id } });
+      if (!antes) throw new NotFoundException('Esa zona de riesgo no existe en este plano.');
+      const r = await this.prisma.zonaDeRiesgo.update({ where: { id: riesgoId }, data: datos });
+      await this.audit.record({
+        userId, ip, action: 'MAPA_RIESGO_EDITAR', entity: 'zonas_de_riesgo', entityId: r.id,
+        before: { nivel: antes.nivel, nombre: antes.nombre, motivo: antes.motivo, puntos: antes.puntos },
+        after: { nivel: r.nivel, nombre: r.nombre, motivo: r.motivo, puntos: v.puntos },
+      });
+      return { id: r.id };
+    }
+    const r = await this.prisma.zonaDeRiesgo.create({ data: { planoId: id, ...datos } });
+    await this.audit.record({
+      userId, ip, action: 'MAPA_RIESGO_CREAR', entity: 'zonas_de_riesgo', entityId: r.id,
+      after: { planoId: id, nivel: r.nivel, nombre: r.nombre, motivo: r.motivo, puntos: v.puntos },
+    });
+    return { id: r.id };
+  }
+
+  /** Quitar un área de riesgo también pide motivo: quitar un borde rojo es una decisión. */
+  async borrarRiesgo(id: string, riesgoId: string, motivo: string | undefined, userId: string | null, ip?: string) {
+    const p = await this.plano(id);
+    if (p.estado === 'ARCHIVADO') throw new BadRequestException('Un plano archivado no se toca.');
+    if (String(motivo || '').trim().length < 5) throw new BadRequestException('Di por qué se quita esta zona de riesgo.');
+    const antes = await this.prisma.zonaDeRiesgo.findFirst({ where: { id: riesgoId, planoId: id } });
+    if (!antes) throw new NotFoundException('Esa zona de riesgo no existe en este plano.');
+    // Se audita ANTES de borrar (bloque 15): si el borrado fallara, no queda un registro que mienta al revés.
+    await this.audit.record({
+      userId, ip, action: 'MAPA_RIESGO_BORRAR', entity: 'zonas_de_riesgo', entityId: riesgoId,
+      before: { nivel: antes.nivel, nombre: antes.nombre, motivo: antes.motivo, puntos: antes.puntos },
+      after: { motivoDelBorrado: String(motivo).trim() },
+    });
+    await this.prisma.zonaDeRiesgo.delete({ where: { id: riesgoId } });
+    return { borrada: true };
+  }
+
+  /**
+   * TRAZAR EL CABLE de un equipo a su switch: los puntos por donde va de
+   * verdad. Sólo si el puerto está declarado y los dos extremos están en este
+   * plano; si no, no hay cable que trazar. Lista vacía = volver al estimado.
+   */
+  async guardarTrazado(id: string, assetId: string, puntosIn: unknown, userId: string | null, ip?: string) {
+    const p = await this.plano(id);
+    if (p.estado === 'ARCHIVADO') throw new BadRequestException('Un plano archivado no se toca.');
+    const v = validarTrazado(puntosIn, p.anchoPx, p.altoPx);
+    if ('error' in v) throw new BadRequestException(v.error);
+    const puerto = await this.prisma.switchPort.findUnique({
+      where: { connectedAssetId: assetId },
+      select: { switchId: true, portNumber: true, connectedAsset: { select: { assetCode: true } } },
+    });
+    if (!puerto) throw new BadRequestException('Ese equipo no tiene puerto de switch declarado. Declara el puerto en Red › Conexiones.');
+    const [eq, sw] = await Promise.all([
+      this.prisma.posicionEnPlano.findUnique({ where: { planoId_assetId: { planoId: id, assetId } } }),
+      this.prisma.posicionEnPlano.findUnique({ where: { planoId_assetId: { planoId: id, assetId: puerto.switchId } } }),
+    ]);
+    if (!eq || !sw) throw new BadRequestException('El equipo y su switch tienen que estar colocados en este plano para trazar el cable.');
+
+    const antes = await this.prisma.trazadoCable.findUnique({ where: { planoId_assetId: { planoId: id, assetId } } });
+    const mpp = p.metrosPorPx;
+    const metros = (pts: Punto[] | null) => (mpp ? Math.round(largoPx(recorrido({ x: sw.xPx, y: sw.yPx }, { x: eq.xPx, y: eq.yPx }, pts)) * mpp) : null);
+    const metrosAntes = metros(antes ? (antes.puntos as unknown as Punto[]) : null);
+    const metrosDespues = metros(v.puntos.length ? v.puntos : null);
+
+    // Volver al estimado algo que nunca se trazó no cambia nada: ni se escribe ni se audita.
+    if (!v.puntos.length && !antes) return { metros: metrosDespues, estimado: true };
+    if (!v.puntos.length) {
+      await this.prisma.trazadoCable.delete({ where: { planoId_assetId: { planoId: id, assetId } } });
+    } else {
+      await this.prisma.trazadoCable.upsert({
+        where: { planoId_assetId: { planoId: id, assetId } },
+        create: { planoId: id, assetId, puntos: v.puntos as any, trazadoPorId: userId },
+        update: { puntos: v.puntos as any, trazadoPorId: userId, trazadoEn: new Date() },
+      });
+    }
+    await this.audit.record({
+      userId, ip, action: v.puntos.length ? 'MAPA_CABLE_TRAZAR' : 'MAPA_CABLE_BORRAR', entity: 'trazados_de_cable',
+      entityId: `${id}:${assetId}`,
+      before: antes ? { puntos: antes.puntos, metros: metrosAntes } : { estimado: true, metros: metrosAntes },
+      after: { equipo: puerto.connectedAsset?.assetCode, puerto: puerto.portNumber, puntos: v.puntos, metros: metrosDespues },
+    });
+    return { metros: metrosDespues, estimado: !v.puntos.length };
   }
 
   /** Publicar: el plano pasa a ser EL de su zona y el anterior queda archivado. */

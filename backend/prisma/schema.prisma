@@ -948,6 +948,7 @@ model Asset {
   // `locations_siglaTren_idx`.
   /// Bloque 151 · dónde está dibujado en cada plano.
   posicionesEnPlano PosicionEnPlano[] @relation("PosicionEnPlano")
+  trazadosDeCable   TrazadoCable[]    @relation("TrazadoCable")
   observacion     AssetObservation?
   /// BLOQUE 106 · los aparatos que han estado instalados en ESTE SITIO.
   /// `Asset` es la UBICACIÓN FUNCIONAL —«la cámara del foso del Tren 2»—;
@@ -4063,6 +4064,8 @@ model Plano {
   actualizadoEn  DateTime    @updatedAt
   posiciones     PosicionEnPlano[]
   zonas          ZonaEnPlano[]
+  riesgos        ZonaDeRiesgo[]
+  trazados       TrazadoCable[]
 
   @@unique([locationId, version])
   @@index([estado])
@@ -4116,3 +4119,67 @@ model PosicionEnPlano {
   @@index([assetId])
   @@map("posiciones_en_plano")
 }
+
+// =====================================================================
+//  BLOQUE 176 · EL MAPA REGULA: ZONAS DE RIESGO Y TRAZADO DEL CABLE
+//
+//  Palabras del usuario: «un borde rojo en la zona crítica, zona de riesgo,
+//  zona de púlpito… para poder regular zonas específicas», y «de un punto del
+//  switch, cableado hacia la cámara… yo le doy vida: jalo para acá, jalo para
+//  allá, y que todo eso esté auditado; sólo el ingeniero».
+//
+//  · ZONA DE RIESGO: un área DIBUJADA sobre el plano (no una ubicación del
+//    árbol): el paso de grúa no es una sala, es una franja. Lleva su nivel y
+//    su MOTIVO obligatorio. Un equipo colocado dentro hereda ese riesgo en su
+//    perfil de seguridad (bloque 168): la orden no se abre sin marcarlo.
+//  · TRAZADO DE CABLE: los puntos intermedios por donde va de verdad el cable
+//    del switch a un equipo. Sin trazado, el mapa dibuja la línea y dice
+//    «estimado»; con trazado, los metros son los del recorrido.
+//
+//  Escriben SÓLO quien tiene `location.manage` Y `wo.approve` (el Jefe de
+//  Mantenimiento). Cada cambio queda en auditoría con el antes y el después.
+// =====================================================================
+
+enum NivelRiesgoMapa {
+  ALTO_RIESGO // puede herirse una persona: paso de grúa, foso, barra caliente
+  ALTURA      // para llegar hay que subir
+  ELECTRICO   // sala eléctrica, MCC, tableros energizados
+  CALOR       // radiación o material caliente cerca
+  VITAL       // púlpito o zona que Producción no puede perder de vista
+}
+
+model ZonaDeRiesgo {
+  id            String          @id @default(uuid())
+  planoId       String
+  plano         Plano           @relation(fields: [planoId], references: [id], onDelete: Cascade)
+  nivel         NivelRiesgoMapa
+  nombre        String
+  /// Por qué es de riesgo. Obligatorio: un borde rojo sin motivo no se puede defender.
+  motivo        String
+  /// Polígono en píxeles de la imagen: [[x, y], …].
+  puntos        Json
+  dibujadoPorId String?
+  dibujadoEn    DateTime        @default(now())
+  editadoEn     DateTime        @default(now()) @updatedAt
+
+  @@index([planoId])
+  @@map("zonas_de_riesgo")
+}
+
+model TrazadoCable {
+  planoId       String
+  plano         Plano    @relation(fields: [planoId], references: [id], onDelete: Cascade)
+  /// El equipo del extremo (el que está enchufado al puerto del switch).
+  assetId       String
+  asset         Asset    @relation("TrazadoCable", fields: [assetId], references: [id], onDelete: Cascade)
+  /// Puntos intermedios, del switch hacia el equipo: [[x, y], …]. Los extremos
+  /// son las posiciones de los dos equipos y no se guardan aquí.
+  puntos        Json
+  trazadoPorId  String?
+  trazadoEn     DateTime @default(now())
+
+  @@id([planoId, assetId])
+  @@index([assetId])
+  @@map("trazados_de_cable")
+}
+
