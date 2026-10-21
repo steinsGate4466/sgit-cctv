@@ -240,6 +240,7 @@ describe('el titular de la pantalla', () => {
        que se leía confuso. */
     expect(t).toContain('3 cámaras sin servicio');
     expect(t).toContain('un equipo caído');
+    expect(t).not.toContain('1 un equipo');
   });
 
   it('con todo operativo señala el equipo más crítico', () => {

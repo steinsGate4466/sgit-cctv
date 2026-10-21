@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { MarcaSGIT, LineaLaminacion } from '../components/Ilustraciones';
 import Icono from '../components/Iconos';
+import { plural } from '../formato';
 
 export default function Login() {
   const { login } = useAuth();
@@ -95,7 +96,7 @@ export default function Login() {
         const left = tries - 1;
         setTries(left);
         setError(left > 0
-          ? `Credenciales incorrectas. Te quedan ${left} intento(s).`
+          ? `Credenciales incorrectas. Te ${left === 1 ? 'queda' : 'quedan'} ${plural(left, 'intento')}.`
           : 'Demasiados intentos fallidos. La cuenta puede quedar bloqueada temporalmente.');
       } else {
         /* 429 del freno de fuerza bruta, 500, 502 de un despliegue a medias:

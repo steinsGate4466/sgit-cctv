@@ -74,7 +74,7 @@ export default function Bandeja() {
     if (n > 0) porDondeEmpezar.push({ id: a + texto, marca: String(n), tono, texto, a });
   };
   pon(r.accesos, 'grave', r.accesos === 1 ? 'permiso de altura sin resolver' : 'permisos de altura sin resolver', '/access');
-  pon(r.sinDetallar, 'atender', r.sinDetallar === 1 ? 'orden asignada sin detallar' : 'órdenes asignadas sin detallar', '/maintenance');
+  pon(r.sinDetallar, 'atender', r.sinDetallar === 1 ? 'orden sin detallar' : 'órdenes sin detallar', '/maintenance');
   pon(r.firmasPendientes, 'atender', r.firmasPendientes === 1 ? 'orden esperando material' : 'órdenes esperando material', '/maintenance');
   pon(r.prorrogas ?? 0, 'atender', r.prorrogas === 1 ? 'prórroga esperando tu visto bueno' : 'prórrogas esperando tu visto bueno', '/maintenance');
   pon(r.vencidas, 'atender', r.vencidas === 1 ? 'orden fuera de plazo' : 'órdenes fuera de plazo', '/maintenance');
@@ -127,7 +127,7 @@ export default function Bandeja() {
 
           {/* -------------------------------------------------- BLOQUEA A OTROS */}
           <Bloque
-            titulo="Órdenes asignadas sin detallar"
+            titulo="Órdenes sin detallar"
             porque="Hasta que alguien las detalle, el técnico no puede empezar."
             n={r.sinDetallar}
             filas={d.sinDetallar}

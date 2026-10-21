@@ -23,6 +23,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
          antes de que esto existiera: `AccesoVigenteGuard` los deja pasar a
          propósito para no echar a toda la planta el día del despliegue. */
       pv: payload.pv,
+      /* La sesión del token (auditoría 20/10). `undefined` en tokens viejos. */
+      sid: payload.sid,
     };
   }
 }

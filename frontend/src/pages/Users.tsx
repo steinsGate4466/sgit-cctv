@@ -155,7 +155,7 @@ export default function Users() {
           <h1 className="page-title">Usuarios</h1>
           <p className="page-sub">{rows.length} usuarios</p>
         </div>
-        {can('user.manage') && <button className="btn-primary" onClick={() => { setForm({ email: '', fullName: '', password: '', roleId: roles[0]?.id || '' }); setShowForm(true); }}>+ Nuevo usuario</button>}
+        {can('user.manage') && <button className="btn-primary" onClick={() => { setForm({ email: '', fullName: '', password: '', roleId: '' }); setShowForm(true); }}>+ Nuevo usuario</button>}
       </div>
       <div className="card">
         <table>
@@ -346,7 +346,10 @@ export default function Users() {
               <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required minLength={8} />
             </label>
             <label>Rol
+              {/* Revisión: el rol se ELIGE. Venía puesto el primero de la lista, y
+                  un descuido daba de alta a alguien con el rol equivocado. */}
               <select value={form.roleId} onChange={(e) => setForm({ ...form, roleId: e.target.value })} required>
+              <option value="">— elige el rol —</option>
               {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
             </select>
             </label>

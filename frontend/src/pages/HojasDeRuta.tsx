@@ -8,6 +8,7 @@ import Icono from '../components/Iconos';
 import BotonConMotivo from '../components/BotonConMotivo';
 import { mensajeDeError, queFalta } from '../avisos';
 import { fechaTabla } from '../fechas';
+import { plural } from '../formato';
 
 /* =============================================================================
    HOJAS DE RUTA — bloque 75
@@ -100,7 +101,7 @@ export default function HojasDeRuta() {
     setGuardando(true); setError('');
     try {
       const r = await api.post('/hojas-de-ruta/cargar-las-del-ingeniero', {});
-      setMsg(`${r.data.creadas} hoja(s) cargadas.`
+      setMsg(`${plural(r.data.creadas, 'hoja cargada', 'hojas cargadas')}.`
         + (r.data.yaEstaban?.length ? ` ${r.data.yaEstaban.length} ya estaban y no se tocaron.` : ''));
       await cargar();
     } catch (e: any) {
@@ -215,7 +216,7 @@ export default function HojasDeRuta() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
         <div>
           <h1 className="page-title">Hojas de ruta</h1>
-          <p className="page-sub">{filas.length} hojas · los pasos de cada preventivo</p>
+          <p className="page-sub">{plural(filas.length, 'hoja')} · los pasos de cada preventivo</p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button className="btn-mini" disabled={bajando} onClick={() => descargar()}>
@@ -318,9 +319,9 @@ export default function HojasDeRuta() {
                   [!edita.descripcion?.trim(), 'Ponle un título a la hoja.'],
                   [edita.descripcion?.length > MAX,
                     `El título tiene ${edita.descripcion?.length} caracteres. SAP acepta ${MAX}.`],
-                  [sinTexto > 0, `Hay ${sinTexto} paso(s) sin texto. Escríbelos o quítalos.`],
+                  [sinTexto > 0, `Hay ${plural(sinTexto, 'paso')} sin texto. Escríbelos o quítalos.`],
                   [pasosLargos > 0,
-                    `Hay ${pasosLargos} paso(s) de más de ${MAX} caracteres. SAP rechazaría la carga entera.`],
+                    `Hay ${plural(pasosLargos, 'paso')} de más de ${MAX} caracteres. SAP rechazaría la carga entera.`],
                 )}
               >
                 {guardando ? 'Guardando…' : 'Guardar hoja'}
@@ -460,7 +461,7 @@ export default function HojasDeRuta() {
 
           {pasosLargos > 0 && (
             <div className="card peligro" style={{ marginTop: 12 }}>
-              <b>{pasosLargos} paso(s) pasan de {MAX} caracteres.</b> SAP rechazaría
+              <b>{plural(pasosLargos, 'paso pasa', 'pasos pasan')} de {MAX} caracteres.</b> SAP rechazaría
               la carga entera, no sólo esas líneas.
             </div>
           )}

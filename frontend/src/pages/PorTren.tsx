@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
+import { elegirTren } from '../trenes';
 import Icono from '../components/Iconos';
 import { EsqueletoTablero } from '../components/Esqueleto';
 import { Cifras, ComoSeCalcula, Detalle, Titular, Tono } from '../components/Patron';
@@ -58,7 +59,8 @@ export default function PorTren() {
         setTrenes(lista);
         setSigla((actual) => {
           const sigueValido = lista.some((t) => (t.sigla || t.code) === actual);
-          return sigueValido ? actual : (lista[0]?.sigla || lista[0]?.code || '');
+          const primero = elegirTren(lista, '');
+          return sigueValido ? actual : (primero?.sigla || primero?.code || '');
         });
       })
       .catch(() => setError('No se pudo cargar la lista de sectores.'))
@@ -106,7 +108,8 @@ export default function PorTren() {
 
   const t = d?.totales;
   const caidas = t ? t.camaras - t.camarasViendo : 0;
-  const tono: Tono = !t ? 'sindatos'
+  // Sin cámaras no es «bien»: es sin medir (auditoría 20/10, salía verde con ✓).
+  const tono: Tono = !t || !t.camaras ? 'sindatos'
     : caidas > 0 ? 'grave'
       : t.zonasSinMedir > 0 ? 'atender' : 'bien';
 

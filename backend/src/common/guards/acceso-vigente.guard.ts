@@ -68,6 +68,28 @@ export class AccesoVigenteGuard implements CanActivate {
     AccesoVigenteGuard.cache.delete(userId);
   }
 
+  /** sid → última vez que se escribió. Una escritura por minuto y sesión. */
+  private static usos = new Map<string, number>();
+
+  /**
+   * AUDITORÍA 20/10 · «ÚLTIMA ACTIVIDAD» DE VERDAD.
+   * Se apunta en la fila de la sesión como mucho una vez por minuto, sin
+   * esperar a la base y sin poder tumbar la petición: es un dato para la
+   * pantalla «Quién está dentro», no un control. Por eso va fuera de la
+   * caché de permisos y con su propio `catch`.
+   */
+  private marcarUso(sid: string | undefined) {
+    if (!sid) return;
+    const ahora = Date.now();
+    const ultima = AccesoVigenteGuard.usos.get(sid) ?? 0;
+    if (ahora - ultima < 60_000) return;
+    if (AccesoVigenteGuard.usos.size > 5000) AccesoVigenteGuard.usos.clear();
+    AccesoVigenteGuard.usos.set(sid, ahora);
+    void this.prisma.sesion
+      .updateMany({ where: { id: sid, revocadaEn: null }, data: { ultimoUsoEn: new Date() } })
+      .catch(() => null);
+  }
+
   /** Vacía la caché entera. Para cuando se tocan permisos de un rol completo. */
   static olvidarTodo() {
     AccesoVigenteGuard.cache.clear();
@@ -79,6 +101,8 @@ export class AccesoVigenteGuard implements CanActivate {
 
     // Sin sesión no hay nada que comprobar: de eso ya se ocupa el guard de JWT.
     if (!user?.userId) return true;
+
+    this.marcarUso(user.sid);
 
     /* Token viejo, sin contador. Pasa — ver la cabecera. */
     if (user.pv === undefined || user.pv === null) return true;

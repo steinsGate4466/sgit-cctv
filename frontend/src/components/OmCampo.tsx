@@ -10,6 +10,7 @@ import OmHerramientas, { HerramientaMarcada } from './OmHerramientas';
 import RutinaEnCampo from './RutinaEnCampo';
 import SeguridadAlEmpezar, { Perfil } from './SeguridadAlEmpezar';
 import { useDialogos } from './Dialogos';
+import { ahoraParaInputLocal } from '../fechas';
 
 /**
  * Pantallas de EJECUCIÓN EN CAMPO de una orden de mantenimiento.
@@ -333,7 +334,7 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
             )}
 
             <label>Hora real de inicio
-              <input type="datetime-local" value={inicio} onChange={(e) => setInicio(e.target.value)} />
+              <input type="datetime-local" max={ahoraParaInputLocal()} value={inicio} onChange={(e) => setInicio(e.target.value)} />
             </label>
             <div className="muted" style={{ fontSize: 11, marginTop: -6, marginBottom: 10 }}>
               La que confirmaste por radio con Producción. Si lo dejas vacío se toma este momento.
@@ -364,7 +365,7 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
             valor={motivoAvance}
             onChange={setMotivoAvance}
             items={catalogos?.MOTIVO_AVANCE}
-            vacio="Todavía no hay motivos configurados. Se crean en Ubicaciones → Catálogos."
+            vacio="Todavía no hay motivos configurados. Se crean en Documentos › Catálogo de fallas."
           />
         )}
 
@@ -384,7 +385,7 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
             </div>
 
             <label style={{ marginTop: 10 }}>
-              ¿Por qué no se avanzó más?
+              Detalle del avance
               {pct < (wo.progressPct ?? 0) && <span style={{ color: 'var(--crit-texto)' }}> (obligatorio: el avance baja)</span>}
             </label>
             <textarea aria-label="Nota del avance" value={nota} onChange={(e) => setNota(e.target.value)} rows={3}
@@ -457,7 +458,7 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
             )}
 
             <label>Hora real de cierre
-              <input type="datetime-local" value={fin} onChange={(e) => setFin(e.target.value)} />
+              <input type="datetime-local" max={ahoraParaInputLocal()} value={fin} onChange={(e) => setFin(e.target.value)} />
             </label>
 
             {/* SÍNTOMA -> CAUSA -> ACCIÓN, en ese orden y separados.
@@ -469,7 +470,7 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
               valor={sintoma}
               onChange={setSintoma}
               items={catalogos?.SINTOMA}
-              vacio="Todavía no hay síntomas configurados. Se crean en Ubicaciones → Catálogos."
+              vacio="Todavía no hay síntomas configurados. Se crean en Documentos › Catálogo de fallas."
             />
 
             <ListaCatalogo
@@ -485,7 +486,7 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
               valor={accionRealizada}
               onChange={setAccionRealizada}
               items={catalogos?.ACCION}
-              vacio="Todavía no hay acciones configuradas. Se crean en Ubicaciones → Catálogos."
+              vacio="Todavía no hay acciones configuradas. Se crean en Documentos › Catálogo de fallas."
             />
 
             {causa === 'SIN_FALLA_ENCONTRADA' && (

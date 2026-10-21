@@ -6,6 +6,8 @@ import Icono from '../components/Iconos';
 import { useDialogos } from '../components/Dialogos';
 import { mensajeDeError } from '../avisos';
 import { fechaTabla } from '../fechas';
+import { plural } from '../formato';
+import { Link } from 'react-router-dom';
 
 /* =============================================================================
    QUIÉN ESTÁ DENTRO — bloque 82
@@ -94,7 +96,7 @@ export default function Sesiones() {
     if (motivo === null) return;
     try {
       const { data } = await api.post(`/users/${f.userId}/cortar-acceso`, { motivo });
-      await avisar(`Acceso cortado. ${data.sesionesCerradas} sesión(es) cerradas.`);
+      await avisar(`Acceso cortado. ${plural(data.sesionesCerradas, 'sesión cerrada', 'sesiones cerradas')}.`);
       await cargar();
     } catch (e: any) {
       await avisar(mensajeDeError(e, 'cortar el acceso'));
@@ -103,7 +105,7 @@ export default function Sesiones() {
 
   const texto = q.trim().toLowerCase();
   const visibles = texto
-    ? filas.filter((f) => `${f.persona} ${f.email} ${f.rol} ${f.ip} ${f.equipo}`
+    ? filas.filter((f) => `${f.persona} ${f.email} ${f.rol} ${f.ip} ${f.equipo} ${f.dispositivo} ${f.aparato}`
       .toLowerCase().includes(texto))
     : filas;
 
@@ -123,14 +125,14 @@ export default function Sesiones() {
       {zombis > 0 ? (
         <Titular
           tono="grave"
-          texto={`${zombis} sesión(es) de usuarios desactivados`}
+          texto={`${plural(zombis, 'sesión', 'sesiones')} de usuarios desactivados`}
           apoyo="Alguien dado de baja sigue con la sesión abierta. Córtale el acceso."
         />
       ) : (
         <Titular
           tono="bien"
-          texto={`${dentroAhora} persona(s) trabajando ahora`}
-          apoyo={`${filas.length} sesión(es) abiertas en total. La lista se actualiza sola.`}
+          texto={`${plural(dentroAhora, 'persona trabajando', 'personas trabajando')} ahora`}
+          apoyo={`${plural(filas.length, 'sesión abierta', 'sesiones abiertas')} en total. La lista se actualiza sola.`}
         />
       )}
 
@@ -173,10 +175,21 @@ export default function Sesiones() {
                 </td>
                 <td className="muted">{f.rol || '—'}</td>
                 <td>
-                  <div className="dato-fijo" style={{ fontSize: 12 }}>{f.ip || '—'}</div>
-                  <div className="muted" style={{ fontSize: 11 }}>
-                    {f.equipo || f.dispositivo || 'aparato sin identificar'}
+                  {/* Auditoría 20/10: QUÉ equipo primero, luego el navegador y la
+                      IP. Con el servidor en internet toda la planta sale por la
+                      misma IP pública: lo que distingue un PC de otro es el
+                      aparato, y a ése se le pone nombre en Equipos conocidos. */}
+                  <div style={{ fontWeight: 600, fontSize: 12.5 }}>
+                    {f.equipo || <span className="muted" style={{ fontWeight: 400 }}>Equipo sin nombre</span>}
                   </div>
+                  <div className="muted" style={{ fontSize: 11 }}>
+                    {f.dispositivo || 'navegador sin identificar'}
+                    {f.aparato && <> · aparato <span className="dato-fijo">{f.aparato}</span></>}
+                  </div>
+                  <div className="dato-fijo muted" style={{ fontSize: 11 }}>IP {f.ip || '—'}</div>
+                  {!f.equipo && f.aparato && (
+                    <Link to="/equipos" style={{ fontSize: 11 }}>Ponerle nombre</Link>
+                  )}
                 </td>
                 <td className="muted dato-fijo" style={{ fontSize: 12 }}>
                   {fechaTabla(f.desde)}

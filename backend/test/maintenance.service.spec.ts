@@ -15,7 +15,9 @@ import { MaintenanceService } from '../src/modules/maintenance/maintenance.servi
 describe('MaintenanceService — ejecución de OM en campo', () => {
   const USUARIO = (rol: string, id = 'u1') => ({
     id, email: 'tec@aa.local', active: true,
-    passwordHash: 'hash', role: { name: rol },
+    passwordHash: 'hash',
+    // Revisión de formularios: quien firma tiene que tener el permiso de la acción.
+    role: { name: rol, permissions: [{ permission: { code: 'wo.update' } }, { permission: { code: 'wo.approve' } }] },
   });
 
   function build(over: any = {}) {

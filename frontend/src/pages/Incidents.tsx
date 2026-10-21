@@ -8,7 +8,7 @@ import BotonPurgar from '../components/BotonPurgar';
 import { useAuth } from '../auth/AuthContext';
 import Icono from '../components/Iconos';
 import { useDialogos } from '../components/Dialogos';
-import { fechaHora } from '../formato';
+import { fechaHora, PRIORIDAD_ES, plural } from '../formato';
 import { fechaCorta, fechaTabla, haceCuanto } from '../fechas';
 import { useBusquedaEnVivo } from '../useBusquedaEnVivo';
 
@@ -23,7 +23,6 @@ const CATEGORIES = CATEGORY_GROUPS.flatMap((g) => g.items);
 /* Bloque 172 · «Crítica» iba como VALOR: la base espera CRITICA y respondía
    «priority must be one of…». Elegir prioridad crítica al reportar daba error. */
 const PRIORITIES = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
-const PRIORIDAD_ES: Record<string, string> = { BAJA: 'Baja', MEDIA: 'Media', ALTA: 'Alta', CRITICA: 'Crítica' };
 
 /* Bloque 172 · las categorías del tipo de equipo elegido, primero y aparte.
    Con una cámara elegida, «Falla de UPS» o «Transformador» arriba del todo
@@ -240,7 +239,7 @@ export default function Incidents() {
       const msg = Array.isArray(m) ? m.join(', ') : m || 'No se pudo resolver.';
       if (/firma inv|contrase/i.test(msg)) {
         const left = tries - 1; setTries(left);
-        setSigError(left > 0 ? `Contraseña incorrecta. Te quedan ${left} intento(s).` : 'Contraseña incorrecta. Sin intentos restantes.');
+        setSigError(left > 0 ? `Contraseña incorrecta. Te ${left === 1 ? 'queda' : 'quedan'} ${plural(left, 'intento')}.` : 'Contraseña incorrecta. Sin intentos restantes.');
       } else setSigError(msg);
     } finally { setSigning(false); }
   }
@@ -389,7 +388,7 @@ export default function Incidents() {
           <tbody>
             {rows.map((i) => (
               <tr key={i.id}>
-                <td style={{ fontWeight: 600 }}>{i.code}</td>
+                <td className="sin-partir" style={{ fontWeight: 600 }}>{i.code}</td>
                 {/* La categoría baja bajo el título en vez de ocupar columna:
                     describe el título, y con ella eran DIEZ columnas — el tope
                     son ocho, y `verificar:densidad` lo cazó al añadir la fecha. */}
@@ -457,7 +456,7 @@ export default function Incidents() {
                     </div>
                   )}
                 </td>
-                <td><span className={'badge ' + i.priority}>{i.priority}</span></td>
+                <td><span className={'badge ' + i.priority}>{PRIORIDAD_ES[i.priority] || i.priority}</span></td>
                 <td><span className={'badge ' + statusBadge(i.status)}>{stEs(i.status)}</span></td>
                 <td className="muted">
                   {i.asset?.assetCode || '—'}
@@ -557,7 +556,7 @@ export default function Incidents() {
             </label>
             {completaTecnico && (
             <label>Cámaras afectadas (opcional)
-              <input type="number" value={form.affectedCameras} onChange={(e) => setForm({ ...form, affectedCameras: e.target.value })} />
+              <input type="number" min={0} value={form.affectedCameras} onChange={(e) => setForm({ ...form, affectedCameras: e.target.value })} />
             </label>
             )}
             <button className="btn" disabled={saving}>{saving ? 'Guardando…' : 'Crear incidencia'}</button>
@@ -615,7 +614,7 @@ export default function Incidents() {
             <button className="btn" disabled={uploading}>{uploading ? 'Subiendo…' : 'Subir foto'}</button>
           </form>
           <div style={{ marginTop: 14 }}>
-            <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>{evidence.length} foto(s) registradas</div>
+            <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>{plural(evidence.length, 'foto registrada', 'fotos registradas')}</div>
             {evidence.map((ev) => (
               <div key={ev.id} style={{ fontSize: 12, padding: '4px 0', borderTop: '1px solid var(--border)' }}>
                 <Icono n="camara" size={14} /> {ev.caption || '(sin descripción)'} <span className="muted">· {fechaHora(ev.createdAt)}</span>
@@ -664,8 +663,8 @@ export default function Incidents() {
               <textarea value={rf.observations} onChange={(e) => setRf({ ...rf, observations: e.target.value })} rows={2} style={{ width: '100%', resize: 'vertical' }} />
             </label>
             <div style={{ display: 'flex', gap: 10 }}>
-              <div style={{ flex: 1 }}><label>Cámaras afectadas<input type="number" value={rf.affectedCameras} onChange={(e) => setRf({ ...rf, affectedCameras: e.target.value })} /></label></div>
-              <div style={{ flex: 1 }}><label>Minutos sin visión<input type="number" value={rf.visionDownMin} onChange={(e) => setRf({ ...rf, visionDownMin: e.target.value })} /></label></div>
+              <div style={{ flex: 1 }}><label>Cámaras afectadas<input type="number" min={0} value={rf.affectedCameras} onChange={(e) => setRf({ ...rf, affectedCameras: e.target.value })} /></label></div>
+              <div style={{ flex: 1 }}><label>Minutos sin visión<input type="number" min={0} value={rf.visionDownMin} onChange={(e) => setRf({ ...rf, visionDownMin: e.target.value })} /></label></div>
             </div>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400, marginTop: 8 }}>
               <input type="checkbox" checked={!!rf.lineManagerNotified} onChange={(e) => setRf({ ...rf, lineManagerNotified: e.target.checked })} style={{ width: 'auto' }} />

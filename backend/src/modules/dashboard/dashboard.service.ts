@@ -76,8 +76,20 @@ export class DashboardService {
       distinct: ['workOrderId', 'assetId'],
       take: 5000,
     });
-    const intervenciones = apuntados.length;
-    const equiposDistintos = new Set(apuntados.map((x) => x.assetId)).size;
+    /* AUDITORÍA 20/10 · el Dashboard decía «Equipos en trabajo 0» con «4
+       órdenes abiertas los cubren» al lado. Sólo contaba los equipos apuntados
+       como INTERVENIDO, y una orden normal lleva su equipo en `assetId` sin
+       esa fila. Ahora cuentan los dos, sin repetir el mismo par. */
+    const conEquipo = await this.prisma.workOrder.findMany({
+      where: { ...openWo, assetId: { not: null } },
+      select: { id: true, assetId: true },
+      take: 5000,
+    });
+    const pares = new Set<string>();
+    for (const x of apuntados) pares.add(`${x.workOrderId}|${x.assetId}`);
+    for (const o of conEquipo) if (o.assetId) pares.add(`${o.id}|${o.assetId}`);
+    const intervenciones = pares.size;
+    const equiposDistintos = new Set([...pares].map((p) => p.split('|')[1])).size;
 
     // Disponibilidad de visión con el ESTADO EFECTIVO (el mismo que ve el usuario en
     // Activos): una cámara con OM o incidencia abierta NO cuenta como operativa.

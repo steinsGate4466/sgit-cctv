@@ -131,7 +131,10 @@ describe('Cómo queda montado', () => {
     const c = leer('src/modules/indicadores/indicadores.controller.ts');
     const get = c.slice(c.indexOf("@Get('satisfaccion')"), c.indexOf("@Put('sla')"));
     const put = c.slice(c.indexOf("@Put('sla')"));
-    expect(get).toContain("@RequirePermissions('dashboard.read')");
+    /* Auditoría 20/10: `dashboard.read` solo lo llevan también los cargos de
+       Producción. Los indicadores piden además `wo.read`, y NO vale el viejo. */
+    expect(get).toContain("@RequirePermissions('dashboard.read', 'wo.read')");
+    expect(get).not.toContain("@RequirePermissions('dashboard.read')");
     expect(put).toContain("@RequirePermissions('wo.approve')");
     expect(put).not.toContain("@RequirePermissions('wo.update')");
   });

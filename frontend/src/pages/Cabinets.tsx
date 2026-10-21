@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, FormEvent } from 'react';
 import Icono from '../components/Iconos';
 import { api, motivoDelError } from '../api/client';
 import BotonPurgar from '../components/BotonPurgar';
+import MenuDeBorrado from '../components/MenuDeBorrado';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, AvisoAmbito } from '../components/FiltroAmbito';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
@@ -167,7 +168,7 @@ export default function Cabinets() {
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <button className="btn-mini" onClick={() => openEdit(g)}>Editar</button>
                     {/* Borrado definitivo. Solo lo pinta si eres Jefe de Mantenimiento. */}
-                    <BotonPurgar recurso="gabinete" id={g.id} onBorrado={() => load()} />
+                    <MenuDeBorrado><BotonPurgar recurso="gabinete" id={g.id} onBorrado={() => load()} /></MenuDeBorrado>
                     <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => { setPhotoFor(g); setFile(null); }}>Foto</button>
                   </td>
                 )}

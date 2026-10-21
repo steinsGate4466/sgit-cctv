@@ -45,7 +45,7 @@ export class AssetsController {
   @RequirePermissions('asset.read')
   findAll(@Query() q: QueryAssetDto, @CurrentUser() user: any) {
     const sensitive = (user?.permissions || []).includes('credential.read');
-    return this.assets.findAll(q, sensitive);
+    return this.assets.findAll(q, sensitive, user?.userId);
   }
 
   /**
@@ -87,8 +87,8 @@ export class AssetsController {
 
   @Get('avance-mapeo')
   @RequirePermissions('asset.read')
-  avanceMapeo(@Query('tren') tren?: string, @Query('etapa') etapa?: string) {
-    return this.assets.avanceMapeo({ tren, etapa });
+  avanceMapeo(@Query('tren') tren?: string, @Query('etapa') etapa?: string, @CurrentUser() user?: any) {
+    return this.assets.avanceMapeo({ tren, etapa }, user?.userId);
   }
 
   /* DESPLEGABLE DE EQUIPOS — «cualquiera de», no `asset.read`. Bloque 66.
@@ -411,8 +411,9 @@ export class AssetsController {
   @AmbitoDe('asset')
   @Get(':id/report')
   @RequirePermissions('asset.read')
-  async report(@Param('id') id: string, @Res() res: Response) {
-    const { buffer, filename } = await this.assets.buildReport(id);
+  async report(@Param('id') id: string, @Res() res: Response, @CurrentUser() user: any) {
+    const sensitive = (user?.permissions || []).includes('credential.read');
+    const { buffer, filename } = await this.assets.buildReport(id, sensitive);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);

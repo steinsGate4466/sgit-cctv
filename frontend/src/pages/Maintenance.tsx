@@ -529,7 +529,7 @@ export default function Maintenance() {
         <FiltroAmbito valor={ambito} onChange={setAmbito} />
         <div style={{ flex: 1, minWidth: 180 }}><label>Buscar<input placeholder="código OM, incidencia, actividad, zona…" value={fq} onChange={(e) => setFq(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} /></label></div>
         <div><label>Tipo<select value={fType} onChange={(e) => setFType(e.target.value)}><option value="">Todos</option>{TYPES.map((t) => <option key={t} value={t}>{WO_TYPE_ES[t] || t}</option>)}</select></label></div>
-        <div><label>Estado<select value={fStatus} onChange={(e) => setFStatus(e.target.value)}><option value="">Todos</option>{['ABIERTA', 'EN_PROCESO', 'EN_ESPERA', 'CERRADA', 'CANCELADA'].map((s) => <option key={s} value={s}>{s}</option>)}</select></label></div>
+        <div><label>Estado<select value={fStatus} onChange={(e) => setFStatus(e.target.value)}><option value="">Todos</option>{['ABIERTA', 'EN_PROCESO', 'EN_ESPERA', 'CERRADA', 'CANCELADA'].map((s) => <option key={s} value={s}>{WO_STATUS_ES[s] || s}</option>)}</select></label></div>
         <div><label>Desde<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></label></div>
         <div><label>Hasta<input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></label></div>
         <button className="btn-primary" onClick={load}>Buscar</button>
@@ -653,7 +653,8 @@ export default function Maintenance() {
                   {/* Que se vea SIN tener que mirar la columna de acciones: una
                       orden sin detallar no es trabajo listo, y mezclarla con el
                       resto es como el tablero deja de ser creíble. */}
-                  {!w.detailedAt && (
+                  {/* Auditoría 20/10: no en las cerradas ni anuladas. */}
+                  {!w.detailedAt && w.status !== 'CERRADA' && w.status !== 'CANCELADA' && (
                     <div style={{ fontSize: 10, color: 'var(--warn-texto)', fontWeight: 700 }}>SIN DETALLAR</div>
                   )}
                   {w.scopeChanged && (
@@ -981,7 +982,7 @@ export default function Maintenance() {
             <div className="muted" style={{ fontSize: 11, marginBottom: 6 }}>Marca “Observado” o “Cambiar” lo que amerite; alimenta el análisis de reemplazo y el predictivo.</div>
             <label>Estado
               <select value={intForm.status} onChange={(e) => setIntForm({ ...intForm, status: e.target.value })}>
-              {WORK_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+              {WORK_STATES.map((s) => <option key={s} value={s}>{WO_STATUS_ES[s] || s}</option>)}
             </select>
             </label>
             <button className="btn" disabled={intSaving}>{intSaving ? 'Guardando…' : 'Guardar intervención'}</button>

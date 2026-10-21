@@ -10,6 +10,7 @@ import { useDialogos } from '../components/Dialogos';
 import { mensajeDeError } from '../avisos';
 import { useAuth } from '../auth/AuthContext';
 import { fechaTabla } from '../fechas';
+import { PRIORIDAD_ES, plural } from '../formato';
 import OrigenDelReparto from '../components/OrigenDelReparto';
 import { OpcionesDeTren, useTrenes } from '../ubicaciones';
 
@@ -491,7 +492,7 @@ export default function Indicadores() {
                     fueran la mitad, el porcentaje de al lado valdría poco. */}
                 {t.nivelDeServicio.sinPlazo > 0 && (
                   <div className="ns-nota">
-                    {t.nivelDeServicio.sinPlazo} orden(es) sin fecha programada
+                    {plural(t.nivelDeServicio.sinPlazo, 'orden', 'órdenes')} sin fecha programada
                     quedan fuera: sin plazo no hay forma de decir si llegó a tiempo.
                   </div>
                 )}
@@ -520,7 +521,7 @@ export default function Indicadores() {
                     {/* El `formatter` NO es opcional: sin él la etiqueta dice
                         «value : 3», que es el nombre interno de la columna.
                         Lo caza `verificar:graficos` desde el bloque 64. */}
-                    <Tooltip formatter={(v: any, n: any) => [`${v} orden(es)`, String(n)]} />
+                    <Tooltip formatter={(v: any, n: any) => [plural(Number(v), 'orden', 'órdenes'), String(n)]} />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
                   </PieChart>
                 </ResponsiveContainer>
@@ -560,11 +561,11 @@ export default function Indicadores() {
             <div className="fi-aviso">{t.fiabilidad.muestra.aviso}</div>
           )}
           <p className="muted" style={{ fontSize: 12, marginTop: 0 }}>
-            {t.fiabilidad.muestra.total} avería(s) medidas
+            {plural(t.fiabilidad.muestra.total, 'avería medida', 'averías medidas')}
             {t.fiabilidad.muestra.sinHoraRealDeCaida > 0
               && ` · ${t.fiabilidad.muestra.sinHoraRealDeCaida} sin hora real de caída`}
             {t.fiabilidad.muestra.falsasAlarmas > 0
-              && ` · ${t.fiabilidad.muestra.falsasAlarmas} falsa(s) alarma(s), descartadas`}
+              && ` · ${plural(t.fiabilidad.muestra.falsasAlarmas, 'falsa alarma', 'falsas alarmas')}, descartadas`}
           </p>
 
           <div className="fi-tramos">
@@ -583,7 +584,7 @@ export default function Indicadores() {
                   </div>
                   <div className="fi-dueno">{d.dueno}</div>
                   <div className="fi-muestra">
-                    {d.muestra === 0 ? 'sin datos' : `${d.muestra} avería(s)`}
+                    {d.muestra === 0 ? 'sin datos' : plural(d.muestra, 'avería')}
                   </div>
                 </div>
               );
@@ -604,7 +605,7 @@ El MTTR de mantenimiento es <b>Reparar</b>.
             titulo="Vigilancia disponible"
             valor={t.fiabilidad.vigilanciaDisponible.pct} unidad="%"
             explica={t.fiabilidad.vigilanciaDisponible.significa}
-            aviso="Hace falta al menos una cámara en servicio para poder calcularlo."
+            aviso="Sin averías registradas en el periodo no hay con qué medirlo."
           />
         </div>
       )}
@@ -801,7 +802,7 @@ El MTTR de mantenimiento es <b>Reparar</b>.
         </div>
         {t.preventivo.pendientesVencidas > 0 && (
           <div className="card peligro" style={{ marginTop: 12 }}>
-            <b>{t.preventivo.pendientesVencidas} rutina(s) preventiva(s) vencida(s) y sin cerrar.</b>
+            <b>{plural(t.preventivo.pendientesVencidas, 'rutina preventiva vencida', 'rutinas preventivas vencidas')} y sin cerrar.</b>
             <div style={{ fontSize: 13, marginTop: 4 }}>
               Pasa a correctivo en dos meses.
             </div>
@@ -905,7 +906,12 @@ function PanelSatisfaccion({ s }: any) {
               {pct === null ? 'Sin datos' : `${pct} %`}
             </b>
             <div className="muted" style={{ fontSize: 12 }}>
-              {s.resueltas.enPlazo} de {s.resueltas.total} en plazo
+              {s.resueltas.enPlazo} de {s.resueltas.medidas ?? s.resueltas.total} en plazo
+              {s.resueltas.vencidasSinResolver > 0 && (
+                <span title="Ya pasaron su plazo sin resolverse: cuentan como fuera de plazo.">
+                  {' · '}{s.resueltas.vencidasSinResolver} vencida{s.resueltas.vencidasSinResolver === 1 ? '' : 's'} abierta{s.resueltas.vencidasSinResolver === 1 ? '' : 's'}
+                </span>
+              )}
             </div>
           </div>
           <div>
@@ -930,7 +936,7 @@ function PanelSatisfaccion({ s }: any) {
           <tbody>
             {s.porPrioridad.map((p: any) => (
               <tr key={p.prioridad}>
-                <td><span className={'badge ' + p.prioridad}>{p.prioridad}</span></td>
+                <td><span className={'badge ' + p.prioridad}>{PRIORIDAD_ES[p.prioridad] || p.prioridad}</span></td>
                 <td className="muted">{p.plazo.restitucionH} h</td>
                 <td>{p.resueltas}</td>
                 <td>{p.enPlazo}</td>
@@ -959,7 +965,7 @@ function PanelSatisfaccion({ s }: any) {
               {s.enRiesgo.map((r: any) => (
                 <tr key={r.id}>
                   <td><strong>{r.code}</strong></td>
-                  <td><span className={'badge ' + r.prioridad}>{r.prioridad}</span></td>
+                  <td><span className={'badge ' + r.prioridad}>{PRIORIDAD_ES[r.prioridad] || r.prioridad}</span></td>
                   <td>{r.horasAbierta} h</td>
                   <td>
                     {r.vencida && <span className="chip est-FUERA_SERVICIO">fuera de plazo</span>}

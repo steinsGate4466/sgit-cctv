@@ -16,7 +16,8 @@ export class ExportacionController {
   constructor(private readonly exportacion: ExportacionService) {}
 
   @Get()
-  @RequirePermissions('dashboard.read')
+  // Auditoría 20/10: con `dashboard.read` solo, Producción veía Exportar.
+  @RequirePermissions('dashboard.read', 'wo.read')
   catalogo() {
     return this.exportacion.catalogo();
   }
@@ -47,7 +48,7 @@ export class ExportacionController {
   @Get('ordenes')     @Ritmo(RITMO_PESADO) @RequirePermissions('wo.read')        async ordenes(@Res() res: Response)     { await this.una('ordenes', res); }
   @Get('incidencias') @Ritmo(RITMO_PESADO) @RequirePermissions('incident.read')  async incidencias(@Res() res: Response) { await this.una('incidencias', res); }
   @Get('repuestos')   @Ritmo(RITMO_PESADO) @RequirePermissions('inventory.read') async repuestos(@Res() res: Response)   { await this.una('repuestos', res); }
-  @Get('red')         @Ritmo(RITMO_PESADO) @RequirePermissions('asset.read')     async red(@Res() res: Response)         { await this.una('red', res); }
+  @Get('red')         @Ritmo(RITMO_PESADO) @RequirePermissions('red.read')       async red(@Res() res: Response)         { await this.una('red', res); }
 
   private async una(clave: string, res: Response) {
     const { nombre, buffer } = await this.exportacion.exportarUna(clave);

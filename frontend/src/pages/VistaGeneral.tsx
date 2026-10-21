@@ -169,10 +169,10 @@ function Sector({ s }: { s: any }) {
         {/* Enlaces de verdad, no botones: funcionan el clic central y el
             «abrir en pestaña nueva», que en un púlpito con dos monitores es
             exactamente lo que se hace. */}
-        <Link className="btn-mini" to="/mis-camaras">
+        <Link className="btn-mini" to={`/mis-camaras?tren=${encodeURIComponent(s.sigla || s.code)}`}>
           <Icono n="alerta" size={13} /> Qué está fallando
         </Link>
-        <Link className="btn-mini" to="/mis-activos">
+        <Link className="btn-mini" to={`/mis-activos?tren=${encodeURIComponent(s.sigla || s.code)}`}>
           <Icono n="acceso" size={13} /> Qué hay y cómo se llega
         </Link>
       </div>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client';
 import Modal from '../components/Modal';
 import BotonPurgar from '../components/BotonPurgar';
+import MenuDeBorrado from '../components/MenuDeBorrado';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import ElegirConClics from '../components/ElegirConClics';
 import { ComoSeCalcula } from '../components/Patron';
@@ -11,6 +12,7 @@ import BotonConMotivo from '../components/BotonConMotivo';
 import { mensajeDeError, queFalta } from '../avisos';
 import { OpcionesDeTrenDePlanta, OpcionesDeUbicacion, nombreDeTrenDePlanta, siglaDeTrenDePlanta } from '../ubicaciones';
 import AvisoDeRecorte, { Recorte, recorteDe } from '../components/AvisoDeRecorte';
+import { plural } from '../formato';
 
 /**
  * CAMPAÑAS — bloque 175: de cualquier tipo, y planificables.
@@ -294,7 +296,7 @@ export default function Campanas() {
                 <td>
                   <span className={'badge ' + x.estado}>{ESTADO_CAMPANA[x.estado]}</span>
                   {x.atrasadas > 0 && !cerrada(x.estado) && (
-                    <div><span className="chip crit" style={{ fontSize: 11 }}>{x.atrasadas} zona(s) atrasada(s)</span></div>
+                    <div><span className="chip crit" style={{ fontSize: 11 }}>{plural(x.atrasadas, 'zona atrasada', 'zonas atrasadas')}</span></div>
                   )}
                 </td>
                 <td className="num" title={`${x.aprobadas} de ${x._count.zonas} zonas aprobadas`}>
@@ -302,7 +304,7 @@ export default function Campanas() {
                 </td>
                 <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                   <button className="btn-mini" onClick={() => abrir(x.id)}>Abrir</button>
-                  <BotonPurgar recurso="campana" id={x.id} onBorrado={() => cargar(filtroTipo)} />
+                  <MenuDeBorrado><BotonPurgar recurso="campana" id={x.id} onBorrado={() => cargar(filtroTipo)} /></MenuDeBorrado>
                 </td>
               </tr>
             ))}
@@ -356,7 +358,7 @@ export default function Campanas() {
               <div className="campana-datos">
                 <span className="chip sindatos">{c.tipo}</span>
                 <span className={'badge ' + c.estado}>{ESTADO_CAMPANA[c.estado]}</span>
-                {abierta.atrasadas > 0 && <span className="chip crit">{abierta.atrasadas} atrasada(s)</span>}
+                {abierta.atrasadas > 0 && <span className="chip crit">{plural(abierta.atrasadas, 'atrasada')}</span>}
                 <div className="muted" style={{ fontSize: 12.5, flexBasis: '100%' }}>
                   Plan: {fecha(c.inicioPrevisto, '…')} → {fecha(c.finPrevisto, '…')}
                   {' · '}Responsable: {c.responsable || 'sin asignar'}
@@ -366,7 +368,7 @@ export default function Campanas() {
                   title="Lo hecho contra la meta de cada zona. Si alguna zona no tiene meta, el porcentaje no se calcula: sumar sólo las que la tienen inventaría un avance.">
                   Meta: <b>{abierta.meta.hechos}</b> de {abierta.meta.sinMeta ? 'una meta incompleta' : abierta.meta.esperados} {unidad}
                   {abierta.meta.pct != null && <> · <b>{abierta.meta.pct}%</b></>}
-                  {abierta.meta.sinMeta > 0 && <span className="muted"> ({abierta.meta.sinMeta} zona(s) sin meta)</span>}
+                  {abierta.meta.sinMeta > 0 && <span className="muted"> ({plural(abierta.meta.sinMeta, 'zona')} sin meta)</span>}
                 </div>
               </div>
             </div>

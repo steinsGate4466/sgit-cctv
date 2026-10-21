@@ -54,6 +54,9 @@ const TIPOS = [
 export default function Rotulado() {
   const trenesDelArbol = useTrenes();
   const [norma, setNorma] = useState<any>(null);
+  const sinTilde = (x: string) => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const origenDe = (color: string): string | null =>
+    norma?.colores?.find((n: any) => sinTilde(n.color) === sinTilde(color))?.origen ?? null;
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
 
@@ -134,6 +137,7 @@ export default function Rotulado() {
                 <div>
                   <b>{c.nombre}</b> — {c.uso}
                   {c.porQue && <div className="muted" style={{ fontSize: 12 }}>{c.porQue}</div>}
+                  {origenDe(c.nombre) && <div className="muted" style={{ fontSize: 11.5 }}>{origenDe(c.nombre)}</div>}
                 </div>
               </div>
             ))}
@@ -250,7 +254,13 @@ export default function Rotulado() {
         )}
       </div>
 
-      {/* ---------------- CÓDIGO DE COLOR ---------------- */}
+      {/* ---------------- CÓDIGO DE COLOR ----------------
+          AUDITORÍA 20/10: había DOS tablas de colores con usos distintos para
+          el mismo color (la del catálogo, editable, y la escrita en el
+          código). Manda el catálogo —todo lo de planta se edita desde la
+          interfaz—; ésta sólo sale si el catálogo está vacío, y de ella se
+          toma únicamente «de dónde sale» cada color. */}
+      {colores.length === 0 && (
       <div className="card">
         <div className="section-title">Código de color del cable</div>
         <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
@@ -287,6 +297,7 @@ export default function Rotulado() {
           </table>
         </div>
       </div>
+      )}
 
       {/* ---------------- ABREVIATURAS ---------------- */}
       <div className="card">

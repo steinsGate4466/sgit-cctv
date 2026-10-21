@@ -6,7 +6,6 @@ import { Prisma } from '../../generated/prisma/client';
 import * as argon2 from 'argon2';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
-import { filtroDeUbicaciones } from '../../common/ambito-planta';
 import { filtroConAmbito } from '../../common/ambito-usuario';
 import { AuditService } from '../audit/audit.service';
 import { StorageService } from '../storage/storage.service';
@@ -22,6 +21,7 @@ import {
   prioridadDeIncidencia,
   reporteDeProduccion,
 } from './reporte-de-produccion';
+import { exigirFirmanteConPermiso } from '../../common/firmante';
 // PDF: require para no depender de @types en el build.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PDFDocument = require('pdfkit');
@@ -447,7 +447,7 @@ export class IncidentsService {
     };
   }
 
-  async findAll(q: QueryIncidentDto) {
+  async findAll(q: QueryIncidentDto, userId?: string | null) {
     const page = q.page && q.page > 0 ? q.page : 1;
     const pageSize = q.pageSize && q.pageSize > 0 && q.pageSize <= 200 ? q.pageSize : 50;
     // Tipado con el WhereInput que genera Prisma: si se escribe mal el
@@ -456,7 +456,10 @@ export class IncidentsService {
     const where: Prisma.IncidentWhereInput = { status: q.status, category: q.category, priority: q.priority, assetId: q.assetId };
 
     // Ámbito de planta: la incidencia hereda el tren de su activo.
-    const ambito = await filtroDeUbicaciones(this.prisma, { tren: q.tren, etapa: q.etapa });
+    // Auditoría 20/10: era `filtroDeUbicaciones`, que sólo mira lo que PIDE la
+    // pantalla. Producción veía las incidencias de toda la planta. Ahora se
+    // cruza con el tren del USUARIO, igual que la lista de órdenes.
+    const ambito = await filtroConAmbito(this.prisma, userId, { tren: q.tren, etapa: q.etapa });
     if (ambito) where.asset = { locationId: ambito };
     if (q.q && q.q.trim()) {
       const t = q.q.trim();
@@ -521,6 +524,21 @@ export class IncidentsService {
       throw new ForbiddenException('El cierre de la incidencia lo firma el Jefe de Mantenimiento (usa “Resolver”).');
     }
     const data: any = { ...dto };
+    /* Revisión de formularios: al crear, la prioridad no puede quedar por
+       debajo de lo que exige la zona del equipo (bloque 168); al EDITAR se
+       podía bajar. Misma regla en los dos sitios. */
+    if (dto.priority) {
+      const assetId = (dto as any).assetId ?? current.assetId;
+      let criticidadZona: Criticidad = null as any;
+      if (assetId) {
+        const a = await this.prisma.asset.findUnique({ where: { id: assetId }, select: { id: true, locationId: true } }).catch(() => null);
+        if (a) {
+          const ctx = await resolverContextoDePlanta(this.prisma, [a]).catch(() => ({} as any));
+          criticidadZona = (ctx?.[a.id]?.criticidadProduccion ?? null) as Criticidad;
+        }
+      }
+      data.priority = prioridadDeIncidencia(dto.priority as any, criticidadZona).prioridad;
+    }
     return this.prisma.incident.update({ where: { id }, data, include: assetSel });
   }
 
@@ -543,6 +561,9 @@ export class IncidentsService {
       });
       throw new BadRequestException('Firma inválida: contraseña incorrecta');
     }
+    await exigirFirmanteConPermiso(this.prisma, signer!.id, 'incident.close', (motivo) => this.audit.record({
+      userId: signer!.id, action: 'FIRMA_FALLIDA', entity: 'incidents', ip, after: { motivo },
+    }));
 
     const resolvedAt = new Date();
     const updated = await this.prisma.incident.update({

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
-import { fecha, hora } from '../formato';
+import { fecha, hora, legible, plural } from '../formato';
 
 /** Traducción de acciones: la auditoría debe leerse sin conocer el código. */
 const ACTION_ES: Record<string, string> = {
@@ -37,8 +37,8 @@ const ENTITY_ES: Record<string, string> = {
 const CRITICAS = ['FIRMA_FALLIDA', 'LOGIN_FALLIDO', 'LOGIN_BLOQUEADO', 'DELETE_ASSET', 'REVEAL', 'DELETE'];
 const APROBACIONES = ['CLOSE_WO', 'RESOLVE', 'APROBAR_ACCESO', 'RECHAZAR_ACCESO'];
 
-const actionEs = (a: string) => ACTION_ES[a] || a;
-const entityEs = (e: string) => ENTITY_ES[e] || e;
+const actionEs = (a: string) => ACTION_ES[a] || legible(a);
+const entityEs = (e: string) => ENTITY_ES[e] || legible(e);
 const badgeOf = (a: string) =>
   CRITICAS.includes(a) ? 'FUERA_SERVICIO' : APROBACIONES.includes(a) ? 'OPERATIVO' : 'MEDIA';
 
@@ -57,7 +57,7 @@ function detailOf(e: any): string {
   if (a.motivo) partes.push(a.motivo);
   if (a.accion) partes.push('acción: ' + a.accion);
   if (a.ipAddress) partes.push('nueva IP: ' + a.ipAddress);
-  if (a.generadas !== undefined) partes.push(`${a.generadas} generada(s)`);
+  if (a.generadas !== undefined) partes.push(plural(a.generadas, 'generada'));
   if (a.intervaloDias) partes.push(`cada ${a.intervaloDias} días`);
   if (a.firmadoPor) partes.push('firmó: ' + a.firmadoPor);
   if (a.minutosRestantes) partes.push(`espera ${a.minutosRestantes} min`);

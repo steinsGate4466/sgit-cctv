@@ -9,6 +9,7 @@ import { revisarPassword } from '../../common/politica-password';
 import { claveDeCuenta } from '../../common/bloqueo-de-cuenta';
 import { ForbiddenException } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
+import { nombresDeEquipos } from '../../common/nombre-del-equipo';
 
 // Proyección segura: nunca expone passwordHash.
 const userSelect = {
@@ -345,15 +346,21 @@ export class UsersService {
     const ahora = new Date();
     const filas = await this.prisma.sesion.findMany({
       where: { revocadaEn: null, expiraEn: { gt: ahora } },
-      orderBy: [{ ultimoUsoEn: 'desc' }, { creadaEn: 'desc' }],
+      // Auditoría 20/10: en PostgreSQL un DESC pone los NULL PRIMERO; las
+      // sesiones sin uso tapaban a las que se están usando.
+      orderBy: [{ ultimoUsoEn: { sort: 'desc', nulls: 'last' } }, { creadaEn: 'desc' }],
       take: 200,
       select: {
         id: true, creadaEn: true, ultimoUsoEn: true, expiraEn: true,
-        ip: true, dispositivo: true, equipo: true,
+        ip: true, dispositivo: true, dispositivoId: true, equipo: true,
         user: { select: { id: true, fullName: true, email: true, active: true, role: { select: { name: true } } } },
       },
     });
 
+    /* Auditoría 20/10: el nombre del equipo se busca AL MOSTRAR, no sólo al
+       entrar: si el Jefe le pone nombre a un aparato, las sesiones que ya
+       estaban abiertas también lo dicen. */
+    const nombres = await nombresDeEquipos(this.prisma, filas);
     return filas.map((f) => ({
       id: f.id,
       userId: f.user.id,
@@ -365,8 +372,12 @@ export class UsersService {
          sesión sigue en pie. La pantalla lo pinta en rojo. */
       usuarioActivo: f.user.active,
       ip: f.ip,
-      equipo: f.equipo,
+      equipo: (f.dispositivoId && nombres.porAparato.get(f.dispositivoId))
+        || (f.ip && nombres.porIp.get(f.ip)) || f.equipo || null,
       dispositivo: f.dispositivo,
+      /* Los 6 primeros del identificador: dos «Chrome en Windows» desde la
+         misma IP pública son dos PC distintos, y esto lo deja ver. */
+      aparato: f.dispositivoId ? f.dispositivoId.slice(0, 6).toUpperCase() : null,
       desde: f.creadaEn,
       ultimoUso: f.ultimoUsoEn,
       /* «Activa ahora» = usada en los últimos 10 minutos. Es lo que separa a

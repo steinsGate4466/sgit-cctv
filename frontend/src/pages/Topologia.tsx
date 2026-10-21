@@ -6,6 +6,7 @@ import FiltroAmbito, { Ambito, AMBITO_VACIO, conAmbito } from '../components/Fil
 import { EsqueletoTabla } from '../components/Esqueleto';
 import MapaRed from '../components/MapaRed';
 import { plural } from '../formato';
+import { NOMBRE_DE_TIPO } from '../tipos-de-equipo';
 
 /**
  * PUNTOS CRÍTICOS DE LA RED (bloque 7).
@@ -169,7 +170,7 @@ export default function Topologia() {
               {(datos?.equipos || []).map((e: any) => (
                 <tr key={e.id}>
                   <td>{e.code}</td>
-                  <td>{e.tipo}</td>
+                  <td>{NOMBRE_DE_TIPO[e.tipo] || e.tipo}</td>
                   <td className="muted">{e.lugar || '—'}</td>
                   <td>{e.tren || <span className="muted">sin ubicar</span>}</td>
                   <td>

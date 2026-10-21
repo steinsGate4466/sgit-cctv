@@ -20,7 +20,7 @@ import { useAuth } from '../auth/AuthContext';
 const PERMISO: Record<string, string> = {
   activos: 'asset.read', gabinetes: 'asset.read', ubicaciones: 'location.read',
   ordenes: 'wo.read', incidencias: 'incident.read', repuestos: 'inventory.read',
-  red: 'asset.read',
+  red: 'red.read', // la topología: lo mismo que pide «Mapa de red»
 };
 
 export default function Exportar() {

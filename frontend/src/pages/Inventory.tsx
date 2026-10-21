@@ -16,6 +16,7 @@ import {
 } from 'recharts';
 
 const MOVES = ['INGRESO', 'RETIRO', 'AJUSTE'];
+const MOVE_ES: Record<string, string> = { INGRESO: 'Ingreso', RETIRO: 'Retiro', AJUSTE: 'Ajuste' };
 
 function Kpi({ label, value, cls, hint }: { label: string; value: ReactNode; cls?: string; hint?: string }) {
   return (
@@ -275,15 +276,26 @@ export default function Inventory() {
                 <td className="muted">{r.minStock}</td>
                 <td>{stockBadge(r)}</td>
                 <td className="muted" style={{ fontSize: 12 }}>{r.lastCheckedAt ? fecha(r.lastCheckedAt) : '—'}</td>
-                <td style={{ whiteSpace: 'nowrap' }}>
+                <td>
+                  {/* AUDITORÍA 20/10: siete botones por fila no cabían a 1366 px
+                      y «Eliminar» quedaba cortado. Delante lo del día a día
+                      (comprobar y mover); lo demás va al menú «⋯», como en
+                      Órdenes e Incidencias. Nada se quita. */}
+                  <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
                   {can('inventory.check') && <button className="btn-mini" onClick={() => { setCheckRow(r); setChk({ countedQty: String(r.currentStock), note: '' }); }}>Comprobar</button>}
-                  {can('inventory.check') && <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => { setMoveRow(r); setMv({ type: 'RETIRO', quantity: '', sapCode: '', reason: '' }); }}>Movim.</button>}
-                  {can('inventory.read') && <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => openCompat(r)}>Compat.</button>}
-                  {can('inventory.manage') && <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => openEdit(r)}>Editar</button>}
-                  {can('inventory.manage') && <button className="btn-mini" style={{ marginLeft: 4 }} onClick={() => del(r)}>✕</button>}
-
-                  {/* Borrado definitivo. Solo lo pinta si eres Jefe de Mantenimiento. */}
-                  <BotonPurgar recurso="repuesto" id={r.id} onBorrado={() => load()} />
+                  {can('inventory.check') && <button className="btn-mini" onClick={() => { setMoveRow(r); setMv({ type: 'RETIRO', quantity: '', sapCode: '', reason: '' }); }}>Movimiento</button>}
+                  <details className="acciones-fila">
+                    <summary className="btn-mini" style={{ cursor: 'pointer' }}
+                      aria-label="Más acciones de este repuesto" title="Más acciones">⋯</summary>
+                    <div className="acciones-fila-menu">
+                      {can('inventory.read') && <button className="btn-mini" onClick={() => openCompat(r)}>Compatibilidad</button>}
+                      {can('inventory.manage') && <button className="btn-mini" onClick={() => openEdit(r)}>Editar</button>}
+                      {can('inventory.manage') && <button className="btn-mini" onClick={() => del(r)}>Eliminar</button>}
+                      {/* Borrado definitivo. Solo lo pinta si eres Jefe de Mantenimiento. */}
+                      <BotonPurgar recurso="repuesto" id={r.id} onBorrado={() => load()} />
+                    </div>
+                  </details>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -367,10 +379,10 @@ export default function Inventory() {
         <Modal title={'Movimiento · ' + moveRow.name} onClose={() => setMoveRow(null)}>
           <form onSubmit={submitMove}>
             <label>Tipo
-              <select value={mv.type} onChange={(e) => setMv({ ...mv, type: e.target.value })}>{MOVES.map((t) => <option key={t} value={t}>{t}</option>)}</select>
+              <select value={mv.type} onChange={(e) => setMv({ ...mv, type: e.target.value })}>{MOVES.map((t) => <option key={t} value={t}>{MOVE_ES[t] || t}</option>)}</select>
             </label>
             <label>Cantidad
-              <input type="number" value={mv.quantity} onChange={(e) => setMv({ ...mv, quantity: e.target.value })} required />
+              <input type="number" min={1} step={1} value={mv.quantity} onChange={(e) => setMv({ ...mv, quantity: e.target.value })} required />
             </label>
             <label>Código SAP (retiro/ingreso)
               <input value={mv.sapCode} onChange={(e) => setMv({ ...mv, sapCode: e.target.value })} />

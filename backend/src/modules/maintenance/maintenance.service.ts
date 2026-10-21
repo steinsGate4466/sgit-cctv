@@ -33,6 +33,7 @@ import { exigirEjecutor } from '../../common/ejecutores';
 import {
   EstadoIncidencia, alAbrirOrden, alCerrarOrden, porQueCambio,
 } from '../../common/incidencia-sigue-a-la-om';
+import { exigirFirmanteConPermiso } from '../../common/firmante';
 // PDF: se carga con require para no depender de @types en el build.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PDFDocument = require('pdfkit');
@@ -219,6 +220,9 @@ export class MaintenanceService {
       });
       throw new BadRequestException('Firma inválida: contraseña incorrecta');
     }
+    await exigirFirmanteConPermiso(this.prisma, signer!.id, 'wo.update', (motivo) => this.audit.record({
+      userId: signer!.id, action: 'FIRMA_FALLIDA', entity: 'work_orders', ip, after: { motivo },
+    }));
 
     // El levantamiento de activos exige criterio técnico de red: los datos que
     // se capturan (puerto PoE, canal del grabador, enlace) no los conoce un
@@ -740,6 +744,9 @@ export class MaintenanceService {
       });
       throw new BadRequestException('Firma inválida: contraseña incorrecta');
     }
+    await exigirFirmanteConPermiso(this.prisma, signer!.id, 'wo.approve', (motivo) => this.audit.record({
+      userId: signer!.id, action: 'FIRMA_FALLIDA', entity: 'work_orders', ip, after: { motivo },
+    }));
 
     const ahora = new Date();
     const fin = dto.endedAt ? new Date(dto.endedAt) : ahora;

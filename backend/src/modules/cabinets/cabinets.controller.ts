@@ -21,8 +21,8 @@ export class CabinetsController {
 
   @Get()
   @RequirePermissions('asset.read')
-  list(@Query('tren') tren?: string, @Query('etapa') etapa?: string) {
-    return this.cabinets.list({ tren, etapa });
+  list(@Query('tren') tren?: string, @Query('etapa') etapa?: string, @CurrentUser() user?: any) {
+    return this.cabinets.list({ tren, etapa }, user?.userId);
   }
 
   // Foto del gabinete (previsualización).
@@ -36,10 +36,11 @@ export class CabinetsController {
     @Query('ids') ids?: string,
     @Query('tren') tren?: string,
     @Query('etapa') etapa?: string,
+    @CurrentUser() user?: any,
   ) {
     const lista = (ids || '').split(',').map((x) => x.trim()).filter(Boolean);
     // Bloque 142: por tren o área, como la lista de la pantalla.
-    const { buffer, filename } = await this.cabinets.qrSheet(lista, { tren, etapa });
+    const { buffer, filename } = await this.cabinets.qrSheet(lista, { tren, etapa }, user?.userId);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);

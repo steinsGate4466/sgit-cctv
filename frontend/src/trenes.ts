@@ -64,6 +64,11 @@ export function trenPedido(search: string): string {
  *  - Si no pide ninguno, el primero.
  *
  * Devuelve `null` sólo cuando la persona no tiene ningún tren.
+ *
+ * AUDITORÍA 20/10: «el primero» era «Grúas», que no tiene ni un equipo, y las
+ * pantallas abrían vacías diciendo «no hay cámaras cargadas» con la planta
+ * llena. Sin tren pedido se abre el que MÁS EQUIPOS tiene (en empate, el
+ * primero de la lista); si ninguno dice cuántos, el primero.
  */
 export function elegirTren(trenes: any[], pedido: string): any | null {
   if (!trenes || !trenes.length) return null;
@@ -71,5 +76,7 @@ export function elegirTren(trenes: any[], pedido: string): any | null {
     const suyo = trenes.find((t) => mismoTren(siglaDeTren(t), pedido) || mismoTren(t?.code, pedido));
     if (suyo) return suyo;
   }
-  return trenes[0];
+  const cuantos = (t: any) => Number(t?.activos?.total ?? t?.total ?? t?.equipos ?? -1);
+  return trenes.reduce((mejor, t) => (cuantos(t) > cuantos(mejor) ? t : mejor), trenes[0]);
 }
+

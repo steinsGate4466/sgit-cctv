@@ -41,8 +41,9 @@ export class CriticidadController {
     @Query('letra') letra?: string,
     @Query('tipo') tipo?: string,
     @Query('q') q?: string,
+    @CurrentUser() user?: any,
   ) {
-    return this.criticidad.resumen({ letra, tipo, q });
+    return this.criticidad.resumen({ letra, tipo, q }, user?.userId);
   }
 
   /** Los cortes y los días vigentes. Ruta literal ANTES que `:id` (regla del proyecto). */

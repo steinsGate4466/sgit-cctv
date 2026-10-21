@@ -9,6 +9,7 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar,
   XAxis, YAxis, Tooltip, CartesianGrid, Legend,
 } from 'recharts';
+import { plural } from '../formato';
 
 const COLORS = ['#2e5496', '#16a34a', '#d97706', '#dc2626', '#7c3aed', '#0891b2', '#c0121f', '#0f766e'];
 
@@ -131,7 +132,7 @@ export default function Dashboard() {
           <span className="rs-titulo">Puntos críticos de la red:</span>
           {criticos.filter((c: any) => c.camarasAfectadas > 0).map((c: any) => (
             <span key={c.id} className="rs-item">
-              <b>{c.code}</b> se llevaría <b>{c.camarasAfectadas}</b> cámaras
+              <b>{c.code}</b> se llevaría <b>{plural(c.camarasAfectadas, 'cámara')}</b>
             </span>
           ))}
           <span className="rs-ver">ver análisis →</span>
@@ -241,7 +242,7 @@ export default function Dashboard() {
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="name" fontSize={10} interval={0} angle={-15} textAnchor="end" height={50} />
               <YAxis allowDecimals={false} fontSize={11} />
-              <Tooltip formatter={(v: any) => [`${v} activo(s)`, '']} labelFormatter={(l: any) => String(l)} />
+              <Tooltip formatter={(v: any) => [plural(Number(v), 'activo'), '']} labelFormatter={(l: any) => String(l)} />
               <Bar dataKey="value" fill="#2e5496" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -254,7 +255,7 @@ export default function Dashboard() {
                 <Pie data={tr(TYPE_ES, ov.byType)} dataKey="value" nameKey="name" outerRadius={80} label>
                   {ov.byType.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                 </Pie>
-                <Tooltip formatter={(v: any) => [`${v} activo(s)`, '']} labelFormatter={(l: any) => String(l)} />
+                <Tooltip formatter={(v: any) => [plural(Number(v), 'activo'), '']} labelFormatter={(l: any) => String(l)} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
               </PieChart>
             </ResponsiveContainer>
@@ -267,7 +268,7 @@ export default function Dashboard() {
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="name" fontSize={11} />
               <YAxis allowDecimals={false} fontSize={11} />
-              <Tooltip formatter={(v: any) => [`${v} activo(s)`, '']} labelFormatter={(l: any) => String(l)} />
+              <Tooltip formatter={(v: any) => [plural(Number(v), 'activo'), '']} labelFormatter={(l: any) => String(l)} />
               <Bar dataKey="value" fill="#c0121f" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>

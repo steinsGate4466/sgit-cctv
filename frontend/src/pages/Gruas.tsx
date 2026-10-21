@@ -56,6 +56,8 @@ const VACIO: any = {
   resultado: 'OPERATIVA', hallazgos: '', accionesRealizadas: '', requiereSeguimiento: false,
 };
 
+const POSICIONES_GRUA = ['Cabina', 'Pluma', 'Lecho', 'Gancho', 'Sala eléctrica'];
+
 export default function Gruas() {
   const { can } = useAuth();
   const puedeQr = can('asset.read') || can('activos.mirar');
@@ -371,7 +373,16 @@ export default function Gruas() {
           </label>
           <label className="campo">
             <span>Posición en la grúa</span>
-            <input value={f.posicionEnGrua} onChange={set('posicionEnGrua')} placeholder="cabina / pluma / lecho / gancho / sala eléctrica" maxLength={120} />
+            {/* Revisión: las cinco posiciones de siempre, a un clic; «Otra» deja escribir. */}
+            <select value={POSICIONES_GRUA.includes(f.posicionEnGrua) ? f.posicionEnGrua : (f.posicionEnGrua ? 'Otra' : '')}
+              onChange={(e) => setF((x: any) => ({ ...x, posicionEnGrua: e.target.value === 'Otra' ? ' ' : e.target.value }))}>
+              <option value="">— elige —</option>
+              {POSICIONES_GRUA.map((p) => <option key={p} value={p}>{p}</option>)}
+              <option value="Otra">Otra…</option>
+            </select>
+            {f.posicionEnGrua && !POSICIONES_GRUA.includes(f.posicionEnGrua) && (
+              <input value={f.posicionEnGrua.trimStart()} onChange={set('posicionEnGrua')} placeholder="¿Dónde va?" maxLength={120} />
+            )}
           </label>
 
           <div className="section-title">Acceso</div>

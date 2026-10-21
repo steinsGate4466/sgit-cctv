@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { resumirAgente } from '../../common/origen';
 
 /**
  * CONTROL DE ACCESO POR DISPOSITIVO (bloque 18)
@@ -127,7 +128,8 @@ export class AccesoService {
         const nuevo = await this.prisma.dispositivoAutorizado.create({
           data: {
             dispositivoId,
-            userAgent: datos.userAgent?.slice(0, 200) || null,
+            // Auditoría 20/10: legible («Chrome en Windows»), no la línea de 200 caracteres.
+            userAgent: resumirAgente(datos.userAgent) || null,
             ultimaIp: datos.ip || null,
             ipsVistas: datos.ip || null,
             usuarioId: datos.usuarioId || null,

@@ -12,6 +12,11 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 @ApiTags('dashboard')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, PermissionsGuard)
+/* AUDITORÍA 20/10 · el tablero del ingeniero pedía SÓLO `dashboard.read`, que
+   también llevan los dos cargos de Producción —lo necesitan para «Mi tren» y
+   «Mi bandeja»—. Así veían el Dashboard, que el bloque 80 les quitó. La
+   capacidad que separa es `wo.read` (gestiona órdenes), y se piden LAS DOS.
+   `bandeja` y `contadores` NO cambian: son la capa de resumen de todos (§58). */
 @Controller('dashboard')
 export class DashboardController {
   constructor(
@@ -43,14 +48,14 @@ export class DashboardController {
   }
 
   @Get('kpis')
-  @RequirePermissions('dashboard.read')
+  @RequirePermissions('dashboard.read', 'wo.read')
   kpis() {
     return this.dashboard.kpis();
   }
 
   // Agregados para los gráficos (evita traer los activos completos al navegador).
   @Get('overview')
-  @RequirePermissions('dashboard.read')
+  @RequirePermissions('dashboard.read', 'wo.read')
   overview() {
     return this.dashboard.overview();
   }
@@ -71,7 +76,7 @@ export class DashboardController {
 
   // Causas raíz reales de las incidencias (no la categoría).
   @Get('root-causes')
-  @RequirePermissions('dashboard.read')
+  @RequirePermissions('dashboard.read', 'wo.read')
   rootCauses(@Query('days') days?: string) {
     const d = Math.max(30, Math.min(730, Number(days) || 180));
     return this.dashboard.rootCauses(d);

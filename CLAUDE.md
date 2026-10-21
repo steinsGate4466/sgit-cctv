@@ -6906,3 +6906,57 @@ fuera de norma, dibujar y jalar un área, trazar un cable, celular sin desborde.
   elegido (botón «Códigos» para verlos todos) — antes se encimaban.
 - Sólo frontend y estilos (sin colores a mano: tokens). Verificadores y lint en verde.
 
+
+
+## §100 · AUDITORÍA 20/10 — GRUPO A: PERMISOS Y ÁMBITO
+
+Salió de recorrer 61 pantallas con tres perfiles (`docs/AUDITORIA_PANTALLAS_20102026.md`).
+- **La gestión pide `dashboard.read` Y `wo.read`**: Dashboard (kpis, overview, root-causes),
+  Indicadores (todas las lecturas) y el catálogo de Exportar. `dashboard.read` solo lo llevan
+  también los cargos de Producción (Mi tren, Mi bandeja). La bandeja NO cambia (§57.5).
+- **Las listas usan `filtroConAmbito`, no `filtroDeUbicaciones`**: incidencias, activos,
+  avance de mapeo, gabinetes (+ hoja QR), tramos de cable, criticidad (se clasifica la planta,
+  se enseña el tren) y la bandeja entera (`alcanceDe` en bandeja.service). `filtroDeUbicaciones`
+  sólo mira lo que PIDE la pantalla; el ámbito del usuario lo pone `filtroConAmbito`.
+- **IP sólo con `credential.read`**: la lista y la ficha quitaban la IP de las extensiones y
+  dejaban `asset.ipAddress`; el PDF del equipo la imprimía a todos. Excel «Red» pide `red.read`.
+- **PuertaDeRuta** explica según quién pregunta: al Jefe ya no le dice «pídeselo al Jefe».
+- Prueba: `test/auditoria-permisos-ambito.spec.ts` (probada reintroduciendo dos fallos).
+- Pendiente del informe: A1 sesiones «0 trabajando», A4 tren por defecto vacío, A5 NVR,
+  grupo B (cifras), C (visual PC), D (celular). Los desplegables de tren siguen listando
+  todos los trenes aunque el servidor ya recorte.
+
+## §101 · AUDITORÍA 20/10 — GRUPO B: LAS CIFRAS QUE SE CONTRADECÍAN
+
+- **Sesiones**: el token lleva `sid`; `AccesoVigenteGuard.marcarUso` apunta `ultimoUsoEn` una vez
+  por minuto (fuego y olvido). La lista ordena con `nulls: 'last'` (en PostgreSQL DESC pone NULL primero).
+- **Tren por defecto** (`elegirTren`): sin tren pedido, el que MÁS equipos tiene, no «Grúas» vacío.
+  Resumen de planta enlaza con `?tren=`. Por tren sin cámaras sale gris, no verde.
+- **Grabadores**: estado EFECTIVO (`computeEffectiveStatuses`), como Impacto y Activos.
+- **Dashboard «Equipos en trabajo»**: suma el `assetId` de la orden a los INTERVENIDO, sin repetir pares.
+- **Satisfacción**: las vencidas sin resolver cuentan como fuera de plazo. **Vigilancia disponible**:
+  sin una avería registrada, `null` («sin datos»), nunca 100 %.
+- **Bandeja**: «sin detallar» excluye lo que ya tiene avance; no dice «asignadas». Órdenes no marca
+  SIN DETALLAR en cerradas/anuladas.
+- **Activos**: el reparto A/B/C cuenta lo mismo que la lista (filtro + tren).
+- **Calidad de datos**: con una dimensión < 60 no sale verde. **Riesgo**: la pestaña dice «· N altos».
+- **Rotulado**: una sola tabla de colores (el catálogo); la escrita en código sólo si el catálogo está vacío.
+- **Dependencias**: «por un equipo caído» (antes «por 1 un equipo caído»).
+- Prueba: `test/auditoria-cifras.spec.ts`. Pendiente de decidir: criticidad 30/60/90 frente al
+  plan preventivo «3 MESES».
+
+## §102 · AUDITORÍA 20/10 — GRUPOS C Y D: LECTURA EN PC Y CELULAR
+
+- `.card` sin tabla directa lleva relleno (`:where(...)`, especificidad cero: manda cualquier clase o `style`).
+- Repuestos: Comprobar y Movimiento delante; Compatibilidad, Editar y Eliminar en el menú «⋯».
+- Lo irreversible fuera de la fila: `components/MenuDeBorrado.tsx` envuelve `BotonPurgar` en
+  Cableado, Campañas, Gabinetes y Ubicaciones (sólo aparece con `purga.definitiva`).
+- Nada de códigos crudos: `PRIORIDAD_ES` y `legible()` en `formato.ts`; estado de OM con
+  `WO_STATUS_ES`; tipo de equipo con `NOMBRE_DE_TIPO`.
+- Fuera los «(s)»: `plural()` en Sesiones, Zonas, Roles, Hojas de ruta, Indicadores, Campañas…
+- Mapa de red: los hallazgos iguales se agrupan en una línea; cada código abre la ficha.
+- Mi cuenta ya no promete un cambio de contraseña que no existe. Doble vacío fuera (Mejoras, Avance).
+- Celular: marca más baja y sin subtítulo (regla AL FINAL de styles.css: la de arriba perdía);
+  filtros en dos columnas.
+- Pendiente: el formato mm/dd/aaaa de los `<input type="date">` lo pone el navegador
+  (idioma del sistema), no la página.

@@ -143,7 +143,12 @@ async function renovarAhora(enviado: string): Promise<Renovado> {
   const refresh = localStorage.getItem('sgit_refresh');
   if (!refresh) return null;
   try {
-    const { data } = await axios.post(`${baseURL}/auth/refresh`, { refreshToken: refresh });
+    /* Auditoría 20/10: la renovación va con axios suelto (sin el interceptor
+       de `api`), así que el identificador del aparato no viajaba y la sesión
+       nueva —cada 15 min— nacía sin saber desde qué equipo era. */
+    const aparato = idDeEsteAparato();
+    const { data } = await axios.post(`${baseURL}/auth/refresh`, { refreshToken: refresh },
+      aparato ? { headers: { 'X-Dispositivo': aparato } } : undefined);
     localStorage.setItem('sgit_token', data.accessToken);
     if (data.refreshToken) localStorage.setItem('sgit_refresh', data.refreshToken);
 

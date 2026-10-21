@@ -138,14 +138,30 @@ export default function MapaDeRed() {
           }
           abiertoAlEntrar={errores > 0}
         >
-          {hallazgos.map((h, i) => (
-            <div key={`${h.clave}-${h.equipoId ?? i}`} className="hallazgo">
-              <span className={`badge ${h.gravedad === 'ERROR' ? 'crit' : 'warn'}`}>
-                {h.gravedad === 'ERROR' ? 'error' : 'revisar'}
+          {/* AUDITORÍA 20/10: 25 líneas iguales («no tiene IP») tapaban los
+              3 errores de verdad, y los códigos no llevaban a ninguna parte.
+              Lo repetido se junta en UNA línea con sus equipos; cada código
+              abre la ficha del equipo, que es donde se corrige. */}
+          {agrupar(hallazgos).map((g) => (
+            <div key={g.clave} className="hallazgo">
+              <span className={`badge ${g.gravedad === 'ERROR' ? 'crit' : 'warn'}`}>
+                {g.gravedad === 'ERROR' ? 'error' : 'revisar'}
               </span>
               <div className="hallazgo-texto">
-                <b className="dato-fijo">{h.equipo}</b> {h.que}
-                <span className="hallazgo-que-hacer">{h.queHacer}</span>
+                {new Set(g.items.map((h: any) => h.que)).size > 1
+                  /* Cada uno dice algo distinto (su IP): una línea por equipo. */
+                  ? g.items.map((h: any, i: number) => (
+                      <div key={`${h.equipoId ?? i}`}><Equipo h={h} /> {h.que}</div>
+                    ))
+                  : g.items.length === 1
+                    ? <><Equipo h={g.items[0]} /> {g.items[0].que}</>
+                    : <>
+                        <b>{plural(g.items.length, 'equipo')}.</b> {g.items[0].que}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, margin: '4px 0' }}>
+                          {g.items.map((h: any, i: number) => <Equipo key={`${h.equipoId ?? i}`} h={h} />)}
+                        </div>
+                      </>}
+                <span className="hallazgo-que-hacer">{g.items[0].queHacer}</span>
               </div>
             </div>
           ))}
@@ -170,6 +186,24 @@ export default function MapaDeRed() {
       </ComoSeCalcula>
     </div>
   );
+}
+
+/** Los hallazgos del mismo tipo, juntos; los errores primero. */
+function agrupar(hs: any[]): { clave: string; gravedad: string; items: any[] }[] {
+  const m = new Map<string, { clave: string; gravedad: string; items: any[] }>();
+  for (const h of hs) {
+    const k = `${h.gravedad}|${h.clave}`;
+    if (!m.has(k)) m.set(k, { clave: k, gravedad: h.gravedad, items: [] });
+    m.get(k)!.items.push(h);
+  }
+  return [...m.values()].sort((a, b) => Number(b.gravedad === 'ERROR') - Number(a.gravedad === 'ERROR'));
+}
+
+/** El código del equipo, que lleva a su ficha. */
+function Equipo({ h }: { h: any }) {
+  return h.equipoId
+    ? <Link className="dato-fijo" to={`/assets?activo=${encodeURIComponent(h.equipoId)}`}><b>{h.equipo}</b></Link>
+    : <b className="dato-fijo">{h.equipo}</b>;
 }
 
 const ICONO_TIPO: Record<string, string> = {

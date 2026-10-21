@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { api } from '../api/client';
+import { elegirTren } from '../trenes';
 import { useVolverALaPantalla } from '../useVolverALaPantalla';
 import { Accion, Cifras, LoQueHayQueHacer, Titular, Tono } from '../components/Patron';
 import { EsqueletoTablero } from '../components/Esqueleto';
@@ -120,7 +121,7 @@ export default function TrainBoard() {
       .then((r) => {
         setTrenes(r.data?.trenes || []);
         setSinUbicar(r.data?.sinUbicar || null);
-        if (r.data?.trenes?.length) setCode(r.data.trenes[0].code);
+        if (r.data?.trenes?.length) setCode(elegirTren(r.data.trenes, '')?.code);
       })
       .catch(() => setTrenes([]))
       .finally(() => setCargandoLista(false));

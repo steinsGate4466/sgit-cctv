@@ -20,14 +20,14 @@ export class IndicadoresController {
   constructor(private readonly ind: IndicadoresService) {}
 
   @Get()
-  @RequirePermissions('dashboard.read')
+  @RequirePermissions('dashboard.read', 'wo.read')
   tablero(@Query('dias') dias?: string, @Query('tren') tren?: string) {
     const d = Number(dias);
     return this.ind.tablero(d > 0 && d <= 730 ? d : 90, tren || undefined);
   }
 
   @Get('tendencia')
-  @RequirePermissions('dashboard.read')
+  @RequirePermissions('dashboard.read', 'wo.read')
   tendencia(@Query('meses') meses?: string) {
     const m = Number(meses);
     return this.ind.tendencia(m > 0 && m <= 24 ? m : 6);
@@ -51,7 +51,7 @@ export class IndicadoresController {
   =========================================================================== */
   @Get('excel')
   @Ritmo(RITMO_PESADO)
-  @RequirePermissions('dashboard.read')
+  @RequirePermissions('dashboard.read', 'wo.read')
   async excel(
     @Res() res: Response,
     @Query('dias') dias?: string,
@@ -96,13 +96,13 @@ export class IndicadoresController {
      decide la dificultad de la acción —son ocho números— sino lo que la
      acción AFIRMA (misma regla que la meta, bloque 94). */
   @Get('satisfaccion')
-  @RequirePermissions('dashboard.read')
+  @RequirePermissions('dashboard.read', 'wo.read')
   satisfaccion(@Query('dias') dias?: string) {
     return this.ind.satisfaccion(Number(dias) || 90);
   }
 
   @Get('sla')
-  @RequirePermissions('dashboard.read')
+  @RequirePermissions('dashboard.read', 'wo.read')
   sla() {
     return this.ind.sla();
   }
@@ -114,7 +114,7 @@ export class IndicadoresController {
   }
 
   @Get('meta')
-  @RequirePermissions('dashboard.read')
+  @RequirePermissions('dashboard.read', 'wo.read')
   meta() {
     return this.ind.meta();
   }

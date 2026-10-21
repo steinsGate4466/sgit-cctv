@@ -6,7 +6,7 @@ import Icono from '../components/Iconos';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
 import { enviarConRespaldo } from '../envio-seguro';
-import { fecha } from '../formato';
+import { fecha, plural } from '../formato';
 import BotonConMotivo from '../components/BotonConMotivo';
 import { mensajeDeError, queFalta } from '../avisos';
 import { ComoSeCalcula, Titular, Tono } from '../components/Patron';
@@ -111,14 +111,14 @@ export default function Zonas() {
     if (resumen.vencidas?.length) {
       return {
         tono: 'grave',
-        texto: `${resumen.vencidas.length} declaración(es) vencida(s)`,
+        texto: plural(resumen.vencidas.length, 'declaración vencida', 'declaraciones vencidas'),
         apoyo: 'Una declaración caducada sigue subiendo la prioridad de sus cámaras.',
       };
     }
     if (resumen.sinDeclarar?.length) {
       return {
         tono: 'atender',
-        texto: `${resumen.sinDeclarar.length} zona(s) sin declarar`,
+        texto: plural(resumen.sinDeclarar.length, 'zona sin declarar', 'zonas sin declarar'),
         apoyo: 'Mientras no se declaren, sus cámaras tienen la prioridad de base.',
       };
     }

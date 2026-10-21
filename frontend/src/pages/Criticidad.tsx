@@ -7,6 +7,7 @@ import { Titular } from '../components/Patron';
 import BotonConMotivo from '../components/BotonConMotivo';
 import { mensajeDeError, queFalta } from '../avisos';
 import { useBusquedaEnVivo } from '../useBusquedaEnVivo';
+import { plural } from '../formato';
 
 /* =============================================================================
    CRITICIDAD A/B/C — la pantalla del ingeniero (bloque 76)
@@ -148,7 +149,7 @@ export default function Criticidad() {
     if (pendientes > 0) {
       return {
         tono: 'atender' as const,
-        texto: `${pendientes} equipo(s) todavía sin clasificar`,
+        texto: `${plural(pendientes, 'equipo')} todavía sin clasificar`,
         /* Esta frase PROMETÍA una función que no existía: el endpoint de zona
            estaba escrito y no había pantalla que lo llamara (bloque 77). Ya la
            hay —Ubicaciones → la zona → «Seguridad de las personas»— y por eso

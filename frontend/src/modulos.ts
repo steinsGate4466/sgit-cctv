@@ -174,8 +174,11 @@ export const MODULOS: Modulo[] = [
     descripcion: 'Cómo va la gestión, y los datos para sacarlos a Excel.',
     icono: 'indicadores',
     pantallas: [
-      { ruta: '/dashboard', texto: 'Dashboard', nota: 'Indicadores de gestión', puede: con('dashboard.read') },
-      { ruta: '/exportar', texto: 'Exportar', nota: 'Bajar los datos a Excel', puede: con('dashboard.read') },
+      /* Auditoría 20/10: `dashboard.read` lo llevan también los dos cargos de
+         Producción (lo necesitan para Mi tren y Mi bandeja). Lo que separa la
+         gestión es `wo.read`; el servidor pide las dos. */
+      { ruta: '/dashboard', texto: 'Dashboard', nota: 'Indicadores de gestión', puede: todos('dashboard.read', 'wo.read') },
+      { ruta: '/exportar', texto: 'Exportar', nota: 'Bajar los datos a Excel', puede: todos('dashboard.read', 'wo.read') },
     ],
   },
   /* No es un oficio: la cuenta de cada uno y la administración. Último a

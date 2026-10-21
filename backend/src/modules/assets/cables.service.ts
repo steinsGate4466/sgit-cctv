@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { filtroDeUbicaciones } from '../../common/ambito-planta';
+import { filtroConAmbito } from '../../common/ambito-usuario';
 import { AuditService } from '../audit/audit.service';
 import { CreateCableDto, UpdateCableDto, QueryCableDto } from './dto/cable.dto';
 
@@ -73,11 +73,12 @@ export class CablesService {
     }
   }
 
-  async findAll(q: QueryCableDto) {
+  async findAll(q: QueryCableDto, userId?: string | null) {
     // Ámbito de planta. Un tramo pertenece al tren de CUALQUIERA de sus dos
     // extremos: un enlace entre trenes tiene que salir en los dos, no
     // desaparecer de ambos.
-    const ambito = await filtroDeUbicaciones(this.prisma, { tren: q.tren, etapa: q.etapa });
+    // Auditoría 20/10: cruzado con el tren del USUARIO, no sólo con lo que pide la pantalla.
+    const ambito = await filtroConAmbito(this.prisma, userId, { tren: q.tren, etapa: q.etapa });
 
     // Los dos filtros por extremo (ámbito y activo concreto) son sendos OR.
     // Puestos como dos claves OR en el mismo objeto, la segunda ANULA a la

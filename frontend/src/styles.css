@@ -751,9 +751,12 @@ select optgroup { font-weight: 700; color: var(--navy); }
   .panel-grid { grid-template-columns: 1fr; }
   .train-grid { grid-template-columns: repeat(2, 1fr); }
 
-  /* Filtros apilados y a todo el ancho */
-  .filters { flex-direction: column; align-items: stretch; padding: 12px; gap: 10px; }
-  .filters > div { width: 100%; }
+  /* Filtros en DOS columnas (auditoría 20/10: apilados ocupaban más de una
+     pantalla antes del primer dato). El buscador y los botones, a todo el ancho. */
+  .filters { display: grid; grid-template-columns: 1fr 1fr; align-items: end; padding: 12px; gap: 8px 10px; }
+  .filters > div { width: 100%; min-width: 0; }
+  .filters > div:has(input[type="search"], input[placeholder]) { grid-column: 1 / -1; }
+  .filters > button, .filters > .btn-primary, .filters > .btn-mini { grid-column: span 1; }
   .filters input, .filters select { width: 100%; min-width: 0; }
   .filters .btn-primary, .filters .btn-mini { width: 100%; padding: 12px; }
 
@@ -980,7 +983,6 @@ td { overflow-wrap: break-word; }
   .panel { padding: 14px; }
   .section-title { margin: 20px 0 10px; }
   .sidebar .brand { padding: 10px 12px; }
-  .sidebar .brand .sub { display: none; }  /* el nombre largo parte en dos */
   .topbar { padding: 9px 12px; }
   .modal-head { padding: 14px 14px; }
   .modal-body { padding: 14px 14px calc(18px + env(safe-area-inset-bottom)); }
@@ -2169,7 +2171,6 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   .btn-mini { padding: 10px 14px; font-size: 13.5px; }
   /* Las acciones de fila, apiladas y anchas: se dejan de pulsar por error. */
   .tabla td:last-child { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
-  .filters { flex-direction: column; align-items: stretch; }
   .filters > div, .filters input, .filters select, .filters button { width: 100%; }
 }
 
@@ -5391,3 +5392,25 @@ tbody tr:hover td { background: var(--brillo); }
   .mapa-capas { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; scrollbar-width: none; }
   .mapa-capa-btn { flex: none; }
 }
+
+/* ---- AUDITORÍA 20/10 · LAS TARJETAS DE TEXTO SALÍAN PEGADAS AL BORDE ----
+   `.card` no lleva relleno a propósito: dentro suele ir una tabla de borde a
+   borde. Pero en diez pantallas (Exportar, Electricidad, IPAM, Planos, Mi
+   cuenta, Indicadores, Roles, Rotulado, Conexiones, Grabadores) lo que va
+   dentro es texto, botones o fichas, y quedaba montado sobre el borde.
+   Relleno SÓLO cuando no hay tabla directa, y con especificidad CERO
+   (`:where`): cualquier tarjeta que ya fije su relleno —una clase o un
+   `style`— sigue mandando. */
+:where(.card:not(:has(> table, > .desliza, > .card))) { padding: 14px 16px; }
+
+/* ---- AUDITORÍA 20/10 · LA CABECERA DEL CELULAR MEDÍA ~225 px ----
+   Marca + menú + título se comían media pantalla antes del primer dato.
+   Va AL FINAL a propósito: `.sidebar .brand .sub { display: block }` y el
+   relleno de la marca se declaran más abajo que los bloques de 780 px, y
+   ganaban. El nombre de la planta ya está en el login; aquí sobra. */
+@media (max-width: 780px) {
+  .sidebar .brand { padding-top: 6px; padding-bottom: 6px; }
+  .sidebar .brand .sub { display: none; }
+}
+/* Mapa de red (auditoría 20/10): los códigos agrupados de un hallazgo se leen enteros. */
+.hallazgo-texto a.dato-fijo { max-width: none; }

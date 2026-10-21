@@ -6,6 +6,7 @@ import { EsqueletoTabla } from '../components/Esqueleto';
 import { useDialogos } from '../components/Dialogos';
 import BotonConMotivo from '../components/BotonConMotivo';
 import { queFalta, mensajeDeError } from '../avisos';
+import { plural } from '../formato';
 
 /**
  * ROLES QUE CREA EL INGENIERO.
@@ -151,7 +152,7 @@ export default function Roles() {
               mensaje:
                 (rol.faltan.length ? `SE AÑADEN ${rol.faltan.length}: ${rol.faltan.map((c: string) => desfase.nombres[c] || c).join(', ')}. ` : '')
                 + (rol.sobran.length ? `SE QUITAN ${rol.sobran.length}: ${rol.sobran.map((c: string) => desfase.nombres[c] || c).join(', ')}. ` : '')
-                + `Afecta a ${rol.usuarios} persona(s) y se aplica en el acto.`,
+                + `Afecta a ${plural(rol.usuarios, 'persona')} y se aplica en el acto.`,
               aceptar: 'Poner al día',
             });
             if (!ok) return;
@@ -290,7 +291,7 @@ export default function Roles() {
           </div>
 
           <div className="muted" style={{ fontSize: 12, marginTop: 12 }}>
-            {marcados.size} permiso(s) marcado(s).
+            {plural(marcados.size, 'permiso marcado', 'permisos marcados')}.
           </div>
           {error && <div className="error">{error}</div>}
           <BotonConMotivo className="btn" onClick={guardar} ocupado={guardando}
@@ -335,7 +336,7 @@ function PanelDesfase({ info, poniendo, onPonerAlDia }: any) {
   return (
     <div className="card" style={{ borderLeft: '4px solid var(--warn)', marginBottom: 14 }}>
       <h2 style={{ fontSize: 15, margin: '0 0 4px', color: 'var(--warn)' }}>
-        {info.desviados.length} rol(es) no coinciden con su plantilla
+        {info.desviados.length === 1 ? '1 rol no coincide' : `${info.desviados.length} roles no coinciden`} con su plantilla
       </h2>
       <p className="muted" style={{ fontSize: 12, marginTop: 0 }}>
         Las plantillas sólo se aplican al crear un rol. Un rol viejo se desvía sin avisar.
@@ -346,7 +347,7 @@ function PanelDesfase({ info, poniendo, onPonerAlDia }: any) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <div>
               <b>{d.nombre}</b>
-              <span className="muted" style={{ fontSize: 11.5 }}> · {d.usuarios} persona(s)</span>
+              <span className="muted" style={{ fontSize: 11.5 }}> · {plural(d.usuarios, 'persona')}</span>
             </div>
             <button className="btn-mini" disabled={!!poniendo}
               onClick={() => onPonerAlDia(d)}

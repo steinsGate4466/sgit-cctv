@@ -6,6 +6,7 @@ import { useAuth } from '../auth/AuthContext';
 import BotonConMotivo from '../components/BotonConMotivo';
 import { mensajeDeError, queFalta } from '../avisos';
 import { OpcionesDeTrenDePlanta, nombreDeTrenDePlanta } from '../ubicaciones';
+import { NOMBRE_DE_TIPO } from '../tipos-de-equipo';
 
 /**
  * DIRECCIONAMIENTO IP
@@ -199,7 +200,7 @@ export default function Ipam() {
           <div className="section-title" style={{ marginTop: 0 }}>Resultado</div>
           {resultado.activos.map((a: any) => (
             <div key={a.id} style={{ fontSize: 13.5, padding: '4px 0' }}>
-              <code>{a.ipAddress}</code> — <b>{a.assetCode}</b> <span className="muted">({a.type}
+              <code>{a.ipAddress}</code> — <b>{a.assetCode}</b> <span className="muted">({NOMBRE_DE_TIPO[a.type] || a.type}
               {a.location?.name ? `, ${a.location.name}` : ''})</span>
             </div>
           ))}
@@ -349,7 +350,7 @@ export default function Ipam() {
                 {Object.entries(PROPOSITO).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select></label>
             <label className="campo"><span>VLAN</span>
-              <input type="number" value={nueva.vlan} onChange={(e) => setNueva({ ...nueva, vlan: e.target.value })} /></label>
+              <input type="number" min={1} max={4094} value={nueva.vlan} onChange={(e) => setNueva({ ...nueva, vlan: e.target.value })} /></label>
             <label className="campo"><span>Gateway</span>
               <input value={nueva.gateway} onChange={(e) => setNueva({ ...nueva, gateway: e.target.value })}
                 placeholder="10.20.4.1" />

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { evaluarEspera, ordenarPorUrgencia } from '../maintenance/espera';
-import { IncidentStatus, Priority, WorkOrderStatus } from '../../generated/prisma/client';
+import { IncidentStatus, Prisma, Priority, WorkOrderStatus } from '../../generated/prisma/client';
+import { filtroConAmbito } from '../../common/ambito-usuario';
 import { PrismaService } from '../../prisma/prisma.service';
 import { computeEffectiveStatuses } from '../../common/asset-status';
 import { CargaDeTecnico, inicioDelDiaDePlanta, lineaDeMovimientos, Movimiento, ordenarCarga } from './pulso';
@@ -20,6 +21,27 @@ import { corteDeVencidas } from '../../common/dia-de-planta';
  * TODO EN UNA SOLA LLAMADA. Cinco peticiones desde una tablet con la wifi de
  * planta es medio minuto mirando una pantalla vacía.
  */
+type Ambito = { in: string[] } | null;
+export interface Alcance {
+  ambito: Ambito;
+  om: Prisma.WorkOrderWhereInput;
+  inc: Prisma.IncidentWhereInput;
+  enActivo: { asset?: { locationId: { in: string[] } } };
+}
+
+/** El tren del usuario, traducido a los tres filtros que usa la bandeja.
+ *  Una orden es del tren por su equipo O por su ubicación (mapeo sin equipo);
+ *  una incidencia, por su equipo. Sin ámbito, filtros vacíos: toda la planta. */
+export function alcanceDe(ambito: Ambito): Alcance {
+  if (!ambito) return { ambito: null, om: {}, inc: {}, enActivo: {} };
+  return {
+    ambito,
+    om: { OR: [{ asset: { locationId: ambito } }, { locationId: ambito }] },
+    inc: { asset: { locationId: ambito } },
+    enActivo: { asset: { locationId: ambito } },
+  };
+}
+
 @Injectable()
 export class BandejaService {
   constructor(private prisma: PrismaService) {}
@@ -33,6 +55,14 @@ export class BandejaService {
     // tres, lo dice al compilar.
     const ABIERTAS: WorkOrderStatus[] = ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'];
     const abiertas = { in: ABIERTAS };
+
+    /* AUDITORÍA 20/10 · LA BANDEJA ES DE TU TREN. La ve todo el mundo (§57.5),
+       Producción incluida — y hasta hoy le enseñaba las órdenes y las
+       incidencias de la planta entera. Ahora cada consulta se cruza con el
+       tren del usuario. Ámbito vacío en un rol sin tren = toda la planta, como
+       en el resto del sistema; rol que EXIGE tren y no lo tiene = nada. */
+    const alcance = alcanceDe(await filtroConAmbito(this.prisma, userId, {}));
+    const { om, inc, enActivo } = alcance;
 
     /* SIN ORDEN TODAVÍA — bloque 72.
        -------------------------------------------------------------------------
@@ -71,7 +101,9 @@ export class BandejaService {
     ] = await Promise.all([
       // 1. Asignadas y sin detallar. Es trabajo que todavía no se puede hacer.
       this.prisma.workOrder.findMany({
-        where: { detailedAt: null, status: abiertas },
+        /* Auditoría 20/10: con avance anotado ya se está trabajando; salía
+           «sin detallar» una orden al 60 %. */
+        where: { detailedAt: null, status: abiertas, progressPct: 0, ...om },
         select: {
           id: true, code: true, type: true, activity: true, scheduledDate: true,
           asset: { select: { assetCode: true } },
@@ -85,7 +117,7 @@ export class BandejaService {
 
       // 2. Vencidas: pasaron de fecha y siguen abiertas.
       this.prisma.workOrder.findMany({
-        where: { status: abiertas, scheduledDate: { lt: corteDeVencidas(ahora) } },
+        where: { status: abiertas, scheduledDate: { lt: corteDeVencidas(ahora) }, ...om },
         select: {
           id: true, code: true, type: true, activity: true, scheduledDate: true,
           progressPct: true, asset: { select: { assetCode: true } },
@@ -99,7 +131,7 @@ export class BandejaService {
 
       // 3. Materiales pedidos esperando la firma del ingeniero.
       this.prisma.workOrderMaterial.findMany({
-        where: { status: 'SOLICITADO', workOrder: { status: abiertas } },
+        where: { status: 'SOLICITADO', workOrder: { status: abiertas, ...om } },
         select: {
           id: true, description: true, plannedQty: true, unit: true, sapCode: true,
           workOrder: { select: { id: true, code: true } },
@@ -110,7 +142,7 @@ export class BandejaService {
 
       // 4. Permisos de altura sin resolver. Sin esto nadie sube.
       this.prisma.accessRequest.findMany({
-        where: { status: { in: ['SOLICITADO', 'EN_REVISION'] as any } },
+        where: { status: { in: ['SOLICITADO', 'EN_REVISION'] as any }, ...enActivo },
         select: {
           id: true, code: true, status: true, heightMeters: true, means: true,
           asset: { select: { assetCode: true } },
@@ -126,7 +158,7 @@ export class BandejaService {
             cuarenta de prioridad media, dejan de verse. Separarlas es lo que
             hace que la lista larga no tape a la corta. */
       this.prisma.incident.findMany({
-        where: { status: { in: VIVAS }, priority: { in: GRAVES }, ...sinOrden },
+        where: { status: { in: VIVAS }, priority: { in: GRAVES }, ...sinOrden, ...inc },
         select: deQuienYCuando,
         orderBy: { reportedAt: 'asc' },
         take: 50,
@@ -143,7 +175,7 @@ export class BandejaService {
             «Una media que nadie mira acaba siendo crítica», y para entonces
             ya paró la línea. */
       this.prisma.incident.findMany({
-        where: { status: { in: VIVAS }, priority: { notIn: GRAVES }, ...sinOrden },
+        where: { status: { in: VIVAS }, priority: { notIn: GRAVES }, ...sinOrden, ...inc },
         select: deQuienYCuando,
         orderBy: { reportedAt: 'asc' },
         take: 60,
@@ -184,7 +216,7 @@ export class BandejaService {
       // 7. Material retirado y no devuelto en órdenes YA CERRADAS. Es la fuga
       // silenciosa: el stock quedó descontado por algo que volvió al estante.
       this.prisma.workOrderMaterial.findMany({
-        where: { status: 'RETIRADO', workOrder: { status: 'CERRADA' } },
+        where: { status: 'RETIRADO', workOrder: { status: 'CERRADA', ...om } },
         select: {
           id: true, description: true, withdrawnQty: true, usedQty: true, unit: true,
           workOrder: { select: { id: true, code: true } },
@@ -202,7 +234,7 @@ export class BandejaService {
       // Se trae también el ÚLTIMO avance, que es donde el técnico dejó dicho
       // qué está esperando. Sin eso sólo se sabría que está parada, no por qué.
       this.prisma.workOrder.findMany({
-        where: { status: 'EN_ESPERA' },
+        where: { status: 'EN_ESPERA', ...om },
         select: {
           id: true, code: true, activity: true, updatedAt: true,
           asset: { select: { assetCode: true, referencePlace: true } },
@@ -300,7 +332,7 @@ export class BandejaService {
        plazo está esperando una respuesta para organizar su semana. La bandeja
        sólo AVISA: se aprueba dentro de la orden (§58). */
     const prorrogas = await this.prisma.prorrogaDeOm.findMany({
-      where: { estado: 'PENDIENTE', workOrder: { status: abiertas } },
+      where: { estado: 'PENDIENTE', workOrder: { status: abiertas, ...om } },
       orderBy: { pedidaEn: 'asc' },
       take: 50,
       select: {
@@ -310,7 +342,7 @@ export class BandejaService {
       },
     });
 
-    const pulso = await this.pulso(ahora);
+    const pulso = await this.pulso(ahora, alcance);
 
     return {
       pulso,
@@ -362,7 +394,7 @@ export class BandejaService {
    * crece con los años de historial. La línea de movimientos se limita a las
    * últimas 24 h y a ocho entradas.
    */
-  private async pulso(ahora: Date) {
+  private async pulso(ahora: Date, { om, inc, ambito }: Alcance = alcanceDe(null)) {
     const hoy = inicioDelDiaDePlanta(ahora);
     const hace24h = new Date(ahora.getTime() - 24 * 3600_000);
     const en7dias = new Date(ahora.getTime() + 7 * 86400_000);
@@ -372,7 +404,10 @@ export class BandejaService {
        EFECTIVO (una incidencia u OM abierta cuenta) y sin las de baja ni las
        de almacén. Dos pantallas con dos cifras distintas para «cámaras con
        problema» es la forma más rápida de que no se crea ninguna. */
-    const camara = { type: 'CAMERA' as const, deletedAt: null, status: { notIn: ['BAJA', 'STOCK'] as any } };
+    const camara = {
+      type: 'CAMERA' as const, deletedAt: null, status: { notIn: ['BAJA', 'STOCK'] as any },
+      ...(ambito ? { locationId: ambito } : {}),
+    };
 
     const [
       omAbiertas, omEnProceso, omEnEspera, omCerradasHoy, omCreadasHoy,
@@ -381,35 +416,35 @@ export class BandejaService {
       cargaAbiertas, cargaEnProceso, cargaVencidas,
       recientesInc, recientesOmCreadas, recientesOmCerradas, recientesResueltas,
     ] = await Promise.all([
-      this.prisma.workOrder.count({ where: { status: 'ABIERTA' } }),
-      this.prisma.workOrder.count({ where: { status: 'EN_PROCESO' } }),
-      this.prisma.workOrder.count({ where: { status: 'EN_ESPERA' } }),
-      this.prisma.workOrder.count({ where: { status: 'CERRADA', executedDate: { gte: hoy } } }),
-      this.prisma.workOrder.count({ where: { createdAt: { gte: hoy } } }),
-      this.prisma.incident.count({ where: { status: { in: VIVAS } } }),
-      this.prisma.incident.count({ where: { reportedAt: { gte: hoy } } }),
-      this.prisma.incident.count({ where: { resolvedAt: { gte: hoy } } }),
+      this.prisma.workOrder.count({ where: { status: 'ABIERTA', ...om } }),
+      this.prisma.workOrder.count({ where: { status: 'EN_PROCESO', ...om } }),
+      this.prisma.workOrder.count({ where: { status: 'EN_ESPERA', ...om } }),
+      this.prisma.workOrder.count({ where: { status: 'CERRADA', executedDate: { gte: hoy }, ...om } }),
+      this.prisma.workOrder.count({ where: { createdAt: { gte: hoy }, ...om } }),
+      this.prisma.incident.count({ where: { status: { in: VIVAS }, ...inc } }),
+      this.prisma.incident.count({ where: { reportedAt: { gte: hoy }, ...inc } }),
+      this.prisma.incident.count({ where: { resolvedAt: { gte: hoy }, ...inc } }),
       this.prisma.asset.findMany({ where: camara, select: { id: true, status: true } }),
       this.prisma.workOrder.count({
-        where: { type: 'PREVENTIVO', status: { in: ABIERTAS }, scheduledDate: { gte: hoy, lte: en7dias } },
+        where: { type: 'PREVENTIVO', status: { in: ABIERTAS }, scheduledDate: { gte: hoy, lte: en7dias }, ...om },
       }),
-      this.prisma.workOrder.groupBy({ by: ['technicianId'], where: { status: { in: ABIERTAS }, technicianId: { not: null } }, _count: { _all: true } }),
-      this.prisma.workOrder.groupBy({ by: ['technicianId'], where: { status: 'EN_PROCESO', technicianId: { not: null } }, _count: { _all: true } }),
-      this.prisma.workOrder.groupBy({ by: ['technicianId'], where: { status: { in: ABIERTAS }, technicianId: { not: null }, scheduledDate: { lt: corteDeVencidas(ahora) } }, _count: { _all: true } }),
+      this.prisma.workOrder.groupBy({ by: ['technicianId'], where: { status: { in: ABIERTAS }, technicianId: { not: null }, ...om }, _count: { _all: true } }),
+      this.prisma.workOrder.groupBy({ by: ['technicianId'], where: { status: 'EN_PROCESO', technicianId: { not: null }, ...om }, _count: { _all: true } }),
+      this.prisma.workOrder.groupBy({ by: ['technicianId'], where: { status: { in: ABIERTAS }, technicianId: { not: null }, scheduledDate: { lt: corteDeVencidas(ahora) }, ...om }, _count: { _all: true } }),
       this.prisma.incident.findMany({
-        where: { reportedAt: { gte: hace24h } }, orderBy: { reportedAt: 'desc' }, take: 8,
+        where: { reportedAt: { gte: hace24h }, ...inc }, orderBy: { reportedAt: 'desc' }, take: 8,
         select: { code: true, title: true, reportedAt: true, reportedBy: { select: { fullName: true } } },
       }),
       this.prisma.workOrder.findMany({
-        where: { createdAt: { gte: hace24h } }, orderBy: { createdAt: 'desc' }, take: 8,
+        where: { createdAt: { gte: hace24h }, ...om }, orderBy: { createdAt: 'desc' }, take: 8,
         select: { code: true, activity: true, createdAt: true, technician: { select: { fullName: true } } },
       }),
       this.prisma.workOrder.findMany({
-        where: { status: 'CERRADA', executedDate: { gte: hace24h } }, orderBy: { executedDate: 'desc' }, take: 8,
+        where: { status: 'CERRADA', executedDate: { gte: hace24h }, ...om }, orderBy: { executedDate: 'desc' }, take: 8,
         select: { code: true, activity: true, executedDate: true, technician: { select: { fullName: true } } },
       }),
       this.prisma.incident.findMany({
-        where: { resolvedAt: { gte: hace24h } }, orderBy: { resolvedAt: 'desc' }, take: 8,
+        where: { resolvedAt: { gte: hace24h }, ...inc }, orderBy: { resolvedAt: 'desc' }, take: 8,
         select: { code: true, title: true, resolvedAt: true },
       }),
     ]);

@@ -128,11 +128,11 @@ export default function Riesgo() {
       <div className="pestanas">
         <button className={pestana === 'almacen' ? 'act' : ''} onClick={() => setPestana('almacen')}>
           Almacén
-          {repuestos?.resumen && <> ({(repuestos.resumen.CRITICO ?? 0) + (repuestos.resumen.ALTO ?? 0)})</>}
+          {repuestos?.resumen && <span title="Cuántos están en riesgo crítico o alto (auditoría 20/10: el número sólo decía «(0)» sobre una lista de 6)"> · {(repuestos.resumen.CRITICO ?? 0) + (repuestos.resumen.ALTO ?? 0)} altos</span>}
         </button>
         <button className={pestana === 'equipos' ? 'act' : ''} onClick={() => setPestana('equipos')}>
           Equipos
-          {obsol?.resumen && <> ({(obsol.resumen.CRITICO ?? 0) + (obsol.resumen.ALTO ?? 0)})</>}
+          {obsol?.resumen && <span title="Cuántos están en riesgo crítico o alto (auditoría 20/10: el número sólo decía «(0)» sobre una lista de 6)"> · {(obsol.resumen.CRITICO ?? 0) + (obsol.resumen.ALTO ?? 0)} altos</span>}
         </button>
       </div>
 

@@ -5,6 +5,7 @@ import Modal from './Modal';
 import { useDialogos } from './Dialogos';
 import { fecha, fechaHora } from '../formato';
 import { duracion } from '../pages/omCatalogos';
+import { ahoraParaInputLocal, diaParaInput } from '../fechas';
 
 /**
  * PARADA Y PLAZO DE UNA ORDEN — bloques 138 y 135.
@@ -33,6 +34,13 @@ function ahoraLocal(): string {
 
 const ESTADO_ES: Record<string, string> = { PENDIENTE: 'Pendiente', APROBADA: 'Aprobada', RECHAZADA: 'Rechazada' };
 const ESTADO_BADGE: Record<string, string> = { PENDIENTE: 'MEDIA', APROBADA: 'OPERATIVO', RECHAZADA: 'FUERA_SERVICIO' };
+
+/** La prórroga empieza el día siguiente al mayor entre hoy y la fecha programada. */
+function minimoProrroga(programada: unknown): string {
+  const base = programada ? new Date(String(programada)) : new Date();
+  const desde = isNaN(base.getTime()) || base.getTime() < Date.now() ? new Date() : base;
+  return diaParaInput(1, desde);
+}
 
 export default function ParadaYPlazo({ wo, onClose, onHecho }: {
   wo: any;
@@ -126,7 +134,7 @@ export default function ParadaYPlazo({ wo, onClose, onHecho }: {
       {viva && can('wo.update') && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap', margin: '10px 0 18px' }}>
           <label style={{ margin: 0 }}>Hora
-            <input type="datetime-local" value={hora} onChange={(e) => setHora(e.target.value)} />
+            <input type="datetime-local" max={ahoraParaInputLocal()} value={hora} onChange={(e) => setHora(e.target.value)} />
           </label>
           <button className="btn-mini" disabled={ocupado} onClick={() => parada('INICIO')}>Empezó la parada</button>
           <button className="btn-mini" disabled={ocupado || !orden.paradaInicioReal} onClick={() => parada('FIN')}>Terminó la parada</button>
@@ -167,7 +175,9 @@ export default function ParadaYPlazo({ wo, onClose, onHecho }: {
       {viva && can('wo.update') && !pendiente && (
         <form onSubmit={pedir} style={{ marginTop: 12 }}>
           <label>Nueva fecha
-            <input type="date" required value={nuevaFecha} onChange={(e) => setNuevaFecha(e.target.value)} />
+            {/* Revisión: el servidor exige futura, después de la fecha actual y a 180 días como mucho. */}
+            <input type="date" required min={minimoProrroga(orden?.scheduledDate)} max={diaParaInput(180)}
+              value={nuevaFecha} onChange={(e) => setNuevaFecha(e.target.value)} />
           </label>
           {motivos.length > 0 && (
             <label>Motivo

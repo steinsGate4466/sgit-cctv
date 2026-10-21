@@ -32,6 +32,8 @@ const VACIO = {
   area: '', ubicacion: '', responsable: '', notas: '', activo: true,
 };
 
+const ESTADO_APARATO: Record<string, string> = { PENDIENTE: 'Sin revisar', APROBADO: 'Autorizado', BLOQUEADO: 'Bloqueado' };
+
 export default function Equipos() {
   const { confirmar } = useDialogos();
   const { can } = useAuth();
@@ -245,7 +247,7 @@ export default function Equipos() {
               <input value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })}
                      placeholder="PC Púlpito Tren 2" />
               <small className="muted">
-                Usa el nombre con el que se conoce en planta.
+                El nombre con el que se conoce en planta.
               </small>
             </label>
 
@@ -411,8 +413,10 @@ function DispositivosPanel({ disp, acceso, msg, error, setMsg, setError, decidir
               <tr key={d.id}>
                 <td>
                   <strong>{d.nombre || 'Sin nombre'}</strong>
-                  <div className="muted" style={{ fontSize: 11, fontFamily: 'monospace' }}>
-                    {String(d.dispositivoId).slice(0, 12)}…
+                  {/* Los mismos 6 caracteres que salen en «Quién está dentro»:
+                      así se reconoce el aparato de una pantalla en la otra. */}
+                  <div className="muted" style={{ fontSize: 11, fontFamily: 'monospace' }} title="Identificador del aparato">
+                    {String(d.dispositivoId).slice(0, 6).toUpperCase()}
                   </div>
                   {d.equipoConocido && <div className="muted" style={{ fontSize: 11.5 }}>{d.equipoConocido.nombre}</div>}
                 </td>
@@ -429,8 +433,20 @@ function DispositivosPanel({ disp, acceso, msg, error, setMsg, setError, decidir
                 <td className="muted" style={{ fontSize: 12 }}>
                   {fechaCorta(d.ultimoVistoEn)}
                 </td>
-                <td><span className={'badge ' + d.estado}>{d.estado}</span></td>
+                <td><span className={'badge ' + d.estado}>{ESTADO_APARATO[d.estado] || d.estado}</span></td>
                 <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                  {/* Auditoría 20/10: ponerle o cambiarle el nombre, esté como esté.
+                      Es lo que dice «PC púlpito T2» en vez de una IP compartida. */}
+                  <button className="btn-mini" style={{ marginRight: 4 }} onClick={async () => {
+                    const n = await pedirTexto({
+                      titulo: 'Nombre de este aparato',
+                      mensaje: 'Ej: «PC púlpito T2», «Celular de Juan».',
+                      valorInicial: d.nombre || '',
+                      aceptar: 'Guardar',
+                    });
+                    if (n === null || !n.trim()) return;
+                    decidir(d.id, d.estado, n.trim());
+                  }}>Nombre</button>
                   {d.estado !== 'APROBADO' && (
                     <button className="btn-mini" onClick={async () => {
                       const n = await pedirTexto({

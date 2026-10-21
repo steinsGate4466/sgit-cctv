@@ -18,6 +18,7 @@ const HASH_SENUELO =
   'YnVzY2FzLXVuLXNlY3JldG8tYXF1aS1ub2hheS1uYWRh';
 import { PrismaService } from '../../prisma/prisma.service';
 import { normalizarIp, resumirAgente } from '../../common/origen';
+import { apuntarAparato, nombreDelEquipo, nombresDeEquipos } from '../../common/nombre-del-equipo';
 import { AuditService } from '../audit/audit.service';
 import { LoginDto } from './dto/login.dto';
 import { esRotacionConcurrente } from './rotacion';
@@ -87,7 +88,7 @@ export class AuthService {
    * Qué recibe: LoginDto. Qué devuelve: { accessToken, refreshToken, user }.
    * Incluye bloqueo por intentos fallidos para frenar fuerza bruta.
    */
-  async login(dto: LoginDto, ip?: string | null, dispositivo?: string | null) {
+  async login(dto: LoginDto, ip?: string | null, dispositivo?: string | null, dispositivoId?: string | null) {
     const key = dto.email.trim().toLowerCase();
     const now = Date.now();
 
@@ -133,7 +134,7 @@ export class AuthService {
     await this.limpiarCuenta(key);
     await this.prisma.user.update({ where: { id: user!.id }, data: { lastLoginAt: new Date() } });
     await this.audit.record({ userId: user!.id, action: 'LOGIN', entity: 'auth', entityId: user!.id, ip });
-    return this.buildTokens(user, ip, resumirAgente(dispositivo));
+    return this.buildTokens(user, ip, resumirAgente(dispositivo), dispositivoId);
   }
 
   /** Registra un intento fallido y bloquea la cuenta si se supera el máximo. */
@@ -165,7 +166,7 @@ export class AuthService {
    * Por qué existe: permitir renovar el access token (corto) sin re-login, y
    * recalcular permisos actualizados desde la BD en cada rotación.
    */
-  async refresh(refreshToken: string, ip?: string | null, dispositivo?: string | null) {
+  async refresh(refreshToken: string, ip?: string | null, dispositivo?: string | null, dispositivoId?: string | null) {
     let payload: { sub: string; jti?: string };
     try {
       payload = await this.jwt.verifyAsync(refreshToken, {
@@ -225,7 +226,7 @@ export class AuthService {
       }).catch(() => null);
     }
 
-    return this.buildTokens(user, ip, resumirAgente(dispositivo));
+    return this.buildTokens(user, ip, resumirAgente(dispositivo), dispositivoId);
   }
 
   /** Cerrar sesión de verdad: la sesión deja de valer al instante. */
@@ -248,15 +249,24 @@ export class AuthService {
   }
 
   /** Mis sesiones abiertas. Sirve para reconocer una que no es tuya. */
-  async misSesiones(userId: string) {
+  async misSesiones(userId: string, sesionActual?: string | null) {
     const filas = await this.prisma.sesion.findMany({
       where: { userId, revocadaEn: null, expiraEn: { gt: new Date() } },
-      orderBy: { creadaEn: 'desc' },
+      // Lo que se está usando, arriba (en PostgreSQL un DESC pone los NULL primero).
+      orderBy: [{ ultimoUsoEn: { sort: 'desc', nulls: 'last' } }, { creadaEn: 'desc' }],
       take: 20,
     });
+    /* Auditoría 20/10: el MISMO criterio que «Quién está dentro» — nombre del
+       equipo, navegador, aparato e IP — y cuál es ESTA sesión, para no cerrar
+       la propia creyendo que es la de un extraño. */
+    const nombres = await nombresDeEquipos(this.prisma, filas);
     return filas.map((s) => ({
       id: s.id, creadaEn: s.creadaEn, ultimoUsoEn: s.ultimoUsoEn,
-      ip: s.ip, dispositivo: s.dispositivo, equipo: s.equipo,
+      ip: s.ip, dispositivo: s.dispositivo,
+      equipo: (s.dispositivoId && nombres.porAparato.get(s.dispositivoId))
+        || (s.ip && nombres.porIp.get(s.ip)) || s.equipo || null,
+      aparato: s.dispositivoId ? s.dispositivoId.slice(0, 6).toUpperCase() : null,
+      esEsta: !!sesionActual && s.id === sesionActual,
     }));
   }
 
@@ -274,18 +284,24 @@ export class AuthService {
    * Construye el par de tokens con los permisos del usuario resueltos.
    * El access token lleva rol y permisos; el refresh solo el id (sub).
    */
-  private async buildTokens(user: any, ip?: string | null, dispositivo?: string | null) {
+  private async buildTokens(user: any, ip?: string | null, dispositivo?: string | null, dispositivoId?: string | null) {
     const permissions = user.role.permissions.map((rp: any) => rp.permission.code);
     /* `pv` = versión de permisos (bloque 82). Va DENTRO del token para poder
        compararlo en cada petición: subir el contador del usuario mata todos
        sus tokens a la vez. Es lo que convierte «desactivar» en un corte real
        en vez de una espera de quince minutos. */
+    // El jti se elige ANTES del token de acceso: viaja dentro como `sid`.
+    const jti = randomUUID();
     const payload = {
       sub: user.id,
       email: user.email,
       role: user.role.name,
       permissions,
       pv: (user as any).permisosVersion ?? 1,
+      /* AUDITORÍA 20/10 · `sid` = la sesión de este token. Sin él, «última
+         actividad» sólo se escribía al ROTAR y en la fila VIEJA: todas las
+         sesiones vivas decían «sin usar» y «0 personas trabajando ahora». */
+      sid: jti,
     };
 
     // CADA REFRESH TOKEN NACE CON SU FILA DE SESIÓN.
@@ -294,7 +310,7 @@ export class AuthService {
     // firma ya no basta: además se comprueba que la sesión exista y no esté
     // revocada. Eso es lo que hace que cerrar sesión —o cambiar la
     // contraseña— sirva de algo de verdad.
-    const jti = randomUUID();
+    await apuntarAparato(this.prisma, dispositivoId, { ip: normalizarIp(ip), navegador: dispositivo, usuarioId: user.id });
     const dias = Number((process.env.JWT_REFRESH_EXPIRES_IN || '7d').replace(/\D/g, '')) || 7;
     await this.prisma.sesion.create({
       data: {
@@ -303,6 +319,9 @@ export class AuthService {
         expiraEn: new Date(Date.now() + dias * 86400000),
         ip: normalizarIp(ip),
         dispositivo: dispositivo?.slice(0, 120) || null,
+        dispositivoId: dispositivoId || null,
+        equipo: await nombreDelEquipo(this.prisma, normalizarIp(ip), dispositivoId),
+        ultimoUsoEn: new Date(),
       },
     }).catch(() => null);
 

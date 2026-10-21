@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { filtroConAmbito } from '../../common/ambito-usuario';
 import {
   clasificarPlanta, repartoPorLetra, intervaloFinal,
   type ActivoCrit, type CriticidadDeActivo, type EntradaDePlanta, type UbicacionCrit,
@@ -244,10 +245,20 @@ export class CriticidadService {
    * haría que cuatrocientas cámaras sin revisar no aparecieran en ninguna
    * parte, que es exactamente lo que este módulo viene a evitar.
    */
-  async resumen(filtros?: { letra?: string; tipo?: string; q?: string }) {
-    const { mapa, datos, parametros, confirmados } = await this.clasificarTodo();
+  async resumen(filtros?: { letra?: string; tipo?: string; q?: string }, userId?: string | null) {
+    const { mapa: mapaPlanta, datos, parametros, confirmados } = await this.clasificarTodo();
 
     const activoPorId = new Map(datos.activos.map((a) => [a.id, a]));
+    /* Auditoría 20/10 · se CLASIFICA la planta entera (la letra de un equipo
+       depende de sus vecinos y de lo que cuelga de él), pero se ENSEÑA sólo lo
+       del tren del usuario. Antes Producción veía la tabla de toda la planta.
+       El reparto y el total salen de lo visible: un «A: 12» que no cuadra con
+       las filas de abajo es un número en el que no se confía. */
+    const ambito = await filtroConAmbito(this.prisma, userId, {});
+    const dentro = ambito ? new Set(ambito.in) : null;
+    const mapa = dentro
+      ? new Map([...mapaPlanta].filter(([id]) => dentro.has(activoPorId.get(id)?.locationId ?? '')))
+      : mapaPlanta;
     let equipos = [...mapa.entries()].map(([id, r]) => {
       const a = activoPorId.get(id)!;
       return {

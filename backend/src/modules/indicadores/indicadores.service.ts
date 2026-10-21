@@ -464,6 +464,10 @@ export class IndicadoresService {
          pregunta con el número de la otra. */
       vigilanciaDisponible: {
         ...nivelDeServicio(fallas, equiposEnServicio, horasDelPeriodo),
+        /* AUDITORÍA 20/10 · sin una sola avería registrada salía «100 %» con
+           cámaras caídas en pantalla: no hay medida, no hay número. Las
+           averías se registran solas desde el bloque 78 al reportar. */
+        ...(fallas.some((f) => !f.esFalsaAlarma) ? {} : { pct: null }),
         significa: 'Qué porcentaje de la vigilancia estuvo disponible, contando cada cámara y cada hora.',
       },
       peores: peores.map((p) => ({
@@ -643,6 +647,12 @@ export class IndicadoresService {
 
     const resueltas = cumpl.reduce((a, c) => a + c.resueltas, 0);
     const enPlazo = cumpl.reduce((a, c) => a + c.enPlazo, 0);
+    /* AUDITORÍA 20/10 · «Satisfacción 100 %» con una crítica abierta y fuera
+       de plazo. La que ya pasó su plazo sin resolverse YA incumplió: esperar
+       a que se cierre para contarla es premiar no cerrarla. */
+    const riesgo = enRiesgo(vivas, acuerdo.valores);
+    const vencidasSinResolver = riesgo.filter((r) => r.vencida).length;
+    const medidas = resueltas + vencidasSinResolver;
 
     return {
       dias,
@@ -652,14 +662,16 @@ export class IndicadoresService {
       resueltas: {
         total: resueltas,
         enPlazo,
-        /* `null` y no 0 cuando no se resolvió ninguna: un 0 % diría que se
+        vencidasSinResolver,
+        medidas,
+        /* `null` y no 0 cuando no hay nada que medir: un 0 % diría que se
            falló en todas, y no se falló en ninguna porque no hubo. */
-        pct: resueltas ? Math.round((enPlazo / resueltas) * 100) : null,
+        pct: medidas ? Math.round((enPlazo / medidas) * 100) : null,
       },
       porPrioridad: cumpl,
       /* Y DEBAJO, LO ACCIONABLE: sobre lo resuelto no se puede hacer nada,
          sobre esto sí. Ordenado por lo que peor está, no por fecha. */
-      enRiesgo: enRiesgo(vivas, acuerdo.valores).slice(0, 20),
+      enRiesgo: riesgo.slice(0, 20),
       vivasTotal: vivas.length,
     };
   }

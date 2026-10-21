@@ -24,7 +24,7 @@ import { mensajeDeError } from '../avisos';
  */
 export default function MiCuenta() {
   const { confirmar } = useDialogos();
-  const { user, logout, refrescarPerfil } = useAuth();
+  const { user, logout, refrescarPerfil, can } = useAuth();
   const [sesiones, setSesiones] = useState<any[]>([]);
   const [cargando, setCargando] = useState(true);
   const [msg, setMsg] = useState('');
@@ -139,8 +139,12 @@ export default function MiCuenta() {
             <tbody>
               {sesiones.map((s) => (
                 <tr key={s.id}>
-                  <td><strong>{s.dispositivo || 'Navegador desconocido'}</strong>
-                    {s.equipo && <div className="muted" style={{ fontSize: 11.5 }}>{s.equipo}</div>}</td>
+                  <td><strong>{s.equipo || 'Equipo sin nombre'}</strong>
+                    {s.esEsta && <span className="chip ok" style={{ marginLeft: 6, fontSize: 11 }}>este equipo</span>}
+                    <div className="muted" style={{ fontSize: 11.5 }}>
+                      {s.dispositivo || 'navegador sin identificar'}
+                      {s.aparato && <> · aparato <span className="dato-fijo">{s.aparato}</span></>}
+                    </div></td>
                   <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{s.ip || '—'}</td>
                   <td className="muted">{fmt(s.creadaEn)}</td>
                   <td className="muted">{fmt(s.ultimoUsoEn)}</td>
@@ -152,7 +156,11 @@ export default function MiCuenta() {
           <div className="card peligro">
             <b>¿Ves una sesión que no reconoces?</b>
             <div style={{ margin: '6px 0 10px', fontSize: 13.5 }}>
-              Ciérralas todas y cambia la contraseña.
+              {/* Auditoría 20/10: prometía «cambia la contraseña» y aquí no hay
+                  dónde. La cambia quien administra usuarios. */}
+              {can('user.manage')
+                ? 'Ciérralas todas y cambia la contraseña en Ajustes › Usuarios.'
+                : 'Ciérralas todas y pide al Jefe de Mantenimiento que te cambie la contraseña.'}
             </div>
             <button className="btn-peligro" onClick={cerrarTodas} disabled={ocupado}>
               {ocupado ? 'Cerrando…' : 'Cerrar todas mis sesiones'}

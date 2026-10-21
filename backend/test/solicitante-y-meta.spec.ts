@@ -155,7 +155,10 @@ describe('La meta de mantenimiento', () => {
     const c = leer('src/modules/indicadores/indicadores.controller.ts');
     const bloqueGet = c.slice(c.indexOf("@Get('meta')"), c.indexOf("@Put('meta')"));
     const bloquePut = c.slice(c.indexOf("@Put('meta')"));
-    expect(bloqueGet).toContain("@RequirePermissions('dashboard.read')");
+    /* Auditoría 20/10: `dashboard.read` solo lo llevan también los cargos de
+       Producción. Los indicadores piden además `wo.read`, y NO vale el viejo. */
+    expect(bloqueGet).toContain("@RequirePermissions('dashboard.read', 'wo.read')");
+    expect(bloqueGet).not.toContain("@RequirePermissions('dashboard.read')");
     expect(bloquePut).toContain("@RequirePermissions('wo.approve')");
     // Y NO se ha aflojado a `wo.update`, que lo tienen los técnicos.
     expect(bloquePut).not.toContain("@RequirePermissions('wo.update')");

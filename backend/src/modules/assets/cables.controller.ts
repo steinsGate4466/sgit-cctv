@@ -24,8 +24,8 @@ export class CablesController {
 
   @Get()
   @RequirePermissions('infra.read')
-  findAll(@Query() q: QueryCableDto) {
-    return this.cables.findAll(q);
+  findAll(@Query() q: QueryCableDto, @CurrentUser() user?: any) {
+    return this.cables.findAll(q, user?.userId);
   }
 
   /** Resumen para el tablero: total, fuera de norma, sin medir, dañados. */

@@ -9,6 +9,7 @@ import { fechaCorta } from '../fechas';
 import BotonConMotivo from '../components/BotonConMotivo';
 import { mensajeDeError, queFalta } from '../avisos';
 import { OpcionesDeTrenDePlanta, nombreDeTrenDePlanta, trenDePlantaDeSigla } from '../ubicaciones';
+import { plural } from '../formato';
 
 /**
  * VENTANAS DE PARADA
@@ -121,7 +122,7 @@ export default function Paradas() {
         finPrevisto: mover.finPrevisto ? new Date(mover.finPrevisto).toISOString() : undefined,
         motivo: mover.motivo,
       });
-      setMsg(`Parada movida. Van ${r.data.vecesMovida} cambio(s).`);
+      setMsg(`Parada movida. Van ${plural(r.data.vecesMovida, 'cambio')}.`);
       setMover(null);
       if (detalle) await abrirDetalle(detalle.id);
       await cargar(fTren, fEstado);
@@ -186,7 +187,7 @@ export default function Paradas() {
                   </div>
                   <div style={{ fontSize: 12.5, marginTop: 6 }}>
                     {p.ordenes > 0
-                      ? <><b>{p.ordenes}</b> orden(es) colgada(s)</>
+                      ? <><b>{p.ordenes}</b> {p.ordenes === 1 ? 'orden colgada' : 'órdenes colgadas'}</>
                       : <span className="muted">sin trabajo colgado todavía</span>}
                     {p.vecesMovida > 0 && (
                       <span className="chip est-MANTENIMIENTO" style={{ marginLeft: 6 }}>

@@ -75,6 +75,9 @@ const TYPES = TIPOS_ACTIVO.map((t) => t.valor);
    corregir. */
 const TYPES_FILTRO = TIPOS_DE_EQUIPO.map((t) => t.valor);
 const STATES = ['OPERATIVO', 'FUERA_SERVICIO', 'MANTENIMIENTO', 'BAJA', 'STOCK'];
+/* Revisión de formularios: dar de BAJA no es «cambiar el estado» — tiene su
+   flujo firmado con motivo (zona roja de la ficha). El cambio rápido no lo ofrece. */
+const STATES_RAPIDOS = STATES.filter((s) => s !== 'BAJA');
 const CRITS = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
 // Tipos montados en rack: es obligatorio indicar en qué gabinete están.
 /* Los colores de la letra A/B/C (bloque 78). Mismos que en la ficha y en la
@@ -1174,7 +1177,7 @@ export default function Assets() {
                 <h4><Icono n="refrescar" size={15} /> Actualizar estado</h4>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <select aria-label="Nuevo estado del equipo" value={newStatus} onChange={(e) => setNewStatus(e.target.value)} style={{ flex: 1 }}>
-                    {STATES.map((t) => <option key={t} value={t}>{sEs(t)}</option>)}
+                    {STATES_RAPIDOS.map((t) => <option key={t} value={t}>{sEs(t)}</option>)}
                   </select>
                   <button className="btn-mini" disabled={savingStatus || newStatus === detail.status} onClick={saveStatus}>
                     {savingStatus ? 'Guardando…' : 'Guardar estado'}
@@ -1436,7 +1439,7 @@ export default function Assets() {
               <input value={form.ipAddress} onChange={(e) => setForm({ ...form, ipAddress: e.target.value })} placeholder="Ej: 172.16.10.21" />
             </label>
             <label>Contraseña del equipo (opcional)
-              <input value={form.devicePass} onChange={(e) => setForm({ ...form, devicePass: e.target.value })} placeholder="clave de la cámara / NVR" />
+              <input type="password" autoComplete="new-password" value={form.devicePass} onChange={(e) => setForm({ ...form, devicePass: e.target.value })} placeholder="clave de la cámara / NVR" />
             </label>
             <label>Ubicación (obligatorio)</label>
             <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>
@@ -1588,7 +1591,7 @@ export default function Assets() {
             <input value={qIp} onChange={(e) => setQIp(e.target.value)} placeholder="172.16.x.x" />
           </label>
           <label>Contraseña del equipo
-            <input value={qPass} onChange={(e) => setQPass(e.target.value)} placeholder="clave cámara / NVR" />
+            <input type="password" autoComplete="new-password" value={qPass} onChange={(e) => setQPass(e.target.value)} placeholder="clave cámara / NVR" />
           </label>
           <button className="btn" disabled={qSaving} onClick={saveQuick}>{qSaving ? 'Guardando…' : 'Guardar'}</button>
         </Modal>

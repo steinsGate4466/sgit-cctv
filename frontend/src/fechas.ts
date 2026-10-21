@@ -169,3 +169,21 @@ export function diaVencido(v: unknown): boolean {
   hoy.setHours(0, 0, 0, 0);
   return d.getTime() < hoy.getTime();
 }
+
+/**
+ * Revisión de formularios: el «ahora» para el `max` de un `datetime-local`.
+ * Una hora real de inicio o de cierre en el futuro no existe; el navegador
+ * la impide en vez de dejar que el servidor responda con un 400.
+ */
+export function ahoraParaInputLocal(): string {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+/** `YYYY-MM-DD` de hoy + `dias`, para el `min`/`max` de un `<input type="date">`. */
+export function diaParaInput(dias: number, desde: Date = new Date()): string {
+  const d = new Date(desde.getTime() + dias * 86_400_000);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}

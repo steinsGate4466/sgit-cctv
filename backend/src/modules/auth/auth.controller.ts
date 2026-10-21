@@ -9,6 +9,7 @@ import { RefreshDto } from './dto/refresh.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { LogoutDto } from './dto/logout.dto';
+import { idDispositivo } from '../../common/origen';
 
 @ApiTags('auth')
 @UseGuards(FrenoGuard)
@@ -19,17 +20,25 @@ export class AuthController {
   @Public()
   @Freno(CUPO_LOGIN)
   @Post('login')
-  login(@Body() dto: LoginDto, @Ip() ip: string, @Headers('user-agent') ua: string) {
+  login(
+    @Body() dto: LoginDto, @Ip() ip: string, @Headers('user-agent') ua: string,
+    @Headers('x-dispositivo') aparato?: string,
+  ) {
     // El user-agent se guarda en la sesión para que alguien reconozca la suya
     // en la lista: "Chrome en Windows" dice más que una fecha y una IP.
-    return this.auth.login(dto, ip, ua);
+    // Auditoría 20/10: y el identificador del aparato, que es lo que dice
+    // QUÉ PC o celular es cuando toda la planta sale por la misma IP.
+    return this.auth.login(dto, ip, ua, idDispositivo({ 'x-dispositivo': aparato }));
   }
 
   @Public()
   @Freno(CUPO_RENOVAR) // bloque 170: NO el del login — ver CUPO_RENOVAR
   @Post('refresh')
-  refresh(@Body() dto: RefreshDto, @Ip() ip: string, @Headers('user-agent') ua: string) {
-    return this.auth.refresh(dto.refreshToken, ip, ua);
+  refresh(
+    @Body() dto: RefreshDto, @Ip() ip: string, @Headers('user-agent') ua: string,
+    @Headers('x-dispositivo') aparato?: string,
+  ) {
+    return this.auth.refresh(dto.refreshToken, ip, ua, idDispositivo({ 'x-dispositivo': aparato }));
   }
 
   /**
@@ -49,7 +58,7 @@ export class AuthController {
   @ApiBearerAuth()
   @Get('sesiones')
   sesiones(@CurrentUser() user: any) {
-    return this.auth.misSesiones(user.userId);
+    return this.auth.misSesiones(user.userId, user.sid);
   }
 
   /** El botón de "me robaron el teléfono". */

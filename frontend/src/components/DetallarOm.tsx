@@ -74,7 +74,8 @@ export default function DetallarOm({ wo, onHecho, onClose }: {
         assetId: form.assetId || null,
         activity: form.activity,
         plannedDurationMin: form.plannedDurationMin === '' ? null : Number(form.plannedDurationMin),
-        plannedStopAt: form.plannedStopAt || undefined,
+        // Revisión: en ISO, como el alta de OM. Sin convertir, el servidor (UTC) lo corría 5 h.
+        plannedStopAt: form.plannedStopAt ? new Date(form.plannedStopAt).toISOString() : undefined,
         scopeNote: form.scopeNote,
       });
       onHecho();

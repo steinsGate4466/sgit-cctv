@@ -84,3 +84,20 @@ export function plural(n: number, singular: string, plural_?: string): string {
 export function palabra(n: number, singular: string, plural_?: string): string {
   return n === 1 ? singular : (plural_ ?? `${singular}s`);
 }
+
+/**
+ * AUDITORÍA 20/10 · UN NOMBRE INTERNO NO ES UN TEXTO PARA UNA PERSONA.
+ * Para los códigos que no tienen traducción en su tabla (una acción de
+ * auditoría nueva, un tipo que se añadió después): «MAPA_CABLE_TRAZAR» se
+ * lee «Mapa cable trazar». Es el respaldo, no la traducción buena.
+ */
+export function legible(codigo: string | null | undefined): string {
+  const s = String(codigo ?? '').trim();
+  if (!s) return '—';
+  if (!/^[A-Z0-9_]+$/.test(s)) return s;
+  const t = s.replace(/_/g, ' ').toLowerCase();
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+/** Prioridad en castellano, la misma en todas las pantallas. */
+export const PRIORIDAD_ES: Record<string, string> = { BAJA: 'Baja', MEDIA: 'Media', ALTA: 'Alta', CRITICA: 'Crítica' };

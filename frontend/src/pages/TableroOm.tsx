@@ -233,10 +233,9 @@ export default function TableroOm() {
           )}
 
           {!filas.length ? (
-            <div className="card vacio">
-              <h3>No hay órdenes abiertas en este tren</h3>
-              <p>Cuando se abra una, aparece aquí con su avance.</p>
-            </div>
+            /* Auditoría 20/10: el titular ya dice «No hay órdenes abiertas»;
+               repetirlo aquí era el doble vacío. Sólo lo que pasará. */
+            <p className="muted">Cuando se abra una, aparece aquí con su avance.</p>
           ) : (
             <table className="tabla">
               <thead>

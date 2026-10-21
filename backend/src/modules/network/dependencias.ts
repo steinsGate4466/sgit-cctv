@@ -571,7 +571,8 @@ export function resumirDependencias(soportes: Soporte[]): string {
        «de él» para llegar a lo único que importa — cuántas cámaras se pierden.
        Se dice primero lo que se pierde, que es lo que hace actuar. */
     return `${nCosas(cams, 'cámara sin servicio', 'cámaras sin servicio')} por `
-      + `${nCosas(caidos.length, 'un equipo caído', 'equipos caídos')}.`;
+      // Auditoría 20/10: con nCosas salía «por 1 un equipo caído».
+      + `${caidos.length === 1 ? 'un equipo caído' : `${caidos.length} equipos caídos`}.`;
   }
   const top = soportes[0];
   if (!top.camaras.length) {

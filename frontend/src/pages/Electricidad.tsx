@@ -11,6 +11,7 @@ import { fecha } from '../fechas';
 import BotonConMotivo from '../components/BotonConMotivo';
 import { mensajeDeError, queFalta } from '../avisos';
 import { OpcionesDeTrenDePlanta, OpcionesDeUbicacion, nombreDeTrenDePlanta, siglaDeTrenDePlanta } from '../ubicaciones';
+import { NOMBRE_DE_TIPO } from '../tipos-de-equipo';
 
 /**
  * ELECTRICIDAD — tableros, circuitos y qué cuelga de cada llave.
@@ -373,7 +374,7 @@ export default function Electricidad() {
                 {detalle.equiposMontados.map((a: any) => (
                   <tr key={a.id}>
                     <td><strong>{a.assetCode}</strong></td>
-                    <td>{a.type}</td>
+                    <td>{NOMBRE_DE_TIPO[a.type] || a.type}</td>
                     <td className="muted">{[a.brand, a.model].filter(Boolean).join(' ') || '—'}</td>
                     <td><span className={'badge ' + a.status}>{a.status}</span></td>
                   </tr>
@@ -488,7 +489,7 @@ export default function Electricidad() {
             <ul className="lista-elegir">
               {candidatos.map((a: any) => (
                 <li key={a.id}>
-                  <b>{a.assetCode}</b> <span className="muted">{a.type}</span>
+                  <b>{a.assetCode}</b> <span className="muted">{NOMBRE_DE_TIPO[a.type] || a.type}</span>
                   <span style={{ float: 'right' }}>
                     <button className="btn-mini" disabled={ocupado} onClick={() => colgar(a.id, false)}>Directo</button>
                     <button className="btn-mini" style={{ marginLeft: 4 }} disabled={ocupado}
@@ -523,10 +524,10 @@ export default function Electricidad() {
           </div>
           <div className="form-grid">
             <label className="campo"><span>Tensión (V)</span>
-              <input type="number" step="any" value={midiendo.tensionV}
+              <input type="number" step="any" min={0} value={midiendo.tensionV}
                 onChange={(e) => setMidiendo({ ...midiendo, tensionV: e.target.value })} /></label>
             <label className="campo"><span>Corriente (A)</span>
-              <input type="number" step="any" value={midiendo.corrienteA}
+              <input type="number" step="any" min={0} value={midiendo.corrienteA}
                 onChange={(e) => setMidiendo({ ...midiendo, corrienteA: e.target.value })} /></label>
             <label className="campo"><span>Temperatura (°C)</span>
               <input type="number" step="any" value={midiendo.temperaturaC}

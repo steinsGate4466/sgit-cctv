@@ -75,7 +75,10 @@ export default function SaludDeDatos() {
   }
 
   const p: number = d.puntos ?? 0;
-  const tono: Tono = p >= 85 ? 'bien' : p >= 60 ? 'atender' : 'grave';
+  /* Auditoría 20/10: salía «91» en verde con la completitud en 54. La media
+     no puede tapar una dimensión en rojo: con una mal, como mucho ámbar. */
+  const peor = Math.min(100, ...(d.dimensiones || []).map((x: any) => x.puntos ?? 100));
+  const tono: Tono = p >= 85 && peor >= 60 ? 'bien' : p >= 60 ? 'atender' : 'grave';
   const huecos: any[] = d.huecos || [];
 
   return (

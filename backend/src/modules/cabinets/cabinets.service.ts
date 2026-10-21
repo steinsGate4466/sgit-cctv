@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { revisarImagen } from '../../common/archivos-seguros';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
-import { filtroDeUbicaciones } from '../../common/ambito-planta';
+import { filtroConAmbito } from '../../common/ambito-usuario';
 import { AuditService } from '../audit/audit.service';
 import { StorageService } from '../storage/storage.service';
 import { CreateCabinetDto, UpdateCabinetDto } from './dto/cabinet.dto';
@@ -32,8 +32,9 @@ export class CabinetsService {
    * no tienen ubicación no salen al filtrar, y es correcto: si no está en el
    * árbol, no está en ningún tren.
    */
-  async list(q?: { tren?: string; etapa?: string }) {
-    const ambito = await filtroDeUbicaciones(this.prisma, { tren: q?.tren, etapa: q?.etapa });
+  async list(q?: { tren?: string; etapa?: string }, userId?: string | null) {
+    // Auditoría 20/10: cruzado con el tren del USUARIO, no sólo con lo que pide la pantalla.
+    const ambito = await filtroConAmbito(this.prisma, userId, { tren: q?.tren, etapa: q?.etapa });
     const cabs = await this.prisma.cabinet.findMany({
       where: ambito ? { locationId: ambito } : {},
       include: { location: { select: { name: true } }, _count: { select: { assets: true } } },
@@ -237,8 +238,10 @@ export class CabinetsService {
   async qrSheet(
     ids?: string[],
     q?: { tren?: string; etapa?: string },
+    userId?: string | null,
   ): Promise<{ buffer: Buffer; filename: string }> {
-    const ambito = await filtroDeUbicaciones(this.prisma, { tren: q?.tren, etapa: q?.etapa });
+    // Auditoría 20/10: cruzado con el tren del USUARIO, no sólo con lo que pide la pantalla.
+    const ambito = await filtroConAmbito(this.prisma, userId, { tren: q?.tren, etapa: q?.etapa });
     const where = {
       ...(ambito ? { locationId: ambito } : {}),
       ...(ids && ids.length ? { id: { in: ids } } : {}),

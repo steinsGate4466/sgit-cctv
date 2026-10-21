@@ -7,6 +7,7 @@ import { useAuth } from '../auth/AuthContext';
 import Icono from '../components/Iconos';
 import { useDialogos } from '../components/Dialogos';
 import { fecha, fechaHora } from '../formato';
+import { WO_STATUS_ES } from './omCatalogos';
 import { ComoSeCalcula } from '../components/Patron';
 
 // Estado del plan -> clase de badge existente.
@@ -241,7 +242,7 @@ export default function Preventive() {
                 <td className="muted">{w.asset?.assetCode || '—'}</td>
                 <td className="muted" style={{ fontSize: 12 }}>{w.zone || '—'}</td>
                 <td style={{ fontSize: 12 }}>{w.activity || '—'}</td>
-                <td><span className={'badge ' + (w.status === 'CERRADA' ? 'OPERATIVO' : w.status === 'CANCELADA' ? 'BAJA' : 'MANTENIMIENTO')}>{w.status}</span></td>
+                <td><span className={'badge ' + (w.status === 'CERRADA' ? 'OPERATIVO' : w.status === 'CANCELADA' ? 'BAJA' : 'MANTENIMIENTO')}>{WO_STATUS_ES[w.status] || w.status}</span></td>
                 <td className="muted" style={{ fontSize: 12 }}>{w.scheduledDate ? fecha(w.scheduledDate) : '—'}</td>
                 <td><button className="btn-mini" onClick={() => downloadOM(w)}>Informe</button></td>
               </tr>

@@ -9,7 +9,6 @@ import { CriticidadService } from '../criticidad/criticidad.service';
 import { computeEffectiveStatuses, computeEffectiveStatus, motivoDelEstado, INCIDENCIA_ABIERTA, WO_EN_CURSO } from '../../common/asset-status';
 import { resolverContextoDePlanta } from '../../common/plant-context';
 import { evaluarFicha, resumenPendiente } from '../../common/asset-completeness';
-import { filtroDeUbicaciones } from '../../common/ambito-planta';
 import { filtroConAmbito } from '../../common/ambito-usuario';
 import { fichaParaCrear, fichaParaActualizar, sinFichas } from './asset-spec.util';
 import { evaluarReincidencia, severidadGlobal } from '../../common/reincidencia';
@@ -31,6 +30,7 @@ import { QueryAssetDto } from './dto/query-asset.dto';
 import { motivoParaNoCrearComoActivo } from '../../common/tipos-de-equipo';
 import { iconoDelEquipo } from '../planos/icono';
 import type { AssetStatus } from '../../generated/prisma/client';
+import { exigirFirmanteConPermiso } from '../../common/firmante';
 
 @Injectable()
 export class AssetsService {
@@ -100,6 +100,9 @@ export class AssetsService {
       });
       throw new BadRequestException('Firma inválida: contraseña incorrecta');
     }
+    await exigirFirmanteConPermiso(this.prisma, signer!.id, 'asset.create', (motivo) => this.audit.record({
+      userId: signer!.id, action: 'FIRMA_FALLIDA', entity: 'assets', ip, after: { motivo },
+    }));
 
     const { email, password, ...resto } = dto;
     // La ficha del tipo (cámara, grabador, switch, antena, decodificador,
@@ -202,8 +205,9 @@ export class AssetsService {
     };
   }
 
-  async findAll(q: QueryAssetDto, sensitive = false) {
-    const ambito = await filtroDeUbicaciones(this.prisma, { tren: q.tren, etapa: q.etapa });
+  async findAll(q: QueryAssetDto, sensitive = false, userId?: string | null) {
+    // Auditoría 20/10: cruzado con el tren del USUARIO, no sólo con lo que pide la pantalla.
+    const ambito = await filtroConAmbito(this.prisma, userId, { tren: q.tren, etapa: q.etapa });
     const page = Math.max(1, Number(q.page) || 1);
     // Tope de 200 por página: protege al servidor de una petición como
     // ?pageSize=100000 que traería todo y anularía la paginación.
@@ -242,7 +246,7 @@ export class AssetsService {
     // El tren ya NO viene de la columna Asset.train: se deduce subiendo el árbol
     // de ubicaciones. Así desaparece la posibilidad de que un activo cuelgue del
     // Tren 2 y diga TREN_1.
-    const [eff, ctx, letras] = await Promise.all([
+    const [eff, ctx, letras, idsDelFiltro] = await Promise.all([
       computeEffectiveStatuses(this.prisma, rows),
       resolverContextoDePlanta(this.prisma, rows),
       /* LA LETRA A/B/C EN EL LISTADO (bloque 78).
@@ -259,11 +263,17 @@ export class AssetsService {
 
          Y si falla, la lista SE PINTA IGUAL, sin letra. Es un dato útil, no
          un requisito para ver el inventario. */
-      this.criticidad.resumen().then((r: any) => {
+      this.criticidad.resumen({}, userId).then((r: any) => {
         const m: Record<string, any> = {};
         for (const e of r.equipos || []) m[e.id] = e;
         return m;
       }).catch(() => ({} as Record<string, any>)),
+      /* AUDITORÍA 20/10 · el reparto contaba la planta entera (36) encima de
+         una lista filtrada (35). Ahora cuenta lo MISMO que la lista, sin la
+         página: el filtro de la pantalla y el tren del usuario. */
+      this.prisma.asset.findMany({ where, select: { id: true } })
+        .then((xs) => new Set(xs.map((x) => x.id)))
+        .catch(() => null),
     ]);
 
     const enriquecer = (a: any) => ({
@@ -322,16 +332,20 @@ export class AssetsService {
        cuatro tarjetas de arriba, y tiene que ser el total de verdad: un
        recuento «de esta página» sería un número que cambia al pasar de hoja. */
     const repartoPlanta = { A: 0, B: 0, C: 0, SIN_CLASIFICAR: 0 } as Record<string, number>;
-    for (const e of Object.values(letras as Record<string, any>)) {
+    for (const [id, e] of Object.entries(letras as Record<string, any>)) {
+      if (idsDelFiltro && !idsDelFiltro.has(id)) continue;
       const l = e?.letra ?? 'SIN_CLASIFICAR';
       if (l in repartoPlanta) repartoPlanta[l]++;
     }
 
     if (!sensitive) {
+      /* Auditoría 20/10 · el `include` trae TODAS las columnas del activo, y
+         `ipAddress` es una. Sin quitarla aquí, el técnico sin
+         `credential.read` recibía la IP de cada equipo en la lista. */
       return {
         ...meta,
         reparto: repartoPlanta,
-        items: ordenar(filtrar(rows.map((a: any) => ({ ...a, ...enriquecer(a) })))),
+        items: ordenar(filtrar(rows.map(({ ipAddress: _ip, ...a }: any) => ({ ...a, ...enriquecer(a) })))),
       };
     }
     // IP visible para roles con credential.read (Jefe, Supervisor TI, Técnico de Red).
@@ -374,8 +388,9 @@ export class AssetsService {
    * filtrara al final, los porcentajes saldrían sobre el total de la planta
    * y no sobre el del tren, que es justo el número que se quiere.
    */
-  async avanceMapeo(q?: { tren?: string; etapa?: string }) {
-    const ambito = await filtroDeUbicaciones(this.prisma, { tren: q?.tren, etapa: q?.etapa });
+  async avanceMapeo(q?: { tren?: string; etapa?: string }, userId?: string | null) {
+    // Auditoría 20/10: cruzado con el tren del USUARIO, no sólo con lo que pide la pantalla.
+    const ambito = await filtroConAmbito(this.prisma, userId, { tren: q?.tren, etapa: q?.etapa });
     // El árbol de planta es pequeño; traer los activos con sus fichas permite
     // evaluar la completitud sin una consulta por activo.
     const activos = await this.prisma.asset.findMany({
@@ -597,6 +612,9 @@ export class AssetsService {
     if (!asset || asset.deletedAt) throw new NotFoundException('Activo no encontrado');
 
     if (!sensitive) {
+      // Auditoría 20/10: la IP general del activo también (antes sólo se
+      // borraban las de las extensiones y la principal viajaba igual).
+      asset.ipAddress = null;
       if (asset.camera) { asset.camera.ipAddress = null; asset.camera.macAddress = null; }
       if (asset.switchDev) { asset.switchDev.mgmtIp = null; }
       if (asset.nvr) { asset.nvr.nicPrimary = null; asset.nvr.nicSecondary = null; }
@@ -709,6 +727,15 @@ export class AssetsService {
   ) {
     const asset = await this.prisma.asset.findUnique({ where: { id } });
     if (!asset || asset.deletedAt) throw new NotFoundException('Activo no encontrado');
+    /* Revisión de formularios: con `asset.update` (los técnicos) se podía dar
+       de BAJA un equipo desde el cambio rápido, sin motivo ni firma, saltándose
+       el retiro que hace el supervisor (§47.3). Entrar o salir de BAJA va por
+       su flujo; aquí no. */
+    if (dto.status === 'BAJA' || asset.status === 'BAJA') {
+      throw new BadRequestException(
+        'Dar de baja (o reactivar) un equipo no es un cambio de estado: se hace desde «Dar de baja» en la ficha, con motivo y firma.',
+      );
+    }
 
     const updated = await this.prisma.asset.update({
       where: { id },
@@ -746,6 +773,9 @@ export class AssetsService {
       });
       throw new BadRequestException('Firma inválida: contraseña incorrecta');
     }
+    await exigirFirmanteConPermiso(this.prisma, signer!.id, 'credential.read', (motivo) => this.audit.record({
+      userId: signer!.id, action: 'FIRMA_FALLIDA', entity: 'assets', ip, after: { motivo },
+    }));
     const { email, password, ...resto } = dto;
     // El tipo NO se toma del cuerpo sino del activo guardado: si se aceptara
     // del formulario, se podría cambiar el tipo y adjuntar una ficha que no
@@ -1009,7 +1039,7 @@ export class AssetsService {
   }
 
   // ---------- Informe del equipo (PDF): ficha técnica + fotos + historial ----------
-  async buildReport(id: string): Promise<{ buffer: Buffer; filename: string }> {
+  async buildReport(id: string, sensitive = false): Promise<{ buffer: Buffer; filename: string }> {
     const asset: any = await this.prisma.asset.findUnique({
       where: { id },
       include: {
@@ -1069,7 +1099,8 @@ export class AssetsService {
     line('N° de serie', asset.serialNumber || '—');
     line('Estado operativo', STATUS_ES[eff] || eff);
     line('Criticidad', asset.criticality);
-    line('IP', asset.ipAddress || '—');
+    // La IP sólo para quien puede verla en pantalla (credential.read).
+    if (sensitive) line('IP', asset.ipAddress || '—');
     line('Ubicación', asset.location ? asset.location.name : '—');
     line('Gabinete', asset.cabinet ? `${asset.cabinet.code} — ${asset.cabinet.name}` : '—');
     line('Lugar de referencia', asset.referencePlace || '—');

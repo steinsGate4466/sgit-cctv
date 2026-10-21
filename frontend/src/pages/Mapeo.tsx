@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { api } from '../api/client';
 import FiltroAmbito, { Ambito, AMBITO_VACIO, AvisoAmbito } from '../components/FiltroAmbito';
-import { plural } from '../formato';
+import { plural, PRIORIDAD_ES } from '../formato';
 
 /**
  * AVANCE DEL MAPEO.
@@ -203,7 +203,7 @@ export default function Mapeo() {
         <div><label>Criticidad
             <select value={fCrit} onChange={(e) => setFCrit(e.target.value)}>
             <option value="">Todas</option>
-            {['CRITICA', 'ALTA', 'MEDIA', 'BAJA'].map((c) => <option key={c} value={c}>{c}</option>)}
+            {['CRITICA', 'ALTA', 'MEDIA', 'BAJA'].map((c) => <option key={c} value={c}>{PRIORIDAD_ES[c] || c}</option>)}
           </select>
           </label>
         </div>

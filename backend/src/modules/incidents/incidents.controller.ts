@@ -58,8 +58,8 @@ export class IncidentsController {
 
   @Get()
   @RequirePermissions('incident.read')
-  findAll(@Query() q: QueryIncidentDto) {
-    return this.incidents.findAll(q);
+  findAll(@Query() q: QueryIncidentDto, @CurrentUser() user: any) {
+    return this.incidents.findAll(q, user?.userId);
   }
 
   // Descargar imagen de evidencia (previsualización).

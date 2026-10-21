@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { resolverContextoDePlanta } from '../../common/plant-context';
+import { computeEffectiveStatuses } from '../../common/asset-status';
 import { alcanza, ambitoDelUsuario, veTodo } from '../../common/ambito-usuario';
 import { construirRejilla, buscarPorLoQueDiceElPulpito, CamaraDelGrabador } from './canales';
 
@@ -56,6 +57,11 @@ export class GrabadoresService {
       select: { assetId: true, nvrId: true, nvrChannel: true, nvrName: true },
     });
 
+    /* AUDITORÍA 20/10 · el estado es el EFECTIVO, el mismo que en Impacto y en
+       Activos. Con el guardado, un NVR con una incidencia abierta salía aquí
+       «Operativo» y en Impacto «fallando»: dos pantallas, dos verdades. */
+    const efectivo = await computeEffectiveStatuses(this.prisma, visibles);
+
     const porNvr = new Map<string, typeof camaras>();
     for (const c of camaras) {
       if (!c.nvrId) continue;
@@ -72,7 +78,7 @@ export class GrabadoresService {
           id: n.id,
           code: n.assetCode,
           modelo: n.model,
-          estado: n.status,
+          estado: efectivo[n.id] || n.status,
           lugar: n.referencePlace,
           tren: ctx[n.id]?.trenCode ?? null,
           etapa: ctx[n.id]?.etapaNombre ?? ctx[n.id]?.etapaCode ?? null,
@@ -110,6 +116,11 @@ export class GrabadoresService {
       },
     });
 
+    // Estado EFECTIVO del grabador y de cada cámara (auditoría 20/10).
+    const efectivo = await computeEffectiveStatuses(this.prisma, [
+      { id: nvr.id, status: nvr.status },
+      ...filas.filter((f) => f.asset).map((f) => ({ id: f.assetId, status: f.asset?.status ?? null })),
+    ]);
     const camaras: CamaraDelGrabador[] = filas
       // Una cámara dada de baja no ocupa canal, pero si el enlace sigue
       // puesto conviene que no aparezca como si estuviera grabando.
@@ -119,14 +130,14 @@ export class GrabadoresService {
         code: f.asset?.assetCode || '(sin código)',
         nombreEnGrabador: f.nvrName,
         canal: f.nvrChannel,
-        estado: f.asset?.status || 'DESCONOCIDO',
+        estado: efectivo[f.assetId] || f.asset?.status || 'DESCONOCIDO',
         lugar: f.asset?.referencePlace || null,
       }));
 
     return {
       grabador: {
         id: nvr.id, code: nvr.assetCode, modelo: nvr.model,
-        estado: nvr.status, lugar: nvr.referencePlace,
+        estado: efectivo[nvr.id] || nvr.status, lugar: nvr.referencePlace,
       },
       ...construirRejilla(camaras, nvr.nvr?.channels ?? null),
     };
