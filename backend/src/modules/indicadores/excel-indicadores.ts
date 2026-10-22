@@ -142,6 +142,7 @@ export async function libroDeIndicadores(t: any): Promise<Buffer> {
     .font = { italic: true, size: 9, color: { argb: GRIS } };
   rep.addRow(['Mejora', r.otros?.mejora ?? 0, '—']);
   rep.addRow(['Mapeo', r.otros?.mapeo ?? 0, '—']);
+  rep.addRow(['Instalación', r.otros?.instalacion ?? 0, '—']);
   rep.addRow(['Predictivo (retirado, quedan los viejos)', r.otros?.predictivo ?? 0, '—']);
   if (r.lectura) {
     rep.addRow([]);

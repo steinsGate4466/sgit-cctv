@@ -128,7 +128,7 @@ export default function Capacidad() {
 
   return (
     <div className="page">
-      <h1 className="page-title">Capacidad de red</h1>
+      <h1 className="page-title">Switches y puertos</h1>
 
       {error && <div className="card peligro">{error}</div>}
 

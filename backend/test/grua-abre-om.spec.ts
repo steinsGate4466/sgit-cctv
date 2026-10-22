@@ -1,25 +1,30 @@
-import { actividadDeLaOm, decidirOmDeInspeccion } from '../src/modules/grua/om-de-inspeccion';
+import { decidirAvisoDeInspeccion, descripcionDelAviso, tituloDelAviso } from '../src/modules/grua/om-de-inspeccion';
 
-/** BLOQUE 140 · el hallazgo de la inspección de grúa se convierte en orden. */
-describe('¿La inspección de grúa abre una orden?', () => {
-  it('fuera de servicio: sí', () => {
-    expect(decidirOmDeInspeccion({ resultado: 'FUERA_DE_SERVICIO' })).toBe('ABRIR');
+/**
+ * BLOQUES 140 Y 180 · el hallazgo de la inspección de grúa se convierte en un
+ * AVISO. La OM no la crea SGIT —la crea SAP y la trata Mantenimiento— y una
+ * observación no es un correctivo: es una condición que se va a dañar.
+ */
+describe('¿La inspección de grúa abre un aviso?', () => {
+  it('fuera de servicio: aviso de FALLA', () => {
+    expect(decidirAvisoDeInspeccion({ resultado: 'FUERA_DE_SERVICIO' })).toBe('FALLA');
   });
-  it('con observaciones y seguimiento marcado: sí', () => {
-    expect(decidirOmDeInspeccion({ resultado: 'OPERATIVA_CON_OBSERVACIONES', requiereSeguimiento: true })).toBe('ABRIR');
+  it('con observaciones y seguimiento marcado: aviso de CONDICIÓN (no cuenta como falla)', () => {
+    expect(decidirAvisoDeInspeccion({ resultado: 'OPERATIVA_CON_OBSERVACIONES', requiereSeguimiento: true })).toBe('CONDICION');
   });
   it('con observaciones SIN seguimiento: no', () => {
-    expect(decidirOmDeInspeccion({ resultado: 'OPERATIVA_CON_OBSERVACIONES', requiereSeguimiento: false })).toBe('NO');
+    expect(decidirAvisoDeInspeccion({ resultado: 'OPERATIVA_CON_OBSERVACIONES', requiereSeguimiento: false })).toBe('NO');
   });
   it('no se pudo acceder: no (no hay hallazgo; hay que volver a subir)', () => {
-    expect(decidirOmDeInspeccion({ resultado: 'NO_SE_PUDO_ACCEDER', requiereSeguimiento: true })).toBe('NO');
+    expect(decidirAvisoDeInspeccion({ resultado: 'NO_SE_PUDO_ACCEDER', requiereSeguimiento: true })).toBe('NO');
   });
-  it('si ya se hizo dentro de una orden: no se abre otra', () => {
-    expect(decidirOmDeInspeccion({ resultado: 'FUERA_DE_SERVICIO', workOrderId: 'wo1' })).toBe('NO');
+  it('si ya se hizo dentro de una orden: no se abre aviso', () => {
+    expect(decidirAvisoDeInspeccion({ resultado: 'FUERA_DE_SERVICIO', workOrderId: 'wo1' })).toBe('NO');
   });
-  it('la actividad dice qué, dónde y de qué inspección salió', () => {
-    const t = actividadDeLaOm({ code: 'GRU-2026-0003', grua: '107', posicionEnGrua: 'pluma', resultado: 'FUERA_DE_SERVICIO', hallazgos: 'Chicote partido' });
-    expect(t).toMatch(/fuera de servicio en grúa 107 \(pluma\)/i);
+  it('el aviso dice qué, dónde y de qué inspección salió', () => {
+    expect(tituloDelAviso({ grua: '107', posicionEnGrua: 'pluma', resultado: 'FUERA_DE_SERVICIO' }))
+      .toMatch(/fuera de servicio · grúa 107 \(pluma\)/i);
+    const t = descripcionDelAviso({ code: 'GRU-2026-0003', grua: '107', posicionEnGrua: 'pluma', resultado: 'FUERA_DE_SERVICIO', hallazgos: 'Chicote partido' });
     expect(t).toMatch(/GRU-2026-0003/);
     expect(t).toMatch(/Chicote partido/);
   });
@@ -29,8 +34,8 @@ jest.mock('@prisma/client', () => ({ PrismaClient: class {}, Prisma: {} }));
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { GruaService } = require('../src/modules/grua/grua.service');
 
-describe('GruaService.crear — abre o enlaza la orden', () => {
-  function build(abierta: any) {
+describe('GruaService.crear — abre o enlaza el AVISO, nunca una orden', () => {
+  function build(vivo: any) {
     const prisma: any = {
       asset: { findFirst: jest.fn().mockResolvedValue({ id: 'a1', type: 'CAMERA', assetCode: 'AA-CAM-GRU-107' }) },
       inspeccionGrua: {
@@ -38,37 +43,57 @@ describe('GruaService.crear — abre o enlaza la orden', () => {
         create: jest.fn().mockResolvedValue({ id: 'i1', code: 'GRU-2026-0003' }),
         update: jest.fn().mockResolvedValue({}),
       },
-      workOrder: { findFirst: jest.fn().mockResolvedValue(abierta) },
+      incident: { findFirst: jest.fn().mockResolvedValue(vivo) },
+      workOrder: { create: jest.fn(), findFirst: jest.fn() },
     };
-    const ordenes: any = { create: jest.fn().mockResolvedValue({ id: 'wo-nueva', code: 'OM-2026-0200' }) };
-    const s = new GruaService(prisma, ordenes);
+    const incidencias: any = {
+      create: jest.fn().mockResolvedValue({ id: 'inc-nueva', code: 'INC-2026-0200' }),
+      update: jest.fn().mockResolvedValue({}),
+    };
+    const s = new GruaService(prisma, incidencias);
     s['siguienteCodigo'] = async () => 'GRU-2026-0003';
-    return { s, prisma, ordenes };
+    return { s, prisma, incidencias };
   }
-  const dto: any = { assetId: 'a1', grua: '107', resultado: 'FUERA_DE_SERVICIO', camaraEstado: 'NO_CONFORME' };
+  const fuera: any = { assetId: 'a1', grua: '107', resultado: 'FUERA_DE_SERVICIO', camaraEstado: 'NO_CONFORME' };
+  const observada: any = { assetId: 'a1', grua: '107', resultado: 'OPERATIVA_CON_OBSERVACIONES', requiereSeguimiento: true, camaraEstado: 'OBSERVADO' };
 
-  it('sin correctivo abierto: abre uno nuevo y lo enlaza', async () => {
-    const { s, prisma, ordenes } = build(null);
-    const r = await s.crear(dto, 'tec');
-    expect(ordenes.create).toHaveBeenCalledTimes(1);
-    expect(ordenes.create.mock.calls[0][0].type).toBe('CORRECTIVO');
-    expect(prisma.inspeccionGrua.update.mock.calls[0][0].data.workOrderId).toBe('wo-nueva');
-    expect(r.om).toEqual({ code: 'OM-2026-0200', nueva: true });
+  it('fuera de servicio sin aviso vivo: abre un aviso de FALLA y lo enlaza', async () => {
+    const { s, prisma, incidencias } = build(null);
+    const r = await s.crear(fuera, 'tec');
+    expect(incidencias.create).toHaveBeenCalledTimes(1);
+    expect(incidencias.create.mock.calls[0][0].tipoAviso).toBe('FALLA');
+    expect(prisma.inspeccionGrua.update.mock.calls[0][0].data.incidentId).toBe('inc-nueva');
+    expect(prisma.workOrder.create).not.toHaveBeenCalled();
+    expect(r.aviso).toEqual({ code: 'INC-2026-0200', nuevo: true, tipo: 'FALLA' });
   });
 
-  it('con correctivo abierto: se enlaza a ése, no abre otro', async () => {
-    const { s, ordenes } = build({ id: 'wo-vieja', code: 'OM-2026-0150' });
-    const r = await s.crear(dto, 'tec');
-    expect(ordenes.create).not.toHaveBeenCalled();
-    expect(r.om).toEqual({ code: 'OM-2026-0150', nueva: false });
+  it('con observaciones: aviso de CONDICIÓN, no un correctivo', async () => {
+    const { s, incidencias } = build(null);
+    const r = await s.crear(observada, 'tec');
+    expect(incidencias.create.mock.calls[0][0].tipoAviso).toBe('CONDICION');
+    expect(r.aviso.tipo).toBe('CONDICION');
   });
 
-  it('si abrir la orden falla, la inspección se queda y se dice', async () => {
-    const { s, ordenes } = build(null);
-    ordenes.create.mockRejectedValue(new Error('sin conexión'));
-    const r = await s.crear(dto, 'tec');
+  it('con aviso vivo: se enlaza a ése, no abre otro', async () => {
+    const { s, incidencias } = build({ id: 'inc-vieja', code: 'INC-2026-0150', tipoAviso: 'FALLA' });
+    const r = await s.crear(fuera, 'tec');
+    expect(incidencias.create).not.toHaveBeenCalled();
+    expect(r.aviso).toEqual({ code: 'INC-2026-0150', nuevo: false, tipo: 'FALLA' });
+  });
+
+  it('si el aviso vivo decía que funcionaba y ahora está fuera de servicio, pasa a FALLA', async () => {
+    const { s, incidencias } = build({ id: 'inc-vieja', code: 'INC-2026-0150', tipoAviso: 'CONDICION' });
+    const r = await s.crear(fuera, 'tec');
+    expect(incidencias.update).toHaveBeenCalledWith('inc-vieja', { tipoAviso: 'FALLA' });
+    expect(r.aviso.tipo).toBe('FALLA');
+  });
+
+  it('si abrir el aviso falla, la inspección se queda y se dice', async () => {
+    const { s, incidencias } = build(null);
+    incidencias.create.mockRejectedValue(new Error('sin conexión'));
+    const r = await s.crear(fuera, 'tec');
     expect(r.code).toBe('GRU-2026-0003');
-    expect(r.om).toBeNull();
-    expect(r.omError).toMatch(/Ábrela a mano/);
+    expect(r.aviso).toBeNull();
+    expect(r.avisoError).toMatch(/Repórtalo a mano/);
   });
 });

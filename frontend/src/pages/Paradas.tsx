@@ -10,6 +10,7 @@ import BotonConMotivo from '../components/BotonConMotivo';
 import { mensajeDeError, queFalta } from '../avisos';
 import { OpcionesDeTrenDePlanta, nombreDeTrenDePlanta, trenDePlantaDeSigla } from '../ubicaciones';
 import { plural } from '../formato';
+import { ComoSeCalcula } from '../components/Patron';
 
 /**
  * VENTANAS DE PARADA
@@ -134,7 +135,7 @@ export default function Paradas() {
   async function cambiarEstado(p: any, estado: string) {
     let motivo: string | undefined;
     if (estado === 'CANCELADA') {
-      motivo = await pedirTexto('¿Por qué se cancela? La gente ya se había movilizado.') || '';
+      motivo = await pedirTexto('¿Por qué se cancela la parada?') || '';
       if (!motivo.trim()) return;
     }
     try {
@@ -149,15 +150,8 @@ export default function Paradas() {
 
   return (
     <div className="page">
-      <div className="card explica">
-        <b>Las paradas las avisa Producción, y la hora se mueve.</b> Esta pantalla está
-        hecha para eso: apuntarla en treinta segundos y moverla las veces que haga falta.
-        <div style={{ marginTop: 8 }}>
-          <b>Al mover hay que decir por qué.</b> Cuesta cinco segundos, y es lo que
-          convierte «siempre nos mueven la parada» en «se movió 14 veces este mes,
-          9 por cambio de programa». Lo primero es una queja; lo segundo va a una reunión.
-        </div>
-      </div>
+      {/* Síntesis 21/10: una línea arriba; el porqué, plegado al final. */}
+      <p className="page-sub">Las avisa Producción; moverlas exige motivo.</p>
 
       {msg && <div role="status" className="aviso-ok aviso-cerrable" onClick={() => setMsg('')} title="Toca para cerrar este aviso">{msg}</div>}
       {error && <div role="alert" className="aviso-error aviso-cerrable" onClick={() => setError('')} title="Toca para cerrar este aviso">{error}</div>}
@@ -199,16 +193,13 @@ export default function Paradas() {
               );
             })}
           </div>
-          <div className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>
-            Anunciadas, confirmadas o en curso. Sin trabajo asignado se desaprovechan.
-          </div>
         </div>
       )}
 
       {/* El número para la reunión. */}
       {fiab && fiab.trenes.length > 0 && (
         <div className="card">
-          <div className="section-title" style={{ marginTop: 0 }}>Cómo se han portado las paradas (90 días)</div>
+          <div className="section-title" style={{ marginTop: 0 }}>Lo anunciado frente a lo real (90 días)</div>
           <table className="tabla">
             <thead>
               <tr><th>Tren</th><th className="num">Paradas</th><th className="num">Movidas</th>
@@ -231,9 +222,6 @@ export default function Paradas() {
               ))}
             </tbody>
           </table>
-          <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
-            Compara lo anunciado por Producción con lo real. Sólo paradas cerradas con hora.
-          </div>
         </div>
       )}
 
@@ -266,9 +254,7 @@ export default function Paradas() {
       {cargando && !lista.length ? <EsqueletoTabla filas={5} /> : lista.length === 0 ? (
         <div className="card vacio">
           <h3>No hay paradas apuntadas</h3>
-          <p>
-            Apúntala en cuanto Producción avise, aunque la hora sea aproximada: se puede mover.
-          </p>
+          <p>Apúntala apenas avisen, aunque la hora sea aproximada.</p>
         </div>
       ) : (
         <table className="tabla">
@@ -310,20 +296,31 @@ export default function Paradas() {
         </table>
       )}
 
+      <ComoSeCalcula>
+        <p>
+          Cada cambio de hora guarda su motivo: así «siempre nos mueven la parada»
+          se vuelve un número para la reunión. «Lo que viene» lista las anunciadas,
+          confirmadas o en curso.
+        </p>
+        <p>
+          «Lo anunciado frente a lo real» compara la hora de Producción con la
+          real, sólo en paradas cerradas con hora.
+        </p>
+      </ComoSeCalcula>
+
       {/* ---------- APUNTAR ---------- */}
       {nueva && (
         <Modal title="Apuntar una parada" onClose={() => setNueva(null)} ancho
           acciones={<>
             <button className="btn-mini" onClick={() => setNueva(null)}>Cancelar</button>
             <BotonConMotivo onClick={crear} ocupado={guardando}
-              falta={queFalta([!nueva.inicioPrevisto, 'Pon la hora prevista de inicio. Sin ella no hay desviación que medir.'])}>
+              falta={queFalta([!nueva.inicioPrevisto, 'Pon la hora prevista de inicio.'])}>
               {guardando ? 'Guardando…' : 'Apuntar'}
             </BotonConMotivo>
           </>}>
           {error && <div role="alert" className="aviso-error">{error}</div>}
           <div className="card explica" style={{ marginTop: 0 }}>
-            Apúntala con lo que sepas ahora. <b>La hora se puede mover después</b>,
-            y cada cambio queda registrado.
+            Con lo que sepas ahora: <b>la hora se puede mover</b>.
           </div>
           <div className="form-grid">
             <label className="campo">
@@ -341,8 +338,9 @@ export default function Paradas() {
             <label className="campo">
               <span>Inicio previsto <b className="campo-req">*</b></span>
               <input type="datetime-local" value={nueva.inicioPrevisto}
+                title="Muchas veces uno se entera cuando ya empezó."
                 onChange={(e) => setNueva({ ...nueva, inicioPrevisto: e.target.value })} />
-              <small className="muted">Se acepta una hora ya pasada: muchas veces uno se entera cuando ya empezó.</small>
+              <small className="muted">Puede ser una hora ya pasada.</small>
             </label>
             <label className="campo">
               <span>Fin previsto</span>
@@ -359,7 +357,6 @@ export default function Paradas() {
               <select value={nueva.canalAviso} onChange={(e) => setNueva({ ...nueva, canalAviso: e.target.value })}>
                 {CANALES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
-              <small className="muted">Dejarlo escrito es lo que convierte un recado en un dato.</small>
             </label>
             <label className="campo campo-ancho">
               <span>Motivo de la parada</span>
@@ -380,8 +377,7 @@ export default function Paradas() {
           acciones={<>
             <button className="btn-mini" onClick={() => setMover(null)}>Cancelar</button>
             <BotonConMotivo onClick={confirmarMover} ocupado={guardando}
-              falta={queFalta([(mover.motivo || '').trim().length < 3,
-                'Escribe por qué se mueve. Sin motivo, mover tres veces parece culpa de Mantenimiento.'])}>
+              falta={queFalta([(mover.motivo || '').trim().length < 3, 'Escribe por qué se mueve.'])}>
               {guardando ? 'Guardando…' : 'Mover'}
             </BotonConMotivo>
           </>}>
@@ -399,11 +395,8 @@ export default function Paradas() {
           <label className="campo">
             <span>¿Por qué se mueve? <b className="campo-req">*</b></span>
             <input value={mover.motivo} onChange={(e) => setMover({ ...mover, motivo: e.target.value })}
+              title="Sin motivo, a fin de mes no se puede demostrar por qué el trabajo no se hizo."
               placeholder="Se alargó la colada, cambio de programa, falta el repuesto…" />
-            <small className="muted">
-              Obligatorio. Sin el motivo, a fin de mes no se puede demostrar por qué
-              el trabajo no se hizo.
-            </small>
           </label>
         </Modal>
       )}

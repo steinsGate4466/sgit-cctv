@@ -1345,6 +1345,10 @@ enum WorkOrderType {
   /// trabajo: se recibe, se asigna, se ejecuta y se cierra con informe.
   /// Va al final del enum porque PostgreSQL añade los valores nuevos al final.
   MAPEO
+  /// Bloque 180 · equipos NUEVOS y sus planos. No es correctivo ni mejora, y
+  /// no cuenta en el reparto correctivo/preventivo/mejora (decisión de
+  /// Cristhian, 22/10/2026). Al final del enum, por la misma regla.
+  INSTALACION
 }
 
 /// Por dónde llegó el pedido de Producción.
@@ -1436,7 +1440,9 @@ model WorkOrder {
   requestedBy    String?          // nombre de quien la solicitó (Producción)
   requestChannel RequestChannel?  // por dónde llegó
   receivedAt     DateTime?        // cuándo se recibió
-  externalRef    String?          // número de la orden en SAP, si lo tiene
+  /// Número de la orden en SAP. Bloque 180: la OM la crea SAP (Producción o
+  /// el Jefe) y sin este número la orden NO se abre ni se ejecuta.
+  externalRef    String?
 
   // ---- PARADA Y EJECUCIÓN (Bloque 1) ----
   /// Hora de parada ESTIMADA por Producción al crear la orden. Es tentativa:
@@ -1599,6 +1605,7 @@ model WorkOrder {
   @@index([assetId, createdAt])
   /// Listados y exportación ordenan por fecha sin filtrar por activo.
   @@index([createdAt])
+  @@index([externalRef])
   @@map("work_orders")
 }
 
@@ -1807,6 +1814,18 @@ model Incident {
   /// Es una reparación fallida y se cuenta como tal.
   reaparecio      Boolean          @default(false)
 
+  /// Bloque 180 · QUÉ CLASE DE AVISO ES, dicho por quien lo vio con un clic:
+  /// «¿el equipo funciona?». Como el M2 (avería) y el M1 (solicitud) de SAP.
+  /// Sólo una FALLA abre evento de falla y cuenta en MTTR/MTBF: un gabinete
+  /// deteriorado que funciona no es una avería. NULL = aviso viejo, de antes
+  /// de este campo; se lee como falla para no reescribir la historia.
+  tipoAviso       TipoAviso?
+  /// N° del aviso en SAP (ej. el 1000… de IW22), si ya existe. SGIT no crea
+  /// avisos en SAP: lo apunta quien lo creó, para poder cruzarlos.
+  avisoSap        String?
+  /// Inspecciones de grúa que levantaron este aviso (bloque 180, D).
+  inspeccionesGrua InspeccionGrua[] @relation("InspeccionGruaAviso")
+
   workOrders      WorkOrder[]        // OM generadas a partir de esta incidencia
   /// La avería que este aviso reportó (bloque 78). Uno a uno.
   falla           FailureEvent?
@@ -1823,7 +1842,16 @@ model Incident {
   /// pero el listado y el historial ordenan por `reportedAt`.
   @@index([assetId, reportedAt])
   @@index([reportedAt])
+  @@index([avisoSap])
   @@map("incidents")
+}
+
+/// Bloque 180 · la clase del aviso, por lo que se VE y no por lo que se cree
+/// que es. Quien reporta no clasifica la avería; sólo dice si funciona.
+enum TipoAviso {
+  FALLA      // no funciona o funciona mal → candidata a correctivo
+  CONDICION  // funciona, pero se va a dañar (oxidado, abierto, expuesto) → preventivo o mejora
+  SOLICITUD  // pedido de algo nuevo o de un cambio → mejora o instalación
 }
 
 /// Por dónde entró el aviso de la incidencia (bloque 51-B).
@@ -2702,6 +2730,10 @@ model InspeccionGrua {
   workOrderId   String?
   workOrder     WorkOrder? @relation("InspeccionGruaWo", fields: [workOrderId], references: [id])
 
+  /// Bloque 180 · el hallazgo levanta un AVISO, no una OM: la OM la crea SAP.
+  incidentId    String?
+  incident      Incident?  @relation("InspeccionGruaAviso", fields: [incidentId], references: [id], onDelete: SetNull)
+
   /// Identificación de la grúa en planta. Texto libre a propósito: los
   /// nombres de grúa los pone Producción y no están en ningún catálogo
   /// nuestro ("Puente grúa 2", "GRU-107", "la del patio de palanquilla").
@@ -2780,6 +2812,7 @@ model InspeccionGrua {
   updatedAt       DateTime @updatedAt
 
   @@index([assetId])
+  @@index([incidentId])
   @@index([grua])
   @@index([fecha])
   @@map("inspecciones_grua")

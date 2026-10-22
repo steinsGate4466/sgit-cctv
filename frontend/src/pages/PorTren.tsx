@@ -96,7 +96,7 @@ export default function PorTren() {
   if (!trenes.length) {
     return (
       <div className="page">
-        <h1 className="page-title">Por tren</h1>
+        <h1 className="page-title">Comparar trenes</h1>
         <div className="card vacio">
           <h3>Todavía no hay sectores en el árbol de planta</h3>
           <p>Se crean en Ubicaciones, o los siembra el arranque inicial.</p>
@@ -115,7 +115,7 @@ export default function PorTren() {
 
   return (
     <div className="page">
-      <h1 className="page-title">Por tren</h1>
+      <h1 className="page-title">Comparar trenes</h1>
 
       {/* El selector. Pastillas grandes, no un desplegable: en un púlpito se
           pulsa con guante y un <select> nativo abre una lista minúscula. */}

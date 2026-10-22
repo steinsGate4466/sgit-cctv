@@ -152,7 +152,7 @@ export interface ResultadoDeCandado<T> {
  * ```ts
  * const r = await conCandado(this.prisma, CANDADO.PREVENTIVO, async () => {
  *   if (await this.yaCorrioHoy()) return null;
- *   return this.preventive.generateDue(...);
+ *   return this.preventive.programaDelDia(...);
  * });
  * if (!r.tomado) return;   // lo está haciendo la otra réplica
  * ```

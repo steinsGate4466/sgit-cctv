@@ -47,6 +47,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import Icono from './Iconos';
+import { FaltaOmSap } from './NumeroSapDeOm';
 
 const ESTADO_OM: Record<string, string> = {
   ABIERTA: 'Abierta',
@@ -146,7 +147,11 @@ export default function TrabajoDesdeElQR({
           </div>
           {o.activity && <div className="qr-om-act">{o.activity}</div>}
 
-          {abierto === o.code ? (
+          {/* Bloque 180 · «primero el N° SAP»: sin él no se anota avance. Se
+              dice aquí, delante del equipo, y si puedes se apunta aquí. */}
+          {!o.externalRef ? (
+            <FaltaOmSap wo={o} queSeIntenta="anota avance" onApuntado={() => alGuardar()} />
+          ) : abierto === o.code ? (
             <>
               <div className="qr-pasos">
                 {PASOS.map((p) => (

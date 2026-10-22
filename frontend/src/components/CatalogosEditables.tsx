@@ -18,19 +18,22 @@ import { useDialogos } from './Dialogos';
  * ve un técnico ni cómo los llama. Se crean aquí.
  */
 
+/* Síntesis 21/10: una línea por lista; los ejemplos van en el `title`. */
 const TIPOS = [
-  { k: 'CAUSA', t: 'Causas de cierre', d: 'Por qué falló. Es lo que permite contar por qué se repite algo.' },
-  { k: 'SINTOMA', t: 'Síntomas', d: 'Qué vio el técnico ANTES de intervenir. Sin imagen, imagen con rayas, se congela…' },
-  { k: 'ACCION', t: 'Acciones', d: 'Qué hizo. Limpiar carcasa, recrimpar, cambiar fuente…' },
-  { k: 'MOTIVO_AVANCE', t: 'Motivos de no avanzar', d: 'Por qué se quedó a medias. No llegó el repuesto, se acortó la parada…' },
+  { k: 'CAUSA', t: 'Causas de cierre', d: 'Por qué falló.', e: 'Permite contar qué se repite.' },
+  { k: 'SINTOMA', t: 'Síntomas', d: 'Qué vio el técnico antes de intervenir.', e: 'Sin imagen, imagen con rayas, se congela…' },
+  { k: 'ACCION', t: 'Acciones', d: 'Qué hizo el técnico.', e: 'Limpiar carcasa, recrimpar, cambiar fuente…' },
+  { k: 'MOTIVO_AVANCE', t: 'Motivos de no avanzar', d: 'Por qué se quedó a medias.', e: 'No llegó el repuesto, se acortó la parada…' },
   /* Bloque 136 · los SUBTIPOS de OM. El grupo es el tipo de orden y la nota es
      la actividad que se copia sola al formulario al elegir el trabajo. */
-  { k: 'TRABAJO_OM', t: 'Trabajos de OM', d: 'Qué se hace de verdad en cada tipo de orden. Al elegirlo, la orden se llena sola con la actividad.' },
+  { k: 'TRABAJO_OM', t: 'Trabajos de OM', d: 'Qué se hace en cada tipo de orden.', e: 'Al elegirlo, la orden se llena sola con la actividad.' },
 ];
 
 /** Bloque 136 · los tipos de OM, para el grupo de un «trabajo». */
 const TIPOS_OM: Record<string, string> = {
   PREVENTIVO: 'Preventivo', CORRECTIVO: 'Correctivo', MEJORA: 'Mejora', PREDICTIVO: 'Predictivo', MAPEO: 'Mapeo',
+  // Bloque 180: tipo propio (equipos nuevos y planos).
+  INSTALACION: 'Instalación',
 };
 
 const VACIO = { id: '', code: '', name: '', group: '', sequence: 0, notes: '' };
@@ -105,12 +108,6 @@ export default function CatalogosEditables() {
 
   return (
     <div>
-      <div className="sign-note">
-        Estas listas son las que verá el técnico al cerrar una orden. Nadie mejor
-        que ustedes sabe cómo se llaman las cosas en planta: por eso se editan
-        aquí y no están escritas en el código.
-      </div>
-
       <div className="tabs" style={{ margin: '14px 0' }}>
         {TIPOS.map((t) => (
           <button
@@ -124,7 +121,7 @@ export default function CatalogosEditables() {
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <div className="muted" style={{ fontSize: 12, maxWidth: 560 }}>{info?.d}</div>
+        <div className="muted" style={{ fontSize: 12, maxWidth: 560 }} title={info?.e}>{info?.d}</div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
             <input type="checkbox" checked={verTodas} onChange={(e) => setVerTodas(e.target.checked)} />
@@ -144,10 +141,7 @@ export default function CatalogosEditables() {
             Todavía no hay ninguna entrada en «{info?.t}»
           </div>
           <div className="muted" style={{ fontSize: 13, marginTop: 8, lineHeight: 1.6 }}>
-            Está vacío a propósito. Yo no sé qué {tipo === 'SINTOMA' ? 'síntomas ve' : 'términos usa'} un
-            técnico en el Tren 2 ni cómo los llama, y ya me equivoqué una vez
-            inventando nombres de planta.
-            <br />Créalas tú: en cuanto haya una, aparecerá al cerrar las órdenes.
+            Las que se creen aparecerán al cerrar órdenes.
           </div>
         </div>
       ) : (
@@ -209,7 +203,8 @@ export default function CatalogosEditables() {
           ) : (
           <label>Familia — para agrupar la lista
             <input value={form.group} onChange={(e) => setForm({ ...form, group: e.target.value })}
-            placeholder="ej. Cableado" list="familias-catalogo" />
+            placeholder="ej. Cableado" list="familias-catalogo"
+            title="Agrupadas se encuentran antes que en una lista plana." />
           </label>
           )}
           <datalist id="familias-catalogo">
@@ -217,9 +212,6 @@ export default function CatalogosEditables() {
               <option key={g} value={g} />
             ))}
           </datalist>
-          <div className="muted" style={{ fontSize: 11, marginTop: -6, marginBottom: 8 }}>
-            Agrupadas se encuentran antes que en una lista plana.
-          </div>
 
           <label>Orden dentro de su familia
             <input type="number" value={form.sequence}
@@ -238,9 +230,9 @@ export default function CatalogosEditables() {
           )}
 
           {form.id && (
-            <div className="muted" style={{ fontSize: 11, marginTop: 8 }}>
-              El código <b>{form.code}</b> no se puede cambiar: es lo que está
-              guardado en las órdenes ya cerradas. Cambiarlo reescribiría el pasado.
+            <div className="muted" style={{ fontSize: 11, marginTop: 8 }}
+              title="Está guardado en las órdenes ya cerradas: cambiarlo reescribiría el pasado.">
+              Código <b>{form.code}</b>: no se puede cambiar.
             </div>
           )}
 

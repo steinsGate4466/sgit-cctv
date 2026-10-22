@@ -1,4 +1,5 @@
 import CatalogosEditables from '../components/CatalogosEditables';
+import { ComoSeCalcula } from '../components/Patron';
 
 /**
  * CATÁLOGO DE FALLAS — bloque 130.
@@ -28,21 +29,17 @@ export default function CatalogoDeFallas() {
   return (
     <div>
       <h1 className="page-title">Catálogo de fallas</h1>
-      <p className="page-sub">
-        Síntoma, causa y acción con los que se cierra una orden · con los
-        nombres reales de esta planta
-      </p>
-
-      <div className="card explica">
-        <b>Esto es el vocabulario del cierre.</b> Cuando un técnico cierra una
-        orden elige de estas listas, y de ahí salen los indicadores.
-        <div style={{ marginTop: 8 }}>
-          Si falta la palabra que hace falta, se escribe cualquier cosa y el
-          indicador deja de servir.
-        </div>
-      </div>
+      <p className="page-sub">Síntoma, causa y acción del cierre</p>
 
       <CatalogosEditables />
+
+      {/* Síntesis 21/10: la explicación pasa abajo, plegada. */}
+      <ComoSeCalcula>
+        <p>
+          Al cerrar una orden se elige de estas listas, con los nombres de esta
+          planta; de ahí salen los indicadores. Si falta una opción, se agrega aquí.
+        </p>
+      </ComoSeCalcula>
     </div>
   );
 }

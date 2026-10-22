@@ -142,14 +142,10 @@ export default function Documentos() {
         )}
       </div>
 
-      <div className="card explica">
-        <b>Manuales, planos, fichas y configuraciones.</b> Cada uno cuelga de un
-        equipo o de una ubicación, para que aparezca al buscarlo.
-        <div style={{ marginTop: 6, fontSize: 12.5 }}>
-          Subir un archivo con el mismo título <b>no borra el anterior</b>: crea
-          una versión nueva. Un plano viejo sigue diciendo cómo estaba la planta.
-        </div>
-      </div>
+      {/* Síntesis 21/10: una línea; el versionado, al `title`. */}
+      <p className="page-sub" title="Subir un archivo con el mismo título no borra el anterior: crea una versión nueva.">
+        Cada archivo cuelga de un equipo o una ubicación.
+      </p>
 
       {fallo && <div className="card aviso-error">{fallo}</div>}
       {cargando && <EsqueletoTabla filas={4} />}

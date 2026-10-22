@@ -25,7 +25,7 @@ export default function Modulos() {
 
   return (
     <div className="modulos-hub">
-      <p className="page-sub">{'Cada módulo con sus pantallas. El número dice cuántas cosas esperan dentro.'}</p>
+      <p className="page-sub">El número: cuántas cosas esperan.</p>
       <div className="modulos-grid">
         {modulos.map(({ m, visibles }) => {
           const total = totalDelModulo(m, visibles.map((p) => p.ruta), contadores);
@@ -42,10 +42,11 @@ export default function Modulos() {
               <ul className="modulo-tarjeta-lista">
                 {visibles.map((p) => (
                   <li key={p.ruta}>
-                    <Link to={p.ruta}>
+                    {/* Síntesis 21/10: la nota de cada pantalla va al `title`;
+                        la tarjeta enseña sólo nombres, que es lo que se busca. */}
+                    <Link to={p.ruta} title={p.nota}>
                       <span>
                         <b>{p.texto}</b>
-                        {p.nota && <small>{p.nota}</small>}
                       </span>
                       <Insignia c={contadores[p.ruta]} />
                     </Link>

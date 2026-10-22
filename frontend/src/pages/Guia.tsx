@@ -28,22 +28,22 @@ const FLUJOS: Flujo[] = [
         detalle: 'Desde el QR o el mapa: «No estoy viendo» crea la incidencia. Quien supervisa el tren puede además crear la OM rápida: qué pasa y en qué equipo. Nada más.',
         ruta: '/incidents', boton: 'Incidencias' },
       { quien: 'Sistema', que: 'La OM nace SIN DETALLAR y entra en la bandeja de Mantenimiento.',
-        detalle: 'Con fecha de hoy, el equipo y la incidencia enlazados. Aún no es trabajo en curso: es un pedido.',
+        detalle: 'Con plazo según la criticidad del equipo, y el equipo y la incidencia enlazados. Aún no es trabajo en curso: es un pedido.',
         ruta: '/bandeja', boton: 'Mi bandeja' },
       { quien: 'Jefe', que: 'Mantenimiento la recibe y la asigna a un técnico.',
         detalle: 'Sólo aparecen técnicos que pueden ejecutar órdenes. Si no puede esperar al día, se mueve la fecha pidiendo prórroga.',
         ruta: '/maintenance', boton: 'Órdenes' },
-      { quien: 'Técnico', que: 'La detalla: equipo exacto y trabajo del catálogo.',
-        detalle: 'El trabajo se elige de la lista y la actividad se llena sola. Si el problema era otro equipo (la antena, el switch), se cambia aquí con su motivo.',
+      { quien: 'Técnico', que: 'Si hace falta, la detalla: otro equipo o materiales.',
+        detalle: 'Abrirla delante del equipo ya la deja detallada. Detallar sirve para cambiar el equipo (la antena, el switch) con su motivo, o elegir el trabajo del catálogo.',
         ruta: '/maintenance?asignadas=1', boton: 'Mis trabajos' },
       { quien: 'Técnico', que: 'Al llegar al equipo, ABRE la OM: recién ahí empieza.',
         detalle: 'La seguridad sale de lo declarado: ATS, PETAR, LOTO, EPP, parada, acompañante. Sin marcar lo exigido no se abre.' },
       { quien: 'Técnico', que: 'Anota el avance; si paró el tren, la hora real de la parada.',
         detalle: 'Motivos con clics. Si no llega en plazo, pide prórroga con motivo: la aprueba el supervisor.' },
-      { quien: 'Técnico', que: 'Cierra con síntoma, causa, acción y foto.',
-        detalle: 'Sin foto no cierra, salvo motivo firmado. Lo retirado del almacén queda en la orden.' },
-      { quien: 'Jefe', que: 'Aprueba el cierre. La incidencia pasa a resuelta.',
-        detalle: 'Sólo el Jefe de Mantenimiento cierra: un cierre afirma que el trabajo se hizo.' },
+      { quien: 'Técnico', que: 'Al 100 %: marca síntoma, causa, acción y sube la foto.',
+        detalle: 'Con clics del catálogo. Es una propuesta: la orden sigue abierta hasta que la firme el Jefe.' },
+      { quien: 'Jefe', que: 'Revisa y firma el cierre. La incidencia se resuelve sola.',
+        detalle: 'Sólo el Jefe cierra: un cierre afirma que el trabajo se hizo. Sin foto no cierra, salvo motivo. A quien reportó le llega el aviso.' },
     ],
   },
   {
@@ -84,8 +84,8 @@ export default function Guia() {
   const { can, user } = useAuth();
   return (
     <div className="page">
-      <p className="muted" style={{ margin: '0 0 12px' }}>
-        Quién hace cada paso y dónde. Pasa el ratón por un paso para ver el detalle.
+      <p className="muted" style={{ margin: '0 0 12px' }} title="Pasa el ratón por un paso para ver el detalle.">
+        Quién hace cada paso y dónde.
       </p>
       {FLUJOS.map((f) => (
         <section key={f.id} className="card guia-flujo" aria-labelledby={'g-' + f.id}>

@@ -104,7 +104,7 @@ export default function Audit() {
   return (
     <div>
       <h1 className="page-title">Auditoría</h1>
-      <p className="page-sub">Quién hizo qué, cuándo y desde dónde · trazabilidad completa del sistema</p>
+      <p className="page-sub">Quién hizo qué, cuándo y desde dónde</p>
 
       <div className="kpi-grid">
         <div className="kpi"><div className="label">Eventos registrados</div><div className="value">{data.total}</div><div className="hint">Historial completo</div></div>
@@ -175,7 +175,7 @@ export default function Audit() {
             </table>
           </div>
           <div className="muted" style={{ fontSize: 11, marginTop: 10 }}>
-            Mostrando {rows.length} de {todas.length} eventos cargados · “Origen” es la dirección desde la que se conectó el usuario.
+            <span title="«Origen» es la dirección desde la que se conectó el usuario.">{rows.length} de {todas.length} eventos</span>
           </div>
         </>
       )}

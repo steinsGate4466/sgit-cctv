@@ -70,17 +70,17 @@ const TITLES: Record<string, string> = {
   '/mi-tren': 'Mi tren',
   '/topologia': 'Puntos críticos de la red',
   '/riesgo': 'Repuestos y obsolescencia',
-  '/mis-camaras': 'Mis cámaras',
-  '/vista-general': 'Resumen de planta',
+  '/mis-camaras': 'Cámaras del tren',
+  '/vista-general': 'Toda la planta',
   '/dependencias': 'Impacto de una caída',
   '/mapa-de-red': 'Mapa de red por gabinete y tablero',
-  '/por-tren': 'Por tren',
+  '/por-tren': 'Comparar trenes',
   '/salud-de-datos': 'Calidad de datos',
   '/mis-activos': 'Mis activos',
   '/rotulado': 'Estándar de rotulado',
   '/monitoreo': 'Monitoreo de red',
   '/grabadores': 'Grabadores y canales',
-  '/capacidad': 'Capacidad de red',
+  '/capacidad': 'Switches y puertos',
   '/conexiones': 'Conexiones de red',
   '/gruas': 'Cámaras de grúa',
   '/documentos': 'Manuales y planos',
@@ -105,7 +105,7 @@ const TITLES: Record<string, string> = {
   // pantalla tenía que repetir su propio título para que se supiera dónde
   // estabas. Con esto el título vive en UN solo sitio.
   '/bandeja': 'Mi bandeja',
-  '/mapeo': 'Estado de la información',
+  '/mapeo': 'Fichas por completar',
   '/cableado': 'Cableado',
   /* Bloque 130: los catálogos de falla salen de «Ubicaciones». Una ubicación
      es un sitio; esto es el vocabulario con el que se cierra una orden. */
@@ -264,6 +264,9 @@ export default function Layout() {
   useEffect(() => { setPanel(null); }, [loc.pathname]);
   useEffect(() => () => window.clearTimeout(reloj.current), []);
 
+  const recientesVisibles = recientes
+    .filter((r) => r !== loc.pathname && TITLES[r] && puedeAbrir(r, can, user)).slice(0, 3);
+
   return (
     /* La clase de «barra estrecha» va AQUÍ, en el contenedor, no sólo en el
        <aside>. La rejilla que reparte la pantalla vive en `.app`: si sólo se
@@ -304,7 +307,9 @@ export default function Layout() {
               cuanto habías visitado dos pantallas. Ese era el «crece de
               forma abrupta». En la tira no hace falta: todo está a un dedo
               de distancia deslizando. */}
-          {recientes.length > 1 && !estrecha && !esMovil && (
+          {/* Se pinta sólo si queda algo DESPUÉS de filtrar: con la pantalla
+              actual fuera, salía el título «Lo último» sin nada debajo. */}
+          {recientesVisibles.length > 0 && !estrecha && !esMovil && (
             <div className="recientes-nav">
               <div className="nav-titulo" style={{ cursor: 'default' }}>Lo último</div>
               {/* `TITLES[r]` no es sólo para pintar el nombre: es la LISTA
@@ -314,7 +319,7 @@ export default function Layout() {
                   mano se convertiría en el destino de un <NavLink>. Al exigir
                   que la ruta exista en TITLES, sólo pueden salir pantallas
                   reales de la aplicación. */}
-              {recientes.filter((r) => r !== loc.pathname && TITLES[r] && puedeAbrir(r, can, user)).slice(0, 3).map((r) => (
+              {recientesVisibles.map((r) => (
                 <NavLink key={r} to={r} className="reciente">{TITLES[r]}</NavLink>
               ))}
             </div>

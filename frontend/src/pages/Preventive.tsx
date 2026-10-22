@@ -4,11 +4,13 @@ import { api } from '../api/client';
 import RutinasEditor from '../components/RutinasEditor';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
-import Icono from '../components/Iconos';
 import { useDialogos } from '../components/Dialogos';
-import { fecha, fechaHora } from '../formato';
+import { fecha } from '../formato';
 import { WO_STATUS_ES } from './omCatalogos';
 import { ComoSeCalcula } from '../components/Patron';
+import { hoyParaInput } from '../fechas';
+import { avisoDelNumeroSap, normalizarNumeroSap } from '../avisoSap';
+import { mensajeDeError } from '../avisos';
 
 // Estado del plan -> clase de badge existente.
 const PLAN_BADGE: Record<string, string> = {
@@ -20,43 +22,48 @@ const PLAN_ES: Record<string, string> = {
 };
 
 export default function Preventive() {
-  const { confirmar, avisar } = useDialogos();
+  const { avisar } = useDialogos();
   const { can } = useAuth();
   const [plans, setPlans] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
   const [assets, setAssets] = useState<any[]>([]);
   const [oms, setOms] = useState<any[]>([]);
-  const [auto, setAuto] = useState<any>(null);
+  /* Bloque 180 · el PROGRAMA: qué rutina toca y si ya tiene su OM de SAP.
+     Sustituye a «Generar OM vencidas» y al interruptor de los automáticos:
+     SGIT ya no crea preventivas, las genera SAP y aquí se vinculan. */
+  const [programa, setPrograma] = useState<any>(null);
+  const [vinculando, setVinculando] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [vista, setVista] = useState<'plan' | 'rutinas'>('plan');
-  const [generating, setGenerating] = useState(false);
-  const [cambiandoAuto, setCambiandoAuto] = useState(false);
 
   const [form, setForm] = useState<any>(null);
   const [saving, setSaving] = useState(false);
 
   async function load() {
-    const [p, s, w, ag] = await Promise.all([
+    const [p, s, w, pg] = await Promise.all([
       api.get('/preventive/plans').then((r) => r.data).catch(() => []),
       api.get('/preventive/summary').then((r) => r.data).catch(() => null),
       api.get('/work-orders?type=PREVENTIVO&pageSize=200').then((r) => r.data).catch(() => ({ data: [] })),
-      api.get('/preventive/autogen-status').then((r) => r.data).catch(() => null),
+      api.get('/preventive/programa?dias=30').then((r) => r.data).catch(() => null),
     ]);
     setPlans(p || []);
     setSummary(s);
     setOms(w.data || []);
-    setAuto(ag);
+    setPrograma(pg);
   }
   useEffect(() => {
+    let vigente = true;
     Promise.all([
       api.get('/preventive/plans').then((r) => r.data).catch(() => []),
       api.get('/preventive/summary').then((r) => r.data).catch(() => null),
       api.get('/assets/options').then((r) => r.data).catch(() => []),
       api.get('/work-orders?type=PREVENTIVO&pageSize=200').then((r) => r.data).catch(() => ({ data: [] })),
-      api.get('/preventive/autogen-status').then((r) => r.data).catch(() => null),
-    ]).then(([p, s, a, w, ag]) => {
-      setPlans(p || []); setSummary(s); setAssets(a || []); setOms(w.data || []); setAuto(ag); setLoading(false);
+      api.get('/preventive/programa?dias=30').then((r) => r.data).catch(() => null),
+    ]).then(([p, s, a, w, pg]) => {
+      if (!vigente) return;
+      setPlans(p || []); setSummary(s); setAssets(a || []); setOms(w.data || []); setPrograma(pg); setLoading(false);
     });
+    return () => { vigente = false; };
   }, []);
 
   async function downloadOM(w: any) {
@@ -67,38 +74,6 @@ export default function Preventive() {
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
     } catch { await avisar('No se pudo generar el informe.'); }
   }
-  async function generate() {
-    if (!(await confirmar('¿Generar las OM preventivas de los planes vencidos?'))) return;
-    setGenerating(true);
-    try {
-      const r = await api.post('/preventive/generate', {});
-      const g = r.data?.generated ?? 0;
-      const om = r.data?.skipped?.length ?? 0;
-      await avisar(`Se generaron ${g} OM preventiva(s).${om ? ` ${om} activo(s) omitido(s) (ya tenían una OM abierta o están fuera de operación).` : ''}`);
-      await load();
-    } catch (err: any) {
-      const m = err?.response?.data?.message;
-      await avisar(Array.isArray(m) ? m.join(', ') : m || 'No se pudo generar.');
-    } finally { setGenerating(false); }
-  }
-
-  /* Bloque 143 · el interruptor. Apagar pide confirmación porque deja de
-     programarse trabajo en toda la planta; encender no, porque sólo vuelve a
-     lo normal. Lo que responde el servidor ES el estado nuevo: no se supone. */
-  async function alternarAuto() {
-    if (!auto) return;
-    const encender = !auto.enabled;
-    if (!encender && !(await confirmar('¿Apagar los preventivos automáticos? Dejarán de crearse solos hasta que alguien los encienda.'))) return;
-    setCambiandoAuto(true);
-    try {
-      const r = await api.post('/preventive/autogen', { activo: encender });
-      setAuto(r.data);
-    } catch (err: any) {
-      const m = err?.response?.data?.message;
-      await avisar(Array.isArray(m) ? m.join(', ') : m || 'No se pudo cambiar.');
-    } finally { setCambiandoAuto(false); }
-  }
-
   function openNew() {
     // Bloque 168: vacío = lo decide el ambiente de la etapa y el último preventivo cerrado (servidor).
     setForm({ assetId: '', intervalDays: '', zoneCritical: false, lastServiceAt: '', active: true });
@@ -139,11 +114,10 @@ export default function Preventive() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 className="page-title">Mantenimiento Preventivo</h1>
-          <p className="page-sub">Programación por activo · 30 días en zonas críticas (suciedad), 60 días en el resto</p>
+          <p className="page-sub" title="30 días en zonas críticas (suciedad), 60 días en el resto.">Programación por activo</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {vista === 'plan' && can('wo.create') && <button className="btn-mini" onClick={openNew}>+ Nuevo plan</button>}
-          {vista === 'plan' && can('wo.create') && <button className="btn-primary" disabled={generating} onClick={generate}>{generating ? 'Generando…' : 'Generar OM vencidas'}</button>}
         </div>
       </div>
 
@@ -162,35 +136,10 @@ export default function Preventive() {
       {vista === 'plan' && (
       <>
 
-      {auto && (
-        <div className="sign-note" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <span style={{ flex: '1 1 320px' }}>
-            {auto.enabled ? (
-              <>
-                <Icono n="automatico" size={15} /> <b>Preventivos automáticos: encendidos.</b> Cada día a las {String(auto.hour).padStart(2, '0')}:00.
-                {auto.lastRunAt
-                  ? <> Última vez: {fechaHora(auto.lastRunAt)} ({auto.lastRunGenerated ?? 0} OM).</>
-                  : <> Aún no ha corrido.</>}
-              </>
-            ) : (
-              <>
-                <Icono n="pausa" size={15} /> <b>Preventivos automáticos: apagados</b>
-                {auto.apagadaPorEntorno
-                  ? ' en el despliegue.'
-                  : auto.cambiadaPor ? ` por ${auto.cambiadaPor}, ${fechaHora(auto.cambiadaEn)}.` : '.'}
-                {' '}Se crean con «Generar OM vencidas».
-              </>
-            )}
-          </span>
-          {/* Sólo quien aprueba trabajo lo cambia (wo.approve). Si lo apagó el
-              despliegue, no hay botón: la pantalla no puede encenderlo. */}
-          {can('wo.approve') && !auto.apagadaPorEntorno && (
-            <button className="btn-mini" disabled={cambiandoAuto} onClick={alternarAuto}>
-              {auto.enabled ? 'Apagar' : 'Encender'}
-            </button>
-          )}
-        </div>
-      )}
+      {/* BLOQUE 180 · EL PROGRAMA. Qué rutina toca en 30 días y si ya tiene
+          su OM de SAP. SGIT no crea la orden: la genera SAP (plan y hoja de
+          ruta) y aquí se VINCULA, con los pasos de la hoja y la fecha. */}
+      {programa && <ProgramaPreventivo programa={programa} puedeVincular={can('wo.approve')} onVincular={setVinculando} />}
 
       <div className="kpi-grid">
         <div className="kpi ok"><div className="label">Al día</div><div className="value">{summary?.alDia ?? 0}</div></div>
@@ -218,12 +167,10 @@ export default function Preventive() {
                 {can('wo.create') && <td><button className="btn-mini" onClick={() => openEdit(p)}>Editar</button></td>}
               </tr>
             ))}
-            {!plans.length && <tr><td colSpan={8} className="muted" style={{ textAlign: 'center', padding: 30 }}>Sin planes preventivos. Crea uno con “+ Nuevo plan”.</td></tr>}
-
-            {/* Caso vacío: una tabla en blanco se lee como «se rompió»,
-                no como «todavía no hay nada». */}
+            {/* Caso vacío: una tabla en blanco se lee como «se rompió», no como
+                «todavía no hay nada». UNA línea: antes salían dos seguidas. */}
             {!plans.length && (
-              <tr><td colSpan={8} className="fila-vacia">Todavía no hay planes preventivos.</td></tr>
+              <tr><td colSpan={8} className="fila-vacia">{'Todavía no hay planes. Crea uno con «+ Nuevo plan».'}</td></tr>
             )}
           </tbody>
         </table>
@@ -238,7 +185,13 @@ export default function Preventive() {
           <tbody>
             {oms.map((w) => (
               <tr key={w.id}>
-                <td style={{ fontWeight: 600 }}>{w.code}</td>
+                <td style={{ fontWeight: 600 }}>
+                  {w.code}
+                  {/* Bloque 180: la OM es de SAP; sin su número no se abre. */}
+                  {w.externalRef
+                    ? <div className="num-sap muted" style={{ fontSize: 11, fontWeight: 400 }}>{'SAP ' + w.externalRef}</div>
+                    : w.status !== 'CERRADA' && w.status !== 'CANCELADA' && <div className="num-sap-falta" style={{ fontSize: 11 }}>{'Sin N° SAP'}</div>}
+                </td>
                 <td className="muted">{w.asset?.assetCode || '—'}</td>
                 <td className="muted" style={{ fontSize: 12 }}>{w.zone || '—'}</td>
                 <td style={{ fontSize: 12 }}>{w.activity || '—'}</td>
@@ -247,7 +200,7 @@ export default function Preventive() {
                 <td><button className="btn-mini" onClick={() => downloadOM(w)}>Informe</button></td>
               </tr>
             ))}
-            {!oms.length && <tr><td colSpan={7} className="muted" style={{ textAlign: 'center', padding: 30 }}>Aún no hay OM preventivas. Usa “Generar OM vencidas”.</td></tr>}
+            {!oms.length && <tr><td colSpan={7} className="muted" style={{ textAlign: 'center', padding: 30 }}>{'Aún no hay OM preventivas: se crean al vincular la OM de SAP de una rutina.'}</td></tr>}
           </tbody>
         </table>
       </div>
@@ -268,15 +221,14 @@ export default function Preventive() {
                 />
               </>
             )}
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400, marginTop: 10 }}>
-              <input type="checkbox" checked={!!form.zoneCritical} onChange={(e) => setForm({ ...form, zoneCritical: e.target.checked, intervalDays: e.target.checked ? 30 : '' })} style={{ width: 'auto' }} />
-              Zona crítica (cerca del horno / suciedad) → 30 días
-            </label>
+            {/* Optimización 21/10: la casilla «zona crítica → 30 días» repetía a
+                mano lo que ya calcula el sistema con la letra A/B/C y el ambiente
+                de la etapa (manda el que más exige). Vacío = calculado. */}
             <label>Intervalo (días)
               <input type="number" min={1} value={form.intervalDays} placeholder="Según el ambiente de su etapa" onChange={(e) => setForm({ ...form, intervalDays: e.target.value })} />
             </label>
             <label>Último mantenimiento (opcional)
-              <input type="date" value={form.lastServiceAt} title="Vacío: se toma el último preventivo cerrado del equipo" onChange={(e) => setForm({ ...form, lastServiceAt: e.target.value })} />
+              <input type="date" max={hoyParaInput()} value={form.lastServiceAt} title="Vacío: se toma el último preventivo cerrado del equipo" onChange={(e) => setForm({ ...form, lastServiceAt: e.target.value })} />
             </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 400, marginTop: 10 }}>
               <input type="checkbox" checked={!!form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} style={{ width: 'auto' }} />
@@ -286,14 +238,17 @@ export default function Preventive() {
           </form>
         </Modal>
       )}
+      {vinculando && (
+        <VincularSap fila={vinculando} onClose={() => setVinculando(null)} onHecho={load} />
+      )}
       </>
       )}
 
       <ComoSeCalcula>
         <p>
-          Sólo el <b>preventivo</b> se genera solo. Correctivo, mejora y
-          predictivo nacen de una incidencia o del análisis del equipo: no hay
-          calendario que los dispare.
+          SGIT <b>no crea</b> órdenes preventivas: la OM de cada rutina la
+          genera <b>SAP</b> con su plan y su hoja de ruta, y aquí se vincula a
+          la rutina que tocaba. Correctivo, mejora e instalación nacen de un aviso.
         </p>
         <p>
           El intervalo de cada plan sale de la <b>criticidad de la zona</b>, que
@@ -302,5 +257,130 @@ export default function Preventive() {
         </p>
       </ComoSeCalcula>
     </div>
+  );
+}
+
+/* =============================================================================
+   BLOQUE 180 · EL PROGRAMA DEL PREVENTIVO
+   -----------------------------------------------------------------------------
+   Qué rutina toca en los próximos 30 días y si ya tiene su OM de SAP. Lo que
+   sale «Sin OM» es trabajo que SAP todavía no generó o que nadie vinculó: es
+   la lista con la que el Jefe va a SAP. Vincular lo hace el Jefe (wo.approve).
+============================================================================= */
+function ProgramaPreventivo({ programa, puedeVincular, onVincular }: {
+  programa: any;
+  puedeVincular: boolean;
+  onVincular: (fila: any) => void;
+}) {
+  const r = programa?.resumen || {};
+  const filas: any[] = programa?.filas || [];
+  return (
+    <div className="panel" style={{ marginBottom: 16 }}>
+      <h3>{'Programa · lo que toca en 30 días'}</h3>
+      <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
+        {`${r.tocan ?? 0} rutinas · ${r.sinOm ?? 0} sin OM · ${r.omSinSap ?? 0} sin N° SAP · ${r.vinculadas ?? 0} vinculadas`}
+      </div>
+      {!filas.length ? (
+        <div className="fila-vacia">{'Nada toca en los próximos 30 días.'}</div>
+      ) : (
+        <div className="desliza">
+          <table>
+            <thead>
+              <tr><th>Equipo</th><th>Toca</th><th>Programada</th><th>OM</th>{puedeVincular && <th></th>}</tr>
+            </thead>
+            <tbody>
+              {filas.map((f) => (
+                <tr key={f.planId}>
+                  <td>
+                    <b>{f.assetCode}</b>
+                    <div className="muted" style={{ fontSize: 11 }}>{f.zona || '—'}</div>
+                  </td>
+                  <td className="sin-partir">
+                    {fecha(f.vence)}
+                    {f.vencida && <div><span className="badge FUERA_SERVICIO">{'Vencida'}</span></div>}
+                  </td>
+                  <td className="sin-partir" title={f.esperandoParada ? 'La zona exige tren parado: la fecha es la de la próxima ventana de parada.' : undefined}>
+                    {fecha(f.programada)}
+                    {f.esperandoParada && <div className="muted" style={{ fontSize: 11 }}>{'espera parada'}</div>}
+                  </td>
+                  <td>
+                    {f.orden ? (
+                      <>
+                        {f.orden.code}
+                        {f.orden.externalRef
+                          ? <div className="num-sap muted" style={{ fontSize: 11 }}>{'SAP ' + f.orden.externalRef}</div>
+                          : <div className="num-sap-falta" style={{ fontSize: 11 }}>{'Sin N° SAP'}</div>}
+                      </>
+                    ) : <span className="num-sap-falta">{'Sin OM'}</span>}
+                  </td>
+                  {puedeVincular && (
+                    <td>
+                      {!f.orden?.externalRef && (
+                        <button className="btn-mini" onClick={() => onVincular(f)}>{'Vincular OM SAP'}</button>
+                      )}
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** BLOQUE 180 · apuntar la OM que generó SAP en la rutina que tocaba. */
+function VincularSap({ fila, onClose, onHecho }: { fila: any; onClose: () => void; onHecho: () => void }) {
+  const [numero, setNumero] = useState('');
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState('');
+  const [aviso, setAviso] = useState('');
+  const malo = avisoDelNumeroSap(numero);
+
+  async function guardar(e: FormEvent) {
+    e.preventDefault();
+    if (!normalizarNumeroSap(numero)) { setError('Escribe el N° de la OM que generó SAP.'); return; }
+    if (malo) { setError(malo); return; }
+    setGuardando(true); setError('');
+    try {
+      const r = await api.post(`/preventive/activo/${fila.assetId}/vincular-sap`, { numero: normalizarNumeroSap(numero) });
+      onHecho();
+      /* Lo que hay que saber se dice ANTES de cerrar: un N° SAP repetido o
+         que la rutina espera una parada de tren. */
+      const partes = [
+        r.data?.aviso,
+        r.data?.esperandoParada ? 'La zona exige tren parado: la orden queda para la próxima ventana de parada.' : '',
+      ].filter(Boolean);
+      if (partes.length) setAviso(partes.join(' ')); else onClose();
+    } catch (err: any) {
+      setError(mensajeDeError(err, 'vincular la OM de SAP'));
+    } finally { setGuardando(false); }
+  }
+
+  return (
+    <Modal title={'Vincular OM SAP · ' + fila.assetCode} onClose={onClose}>
+      <form onSubmit={guardar}>
+        <div className="sign-note">
+          {fila.orden
+            ? `Se apunta en ${fila.orden.code}, la preventiva que ya tiene.`
+            : 'La orden nace con los pasos de su hoja de ruta y la fecha del programa.'}
+        </div>
+        <label>{'N° de la OM preventiva en SAP'}
+          <input className="num-sap" value={numero} maxLength={20} inputMode="numeric" placeholder="Ej.: 4000123456"
+            disabled={!!aviso} onChange={(e) => { setNumero(e.target.value); setError(''); }} />
+        </label>
+        {malo && <div className="num-sap-falta" style={{ fontSize: 12 }}>{malo}</div>}
+        {error && <div className="error">{error}</div>}
+        {aviso ? (
+          <>
+            <div className="num-sap-falta" style={{ fontSize: 12, marginTop: 6 }}>{aviso}</div>
+            <button type="button" className="btn" onClick={onClose}>{'Entendido'}</button>
+          </>
+        ) : (
+          <button className="btn" disabled={guardando}>{guardando ? 'Vinculando…' : 'Vincular'}</button>
+        )}
+      </form>
+    </Modal>
   );
 }

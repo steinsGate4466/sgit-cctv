@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { SOLO_FALLAS } from '../../common/aviso-sap';
 
 // Umbral de "candidato a reemplazo": correctivos en los últimos 12 meses.
 const REPLACEMENT_THRESHOLD = 3;
@@ -36,6 +37,8 @@ export class CorrectiveService {
       }),
       this.prisma.incident.groupBy({
         by: ['assetId'],
+        // Bloque 180: incidencias que son FALLA (la columna dice «última falla»).
+        where: { AND: [SOLO_FALLAS] },
         _count: { _all: true },
         _max: { reportedAt: true },
       }),

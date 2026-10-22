@@ -4,11 +4,12 @@ import { NadaPendiente } from '../components/Ilustraciones';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useVolverALaPantalla } from '../useVolverALaPantalla';
-import { Accion, Cifras, LoQueHayQueHacer, Titular, Tono } from '../components/Patron';
+import { Accion, ComoSeCalcula, LoQueHayQueHacer, Titular, Tono } from '../components/Patron';
 import { fecha } from '../formato';
 import { fechaTabla, haceCuanto } from '../fechas';
 import PulsoDePlanta from '../components/PulsoDePlanta';
 import AccesosRapidos from '../components/AccesosRapidos';
+import { CLASE_DEL_AVISO, QUE_SIGNIFICA_EL_AVISO, TIPO_DE_AVISO_ES, tipoDeAviso } from '../avisoSap';
 
 /**
  * MI BANDEJA — lo que espera una decisión, hoy.
@@ -75,9 +76,13 @@ export default function Bandeja() {
   };
   pon(r.accesos, 'grave', r.accesos === 1 ? 'permiso de altura sin resolver' : 'permisos de altura sin resolver', '/access');
   pon(r.sinDetallar, 'atender', r.sinDetallar === 1 ? 'orden sin detallar' : 'órdenes sin detallar', '/maintenance');
+  // Bloque 180: sin su OM de SAP la orden no se abre: bloquea igual que sin detallar.
+  pon(r.sinSap ?? 0, 'atender', r.sinSap === 1 ? 'orden sin su N° de OM SAP' : 'órdenes sin su N° de OM SAP', '/maintenance?sinSap=1');
   pon(r.firmasPendientes, 'atender', r.firmasPendientes === 1 ? 'orden esperando material' : 'órdenes esperando material', '/maintenance');
   pon(r.prorrogas ?? 0, 'atender', r.prorrogas === 1 ? 'prórroga esperando tu visto bueno' : 'prórrogas esperando tu visto bueno', '/maintenance');
   pon(r.vencidas, 'atender', r.vencidas === 1 ? 'orden fuera de plazo' : 'órdenes fuera de plazo', '/maintenance');
+  // Bloque 180: SGIT ya no crea la preventiva; si nadie la vincula, no se hace.
+  pon(r.rutinasSinOm ?? 0, 'atender', r.rutinasSinOm === 1 ? 'rutina sin su OM de SAP' : 'rutinas sin su OM de SAP', '/preventive');
 
   /* El titular nombra LO PRIMERO, no el total. «7 cosas pendientes» no dice por
      dónde empezar; «1 permiso de altura sin resolver» sí. */
@@ -86,8 +91,9 @@ export default function Bandeja() {
   const titular = primero
     ? `${primero.marca} ${primero.texto}`
     : `${r.total} ${r.total === 1 ? 'cosa esperándote' : 'cosas esperándote'}`;
+  /* Síntesis 21/10: el «por qué este orden» pasó a <ComoSeCalcula>, abajo. */
   const apoyo = r.total > (Number(primero?.marca) || 0)
-    ? `Y ${r.total - Number(primero?.marca ?? 0)} más por debajo. Van ordenadas por quién está parado esperando, no por cuántas hay.`
+    ? `Y ${r.total - Number(primero?.marca ?? 0)} más por debajo.`
     : undefined;
 
   return (
@@ -99,9 +105,7 @@ export default function Bandeja() {
         <div className="card vacio">
           <NadaPendiente />
           <h3>No hay nada esperándote</h3>
-          <p>
-            Sin órdenes por detallar, firmas ni permisos pendientes.
-          </p>
+          <p>Sin órdenes, firmas ni permisos pendientes.</p>
         </div>
       ) : null}
       {r.total === 0 && <PulsoDePlanta p={d.pulso} />}
@@ -122,13 +126,13 @@ export default function Bandeja() {
               vencida molesta pero nadie está esperando de pie. */}
           <LoQueHayQueHacer titulo="Por dónde empezar" acciones={porDondeEmpezar} />
 
-          {/* -------- 3. EL TOTAL, EN UNA LÍNEA -------- */}
-          <Cifras datos={[{ n: r.total, et: 'cosas esperándote' }]} />
+          {/* Síntesis 21/10: fuera la línea «N cosas esperándote»; repetía el
+              total que ya dice el titular («y N más por debajo»). */}
 
           {/* -------------------------------------------------- BLOQUEA A OTROS */}
           <Bloque
             titulo="Órdenes sin detallar"
-            porque="Hasta que alguien las detalle, el técnico no puede empezar."
+            porque="Nadie las ha abierto ni detallado todavía."
             n={r.sinDetallar}
             filas={d.sinDetallar}
             columnas={['Orden', 'Qué hay que hacer', 'Equipo', 'Asignada a', 'Para']}
@@ -143,12 +147,32 @@ export default function Bandeja() {
             textoAccion="Ir a órdenes"
           />
 
+          {/* BLOQUE 180 · «primero el N° SAP». Sin él la orden no se abre: el
+              técnico se enteraría delante del equipo. Va aquí, junto a «sin
+              detallar», porque bloquea igual. Se apunta en Órdenes (§58). */}
+          <Bloque
+            titulo="Falta la OM de SAP"
+            porque="Sin su número no se abren. Lo apunta quien la creó en SAP."
+            n={r.sinSap ?? 0}
+            filas={d.sinSap ?? []}
+            columnas={['Orden', 'Qué hay que hacer', 'Equipo', 'Aviso SAP', 'Pedida por']}
+            fila={(w: any) => [
+              <b className="sin-partir">{w.code}</b>,
+              <span style={{ fontSize: 12 }}>{w.activity || '—'}</span>,
+              w.asset?.assetCode || '—',
+              w.incident?.avisoSap ? <span className="num-sap">{w.incident.avisoSap}</span> : <span className="muted">—</span>,
+              w.createdBy?.fullName || <span className="muted">—</span>,
+            ]}
+            accion={() => navegar('/maintenance?sinSap=1')}
+            textoAccion="Apuntarlas en Órdenes"
+          />
+
           {/* Va justo después de "sin detallar" y ANTES de las vencidas: una
               orden parada bloquea a alguien igual que una sin detallar, sólo
               que en silencio. Las vencidas al menos se ven venir. */}
           <Bloque
             titulo="Órdenes paradas esperando algo"
-            porque="Una orden en espera no vence ni avisa: no se pierde, se olvida. Aquí salen primero las que llevan más de lo razonable para lo que esperan."
+            porque="No vencen ni avisan: se olvidan."
             n={r.enEspera}
             filas={d.enEspera}
             columnas={['Orden', 'Equipo', 'Qué espera', 'Técnico']}
@@ -166,7 +190,7 @@ export default function Bandeja() {
 
           <Bloque
             titulo="Material esperando tu firma"
-            porque="El técnico ya lo pidió. Sin la firma no sale del almacén."
+            porque="Sin tu firma no sale del almacén."
             n={r.firmasPendientes}
             filas={d.firmasPendientes}
             columnas={['Orden', 'Materiales', 'Aviso']}
@@ -185,7 +209,7 @@ export default function Bandeja() {
 
           <Bloque
             titulo="Permisos de altura por resolver"
-            porque="Mientras no estén aprobados, ese trabajo no se puede hacer."
+            porque="Sin aprobar, ese trabajo no se hace."
             n={r.accesos}
             filas={d.accesos}
             columnas={['Solicitud', 'Equipo', 'Altura', 'Medio', 'Estado']}
@@ -204,7 +228,7 @@ export default function Bandeja() {
               aprueba DENTRO de la orden: la bandeja sólo avisa (§58). */}
           <Bloque
             titulo="Prórrogas por aprobar"
-            porque="El técnico pidió más plazo. Se aprueba o rechaza dentro de la orden."
+            porque="Se aprueban o rechazan dentro de la orden."
             n={r.prorrogas ?? 0}
             filas={d.prorrogas ?? []}
             columnas={['Orden', 'Motivo', 'Pide', 'Quién']}
@@ -221,7 +245,7 @@ export default function Bandeja() {
           {/* -------------------------------------------------------- CORRE PRISA */}
           <Bloque
             titulo="Órdenes vencidas"
-            porque="Pasaron de la fecha prevista y siguen abiertas."
+            porque="Pasó su fecha y siguen abiertas."
             n={r.vencidas}
             filas={d.vencidas}
             columnas={['Orden', 'Qué', 'Equipo', 'Vencía', 'Días', 'Avance']}
@@ -237,6 +261,25 @@ export default function Bandeja() {
             ]}
             accion={() => navegar('/maintenance')}
             textoAccion="Ir a órdenes"
+          />
+
+          {/* BLOQUE 180 · el preventivo PROGRAMA y VINCULA: la OM la genera SAP.
+              Una rutina que toca y no tiene su OM no la hace nadie. Se vincula
+              en Preventivo (§58): aquí sólo se avisa. */}
+          <Bloque
+            titulo="Rutinas sin su OM de SAP"
+            porque="Ya tocan. La OM la genera SAP; se vincula en Preventivo."
+            n={r.rutinasSinOm ?? 0}
+            filas={d.rutinasSinOm ?? []}
+            columnas={['Equipo', 'Dónde', 'Tocaba', 'Días']}
+            fila={(p: any) => [
+              <b className="sin-partir">{p.asset?.assetCode || '—'}</b>,
+              <span style={{ fontSize: 12 }}>{p.asset?.referencePlace || p.asset?.location?.name || '—'}</span>,
+              <span className="sin-partir">{fecha(p.nextDueAt)}</span>,
+              <b style={{ color: 'var(--warn-texto)' }}>{diasDesde(p.nextDueAt)}</b>,
+            ]}
+            accion={() => navegar('/preventive')}
+            textoAccion="Vincular en Preventivo"
           />
 
           {/* DOS CUADROS DE INCIDENCIAS, NO UNO — bloque 72.
@@ -256,24 +299,24 @@ export default function Bandeja() {
               radio para averiguar quién puso el parte. */}
           <Bloque
             titulo="Graves y sin orden todavía"
-            porque="Alta o crítica, nadie ha abierto la orden. Es lo primero del día."
+            porque="Alta o crítica, sin orden abierta."
             n={r.incidenciasCriticas}
             filas={d.incidenciasCriticas}
             columnas={['Código', 'Problema', 'Equipo', 'Quién avisó', 'Cuándo', 'Prioridad', '']}
             fila={(i: any) => filaIncidencia(i, navegar)}
             accion={() => navegar('/incidents')}
-            textoAccion="Ver todas las incidencias"
+            textoAccion="Ver incidencias"
           />
 
           <Bloque
             titulo="Reportadas y sin orden todavía"
-            porque="Prioridad media o baja. Una media que nadie mira acaba siendo crítica."
+            porque="Media o baja, sin orden abierta."
             n={r.incidenciasNormales}
             filas={d.incidenciasNormales}
             columnas={['Código', 'Problema', 'Equipo', 'Quién avisó', 'Cuándo', 'Prioridad', '']}
             fila={(i: any) => filaIncidencia(i, navegar)}
             accion={() => navegar('/incidents')}
-            textoAccion="Ver todas las incidencias"
+            textoAccion="Ver incidencias"
           />
 
           {/* MEJORAS PROPUESTAS POR LOS TÉCNICOS — bloque 72.
@@ -288,7 +331,7 @@ export default function Bandeja() {
               respuesta el técnico deja de proponer. */}
           <Bloque
             titulo="Mejoras propuestas por los técnicos"
-            porque="Las escribió quien hizo el trabajo. Sin respuesta, dejan de proponer."
+            porque="Sin respuesta, dejan de proponer."
             n={r.mejorasPropuestas}
             filas={d.mejorasPropuestas}
             columnas={['Quién', 'Qué propone', 'Procedimiento', 'Orden', 'Cuándo', '']}
@@ -306,13 +349,13 @@ export default function Bandeja() {
               </button>,
             ]}
             accion={() => navegar('/mejoras-procedimiento')}
-            textoAccion="Ver todas las propuestas"
+            textoAccion="Ver propuestas"
           />
 
           {/* ---------------------------------------------------- CONVIENE MIRAR */}
           <Bloque
             titulo="Material retirado y no devuelto"
-            porque="La orden se cerró y el sobrante no volvió: el stock del sistema está por debajo del real."
+            porque="El stock del sistema queda bajo el real."
             n={r.sobrantes}
             filas={d.sobrantes}
             columnas={['Orden', 'Material', 'Retirado', 'Usado', 'Sin devolver']}
@@ -327,7 +370,7 @@ export default function Bandeja() {
 
           <Bloque
             titulo="Repuestos bajo mínimo"
-            porque="No van a estar el día que hagan falta."
+            porque="Pueden faltar cuando se necesiten."
             n={r.bajoMinimo}
             filas={d.bajoMinimo}
             columnas={['Repuesto', 'SAP', 'Hay', 'Mínimo']}
@@ -340,6 +383,14 @@ export default function Bandeja() {
             accion={() => navegar('/inventory')}
             textoAccion="Ir a inventario"
           />
+
+          <ComoSeCalcula>
+            <p>
+              Va primero lo que deja a alguien parado: permisos de altura, órdenes
+              sin detallar, material y, al final, las vencidas.
+            </p>
+            <p>Las esperas que pasan de lo normal suben arriba. Las incidencias salen sólo si aún no tienen orden.</p>
+          </ComoSeCalcula>
         </>
       )}
     </div>
@@ -388,8 +439,13 @@ function Contador({ t, v, cls, hint }: { t: string; v: number; cls?: string; hin
      exactamente para lo que sirve reportar.
 ============================================================================= */
 function filaIncidencia(i: any, navegar: (r: string) => void) {
+  const t = tipoDeAviso(i.tipoAviso);
   return [
-    <b>{i.code}</b>,
+    /* Bloque 180: si funciona o no se lee de un vistazo, y decide qué orden toca. */
+    <span>
+      <b>{i.code}</b>
+      <div><span className={CLASE_DEL_AVISO[t]} title={QUE_SIGNIFICA_EL_AVISO[t]}>{TIPO_DE_AVISO_ES[t]}</span></div>
+    </span>,
     <span style={{ fontSize: 12 }}>
       {i.title}
       {i.asset?.referencePlace && (

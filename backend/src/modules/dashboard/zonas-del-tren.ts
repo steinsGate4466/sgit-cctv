@@ -128,18 +128,17 @@ function frase(z: {
 }): string {
   if (z.salud === 'SIN_MEDIR') {
     return z.activos
-      ? `${n(z.activos, 'equipo registrado', 'equipos registrados')}, pero ninguna cámara: `
-        + 'esta zona no se está viendo ni se sabe si debería.'
-      : 'No hay nada registrado en esta zona todavía.';
+      ? `${n(z.activos, 'equipo', 'equipos')} y ninguna cámara: la zona no se ve.`
+      : 'Nada registrado en esta zona todavía.';
   }
 
   if (z.salud === 'MAL') {
     const caidas = z.camaras - z.camarasViendo;
     const extra = z.exigenElevador
-      ? ` Para atenderlo hacen falta ${n(z.exigenElevador, 'subida con manlift', 'subidas con manlift')}.`
+      ? ` ${n(z.exigenElevador, 'subida con manlift', 'subidas con manlift')}.`
       : '';
     return `${n(caidas, 'cámara sin imagen', 'cámaras sin imagen')} de ${z.camaras}.`
-      + (z.vital ? ' Es zona vital para la producción.' : '') + extra;
+      + (z.vital ? ' En zona vital.' : '') + extra;
   }
 
   /* El artículo va DENTRO de cada rama. Sacarlo fuera producía «Las cámara ve

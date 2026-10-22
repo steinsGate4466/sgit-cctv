@@ -171,7 +171,10 @@ if (!/pantallasVisibles/.test(barra)) {
   } else {
     const cuerpoInicio = mod.slice(i, mod.indexOf('\n}\n', i));
     for (const m of cuerpoInicio.matchAll(/'(\/[^'?]*)(\?[^']*)?'/g)) {
-      if (!enModulo.has(m[1])) errores.push(`inicioPara manda a ${m[1]}, que no está en ningún módulo.`);
+      /* Optimización 21/10: también vale una PESTAÑA cuya pantalla madre está en
+         un módulo (Mi tren es pestaña de Trenes): tiene sitio y se llega. */
+      const conSitio = enModulo.has(m[1]) || (hijas.has(m[1]) && enModulo.has(hijas.get(m[1])));
+      if (!conSitio) errores.push(`inicioPara manda a ${m[1]}, que no está en ningún módulo.`);
     }
   }
 }

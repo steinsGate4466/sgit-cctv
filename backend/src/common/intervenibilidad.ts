@@ -135,10 +135,8 @@ export function resolver(
       firmaDesactualizada: false,
       motivo:
         propuesta === 'SIN_CLASIFICAR'
-          ? 'La zona no tiene ambiente declarado y nadie ha firmado cómo se interviene. ' +
-            'Hasta que se firme se pide parada, que es lo seguro.'
-          : `El sistema propondría «${ETIQUETA[propuesta].toLowerCase()}», pero nadie lo ha ` +
-            'firmado todavía. Una propuesta no autoriza a nadie a acercarse a la línea.',
+          ? 'Zona sin ambiente ni firma de intervención: se pide parada, que es lo seguro.'
+          : `Propuesta «${ETIQUETA[propuesta].toLowerCase()}» sin firmar: no autoriza a acercarse a la línea.`,
     };
   }
 

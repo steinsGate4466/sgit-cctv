@@ -22,6 +22,15 @@ import {
   reporteDeProduccion,
 } from './reporte-de-produccion';
 import { exigirFirmanteConPermiso } from '../../common/firmante';
+import {
+  RESPUESTA_DEL_AVISO,
+  TEXTO_BREVE_SAP,
+  cuentaComoFalla,
+  motivoNumeroSapInvalido,
+  normalizarNumeroSap,
+  textoBreveParaSap,
+  tipoDeAviso,
+} from '../../common/aviso-sap';
 // PDF: require para no depender de @types en el build.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PDFDocument = require('pdfkit');
@@ -39,6 +48,33 @@ const assetSel = {
   reportedBy: { select: { id: true, fullName: true, role: { select: { name: true } } } },
 };
 
+/* BLOQUE 180 · EL EVENTO DE FALLA SIGUE AL TIPO DEL AVISO.
+   -----------------------------------------------------------------------------
+   Lo que dice la nota del evento cuando deja de contar porque el aviso se
+   reclasificó. Es también la MARCA con la que se reconoce después: si el aviso
+   vuelve a ser falla, sólo se reactiva un evento apagado por esto, nunca uno
+   que alguien descartó a mano por otro motivo. */
+const MARCA_RECLASIFICADO = 'Reclasificado: el aviso dice';
+
+/** Los datos con los que nace el evento de falla de un aviso (bloque 78). */
+function datosDelEventoDeFalla(inc: {
+  id: string; assetId: string; occurredAt: Date | null; reportedAt: Date;
+  category: any; reportedById?: string | null; resolvedAt?: Date | null;
+}, registradoPorId?: string | null): Prisma.FailureEventUncheckedCreateInput {
+  return {
+    assetId: inc.assetId,
+    occurredAt: inc.occurredAt ?? inc.reportedAt,
+    detectedAt: inc.reportedAt,
+    ocurrioEsEstimado: !inc.occurredAt,
+    incidentId: inc.id,
+    categoria: inc.category,
+    registradoPorId: registradoPorId ?? inc.reportedById ?? null,
+    /* Un aviso que se reclasifica a falla cuando ya estaba resuelto nace
+       cerrado: si no, contaría como caído hasta hoy. */
+    ...(inc.resolvedAt ? { restoredAt: inc.resolvedAt } : {}),
+  };
+}
+
 @Injectable()
 export class IncidentsService {
   constructor(
@@ -49,6 +85,86 @@ export class IncidentsService {
   ) {}
 
   private readonly logger = new Logger('Incidencias');
+
+  /**
+   * BLOQUE 180 · EL N° DEL AVISO DE SAP — como lo enseña SAP.
+   *
+   * Dos incidencias con el mismo aviso de SAP suelen ser el mismo problema
+   * contado dos veces. NO se rechaza —dos personas pueden haber reportado lo
+   * mismo, y un formulario que rechaza la realidad se deja de usar (bloque
+   * 16)—, pero se DICE en la respuesta, con la otra incidencia, para que se
+   * vea en el momento y no en el informe del mes. Vacío = «sin aviso en SAP».
+   */
+  private async avisoSapValido(texto: string | null | undefined, excluirId: string | null) {
+    const numero = normalizarNumeroSap(texto);
+    if (!numero) return { numero: null as string | null, aviso: null as string | null };
+    const motivo = motivoNumeroSapInvalido(numero);
+    if (motivo) throw new BadRequestException(motivo);
+    const otra = await this.prisma.incident.findFirst({
+      where: { avisoSap: numero, ...(excluirId ? { id: { not: excluirId } } : {}) },
+      select: { code: true },
+    });
+    return {
+      numero,
+      aviso: otra ? `El aviso SAP ${numero} también está en la incidencia ${otra.code}: si es el mismo problema, se sigue en una sola.` : null,
+    };
+  }
+
+  /**
+   * BLOQUE 180 · EL EVENTO DE FALLA SIGUE AL AVISO.
+   *
+   * Sólo la FALLA («no funciona») cuenta en MTBF, MTTR y disponibilidad. Si el
+   * técnico llega y el equipo funciona —el gabinete destrozado que sigue
+   * dando servicio—, el aviso pasa a condición y su evento DEJA DE CONTAR:
+   * se marca, no se borra, para poder responder «¿por qué no cuenta ésta?».
+   * Si vuelve a ser falla, el evento vuelve a contar; si no lo tenía, nace.
+   *
+   * También sigue al EQUIPO: si se corrige sobre qué equipo era, la falla se
+   * le cuenta al equipo correcto y no al que se escribió por error.
+   */
+  private async sincronizarEventoDeFalla(incidentId: string) {
+    const inc = await this.prisma.incident.findUnique({
+      where: { id: incidentId },
+      select: {
+        id: true, assetId: true, tipoAviso: true, occurredAt: true, reportedAt: true,
+        resolvedAt: true, category: true, reportedById: true,
+      },
+    });
+    if (!inc) return;
+    const evento = await this.prisma.failureEvent.findUnique({
+      where: { incidentId },
+      select: { id: true, assetId: true, esFalsaAlarma: true, notaFalsaAlarma: true },
+    });
+
+    if (cuentaComoFalla(inc.tipoAviso)) {
+      if (!evento) {
+        if (inc.assetId) {
+          await this.prisma.failureEvent.create({ data: datosDelEventoDeFalla({ ...inc, assetId: inc.assetId }) });
+        }
+        return;
+      }
+      const cambios: Prisma.FailureEventUncheckedUpdateInput = {};
+      if (evento.esFalsaAlarma && (evento.notaFalsaAlarma || '').startsWith(MARCA_RECLASIFICADO)) {
+        cambios.esFalsaAlarma = false;
+        cambios.notaFalsaAlarma = null;
+      }
+      if (inc.assetId && evento.assetId !== inc.assetId) cambios.assetId = inc.assetId;
+      if (Object.keys(cambios).length) {
+        await this.prisma.failureEvent.update({ where: { id: evento.id }, data: cambios });
+      }
+      return;
+    }
+
+    if (evento && !evento.esFalsaAlarma) {
+      await this.prisma.failureEvent.update({
+        where: { id: evento.id },
+        data: {
+          esFalsaAlarma: true,
+          notaFalsaAlarma: `${MARCA_RECLASIFICADO} «${RESPUESTA_DEL_AVISO[tipoDeAviso(inc.tipoAviso)]}».`,
+        },
+      });
+    }
+  }
 
   /**
    * EL CORRELATIVO, DEL ÚLTIMO CÓDIGO Y NO DE UN CONTEO.
@@ -137,9 +253,15 @@ export class IncidentsService {
       }
     }
     const prioridad = prioridadDeIncidencia(dto.priority as any, criticidadZona).prioridad;
+    /* Bloque 180: «¿el equipo funciona?». Sin respuesta vale FALLA, que es lo
+       que significaba reportar antes de este bloque. */
+    const tipo = tipoDeAviso(dto.tipoAviso);
+    const sap = await this.avisoSapValido(dto.avisoSap, null);
     const inc = await this.prisma.incident.create({
       data: {
         code: await this.nextCode(),
+        tipoAviso: tipo,
+        avisoSap: sap.numero,
         title: dto.title,
         description: dto.description,
         category: dto.category,
@@ -181,17 +303,12 @@ export class IncidentsService {
 
        Y si falla, la incidencia SE CREA IGUAL. Perder el aviso por no poder
        escribir un indicador sería cambiar lo urgente por lo importante. */
-    if (inc.assetId) {
+    /* Bloque 180: y sólo si es FALLA. Un aviso de «funciona, pero se va a
+       dañar» no es una caída: contarlo hundiría el MTBF de un equipo que no
+       ha fallado. */
+    if (inc.assetId && cuentaComoFalla(inc.tipoAviso)) {
       await this.prisma.failureEvent.create({
-        data: {
-          assetId: inc.assetId,
-          occurredAt: inc.occurredAt ?? inc.reportedAt,
-          detectedAt: inc.reportedAt,
-          ocurrioEsEstimado: !inc.occurredAt,
-          incidentId: inc.id,
-          categoria: inc.category,
-          registradoPorId: userId ?? null,
-        },
+        data: datosDelEventoDeFalla({ ...inc, assetId: inc.assetId }, userId),
       }).catch(() => null);
     }
 
@@ -200,7 +317,10 @@ export class IncidentsService {
     // Sólo esas dos. Avisar de todas convertiría el bot en ruido y la gente
     // lo silenciaría — y entonces tampoco vería las críticas. Lo que
     // despierta se reserva para lo que exige levantarse.
-    if (inc.priority === 'ALTA' || inc.priority === 'CRITICA') {
+    //
+    // Y sólo si es FALLA (bloque 180): un gabinete que funciona y se va a
+    // dañar se trata en horario, no despierta a nadie.
+    if (cuentaComoFalla(inc.tipoAviso) && (inc.priority === 'ALTA' || inc.priority === 'CRITICA')) {
       // El tren no es una columna: se deriva del árbol. Se resuelve aquí para
       // que el aviso diga DÓNDE, que es lo primero que se pregunta.
       let tren: string | null = null;
@@ -234,7 +354,8 @@ export class IncidentsService {
         inc.id,
       ).catch(() => 0);
     }
-    return inc;
+    // Bloque 180: si el aviso de SAP ya está en otra incidencia, se dice.
+    return sap.aviso ? { ...inc, avisoSapRepetido: sap.aviso } : inc;
   }
 
   /**
@@ -361,6 +482,8 @@ export class IncidentsService {
         const inc = await tx.incident.create({
           data: {
             code: await this.nextCode(tx),
+            /* «No estoy viendo» es, por definición, que no funciona. */
+            tipoAviso: 'FALLA',
             title: decision.titulo,
             category: 'CAMARA_SIN_IMAGEN',
             priority: decision.prioridad,
@@ -419,6 +542,24 @@ export class IncidentsService {
       return decision;
     }));
 
+    /* EL EVENTO DE FALLA TAMBIÉN NACE AQUÍ — bloque 180.
+       Esta puerta no lo creaba: la cámara que reporta el púlpito —la falla
+       más típica de todas— no contaba en el MTBF ni en el MTTR, y el
+       indicador decía que los equipos fallaban menos de lo que fallan. Va
+       FUERA de la transacción por lo mismo que en `create()`: si falla, el
+       reporte de Producción no se puede perder por un indicador. */
+    if (salida.decision === 'NUEVA' && salida.incidenciaId) {
+      const nueva = await this.prisma.incident.findUnique({
+        where: { id: salida.incidenciaId },
+        select: { id: true, assetId: true, occurredAt: true, reportedAt: true, category: true, reportedById: true },
+      }).catch(() => null);
+      if (nueva?.assetId) {
+        await this.prisma.failureEvent.create({
+          data: datosDelEventoDeFalla({ ...nueva, assetId: nueva.assetId }, quien.id),
+        }).catch(() => null);
+      }
+    }
+
     /* El aviso al ingeniero va FUERA de la transacción y con `catch`: que
        Telegram esté caído no puede impedir que Producción reporte. */
     if (salida.decision === 'NUEVA' && (salida.prioridad === 'ALTA' || salida.prioridad === 'CRITICA')) {
@@ -453,7 +594,10 @@ export class IncidentsService {
     // Tipado con el WhereInput que genera Prisma: si se escribe mal el
     // nombre de un campo o se anida un filtro dentro de otro, lo dice al
     // compilar en lugar de devolver un 400 en producción.
-    const where: Prisma.IncidentWhereInput = { status: q.status, category: q.category, priority: q.priority, assetId: q.assetId };
+    const where: Prisma.IncidentWhereInput = {
+      status: q.status, category: q.category, priority: q.priority, assetId: q.assetId,
+      ...(q.tipoAviso ? { tipoAviso: q.tipoAviso } : {}),
+    };
 
     // Ámbito de planta: la incidencia hereda el tren de su activo.
     // Auditoría 20/10: era `filtroDeUbicaciones`, que sólo mira lo que PIDE la
@@ -467,6 +611,9 @@ export class IncidentsService {
         { code: { contains: t, mode: 'insensitive' } },
         { title: { contains: t, mode: 'insensitive' } },
         { zone: { contains: t, mode: 'insensitive' } },
+        /* Bloque 180: quien tiene el aviso de SAP delante busca por su número,
+           escrito como sea («010000261278» encuentra «10000261278»). */
+        { avisoSap: { contains: normalizarNumeroSap(t) || t, mode: 'insensitive' } },
       ];
     }
     // El rango se arma ENTERO y se asigna una vez.
@@ -523,6 +670,11 @@ export class IncidentsService {
     if (dto.status === 'RESUELTA' || dto.status === 'CERRADA') {
       throw new ForbiddenException('El cierre de la incidencia lo firma el Jefe de Mantenimiento (usa “Resolver”).');
     }
+    /* Bloque 180 · el N° de aviso SAP tiene su propia puerta (`PATCH
+       :id/aviso-sap`), con su regla de quién lo cambia y su auditoría. */
+    if (dto.avisoSap !== undefined) {
+      throw new BadRequestException('El N° de aviso SAP se apunta con el botón «Aviso SAP» de la incidencia.');
+    }
     const data: any = { ...dto };
     /* Revisión de formularios: al crear, la prioridad no puede quedar por
        debajo de lo que exige la zona del equipo (bloque 168); al EDITAR se
@@ -539,7 +691,123 @@ export class IncidentsService {
       }
       data.priority = prioridadDeIncidencia(dto.priority as any, criticidadZona).prioridad;
     }
-    return this.prisma.incident.update({ where: { id }, data, include: assetSel });
+    const actualizada = await this.prisma.incident.update({ where: { id }, data, include: assetSel });
+    /* Bloque 180: si cambió el tipo del aviso o el equipo, el evento de falla
+       los sigue. Si no se puede, la incidencia queda guardada igual —es lo que
+       pidió quien editó— pero NO se calla: un indicador descuadrado sin rastro
+       es la peor clase de error (bloque 77). */
+    const cambioTipo = !!dto.tipoAviso && dto.tipoAviso !== current.tipoAviso;
+    const cambioEquipo = dto.assetId !== undefined && (dto.assetId || null) !== current.assetId;
+    if (cambioTipo || cambioEquipo) {
+      await this.sincronizarEventoDeFalla(id).catch((e: any) => this.audit.record({
+        userId: null, action: 'EVENTO_DE_FALLA_SIN_SEGUIR', entity: 'incidents', entityId: id,
+        after: { incidencia: current.code, motivo: String(e?.message || e).slice(0, 300) },
+      }).catch(() => null));
+    }
+    return actualizada;
+  }
+
+  /**
+   * BLOQUE 180 · APUNTAR EL N° DEL AVISO DE SAP.
+   *
+   * El aviso es lo primero que se crea en SAP, y quien ve el problema suele
+   * ser quien lo crea: por eso basta poder reportar para APUNTARLO cuando
+   * falta. CAMBIAR o QUITAR uno que ya está es corregir lo que escribió otro,
+   * y eso lo hace Mantenimiento (`puedeCorregir`).
+   */
+  async registrarAvisoSap(
+    id: string, texto: string | null, userId: string | null, puedeCorregir: boolean, ip?: string | null,
+  ) {
+    const inc = await this.prisma.incident.findUnique({ where: { id }, select: { id: true, code: true, avisoSap: true } });
+    if (!inc) throw new NotFoundException('Incidencia no encontrada');
+    const { numero, aviso } = await this.avisoSapValido(texto, id);
+    if (numero === inc.avisoSap) return { id: inc.id, code: inc.code, avisoSap: numero, aviso };
+    if (inc.avisoSap && !puedeCorregir) {
+      throw new ForbiddenException(
+        `Esta incidencia ya tiene el aviso SAP ${inc.avisoSap}. Cambiarlo o quitarlo lo hace Mantenimiento.`,
+      );
+    }
+    const r = await this.prisma.incident.update({
+      where: { id }, data: { avisoSap: numero }, select: { id: true, code: true, avisoSap: true },
+    });
+    await this.audit.record({
+      userId, action: 'INC_AVISO_SAP', entity: 'incidents', entityId: id, ip,
+      before: { avisoSap: inc.avisoSap }, after: { avisoSap: numero, incidencia: inc.code },
+    });
+    return { ...r, aviso };
+  }
+
+  /**
+   * BLOQUE 180 · LO QUE LLEVA EL AVISO EN SAP, PREPARADO PARA COPIAR.
+   *
+   * Quien crea el aviso en SAP vuelve a escribir lo que ya está aquí: dónde
+   * (la ubicación técnica), qué (el texto breve de 40) y el detalle. Escrito
+   * dos veces, se escribe distinto. Aquí se prepara una vez.
+   *
+   * La ubicación técnica sale del ÁRBOL: la del sitio del equipo o, si ese
+   * sitio no la tiene, la del primero de arriba que sí — y se dice de cuál.
+   * Si nadie la declaró, se dice: no se inventa un código de SAP.
+   */
+  async paraSap(id: string) {
+    const inc = await this.prisma.incident.findUnique({
+      where: { id },
+      select: {
+        id: true, code: true, title: true, description: true, tipoAviso: true, avisoSap: true,
+        reportedAt: true, occurredAt: true, zone: true,
+        asset: { select: { assetCode: true, locationId: true } },
+        reportedBy: { select: { fullName: true } },
+      },
+    });
+    if (!inc) throw new NotFoundException('Incidencia no encontrada');
+
+    let ubicacionTecnica: { codigo: string; de: string; propia: boolean } | null = null;
+    if (inc.asset?.locationId) {
+      // El árbol de ubicaciones crece con la planta, no con el uso: se lee entero.
+      const todas = await this.prisma.location.findMany({
+        select: { id: true, name: true, parentId: true, sapLocationCode: true },
+      });
+      const porId = new Map(todas.map((l) => [l.id, l]));
+      const vistos = new Set<string>();
+      let actual = porId.get(inc.asset.locationId);
+      let propia = true;
+      while (actual && !vistos.has(actual.id)) {
+        vistos.add(actual.id);
+        const codigo = (actual.sapLocationCode || '').trim();
+        if (codigo) { ubicacionTecnica = { codigo, de: actual.name, propia }; break; }
+        propia = false;
+        actual = actual.parentId ? porId.get(actual.parentId) : undefined;
+      }
+    }
+
+    const hora = (d: Date) => d.toLocaleString('es-PE', {
+      timeZone: 'America/Lima', day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    });
+    const tipo = tipoDeAviso(inc.tipoAviso);
+    const textoLargo = [
+      (inc.description || '').trim(),
+      inc.asset?.assetCode ? `Equipo: ${inc.asset.assetCode}` : '',
+      inc.zone ? `Zona: ${inc.zone}` : '',
+      `Estado del equipo: ${RESPUESTA_DEL_AVISO[tipo].toLowerCase()}.`,
+      `Reportado en SGIT (${inc.code})${inc.reportedBy?.fullName ? ' por ' + inc.reportedBy.fullName : ''} el ${hora(inc.reportedAt)}.`,
+    ].filter(Boolean).join('\n');
+
+    return {
+      incidencia: inc.code,
+      avisoSap: inc.avisoSap,
+      tipo,
+      respuesta: RESPUESTA_DEL_AVISO[tipo],
+      ubicacionTecnica,
+      textoBreve: textoBreveParaSap(inc.title),
+      textoBreveMax: TEXTO_BREVE_SAP,
+      textoLargo,
+      /* La pestaña «Avería/parada» del aviso: sólo tiene sentido si no
+         funciona. Sin hora real de la caída, se propone la del reporte y se
+         dice que es estimada. */
+      averia: cuentaComoFalla(tipo)
+        ? { inicio: (inc.occurredAt ?? inc.reportedAt).toISOString(), estimado: !inc.occurredAt }
+        : null,
+    };
   }
 
   /**
@@ -705,6 +973,9 @@ export class IncidentsService {
 
     heading('Datos de la incidencia');
     line('Título', inc.title);
+    // Bloque 180: si funciona o no (decide si cuenta como falla) y el aviso de SAP.
+    line('¿El equipo funciona?', RESPUESTA_DEL_AVISO[tipoDeAviso(inc.tipoAviso)]);
+    line('Aviso SAP', inc.avisoSap || 'Sin aviso en SAP todavía');
     line('Categoría', inc.category);
     line('Prioridad', inc.priority);
     line('Estado', inc.status);

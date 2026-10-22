@@ -131,8 +131,8 @@ export default function Roles() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
         <div>
           <h1 className="page-title">Roles y permisos</h1>
-          <p className="page-sub">
-            Qué puede hacer cada tipo de usuario. Los roles del sistema no se borran.
+          <p className="page-sub" title="Los roles del sistema no se borran.">
+            Qué puede hacer cada tipo de usuario.
           </p>
         </div>
         <button className="btn-primary" onClick={() => abrir(null)}>+ Nuevo rol</button>
@@ -336,11 +336,10 @@ function PanelDesfase({ info, poniendo, onPonerAlDia }: any) {
   return (
     <div className="card" style={{ borderLeft: '4px solid var(--warn)', marginBottom: 14 }}>
       <h2 style={{ fontSize: 15, margin: '0 0 4px', color: 'var(--warn)' }}>
-        {info.desviados.length === 1 ? '1 rol no coincide' : `${info.desviados.length} roles no coinciden`} con su plantilla
+        <span title="Las plantillas sólo se aplican al crear un rol: un rol viejo se desvía sin avisar.">
+          {info.desviados.length === 1 ? '1 rol no coincide' : `${info.desviados.length} roles no coinciden`} con su plantilla
+        </span>
       </h2>
-      <p className="muted" style={{ fontSize: 12, marginTop: 0 }}>
-        Las plantillas sólo se aplican al crear un rol. Un rol viejo se desvía sin avisar.
-      </p>
 
       {info.desviados.map((d: any) => (
         <div key={d.rolId} style={{ borderTop: '1px solid var(--border)', padding: '10px 0' }}>
@@ -373,7 +372,7 @@ function PanelDesfase({ info, poniendo, onPonerAlDia }: any) {
            está bien— o uno renombrado que se quedó huérfano. Callarlos haría
            que el panel dijera «todo en orden» sobre roles que nadie ha mirado. */
         <p className="muted" style={{ fontSize: 11.5, marginTop: 10, marginBottom: 0 }}>
-          Sin plantilla con la que comparar, se revisan a mano:{' '}
+          Sin plantilla (se revisan a mano):{' '}
           {info.sinPlantilla.map((d: any) => d.nombre).join(' · ')}
         </p>
       )}

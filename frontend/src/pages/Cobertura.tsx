@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import Icono from '../components/Iconos';
 import { EsqueletoTablero } from '../components/Esqueleto';
@@ -178,14 +179,11 @@ export default function Cobertura() {
 
       {/* La única llamada a la acción que le toca al propio jefe de línea. */}
       {d.sinDeclarar > 0 && (
-        <p className="nada-que-hacer">
-          <b>{d.sinDeclarar}</b> {d.sinDeclarar === 1 ? 'zona tiene cámaras' : 'zonas tienen cámaras'} y
-          nadie ha dicho cuánto {d.sinDeclarar === 1 ? 'importa' : 'importan'}. Mientras
-          tanto todas pesan igual.{' '}
-          {/* Nivel 2 de la regla transversal (§57.1): no se escribe el nombre
-              de la pantalla para que el usuario la busque en el menú — se le
-              lleva. */}
-          <a href="/zonas">Declararlas ahora</a>.
+        <p className="nada-que-hacer" title="Mientras no se declare, todas pesan igual.">
+          <b>{d.sinDeclarar}</b> {d.sinDeclarar === 1 ? 'zona con cámaras sin valorar' : 'zonas con cámaras sin valorar'}.{' '}
+          {/* Nivel 2 de la regla transversal (§57.1): se le lleva, dentro de la
+              aplicación (un <a> recargaba la página entera). */}
+          <Link to="/zonas">Declararlas</Link>
         </p>
       )}
 

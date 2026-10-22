@@ -21,6 +21,8 @@ import { useVolverALaPantalla } from '../useVolverALaPantalla';
 import { fecha, fechaHora } from '../formato';
 import { useBusquedaEnVivo } from '../useBusquedaEnVivo';
 import { OpcionesDeUbicacion } from '../ubicaciones';
+import NumeroSapDeOm from '../components/NumeroSapDeOm';
+import { avisoDelNumeroSap, normalizarNumeroSap } from '../avisoSap';
 
 const TYPES = WO_TYPES; // incluye MAPEO: el levantamiento también es una OM
 // Estados que el técnico puede fijar al registrar la intervención (el cierre lo hace el Jefe).
@@ -149,6 +151,9 @@ export default function Maintenance() {
   const [plazoDe, setPlazoDe] = useState<any>(null);
   // Bloque 155: el expediente (documentos) de la orden.
   const [docsDe, setDocsDe] = useState<any>(null);
+  // Bloque 180: la orden cuyo N° de OM SAP se apunta.
+  const [sapDe, setSapDe] = useState<any>(null);
+  const puedeApuntarSap = can('wo.create') || can('wo.approve');
   const [soloSinDetallar, setSoloSinDetallar] = useState(false);
   /* «SÓLO LAS QUE HE PEDIDO YO» — bloque 94.
      ---------------------------------------------------------------------------
@@ -171,18 +176,30 @@ export default function Maintenance() {
      (`/maintenance?asignadas=1`, ver `inicioPara` en modulos.ts): sus órdenes
      vivas, no las de toda la planta. Lo resuelve el SERVIDOR, como «las mías». */
   const [aMiCargo, setAMiCargo] = useState(() => parametros.get('asignadas') === '1');
+  /* Bloque 180 · `?sinSap=1` desde la bandeja: las vivas que esperan su OM de
+     SAP. Lo filtra el SERVIDOR, por lo mismo que «Las mías». */
+  const [sinSap, setSinSap] = useState(() => parametros.get('sinSap') === '1');
 
   // Alta de OM (solo Jefe). El código es MANUAL (número que genera SAP).
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const FORM_VACIO = {
     // Bloque 168: el responsable por defecto es quien la crea (se puede cambiar).
-    code: '', type: 'PREVENTIVO', assetId: '', locationId: '', activity: '', responsible: user?.fullName || '',
+    type: 'PREVENTIVO', assetId: '', locationId: '', activity: '', responsible: user?.fullName || '',
     materials: '', zone: '', incidentId: '', scheduledDate: hoyParaInput(),
     requestedBy: '', requestChannel: '', externalRef: '',
-    plannedStopAt: '', plannedDurationMin: '', subtipo: '',
+    plannedStopAt: '', plannedDurationMin: '', subtipo: '', technicianId: '',
   };
   const [form, setForm] = useState<any>(FORM_VACIO);
+  /* Optimización 21/10: el técnico se ELIGE (los mismos que en «Nueva OM ·
+     rápida»), no se escribe su nombre. */
+  const [ejecutores, setEjecutores] = useState<any[]>([]);
+  useEffect(() => {
+    if (!showForm || ejecutores.length) return;
+    let vigente = true;
+    api.get('/users/ejecutores').then((r) => { if (vigente) setEjecutores(r.data || []); }).catch(() => {});
+    return () => { vigente = false; };
+  }, [showForm, ejecutores.length]);
   /* BLOQUE 136 · los «trabajos» de cada tipo de OM (catálogo TRABAJO_OM).
      Elegir uno copia su actividad al formulario: el software rellena lo que
      ya sabe, el técnico sólo pone lo que sólo él sabe. */
@@ -225,6 +242,7 @@ export default function Maintenance() {
        creerse el resto de la pantalla. */
     if (soloMias) params.set('mias', '1');
     if (aMiCargo) params.set('asignadas', '1');
+    if (sinSap) params.set('sinSap', '1');
     if (zonaFiltro) params.set('zona', zonaFiltro.id);
     if (delReparto) {
       params.set('creadasDesde', delReparto.creadasDesde);
@@ -255,7 +273,7 @@ export default function Maintenance() {
      resuelve el SERVIDOR, así que cambiarlo obliga a volver a preguntar. Los
      que se aplican al pulsar «Buscar» no van aquí. */
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [ambito, soloMias, aMiCargo, delReparto, zonaFiltro]);
+  useEffect(() => { load(); }, [ambito, soloMias, aMiCargo, sinSap, delReparto, zonaFiltro]);
 
   /* Se busca MIENTRAS SE ESCRIBE, con 350 ms de espera. El botón «Buscar»
      se queda: quien teclea un código completo lo pulsa por costumbre y
@@ -337,19 +355,24 @@ export default function Maintenance() {
       // Recepción del pedido de Producción
       if (form.requestedBy) body.requestedBy = form.requestedBy.trim();
       if (form.requestChannel) body.requestChannel = form.requestChannel;
-      if (form.externalRef) body.externalRef = form.externalRef.trim();
-      if (form.plannedStopAt) body.plannedStopAt = new Date(form.plannedStopAt).toISOString();
+      // Bloque 180: como lo enseña SAP; el servidor lo vuelve a normalizar.
+      const malSap = avisoDelNumeroSap(form.externalRef);
+      if (malSap) { await avisar(malSap); return; }
+      const sap = normalizarNumeroSap(form.externalRef);
+      if (sap) body.externalRef = sap;
       if (form.plannedDurationMin) body.plannedDurationMin = Number(form.plannedDurationMin);
+      // El responsable es quien la crea (bloque 168); ya no se escribe.
       if (form.responsible) body.responsible = form.responsible.trim();
-      if (form.materials) body.materials = form.materials;
-      if (form.code) body.code = form.code.trim();
+      if (form.technicianId) body.technicianId = form.technicianId;
       if (form.zone) body.zone = form.zone.trim();
       if (form.incidentId) body.incidentId = form.incidentId;
       if (form.scheduledDate) body.scheduledDate = new Date(form.scheduledDate + 'T08:00:00').toISOString();
-      await api.post('/work-orders', body);
+      const r = await api.post('/work-orders', body);
       setShowForm(false);
       setForm(FORM_VACIO);
       await load();
+      // Bloque 180: la OM de SAP ya estaba en otra orden. No se impide; se dice.
+      if (r.data?.avisoSap) await avisar(r.data.avisoSap);
     } catch (err: any) {
       const m = err?.response?.data?.message;
       await avisar(Array.isArray(m) ? m.join(', ') : m || 'No se pudo crear la orden de mantenimiento.');
@@ -366,7 +389,8 @@ export default function Maintenance() {
   function openIntervention(w: any) {
     setIntId(w.id);
     setIntWo(w);
-    setIntSel({ trabajo: w.subtipo || '', sintoma: '', accion: '', detalle: '' });
+    /* Auditoría 21/10: lo ya marcado (aquí o al 100 % del avance) se precarga. */
+    setIntSel({ trabajo: w.subtipo || '', sintoma: w.symptomCode || '', accion: w.actionCode || '', detalle: '' });
     if (!intCat) api.get('/catalogos/todos').then((r) => setIntCat(r.data)).catch(() => setIntCat({}));
     /* Bloque 168: la zona ya se sabe por el equipo o la ubicación de la orden. */
     setIntForm({ activity: w.activity || '', diagnosis: w.diagnosis || '', materials: w.materials || '', zone: w.zone || w.asset?.referencePlace || w.asset?.location?.name || w.location?.name || '', status: w.status === 'CERRADA' || w.status === 'CANCELADA' ? 'EN_PROCESO' : w.status, condition: w.condition || {} });
@@ -385,6 +409,9 @@ export default function Maintenance() {
       await api.patch('/work-orders/' + intId, {
         activity: trabajo ? (trabajo.notes || trabajo.name) : intForm.activity || undefined,
         diagnosis: diag || intForm.diagnosis || undefined,
+        // El CÓDIGO viaja también: el cierre del Jefe lo trae marcado.
+        symptomCode: intSel.sintoma || undefined,
+        actionCode: intSel.accion || undefined,
         zone: intForm.zone || undefined,
         status: intForm.status,
         condition: (() => {
@@ -527,7 +554,7 @@ export default function Maintenance() {
 
       <div className="filters">
         <FiltroAmbito valor={ambito} onChange={setAmbito} />
-        <div style={{ flex: 1, minWidth: 180 }}><label>Buscar<input placeholder="código OM, incidencia, actividad, zona…" value={fq} onChange={(e) => setFq(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} /></label></div>
+        <div style={{ flex: 1, minWidth: 180 }}><label>Buscar<input placeholder="código, N° SAP, incidencia, actividad…" value={fq} onChange={(e) => setFq(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} /></label></div>
         <div><label>Tipo<select value={fType} onChange={(e) => setFType(e.target.value)}><option value="">Todos</option>{TYPES.map((t) => <option key={t} value={t}>{WO_TYPE_ES[t] || t}</option>)}</select></label></div>
         <div><label>Estado<select value={fStatus} onChange={(e) => setFStatus(e.target.value)}><option value="">Todos</option>{['ABIERTA', 'EN_PROCESO', 'EN_ESPERA', 'CERRADA', 'CANCELADA'].map((s) => <option key={s} value={s}>{WO_STATUS_ES[s] || s}</option>)}</select></label></div>
         <div><label>Desde<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></label></div>
@@ -537,6 +564,12 @@ export default function Maintenance() {
           <input type="checkbox" checked={soloSinDetallar} style={{ width: 'auto' }}
             onChange={(e) => setSoloSinDetallar(e.target.checked)} />
           Sin detallar
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, alignSelf: 'flex-end', paddingBottom: 6 }}
+          title="Las que esperan su N° de OM SAP: sin él no se abren">
+          <input type="checkbox" checked={sinSap} style={{ width: 'auto' }}
+            onChange={(e) => setSinSap(e.target.checked)} />
+          {'Sin N° SAP'}
         </label>
         {can('wo.create') && (
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, alignSelf: 'flex-end', paddingBottom: 6 }}>
@@ -586,7 +619,25 @@ export default function Maintenance() {
                     {/* Bloque 136: el trabajo concreto, si se eligió. */}
                     {w.subtipo && <> · {trabajos.find((t) => t.code === w.subtipo)?.name || w.subtipo}</>}
                   </div>
-                  {w.incident && <div className="muted" style={{ fontSize: 10 }}>◦ {w.incident.code}</div>}
+                  {/* Bloque 180 · la OM es de SAP: su número va con el código. Sin
+                      él no se abre ni avanza, así que la falta se ve aquí y se
+                      apunta desde aquí. */}
+                  {w.externalRef ? (
+                    <div className="num-sap" style={{ fontSize: 11, fontWeight: 400 }} title="N° de la OM en SAP">{'SAP ' + w.externalRef}</div>
+                  ) : w.status !== 'CERRADA' && w.status !== 'CANCELADA' && (
+                    puedeApuntarSap ? (
+                      <button type="button" className="btn-mini num-sap-falta" onClick={() => setSapDe(w)}
+                        title="Sin el N° de la OM de SAP no se abre ni avanza. Apúntalo.">{'Sin N° SAP'}</button>
+                    ) : (
+                      <div className="num-sap-falta" style={{ fontSize: 11 }}
+                        title="Sin él no se abre ni avanza. Lo apunta Producción o el Jefe.">{'Sin N° SAP'}</div>
+                    )
+                  )}
+                  {w.incident && (
+                    <div className="muted" style={{ fontSize: 10 }}>
+                      ◦ {w.incident.code}{w.incident.avisoSap ? ' · aviso ' + w.incident.avisoSap : ''}
+                    </div>
+                  )}
                 </td>
                 <td style={{ fontSize: 12, maxWidth: 340 }}>
                   {/* LA ACTIVIDAD SE RESUME — bloque 133.
@@ -713,6 +764,9 @@ export default function Maintenance() {
                       aria-label="Más acciones de esta orden"
                       title="Más acciones">⋯</summary>
                     <div className="acciones-fila-menu">
+                      {w.status !== 'CERRADA' && w.status !== 'CANCELADA' && puedeApuntarSap && (
+                        <button className="btn-mini" onClick={() => setSapDe(w)}>{w.externalRef ? 'N° SAP ✓' : 'N° SAP'}</button>
+                      )}
                       {w.status !== 'CERRADA' && w.status !== 'CANCELADA' && can('wo.update') && (
                         <button className="btn-mini" onClick={() => openPhotos(w.id)}>Fotos</button>
                       )}
@@ -789,12 +843,23 @@ export default function Maintenance() {
         <ParadaYPlazo wo={plazoDe} onClose={() => setPlazoDe(null)} onHecho={load} />
       )}
 
+      {sapDe && (
+        <NumeroSapDeOm wo={sapDe} onClose={() => setSapDe(null)} onHecho={load} />
+      )}
+
       {showForm && (
         <Modal title="Nueva orden de mantenimiento" onClose={() => setShowForm(false)}>
           <form onSubmit={create}>
-            <label>Código OM (SAP)
-              <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="N.º generado por SAP (si lo dejas vacío se asigna uno provisional)" />
+            {/* Bloque 180 · UN solo campo para SAP. Antes había dos —«Código OM
+                (SAP)», que pisaba el código interno, y «N.º de orden en SAP»
+                más abajo—: dos puertas al mismo dato. El código interno lo pone
+                el sistema; el de SAP va aquí, primero, porque sin él no se
+                abre. Vacío: se apunta cuando SAP la cree. */}
+            <label>{'N° de OM SAP (si ya existe)'}
+              <input className="num-sap" value={form.externalRef} maxLength={20} inputMode="numeric"
+                onChange={(e) => setForm({ ...form, externalRef: e.target.value })} placeholder="Ej.: 4000123456" />
             </label>
+            {avisoDelNumeroSap(form.externalRef) && <div className="num-sap-falta" style={{ fontSize: 12 }}>{avisoDelNumeroSap(form.externalRef)}</div>}
             <label>Tipo
               <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value, subtipo: '' })}>
               {WO_TYPES_NUEVA.map((t) => <option key={t} value={t}>{WO_TYPE_ES[t] || t}</option>)}
@@ -876,11 +941,15 @@ export default function Maintenance() {
             <label>Actividad / descripción
               <input value={form.activity} onChange={(e) => setForm({ ...form, activity: e.target.value })} />
             </label>
-            <label>Responsable
-              <input value={form.responsible} onChange={(e) => setForm({ ...form, responsible: e.target.value })} placeholder="Nombre del responsable de la OM" />
-            </label>
-            <label>Materiales (uno por línea)
-              <textarea value={form.materials} onChange={(e) => setForm({ ...form, materials: e.target.value })} rows={3} style={{ width: '100%', resize: 'vertical' }} placeholder="Ej: 2x Conector RJ45 / 1x Fuente PoE 48V" />
+            {/* Optimización 21/10: «Responsable» era texto libre (es quien la
+                crea) y «Materiales» un párrafo que nadie podía descontar del
+                almacén. Ahora se elige el técnico, y los materiales van por el
+                botón «Materiales» de la orden, con código SAP. */}
+            <label>Técnico
+              <select value={form.technicianId} onChange={(e) => setForm({ ...form, technicianId: e.target.value })}>
+                <option value="">— sin asignar todavía —</option>
+                {ejecutores.map((u: any) => <option key={u.id} value={u.id}>{u.fullName}{u.rol ? ` · ${u.rol}` : ''}</option>)}
+              </select>
             </label>
             <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
               <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Recepción del pedido</div>
@@ -897,21 +966,12 @@ export default function Maintenance() {
                 {CANALES.map((c) => <option key={c} value={c}>{CANAL_ES[c]}</option>)}
               </select>
               </label>
-              <label>N.º de orden en SAP
-                <input value={form.externalRef} onChange={(e) => setForm({ ...form, externalRef: e.target.value })}
-                placeholder="Si Producción ya la creó en SAP" />
-              </label>
             </div>
 
+            {/* Optimización 21/10: la hora de parada se declara en UN sitio, «Parada
+                y plazo» dentro de la orden, cuando Producción la confirma. Aquí
+                sólo cuánto se estima que dura el trabajo. */}
             <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
-              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Parada estimada</div>
-              <div className="muted" style={{ fontSize: 11, marginBottom: 8 }}>
-                Es tentativa: el técnico confirma la hora real en campo.
-              </div>
-              <label>Hora estimada de parada
-                <input type="datetime-local" value={form.plannedStopAt}
-                onChange={(e) => setForm({ ...form, plannedStopAt: e.target.value })} />
-              </label>
               <label>Duración estimada (minutos)
                 <input type="number" min={1} value={form.plannedDurationMin}
                 onChange={(e) => setForm({ ...form, plannedDurationMin: e.target.value })}

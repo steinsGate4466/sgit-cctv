@@ -47,6 +47,8 @@ import Icono from './Iconos';
 import { mensajeDeError, queFalta } from '../avisos';
 import BotonConMotivo from './BotonConMotivo';
 import { hoyParaInput } from '../fechas';
+import ElegirConClics from './ElegirConClics';
+import { OPCIONES_DEL_AVISO } from '../avisoSap';
 
 interface Motivo {
   /** Valor del enum `IncidentCategory` del backend. */
@@ -105,6 +107,11 @@ export default function ReportarAveria({
   };
   const [detalle, setDetalle] = useState('');
   const [sinVista, setSinVista] = useState(false);
+  /* BLOQUE 180 · «¿EL EQUIPO FUNCIONA?». Delante del equipo, el técnico es
+     quien mejor lo sabe. Decide si cuenta como falla: un gabinete destrozado
+     que sigue dando imagen no es una avería, y contarlo hundiría el MTBF.
+     Vacío a propósito: se contesta, no se deja puesto de oficio. */
+  const [tipoAviso, setTipoAviso] = useState('');
   /* Vacío por defecto: «no lo sé» es la respuesta honesta la mayoría de las
      veces, y un valor puesto de oficio se envía sin mirar. */
   const [ocurrio, setOcurrio] = useState('');
@@ -139,6 +146,10 @@ export default function ReportarAveria({
   if (!can('incident.create') || !can('wo.update')) return null;
 
   async function enviar() {
+    if (!tipoAviso) {
+      setError('Contesta si el equipo funciona.');
+      return;
+    }
     if (!principal) {
       setError('Marca al menos un motivo.');
       return;
@@ -154,12 +165,13 @@ export default function ReportarAveria({
           ? `${principal.titulo} (+${motivos.length - 1}) — ${codigo}`
           : `${principal.titulo} — ${codigo}`,
         description: detalle.trim() || undefined,
+        tipoAviso,
         category: principal.categoria,
         categoriasExtra: motivos.slice(1).map((m) => m.categoria),
         assetId,
         zone: zona || undefined,
         // Un hecho, no una opinión: se envía sólo si el técnico lo marcó.
-        affectedCameras: sinVista ? 1 : undefined,
+        affectedCameras: sinVista && tipoAviso === 'FALLA' ? 1 : undefined,
         // Si no se sabe, no va: el servidor usará la hora de reporte.
         occurredAt: ocurrio ? new Date(ocurrio).toISOString() : undefined,
       });
@@ -186,6 +198,7 @@ export default function ReportarAveria({
       setDetalle('');
       setSinVista(false);
       setOcurrio('');
+      setTipoAviso('');
       alCrear();
     } catch (e: any) {
       /* El mensaje del servidor primero: dice QUÉ campo está mal. `e.message`
@@ -231,6 +244,10 @@ export default function ReportarAveria({
           campo lo llamara «avería» obligaba a traducir mentalmente entre lo
           que se rellena y dónde aparece después. */}
       <div className="section-title" style={{ marginTop: 0 }}>Reportar incidencia · {codigo}</div>
+
+      <ElegirConClics etiqueta="¿El equipo funciona?" opciones={OPCIONES_DEL_AVISO}
+        valor={tipoAviso ? [tipoAviso] : []}
+        onChange={(v) => { setTipoAviso(v[0] || ''); setError(''); }} />
 
       {/* LOS MOTIVOS — bloque 70
           ===================================================================
@@ -342,10 +359,13 @@ export default function ReportarAveria({
 
       {/* Un HECHO comprobable, no una valoración de urgencia. La prioridad la
           deduce el servidor de la criticidad de la zona. */}
-      <label className="av-check">
-        <input type="checkbox" checked={sinVista} onChange={(e) => setSinVista(e.target.checked)} />
-        <span>La zona quedó sin vista</span>
-      </label>
+      {/* Sólo si no funciona: si funciona, la zona no ha perdido la vista. */}
+      {tipoAviso === 'FALLA' && (
+        <label className="av-check">
+          <input type="checkbox" checked={sinVista} onChange={(e) => setSinVista(e.target.checked)} />
+          <span>La zona quedó sin vista</span>
+        </label>
+      )}
 
       {error && <div className="error" style={{ display: 'block' }}>{error}</div>}
 
@@ -353,8 +373,9 @@ export default function ReportarAveria({
         <BotonConMotivo
           ocupado={enviando}
           onClick={enviar}
-          falta={queFalta([!principal,
-            'Marca al menos un motivo: es lo que después dice qué falla más en la planta.'])}
+          falta={queFalta(
+            [!tipoAviso, 'Contesta si el equipo funciona: decide si cuenta como falla.'],
+            [!principal, 'Marca al menos un motivo: es lo que después dice qué falla más en la planta.'])}
         >
           {enviando ? 'Registrando…' : 'Registrar incidencia'}
         </BotonConMotivo>

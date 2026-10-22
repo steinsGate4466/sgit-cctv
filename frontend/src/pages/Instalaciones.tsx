@@ -102,9 +102,13 @@ export default function Instalaciones() {
     setLista(l || []); setResumen(r);
   }, []);
 
+  const [equiposRed, setEquiposRed] = useState<any[]>([]);
   useEffect(() => {
     api.get('/instalaciones/perfiles').then((r) => setPerfiles(r.data)).catch(() => setPerfiles(null));
     api.get('/locations').then((r) => setUbicaciones(r.data?.items || r.data || [])).catch(() => setUbicaciones([]));
+    /* Optimización 21/10: el switch y el grabador de destino se ELIGEN de los
+       que hay en planta; antes se pedía teclear su identificador interno. */
+    api.get('/assets/options').then((r) => setEquiposRed((r.data || []).filter((a: any) => a.type === 'SWITCH' || a.type === 'NVR'))).catch(() => setEquiposRed([]));
   }, []);
 
   useEffect(() => {
@@ -265,6 +269,20 @@ export default function Instalaciones() {
             <option value="">Sin comprobar</option>
             <option value="si">Sí</option>
             <option value="no">No</option>
+          </select>
+        </label>
+      );
+    }
+    if (nombre === 'switchDestinoId' || nombre === 'nvrDestinoId') {
+      const tipo = nombre === 'switchDestinoId' ? 'SWITCH' : 'NVR';
+      return (
+        <label className="campo" key={nombre}>
+          <span>{et}</span>
+          <select value={valor ?? ''} onChange={(e) => set(e.target.value)}>
+            <option value="">—</option>
+            {equiposRed.filter((a) => a.type === tipo).map((a) => (
+              <option key={a.id} value={a.id}>{a.assetCode}{a.location?.name ? ` · ${a.location.name}` : ''}</option>
+            ))}
           </select>
         </label>
       );

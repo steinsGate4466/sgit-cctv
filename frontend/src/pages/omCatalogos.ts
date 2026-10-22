@@ -4,7 +4,9 @@ import { fechaCorta } from '../fechas';/**
  * textos y no acaben con etiquetas distintas para el mismo valor.
  */
 
-export const WO_TYPES = ['PREVENTIVO', 'CORRECTIVO', 'MEJORA', 'PREDICTIVO', 'MAPEO'];
+/* Bloque 180 · INSTALACIÓN: equipos nuevos y planos. Tipo propio, fuera del
+   reparto correctivo/preventivo/mejora (decisión 4 de Cristhian, 22/10). */
+export const WO_TYPES = ['PREVENTIVO', 'CORRECTIVO', 'MEJORA', 'PREDICTIVO', 'MAPEO', 'INSTALACION'];
 /** Bloque 172 · lo que se puede CREAR. Predictivo se retiró en el bloque 80 (en
  *  CCTV no hay nada que predecir) pero seguía ofreciéndose al crear una orden.
  *  Se queda en WO_TYPES para FILTRAR y ver las viejas. */
@@ -16,6 +18,7 @@ export const WO_TYPE_ES: Record<string, string> = {
   MEJORA: 'Mejora',
   PREDICTIVO: 'Predictivo',
   MAPEO: 'Mapeo de activos',
+  INSTALACION: 'Instalación',
 };
 
 /** Por dónde llegó el pedido de Producción. */

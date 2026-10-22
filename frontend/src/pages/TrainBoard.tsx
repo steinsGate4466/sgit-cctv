@@ -65,7 +65,7 @@ function titularDelTren(r: any): { tono: Tono; texto: string; apoyo: string } {
     return {
       tono: 'sindatos',
       texto: 'Este tren todavía no tiene equipos en el árbol',
-      apoyo: 'No es que esté mal: es que falta cargarlo. Hasta entonces no hay nada que medir.',
+      apoyo: 'Falta cargarlo: hasta entonces no hay nada que medir.',
     };
   }
 
@@ -80,7 +80,8 @@ function titularDelTren(r: any): { tono: Tono; texto: string; apoyo: string } {
     return {
       tono: r.camarasCaidas || r.incidenciasCriticas ? 'grave' : 'atender',
       texto: graves.join(' · '),
-      apoyo: `${r.operativos} de ${r.enOperacion} equipos funcionando con normalidad (${r.disponibilidad} %).`,
+      /* Síntesis 21/10: «N de M funcionando» ya lo dice la línea de cifras. */
+      apoyo: '',
     };
   }
 
@@ -96,7 +97,7 @@ function titularDelTren(r: any): { tono: Tono; texto: string; apoyo: string } {
   return {
     tono: 'bien',
     texto: 'El tren está entero',
-    apoyo: `${r.operativos} de ${r.enOperacion} equipos operativos. Ninguna falla, ninguna orden vencida.`,
+    apoyo: 'Ninguna falla, ninguna orden vencida.',
   };
 }
 
@@ -233,9 +234,7 @@ export default function TrainBoard() {
   return (
     <div>
       <h1 className="page-title">Estado por Tren</h1>
-      <p className="page-sub">
-        Infraestructura de videovigilancia y red de cada tren de Laminación
-      </p>
+      <p className="page-sub">CCTV y red de cada tren</p>
 
       {/* ------------------------------------------------ aviso fuera del árbol */}
       {!!sinUbicar?.activos && (
@@ -249,10 +248,7 @@ export default function TrainBoard() {
         >
           <div style={{ fontSize: 13 }}>
             <b>{plural(sinUbicar.activos, 'activo')} fuera del árbol.</b>{' '}
-            <span className="muted">
-              No cuelgan de ningún tren, así que no cuentan en ninguna pestaña.
-              No es un cuarto tren: es mapeo pendiente.
-            </span>
+            <span className="muted">No cuentan en ningún tren: es mapeo pendiente.</span>
           </div>
           <button className="btn-mini">Ver cuáles</button>
         </div>
@@ -279,9 +275,7 @@ export default function TrainBoard() {
         <div className="panel">
           <h3>Activos que no cuelgan de ningún tren</h3>
           <div className="sign-note" style={{ marginBottom: 12 }}>
-            Son dos problemas distintos y se arreglan distinto: los que no tienen
-            ubicación hay que ubicarlos; los que sí la tienen, lo que falta es
-            colgar esa ubicación del tren que le toca en el árbol.
+            Sin ubicación: ubicarlos. Con ubicación: colgarla de su tren en el árbol.
           </div>
           {!listaSinUbicar ? (
             <div className="loading">Cargando…</div>
@@ -411,8 +405,8 @@ export default function TrainBoard() {
               </div>
               {(r.sinFoto > 0 || r.sinEtapa > 0) && (
                 <div className="muted" style={{ fontSize: 12, marginTop: 12 }}>
-                  {r.sinFoto > 0 && <>· {r.sinFoto} sin ninguna foto cargada </>}
-                  {r.sinEtapa > 0 && <>· {r.sinEtapa} sin etapa del proceso asignada</>}
+                  {r.sinFoto > 0 && <>· {r.sinFoto} sin foto </>}
+                  {r.sinEtapa > 0 && <>· {r.sinEtapa} sin etapa</>}
                 </div>
               )}
             </div>

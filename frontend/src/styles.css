@@ -280,6 +280,9 @@ label { display: block; font-size: 12px; margin: 14px 0 6px; }
    ============================================================================ */
 input, select, textarea {
   width: 100%; border: 1px solid var(--border); outline: none;
+  /* Sin esto el <textarea> sale en monoespaciada (es lo que pone el
+     navegador por defecto) y el resto del formulario no. */
+  font-family: inherit;
 }
 
 /* Aquí se había añadido además un `min-height: 5.5em`. Lo rechazó
@@ -5414,3 +5417,35 @@ tbody tr:hover td { background: var(--brillo); }
 }
 /* Mapa de red (auditoría 20/10): los códigos agrupados de un hallazgo se leen enteros. */
 .hallazgo-texto a.dato-fijo { max-width: none; }
+
+/* =============================================================================
+   BLOQUE 180 · EL AVISO Y SU N° DE SAP
+   -----------------------------------------------------------------------------
+   El tipo del aviso se lee por el color, sin leer la palabra: falla en rojo
+   (no funciona), condición en ámbar (funciona, se va a dañar) y solicitud en
+   azul informativo — no es un estado de planta, es un pedido.
+   El N° de SAP va en letra de máquina: se copia y se dicta cifra a cifra.
+============================================================================= */
+.badge.aviso-falla     { background: var(--crit-fondo); color: var(--crit-texto); border-color: var(--crit-borde); }
+.badge.aviso-condicion { background: var(--warn-fondo); color: var(--warn-texto); border-color: var(--warn-borde); }
+.badge.aviso-solicitud { background: var(--info-fondo); color: var(--info-texto); border-color: var(--info-borde); }
+.num-sap { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .02em; }
+.num-sap-falta { color: var(--warn-texto); font-weight: 600; }
+.linea-aviso { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; margin-top: 3px; font-size: 11px; }
+/* «Para el aviso de SAP»: cada dato en su caja, con su botón de copiar al lado. */
+.para-sap { display: grid; gap: 8px; margin: 10px 0 14px; }
+.para-sap-fila {
+  display: flex; gap: 10px; align-items: flex-start; justify-content: space-between;
+  border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; background: var(--suave-fondo);
+}
+.para-sap-fila > div { min-width: 0; flex: 1; }
+.para-sap-fila b { display: block; font-size: 11px; color: var(--muted); font-weight: 600; }
+.para-sap-texto { margin: 2px 0 0; white-space: pre-wrap; word-break: break-word; font-size: 13px; color: var(--text); }
+/* Bloque 180 · «Falta el N° de OM SAP» dentro de abrir / avance / cerrar: ámbar
+   (falta un dato, no es un fallo) y con el campo para apuntarlo ahí mismo. */
+.aviso-falta-sap {
+  background: var(--warn-fondo); color: var(--warn-texto); border: 1px solid var(--warn-borde);
+  border-left: 4px solid var(--warn); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; font-size: 13px;
+}
+.aviso-falta-sap-fila { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+.aviso-falta-sap-fila input { flex: 1; min-width: 0; }

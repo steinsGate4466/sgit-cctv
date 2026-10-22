@@ -10,7 +10,8 @@ import { CreateIncidentDto } from './dto/create-incident.dto';
 import { UpdateIncidentDto } from './dto/update-incident.dto';
 import { QueryIncidentDto } from './dto/query-incident.dto';
 import { ResolveIncidentDto } from './dto/resolve-incident.dto';
-import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { RequireAlguno, RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { NumeroSapDto } from '../../common/numero-sap.dto';
 import { AmbitoDe } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
@@ -84,6 +85,31 @@ export class IncidentsController {
   @RequirePermissions('incident.update')
   update(@Param('id') id: string, @Body() dto: UpdateIncidentDto) {
     return this.incidents.update(id, dto);
+  }
+
+  /* ===========================================================================
+     BLOQUE 180 · EL N° DEL AVISO DE SAP
+     ---------------------------------------------------------------------------
+     Lo APUNTA quien creó el aviso en SAP, y eso puede ser Producción: basta
+     `incident.create` cuando todavía no lo tiene. CAMBIARLO o QUITARLO pide
+     `incident.update` —lo comprueba el servicio con el permiso de la sesión—:
+     un número mal cambiado desengancha el aviso de su orden y nadie lo nota
+     hasta el informe del mes. El ámbito es el de siempre: sólo los de tu tren.
+  =========================================================================== */
+  @AmbitoDe('incident')
+  @Patch(':id/aviso-sap')
+  @RequireAlguno('incident.update', 'incident.create')
+  avisoSap(@Param('id') id: string, @Body() body: NumeroSapDto, @CurrentUser() user: any, @Ip() ip: string) {
+    const puedeCorregir = (user?.permissions || []).includes('incident.update');
+    return this.incidents.registrarAvisoSap(id, body?.numero ?? null, user?.userId ?? null, puedeCorregir, ip);
+  }
+
+  /** BLOQUE 180 · Lo que lleva el aviso en SAP, preparado para copiar. Sólo lee. */
+  @AmbitoDe('incident')
+  @Get(':id/para-sap')
+  @RequirePermissions('incident.read')
+  paraSap(@Param('id') id: string) {
+    return this.incidents.paraSap(id);
   }
 
   // Resolver/cerrar con firma. SOLO el Jefe de Mantenimiento (incident.close).

@@ -191,7 +191,8 @@ export default function TableroOm() {
           apareciera al envejecer, su ausencia no significaría nada. */}
       <p className={edad !== null && edad >= VIEJO_S ? 'edad-dato viejo' : 'edad-dato'}>
         {edad === null ? 'Consultando…' : `Datos de hace ${edad} s.`}
-        {d?.generadoEn ? ` Generado a las ${hora(d.generadoEn)}.` : ''}
+        {/* «Generado a las 01:23 a. m..» salía con doble punto. */}
+        {d?.generadoEn ? ` Generado a las ${hora(d.generadoEn)}` : ''}
         {' '}
         <button type="button" className="btn-mini" onClick={cargar} disabled={cargando}>
           {cargando ? 'Actualizando…' : 'Actualizar ahora'}
@@ -253,6 +254,10 @@ export default function TableroOm() {
                   <tr key={o.id}>
                     <td>
                       <b>{o.code}</b>
+                      {/* Bloque 180: el N° de SAP es el que conoce Producción. */}
+                      {o.externalRef
+                        ? <span className="num-sap muted" style={{ marginLeft: 6, fontSize: 11 }}>{'SAP ' + o.externalRef}</span>
+                        : <span className="num-sap-falta" style={{ marginLeft: 6, fontSize: 11 }} title="Sin él no se abre">{'Sin N° SAP'}</span>}
                       <div className="muted">{o.activity || 'sin actividad escrita'}</div>
                     </td>
                     <td>

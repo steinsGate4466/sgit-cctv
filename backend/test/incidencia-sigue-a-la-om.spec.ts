@@ -82,8 +82,22 @@ describe('Cómo queda enganchado, que es donde está el riesgo', () => {
 
   it('`resolvedAt` sólo se escribe si estaba vacía', () => {
     /* Es la mitad del MTTR. Pisarla movería una fecha que ya se contó en el
-       informe del mes. */
-    expect(svc).toContain('!inci.resolvedAt ? { resolvedAt: new Date() } : {}');
+       informe del mes. Auditoría de procesos 21/10: la hora es la del FIN del
+       trabajo (la que declara quien cierra), no la del clic. */
+    expect(svc).toContain('!inci.resolvedAt ? { resolvedAt: resueltaEn } : {}');
+    expect(svc).toContain("this.reflejarEnIncidencia(wo.incidentId, wo.code, 'cerrar', signer!.id, ip, fin)");
+  });
+
+  it('AUDITORÍA 21/10 · al resolverse por la orden se cierra TODO lo que cerraba la firma aparte', () => {
+    /* Desde el bloque 97 el camino normal ya no pasa por `resolveSigned`, y
+       tres cosas se quedaban sin hacer: el MTTR, el evento de falla (Indicadores
+       decía «sin datos» siempre) y el aviso a quien reportó. */
+    const i = svc.indexOf('private async reflejarEnIncidencia(');
+    const cuerpo = svc.slice(i, svc.indexOf('\n  }\n', i));
+    expect(cuerpo).toContain('mttrMinutes: mttr');
+    expect(cuerpo).toMatch(/failureEvent\.updateMany\(\{\s*where: \{ incidentId, restoredAt: null \}/);
+    expect(cuerpo).toContain("'REPORTE_RESUELTO'");
+    expect(cuerpo).toContain('tuReporteSeResolvio(');
   });
 
   it('el fallo del reflejo NO se silencia: queda en auditoría', () => {

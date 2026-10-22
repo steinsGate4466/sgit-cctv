@@ -358,7 +358,8 @@ export default function Assets() {
     }
     setForm({
       id: a.id, assetCode: a.assetCode || '', type: a.type || 'CAMERA', brand: a.brand || '', model: a.model || '',
-      serialNumber: a.serialNumber || '', ipAddress: a.ipAddress || '', status: a.status || 'OPERATIVO',
+      // Optimización: UNA sola IP en el formulario; si sólo estaba en la ficha de la cámara, sale aquí.
+      serialNumber: a.serialNumber || '', ipAddress: a.ipAddress || a.camera?.ipAddress || '', status: a.status || 'OPERATIVO',
       criticality: a.criticality || 'MEDIA', locationId: a.locationId || '', cabinetId: a.cabinetId || '', tableroId: a.tableroId || '', referencePlace: a.referencePlace || '', sapId: a.sapId || '',
       responsibleArea: a.responsibleArea || '', devicePass: '', email: user?.email || '', password: '',
     });
@@ -386,6 +387,9 @@ export default function Assets() {
         for (const [k, val] of Object.entries(spec || {})) {
           if (val !== undefined && val !== null && val !== '') limpia[k] = val;
         }
+        /* Optimización 21/10: la IP de la cámara se pedía DOS veces (general y en
+           la ficha). Se escribe una vez y va a los dos sitios. */
+        if (bloqueFicha === 'camera' && form.ipAddress) limpia.ipAddress = form.ipAddress;
         if (Object.keys(limpia).length) body[bloqueFicha] = limpia;
       }
       /* SIN SEÑAL NO SE PIERDE LO ESCRITO.
@@ -1422,7 +1426,9 @@ export default function Assets() {
             </label>
             <div style={{ display: 'flex', gap: 10 }}>
               <div style={{ flex: 1 }}><label>Tipo<select value={form.type} onChange={(e) => { setForm({ ...form, type: e.target.value }); setSpec({}); }}>{TYPES.map((t) => <option key={t} value={t}>{tEs(t)}</option>)}</select></label></div>
-              <div style={{ flex: 1 }}><label>Criticidad<select value={form.criticality} onChange={(e) => setForm({ ...form, criticality: e.target.value })}>{CRITS.map((t) => <option key={t} value={t}>{cEs(t)}</option>)}</select></label></div>
+              {/* Optimización 21/10: la criticidad NO se pide. Sale de la zona
+                  donde va el equipo y del método A/B/C (pestaña Criticidad);
+                  el valor escrito a mano contradecía al calculado. */}
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               {/* Bloque 169: marca y modelo se eligen de los que ya hay en planta. */}
@@ -1508,6 +1514,7 @@ export default function Assets() {
               opciones={opciones}
               tren={trenDe(locations, form.locationId)?.code ?? null}
               propioId={form.id}
+              sinIp
             />
 
             <AssetPhotoPicker fotos={fotosNuevas} onChange={setFotosNuevas} />

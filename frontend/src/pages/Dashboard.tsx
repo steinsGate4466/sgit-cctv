@@ -74,7 +74,7 @@ export default function Dashboard() {
   return (
     <div>
       <h1 className="page-title">Dashboard Ejecutivo</h1>
-      <p className="page-sub">Estado de la infraestructura de CCTV y redes — Aceros Arequipa, Planta Pisco</p>
+      <p className="page-sub">CCTV y redes · Planta Pisco</p>
       <AccesosRapidos />
 
       {/* ───────── ¿QUÉ HAGO PRIMERO? ─────────
@@ -291,9 +291,8 @@ export default function Dashboard() {
               ))}
             </ol>
           ) : (
-            <div className="empty">
-              Aún sin causas raíz registradas.<br />
-              <span style={{ fontSize: 11 }}>Se llenan al resolver incidencias indicando la causa raíz.</span>
+            <div className="empty" title="Se llenan al resolver incidencias indicando la causa raíz.">
+              Aún sin causas raíz registradas.
             </div>
           )}
         </Panel>

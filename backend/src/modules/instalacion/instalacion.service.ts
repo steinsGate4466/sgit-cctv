@@ -8,6 +8,7 @@ import {
   CrearInstalacionDto, DecidirInstalacionDto, EvaluarInstalacionDto, InstaladaDto, SolicitarInstalacionDto,
 } from './dto/instalacion.dto';
 import { aTrenDePlanta, filtroDeTrenDePlanta } from '../../common/tren-de-planta';
+import { motivoNumeroSapInvalido, normalizarNumeroSap } from '../../common/aviso-sap';
 
 /**
  * INSTALACIONES (Bloque 16)
@@ -301,11 +302,18 @@ export class InstalacionService {
    * Se copia lo que el técnico necesita en campo, para que no tenga que
    * abrir dos pantallas con el casco puesto.
    */
-  async generarOrden(id: string, userId?: string | null, ip?: string | null) {
+  async generarOrden(id: string, userId?: string | null, ip?: string | null, numeroSap?: string | null) {
     const i = await this.prisma.instalacion.findUnique({ where: { id } });
     if (!i) throw new NotFoundException('Esa instalación no existe.');
     if (i.estado !== 'APROBADA') throw new BadRequestException('Sólo se genera la orden de una instalación APROBADA.');
     if (i.workOrderId) throw new ConflictException('Esta instalación ya tiene una orden generada.');
+    /* Bloque 180 · «primero el N° SAP»: si la OM ya existe en SAP, entra aquí;
+       si no, la orden nace y se apunta después (sin él no se abre). */
+    const externalRef = normalizarNumeroSap(numeroSap);
+    if (externalRef) {
+      const malo = motivoNumeroSapInvalido(externalRef);
+      if (malo) throw new BadRequestException(malo);
+    }
 
     const detalles = [
       `Instalación ${i.codigo}: ${i.cantidad} x ${i.tipoEquipo} en ${i.tipoSitio}.`,
@@ -345,8 +353,13 @@ export class InstalacionService {
         this.prisma.workOrder.create({
           data: {
             code: siguienteCorrelativo(ultima?.code, prefijo),
-            type: 'CORRECTIVO',
+            /* BLOQUE 180 · TIPO PROPIO (decisión 4 de Cristhian). Una
+               instalación son equipos NUEVOS y planos: ni se rompió nada
+               (correctivo) ni se mejora lo que hay (mejora). Como CORRECTIVO
+               inflaba el correctivo del reparto del comité. */
+            type: 'INSTALACION',
             status: 'ABIERTA',
+            externalRef,
             locationId: i.locationId,
             activity: detalles,
             zone: i.referenciaSitio,

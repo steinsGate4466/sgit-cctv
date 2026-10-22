@@ -253,8 +253,7 @@ function fraseSiCae(
          fibra es topología —cosa de TI— y aquí lo que hace falta es el EFECTO:
          que no se pierde ninguna cámara porque la red tiene otro camino.
          Quien quiera el detalle técnico lo tiene en «Mapa de red». */
-      return 'Si se cae, no se deja de ver ninguna cámara: la red tiene otro '
-        + 'camino hasta el grabador y la imagen sigue llegando.';
+      return 'Si se cae, no se deja de ver ninguna cámara: la red tiene otro camino al grabador.';
     }
     return `Ahora mismo no hay ninguna cámara que dependa de este ${NOMBRE[papel]}.`;
   }
@@ -280,16 +279,16 @@ function fraseComoFunciona(papel: Papel, cuantas: number): string {
   if (!cuantas) return 'Todavía no hay cámaras enlazadas a este equipo en el sistema.';
   const c = nCosas(cuantas, 'cámara manda su imagen', 'cámaras mandan su imagen');
   switch (papel) {
+    /* Síntesis 21/10: una frase por papel. La del grabador decía «se sigue
+       viendo en vivo por otra ruta» y al lado «no se graba ni se ve»: la
+       auditoría del 20/10 marcó la contradicción. El púlpito ve a través del
+       grabador, así que si cae se pierden las dos cosas. */
     case 'ANTENA':
-      return `${c} por el aire hasta esta antena. De la antena baja por cable `
-        + 'hasta el switch, y del switch llega al grabador. Si la antena se queda '
-        + 'sin señal o sin corriente, esa imagen no llega, aunque las cámaras estén encendidas.';
+      return `${c} por el aire a esta antena; de ahí baja al switch y llega al grabador.`;
     case 'SWITCH':
-      return `${c} por cable a este switch, que es el que la reparte hacia el `
-        + 'grabador. Sin él, la imagen se queda a medio camino.';
+      return `${c} por cable a este switch, que la reparte hacia el grabador.`;
     case 'GRABADOR':
-      return `${c} a este grabador, que es donde se guarda. Si el grabador se `
-        + 'cae, se sigue viendo en vivo lo que pase por otra ruta, pero no queda grabado.';
+      return `${c} a este grabador: ahí se guarda y desde ahí la ve el púlpito.`;
     default:
       return `${c} pasando por este equipo antes de llegar al grabador.`;
   }
@@ -326,11 +325,9 @@ const QUE_SE_PIERDE: Record<EfectoDeCaida, string> = {
   NI_GRABA_NI_SE_VE:
     'No se graba ni se ve: la imagen no llega al grabador.',
   GRABA_PERO_NO_SE_VE:
-    'Se sigue grabando, pero el púlpito deja de verlo en vivo. La imagen '
-    + 'queda guardada y se puede revisar después.',
+    'Se sigue grabando, pero el púlpito deja de verlo en vivo.',
   SIN_DETERMINAR:
-    'No se puede decir si se dejaría de grabar o sólo de ver: a este equipo '
-    + 'le falta la dirección, o falta registrar su subred.',
+    'No se sabe si se deja de grabar o sólo de ver: le falta la dirección, o falta registrar su subred.',
 };
 
 export function soportesDeCamaras(
@@ -419,7 +416,7 @@ export function soportesDeCamaras(
       siCae: fraseSiCae(papel, camaras, salvadoPorAnillo),
       comoFunciona: fraseComoFunciona(papel, camaras.length),
       efecto: efectoDe(papel, eq.segmento),
-      queSePierde: QUE_SE_PIERDE[efectoDe(papel, eq.segmento)],
+      queSePierde: papel === 'GRABADOR' ? 'No se graba ni se ve.' : QUE_SE_PIERDE[efectoDe(papel, eq.segmento)],
     });
   }
 

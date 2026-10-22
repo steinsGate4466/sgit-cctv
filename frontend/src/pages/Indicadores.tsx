@@ -12,6 +12,7 @@ import { useAuth } from '../auth/AuthContext';
 import { fechaTabla } from '../fechas';
 import { PRIORIDAD_ES, plural } from '../formato';
 import OrigenDelReparto from '../components/OrigenDelReparto';
+import { ComoSeCalcula } from '../components/Patron';
 import { OpcionesDeTren, useTrenes } from '../ubicaciones';
 
 /**
@@ -328,9 +329,6 @@ export default function Indicadores() {
           que es una declaración de intenciones, no un dato. Lo que se queda:
           la regla del «sin datos», porque explica algo que se ve en pantalla
           y sin ella un hueco parece un fallo. */}
-      <div className="card explica">
-        Sin muestra dice <b>«sin datos»</b>, nunca cero.
-      </div>
 
       <div className="filters">
         <div><label>Periodo
@@ -491,9 +489,8 @@ export default function Indicadores() {
                 {/* Las que no se pueden juzgar se DICEN, no se esconden: si
                     fueran la mitad, el porcentaje de al lado valdría poco. */}
                 {t.nivelDeServicio.sinPlazo > 0 && (
-                  <div className="ns-nota">
-                    {plural(t.nivelDeServicio.sinPlazo, 'orden', 'órdenes')} sin fecha programada
-                    quedan fuera: sin plazo no hay forma de decir si llegó a tiempo.
+                  <div className="ns-nota" title="Sin plazo no hay forma de decir si llegó a tiempo.">
+                    {plural(t.nivelDeServicio.sinPlazo, 'orden', 'órdenes')} sin fecha: no cuentan.
                   </div>
                 )}
               </div>
@@ -743,10 +740,11 @@ El MTTR de mantenimiento es <b>Reparar</b>.
             </p>
 
             {(t.reparto.otros.mejora > 0 || t.reparto.otros.mapeo > 0
-              || t.reparto.otros.predictivo > 0) && (
+              || t.reparto.otros.predictivo > 0 || (t.reparto.otros.instalacion ?? 0) > 0) && (
               <p className="muted" style={{ fontSize: 11.5 }}>
                 Fuera del reparto: {t.reparto.otros.mejora} de mejora,{' '}
                 {t.reparto.otros.mapeo} de mapeo
+                {(t.reparto.otros.instalacion ?? 0) > 0 && `, ${t.reparto.otros.instalacion} de instalación`}
                 {t.reparto.otros.predictivo > 0
                   && ` y ${t.reparto.otros.predictivo} predictivas (tipo retirado)`}.
               </p>
@@ -789,17 +787,12 @@ El MTTR de mantenimiento es <b>Reparar</b>.
             </div>
           )}
         </div>
-        <div className="muted" style={{ fontSize: 12.5, marginTop: 8, lineHeight: 1.6 }}>
-          {/* Recortado en el bloque 79 para hacer sitio a los cuatro KPI de la
-              hoja del ingeniero. La idea se mantiene entera: lo que importa es
-              la antigüedad, no el total. */}
-          <b>Un backlog estable: normal</b>; uno que envejece dice que el
-          equipo no da abasto.
-          {t.backlog.masDe90 > 0 && (
-            <> Hay <b>{t.backlog.masDe90}</b> de más de tres meses.
-          </>
-          )}
-        </div>
+        {/* Lo que importa es la antigüedad, no el total (bloque 79). */}
+        {t.backlog.masDe90 > 0 && (
+          <div className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>
+            Hay <b>{t.backlog.masDe90}</b> de más de tres meses.
+          </div>
+        )}
         {t.preventivo.pendientesVencidas > 0 && (
           <div className="card peligro" style={{ marginTop: 12 }}>
             <b>{plural(t.preventivo.pendientesVencidas, 'rutina preventiva vencida', 'rutinas preventivas vencidas')} y sin cerrar.</b>
@@ -864,11 +857,15 @@ El MTTR de mantenimiento es <b>Reparar</b>.
               ))}
             </tbody>
           </table>
-          <div className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>
-            La columna completa dice si el mantenimiento mejora; un número suelto no.
-          </div>
         </div>
       )}
+
+      {/* Síntesis 21/10: las reglas de lectura, plegadas al final. */}
+      <ComoSeCalcula>
+        <p>Sin muestra se dice «sin datos», nunca cero.</p>
+        <p>Un backlog estable es normal; uno que envejece dice que el equipo no da abasto.</p>
+        <p>La tabla mensual dice si el mantenimiento mejora; un número suelto no.</p>
+      </ComoSeCalcula>
     </div>
   );
 }

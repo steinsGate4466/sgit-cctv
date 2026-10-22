@@ -142,7 +142,7 @@ export class ResumenScheduler implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    const [sinDetallar, vencidas, paradas, bajoMinimo] = await Promise.all([
+    const [sinDetallar, vencidas, paradas, bajoMinimo, sinSap, rutinasSinOm] = await Promise.all([
       this.prisma.workOrder.count({
         where: { detailedAt: null, status: { in: ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'] } },
       }),
@@ -153,10 +153,27 @@ export class ResumenScheduler implements OnModuleInit, OnModuleDestroy {
       this.prisma.$queryRaw<{ n: bigint }[]>`
         SELECT COUNT(*)::bigint AS n FROM spare_parts WHERE "currentStock" <= "minStock"
       `.then((r) => Number(r?.[0]?.n ?? 0)).catch(() => 0),
+      // Bloque 180 · «primero el N° SAP»: vivas que no se pueden abrir.
+      this.prisma.workOrder.count({
+        where: { externalRef: null, status: { in: ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'] } },
+      }),
+      /* Bloque 180 · rutinas que ya tocan y no tienen su OM de SAP vinculada:
+         SGIT ya no las crea, así que si nadie va a SAP, nadie las hace. */
+      this.prisma.preventivePlan.count({
+        where: {
+          active: true,
+          nextDueAt: { lte: new Date() },
+          asset: {
+            deletedAt: null,
+            status: { notIn: ['BAJA', 'STOCK'] },
+            workOrders: { none: { type: 'PREVENTIVO', status: { in: ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'] }, externalRef: { not: null } } },
+          },
+        },
+      }),
     ]);
 
     const aviso = resumenDiario({
-      sinDetallar, vencidas, paradas, bajoMinimo,
+      sinDetallar, vencidas, paradas, bajoMinimo, sinSap, rutinasSinOm,
       enlace: (process.env.APP_URL || '').replace(/\/+$/, '') + '/bandeja' || null,
     });
 

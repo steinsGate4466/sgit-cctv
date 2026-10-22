@@ -111,9 +111,7 @@ export default function Avisos() {
   return (
     <div>
       <h1 className="page-title">Avisos</h1>
-      <p className="page-sub">
-        Qué te llega al teléfono, y si algo no llegó.
-      </p>
+      <p className="page-sub">Avisos por Telegram.</p>
 
       {/* ----------------------------------------- CONFIGURAR EL BOT ----
           El token lo emite @BotFather y NO se puede generar por programa:
@@ -136,20 +134,18 @@ export default function Avisos() {
               </span>
             </div>
           ) : (
-            <p className="muted" style={{ fontSize: 13, margin: '0 0 12px', lineHeight: 1.6 }}>
-              El token lo crea <b>@BotFather</b> en Telegram y no se puede
-              generar desde aquí — es una regla de Telegram. Pero sólo hay que
-              pegarlo una vez:
-              <br /><br />
-              1. En Telegram, busca <b>@BotFather</b> y escribe <code>/newbot</code>.
-              <br />
-              2. Te pide un nombre y un usuario terminado en <code>bot</code>.
-              <br />
-              3. Copia el token que te devuelve y pégalo aquí abajo.
-            </p>
+            /* Síntesis 21/10: los tres pasos, plegados. Se hacen UNA vez. */
+            <details className="como-calcula" style={{ margin: '0 0 12px' }}>
+              <summary>Cómo conseguir el token</summary>
+              <ol className="como-calcula-cuerpo" style={{ fontSize: 13, lineHeight: 1.6 }}>
+                <li>En Telegram, busca <b>@BotFather</b> y escribe <code>/newbot</code>.</li>
+                <li>Ponle un nombre y un usuario terminado en <code>bot</code>.</li>
+                <li>Pega aquí abajo el token que te devuelve.</li>
+              </ol>
+            </details>
           )}
 
-          <label>Token del bot
+          <label title="Se comprueba contra Telegram y queda cifrado en la base.">Token del bot
             <input
             value={token}
             onChange={(e) => setToken(e.target.value)}
@@ -157,9 +153,6 @@ export default function Avisos() {
             autoComplete="off"
           />
           </label>
-          <span className="campo-msg">
-            Se comprueba contra Telegram y queda cifrado en la base.
-          </span>
 
           <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
             <BotonConMotivo onClick={guardarToken} ocupado={guardando}
@@ -189,10 +182,7 @@ export default function Avisos() {
         <div className="card vacio">
           <Icono n="alerta" size={38} />
           <h3>El bot todavía no está configurado</h3>
-          <p>
-            Pídeselo a quien administra el sistema. Mientras tanto todo
-            funciona igual y no se acumula nada.
-          </p>
+          <p>Pídeselo a quien administra el sistema.</p>
         </div>
       )}
 
@@ -226,12 +216,9 @@ export default function Avisos() {
           </>
         ) : (
           <>
-            <p className="muted" style={{ fontSize: 13, margin: '0 0 12px', lineHeight: 1.6 }}>
-              {/* Se explica el porqué: si no, el paso parece un capricho del
-                  sistema y la gente no lo hace. */}
-              Telegram <b>no permite que un bot te escriba primero</b> — es una
-              regla suya, para que nadie reciba mensajes de bots que no ha
-              buscado. Así que tienes que escribirle tú una vez:
+            <p className="muted" style={{ fontSize: 13, margin: '0 0 12px' }}
+              title="Telegram no permite que un bot te escriba primero: hay que escribirle una vez.">
+              Escríbele esto al bot, una sola vez:
             </p>
             <div style={{
               fontFamily: 'monospace', fontSize: 15, background: 'var(--bg)',
@@ -254,11 +241,11 @@ export default function Avisos() {
           <div className="section-title">Estado del canal</div>
           <div className="kpi-grid">
             <Kpi label="Personas vinculadas" v={estado.vinculados} hint="Reciben avisos en su Telegram" />
-            <Kpi label="Por enviar" v={estado.pendientes} hint="En cola; se mandan en el próximo minuto" />
+            <Kpi label="Por enviar" v={estado.pendientes} hint="En cola; salen en el próximo minuto" />
             <Kpi label="Enviados" v={estado.enviadas} cls="ok" hint="Llegaron correctamente" />
             <Kpi
               label="No llegaron" v={estado.fallidas} cls={estado.fallidas ? 'crit' : undefined}
-              hint="Tras cuatro intentos. Se pueden reintentar a mano"
+              hint="Tras cuatro intentos; se reintentan a mano"
             />
           </div>
 
@@ -301,10 +288,10 @@ export default function Avisos() {
 
 function Kpi({ label, v, cls, hint }: { label: string; v: number; cls?: string; hint: string }) {
   return (
-    <div className={'kpi ' + (cls || '')}>
+    /* Síntesis 21/10: la explicación de cada cifra, al `title`. */
+    <div className={'kpi ' + (cls || '')} title={hint}>
       <div className="label">{label}</div>
       <div className="value">{v ?? 0}</div>
-      <div className="hint">{hint}</div>
     </div>
   );
 }

@@ -236,8 +236,7 @@ function Caja({ g }: { g: any }) {
     <Detalle titulo={titulo} abiertoAlEntrar={g.conProblema}>
       {esTablero && (
         <p role="status" className="caja-aviso">
-          Es un tablero eléctrico. Lleva un supresor de pico conectado directo a
-          220 V: no se abre sin bloqueo y etiquetado.
+          Tablero eléctrico (220 V): no se abre sin bloqueo y etiquetado.
         </p>
       )}
 
@@ -272,7 +271,9 @@ function Caja({ g }: { g: any }) {
                 púlpito.
               </p>
             ) : (
-              <p role="alert" className="nodo-frontera nodo-frontera-mal">
+              /* Es un hallazgo fijo del dato, no un error que acaba de pasar:
+                 `role="alert"` lo hacía leer en voz alta al entrar. */
+              <p className="nodo-frontera nodo-frontera-mal">
                 {e.frontera.motivo}
               </p>
             )

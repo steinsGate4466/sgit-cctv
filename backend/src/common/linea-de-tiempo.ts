@@ -314,8 +314,8 @@ export function veredictoDeMaterial(m: MaterialParaMirar): VeredictoMaterial {
   if (faltan > 0) {
     return {
       ...m, faltan, bloquea: true,
-      texto: `Faltan ${faltan} de ${pendiente}. El almacén tiene ${m.stock}.`
-        + (m.sapCode ? ` Código SAP ${m.sapCode}.` : ''),
+      texto: `Faltan ${faltan} de ${pendiente} · almacén: ${m.stock}`
+        + (m.sapCode ? ` · SAP ${m.sapCode}` : ''),
     };
   }
 

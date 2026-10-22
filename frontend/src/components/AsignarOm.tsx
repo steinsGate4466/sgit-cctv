@@ -4,7 +4,7 @@ import SelectorDeActivo from './SelectorDeActivo';
 import Modal from './Modal';
 import { WO_TYPES_NUEVA, WO_TYPE_ES } from '../pages/omCatalogos';
 import { useDialogos } from './Dialogos';
-import { hoyParaInput } from '../fechas';
+import { RESPUESTA_DEL_AVISO, avisoDelNumeroSap, normalizarNumeroSap, tipoDeAviso, tipoDeOrdenSugerido } from '../avisoSap';
 
 /**
  * ASIGNAR UNA ORDEN — lo que hace el ingeniero. Cuatro campos.
@@ -27,8 +27,17 @@ export default function AsignarOm({ incidente, onHecho, onClose }: {
 }) {
   const { avisar } = useDialogos();
   const [form, setForm] = useState<any>({
-    type: incidente ? 'CORRECTIVO' : 'PREVENTIVO',
-    activity: '', assetId: incidente?.assetId || '', technicianId: '', scheduledDate: hoyParaInput(),
+    /* Bloque 180: lo PROPONE el aviso (no funciona → correctivo, se va a
+       dañar → preventivo, pedido → mejora); lo decide quien la trata. */
+    type: incidente ? tipoDeOrdenSugerido(incidente.tipoAviso) : 'PREVENTIVO',
+    /* AUDITORÍA DE PROCESOS 21/10: la fecha nace VACÍA a propósito. Con
+       «hoy» puesto, el servidor nunca calculaba el plazo por criticidad
+       (`fechaLimite`) y toda orden asignada vencía esa misma noche: el nivel
+       de servicio se hundía con trabajo recién pedido. Vacía no es «sin
+       fecha»: el servidor SIEMPRE pone una (bloque 4A). */
+    activity: '', assetId: incidente?.assetId || '', technicianId: '', scheduledDate: '',
+    // Bloque 180: si la OM ya existe en SAP, su número entra desde el principio.
+    externalRef: '',
   });
   const [activos, setActivos] = useState<any[]>([]);
   const [tecnicos, setTecnicos] = useState<any[]>([]);
@@ -50,7 +59,10 @@ export default function AsignarOm({ incidente, onHecho, onClose }: {
 
   async function enviar(e: FormEvent) {
     e.preventDefault();
-    setError(''); setAviso(''); setGuardando(true);
+    setError(''); setAviso('');
+    const malSap = avisoDelNumeroSap(form.externalRef);
+    if (malSap) { setError(malSap); return; }
+    setGuardando(true);
     try {
       const cuerpo = {
         type: form.type,
@@ -58,6 +70,7 @@ export default function AsignarOm({ incidente, onHecho, onClose }: {
         assetId: form.assetId || undefined,
         technicianId: form.technicianId || undefined,
         scheduledDate: form.scheduledDate || undefined,
+        externalRef: normalizarNumeroSap(form.externalRef) || undefined,
       };
       const r = incidente
         ? await api.post('/work-orders/desde-incidencia/' + incidente.id, cuerpo)
@@ -69,6 +82,8 @@ export default function AsignarOm({ incidente, onHecho, onClose }: {
       if (r.data?.avisoDuplicado) {
         await avisar(r.data.avisoDuplicado + '\n\nLa orden se creó igualmente.');
       }
+      // Bloque 180: la OM de SAP ya estaba en otra orden. No se impide; se dice.
+      if (r.data?.avisoSap) await avisar(r.data.avisoSap);
       onHecho();
       onClose();
     } catch (err: any) {
@@ -81,14 +96,23 @@ export default function AsignarOm({ incidente, onHecho, onClose }: {
     <Modal title={incidente ? 'Convertir en orden · ' + incidente.code : 'Asignar trabajo'} onClose={onClose}>
       <form onSubmit={enviar}>
         <div className="sign-note" style={{ marginBottom: 12 }}>
-          Sólo lo que sabes. El técnico de red completa equipo, materiales y duración.
+          Sólo lo que sabes: el técnico completa el resto.
         </div>
 
+        {/* BLOQUE 180 · REVERTIDO el «una incidencia es siempre correctivo» del
+            21/10. Lo corrigió Cristhian: un gabinete destrozado que funciona
+            no es un correctivo, es un preventivo o una mejora. El aviso
+            PROPONE el tipo; quien trata la orden lo DECIDE. */}
         <label>Tipo de trabajo
           <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
           {WO_TYPES_NUEVA.map((t) => <option key={t} value={t}>{WO_TYPE_ES[t] || t}</option>)}
         </select>
         </label>
+        {incidente && (
+          <div className="muted" style={{ fontSize: 12, marginTop: -6, marginBottom: 8 }}>
+            {`El aviso dice «${RESPUESTA_DEL_AVISO[tipoDeAviso(incidente.tipoAviso)]}»: se propone ${(WO_TYPE_ES[tipoDeOrdenSugerido(incidente.tipoAviso)] || '').toLowerCase()}.`}
+          </div>
+        )}
 
         <label>¿Qué hay que hacer?
           <textarea
@@ -120,14 +144,19 @@ export default function AsignarOm({ incidente, onHecho, onClose }: {
         </select>
         </label>
 
-        <label>Para cuándo (opcional)
+        {/* Bloque 180 · «primero el N° SAP»: sin él la orden se crea, pero no
+            se abre. Si Producción o el Jefe ya la creó en SAP, va aquí. */}
+        <label>{'N° de OM SAP (si ya existe)'}
+          <input className="num-sap" value={form.externalRef} maxLength={20} inputMode="numeric" placeholder="Ej.: 4000123456"
+            onChange={(e) => setForm({ ...form, externalRef: e.target.value })} />
+        </label>
+        {avisoDelNumeroSap(form.externalRef) && <div className="num-sap-falta" style={{ fontSize: 12 }}>{avisoDelNumeroSap(form.externalRef)}</div>}
+
+        <label title="Vacío: el sistema pone el plazo según la criticidad del equipo (lo crítico en dos días, lo de menos riesgo en veinte).">
+          Para cuándo (vacío = según criticidad)
           <input type="date" value={form.scheduledDate}
           onChange={(e) => setForm({ ...form, scheduledDate: e.target.value })} />
         </label>
-        <div className="muted" style={{ fontSize: 11, marginTop: -6, marginBottom: 10 }}>
-          Si lo dejas vacío, el sistema pone el plazo según la criticidad del
-          equipo: lo crítico en dos días, lo de menos riesgo en veinte.
-        </div>
 
         {error && <div style={{ color: 'var(--crit)', fontSize: 12, marginTop: 8 }}>{error}</div>}
         {aviso && <div style={{ color: 'var(--warn-texto)', fontSize: 12, marginTop: 8 }}>{aviso}</div>}

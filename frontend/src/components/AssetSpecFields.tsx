@@ -86,9 +86,11 @@ interface Props {
   propioId?: string | null;
   /** Bloque 174 · el tren (código) donde va el equipo: lo de ahí sale primero. */
   tren?: string | null;
+  /** Optimización 21/10 · el formulario ya pide la IP arriba: aquí no se repite. */
+  sinIp?: boolean;
 }
 
-export default function AssetSpecFields({ tipo, spec, onChange, opciones, propioId, tren }: Props) {
+export default function AssetSpecFields({ tipo, spec, onChange, opciones, propioId, tren, sinIp }: Props) {
   const bloque = FICHA_DE[tipo];
   if (!bloque) {
     return (
@@ -189,9 +191,11 @@ export default function AssetSpecFields({ tipo, spec, onChange, opciones, propio
             <input value={v.resolution || ''} onChange={txt('resolution')} placeholder="Ej: 2560x1440" />
           </label>
 
+          {!sinIp && (
           <label>Dirección IP
             <input value={v.ipAddress || ''} onChange={txt('ipAddress')} placeholder="Ej: 192.168.10.34" />
           </label>
+          )}
 
           <label>Dirección MAC
             <input value={v.macAddress || ''} onChange={txt('macAddress')} placeholder="Ej: 44:47:CC:.." />

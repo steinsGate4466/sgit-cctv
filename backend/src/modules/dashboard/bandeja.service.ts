@@ -90,6 +90,8 @@ export class BandejaService {
     const deQuienYCuando = {
       id: true, code: true, title: true, priority: true, category: true,
       status: true, reportedAt: true, occurredAt: true, canalOrigen: true,
+      // Bloque 180: si funciona o no, y su aviso de SAP si ya lo tiene.
+      tipoAviso: true, avisoSap: true,
       asset: { select: { id: true, assetCode: true, referencePlace: true } },
       reportedBy: { select: { id: true, fullName: true } },
     };
@@ -97,7 +99,7 @@ export class BandejaService {
     const [
       sinDetallar, vencidas, materialesPendientes, accesos,
       incidenciasCriticas, incidenciasNormales, mejorasPropuestas,
-      bajoMinimo, sinDevolver, paradas,
+      bajoMinimo, sinDevolver, paradas, sinSap, rutinasSinOm,
     ] = await Promise.all([
       // 1. Asignadas y sin detallar. Es trabajo que todavía no se puede hacer.
       this.prisma.workOrder.findMany({
@@ -247,6 +249,48 @@ export class BandejaService {
         },
         take: 100,
       }),
+
+      /* 9. BLOQUE 180 · FALTA LA OM DE SAP.
+            -------------------------------------------------------------------
+            «Primero el N° SAP»: sin él la orden no se abre, no avanza y no
+            saca material. Si no se ve aquí, el técnico se entera delante del
+            equipo, con la orden bloqueada. Las más viejas primero: son las que
+            llevan más tiempo esperando a que alguien la cree en SAP. */
+      this.prisma.workOrder.findMany({
+        where: { status: abiertas, externalRef: null, ...om },
+        select: {
+          id: true, code: true, type: true, activity: true, createdAt: true,
+          asset: { select: { assetCode: true } },
+          incident: { select: { code: true, avisoSap: true } },
+          createdBy: { select: { fullName: true } },
+        },
+        orderBy: { createdAt: 'asc' },
+        take: 50,
+      }),
+
+      /* 10. BLOQUE 180 · RUTINAS QUE TOCAN Y NO TIENEN SU OM DE SAP.
+             ------------------------------------------------------------------
+             SGIT ya no crea preventivas: las genera SAP y aquí se vinculan. Si
+             esto no se ve, la rutina no la hace nadie y el cumplimiento del
+             preventivo cae sin que se sepa por qué. Las más vencidas primero. */
+      this.prisma.preventivePlan.findMany({
+        where: {
+          active: true,
+          nextDueAt: { lte: ahora },
+          asset: {
+            deletedAt: null,
+            status: { notIn: ['BAJA', 'STOCK'] },
+            workOrders: { none: { type: 'PREVENTIVO', status: abiertas, externalRef: { not: null } } },
+            ...(alcance.ambito ? { locationId: alcance.ambito } : {}),
+          },
+        },
+        select: {
+          id: true, nextDueAt: true,
+          asset: { select: { id: true, assetCode: true, referencePlace: true, location: { select: { name: true } } } },
+        },
+        orderBy: { nextDueAt: 'asc' },
+        take: 50,
+      }),
     ]);
 
     const sobrantes = sinDevolver
@@ -357,6 +401,8 @@ export class BandejaService {
       mejorasPropuestas,
       bajoMinimo,
       sobrantes,
+      sinSap,
+      rutinasSinOm,
       resumen: {
         sinDetallar: sinDetallar.length,
         /* Cuántas de las de arriba son SUYAS. Es el número con el que un
@@ -378,11 +424,14 @@ export class BandejaService {
         mejorasPropuestas: mejorasPropuestas.length,
         bajoMinimo: bajoMinimo.length,
         sobrantes: sobrantes.length,
+        sinSap: sinSap.length,
+        rutinasSinOm: rutinasSinOm.length,
         // Total de cosas que esperan a alguien. Si es cero, la bandeja está
         // vacía y eso es una buena noticia que merece decirse.
         total: sinDetallar.length + vencidas.length + prorrogas.length + firmasPendientes.length
           + accesos.length + incidenciasCriticas.length + incidenciasNormales.length
-          + mejorasPropuestas.length + bajoMinimo.length + sobrantes.length,
+          + mejorasPropuestas.length + bajoMinimo.length + sobrantes.length + sinSap.length
+          + rutinasSinOm.length,
       },
       generado: ahora.toISOString(),
     };

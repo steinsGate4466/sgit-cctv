@@ -4,7 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useDialogos } from '../components/Dialogos';
 import { EsqueletoTablero } from '../components/Esqueleto';
 import Icono from '../components/Iconos';
-import { Titular } from '../components/Patron';
+import { ComoSeCalcula, Titular } from '../components/Patron';
 import { useVolverALaPantalla } from '../useVolverALaPantalla';
 import { plural } from '../formato';
 import { fecha } from '../fechas';
@@ -108,7 +108,7 @@ export default function Mejoras() {
     if (!aceptada && !motivo.trim()) {
       await avisar({
         titulo: 'Falta el motivo',
-        mensaje: 'Quien la propuso estuvo en campo y merece la respuesta. Si no, deja de proponer.',
+        mensaje: 'Escribe por qué no entra: quien la propuso merece la respuesta.',
       });
       return;
     }
@@ -116,7 +116,7 @@ export default function Mejoras() {
       const ok = await confirmar({
         titulo: '¿Aceptar esta mejora?',
         mensaje: comoPaso
-          ? 'Se añadirá como un paso más del procedimiento. A partir de ahora lo sigue todo el mundo.'
+          ? 'Se añade como paso del procedimiento; desde ahora lo siguen todos.'
           : 'Queda aceptada, pero NO se añade como paso al procedimiento.',
         aceptar: 'Sí, aceptar',
       });
@@ -149,15 +149,10 @@ export default function Mejoras() {
 
   return (
     <>
-      {/* El título dice PARA QUÉ entra cada uno. Al jefe le llega trabajo por
-          decidir; al técnico le llega una respuesta. Es la misma pantalla y
-          son dos cosas distintas. */}
-      <h2>{puedeDecidir ? 'Mejoras a los procedimientos' : 'Mis propuestas de mejora'}</h2>
-      <p className="sub">
-        {puedeDecidir
-          ? 'Lo que propone quien está delante del equipo. Si nadie contesta, dejan de proponer.'
-          : 'Lo que propusiste desde campo y en qué quedó cada cosa.'}
-      </p>
+      {/* Síntesis 21/10: el <h2> repetía la cabecera. Al jefe le contesta el
+          titular de abajo; al técnico, esta línea. El porqué va plegado. */}
+      <h1 className="page-title">Mejoras a los procedimientos</h1>
+      {!puedeDecidir && <p className="page-sub">Tus propuestas y en qué quedaron</p>}
 
       {error && (
         <div role="alert" className="aviso-error aviso-cerrable"
@@ -202,10 +197,8 @@ export default function Mejoras() {
            vacío»: sin datos, «vacío» y «no existe» son indistinguibles. */
         <div className="card explica" style={{ marginTop: 16 }}>
           {vista === 'pendientes'
-            ? <>Ninguna propuesta pendiente. Aparecen aquí solas cuando un técnico
-                propone una mejora desde el procedimiento de un equipo.</>
-            : <>Todavía no has propuesto ninguna mejora. Se hace desde el
-                procedimiento de un equipo, al cerrar una orden o escaneando su QR.</>}
+            ? <>Llegan solas cuando un técnico propone una mejora.</>
+            : <><b>Aún no has propuesto ninguna.</b> Se hace al cerrar una orden o desde el QR.</>}
         </div>
       )}
 
@@ -272,8 +265,7 @@ export default function Mejoras() {
                       <BotonConMotivo className="btn-mini btn-danger"
                         ocupado={enviando === m.id}
                         onClick={() => decidir(m.id, false)}
-                        falta={queFalta([!motivo.trim(),
-                          'Escribe por qué se rechaza. Rechazar sin motivo hace que no vuelvan a proponer.'])}>
+                        falta={queFalta([!motivo.trim(), 'Escribe por qué no entra.'])}>
                         {enviando === m.id ? 'Enviando…' : 'Rechazar y avisarle'}
                       </BotonConMotivo>
                       <button type="button" className="btn-mini"
@@ -316,6 +308,13 @@ export default function Mejoras() {
           );
         })}
       </div>
+
+      <ComoSeCalcula>
+        <p>
+          Lo más antiguo va arriba: es lo que más lleva esperando. Rechazar exige
+          motivo, porque quien propone sin respuesta deja de proponer.
+        </p>
+      </ComoSeCalcula>
     </>
   );
 }

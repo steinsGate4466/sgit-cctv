@@ -122,6 +122,8 @@ export default function MisActivos() {
       .map((g) => ({ ...g, activos: g.activos.filter((a: any) => pasa(a, filtro)) }))
       .filter((g) => g.activos.length > 0);
   }, [d, filtro]);
+  const sinServicio = useMemo(
+    () => (d?.grupos ?? []).reduce((n: number, g: any) => n + (g.caidos || 0), 0), [d]);
 
   if (cargandoLista) return <div className="page"><EsqueletoTablero /></div>;
 
@@ -138,10 +140,17 @@ export default function MisActivos() {
   }
 
   const r = d?.resumen;
+  /* Síntesis 21/10 (§57.5): el titular INFORMA del tren. Si hay trabajo
+     con manlift manda el del servidor (ahorra subidas); si no, cuántos no
+     dan servicio. «Sin declarar» es tarea de Mantenimiento, no de aquí. */
   const tono: Tono = !r || r.total === 0 ? 'sindatos'
-    : r.subidasQueSeAhorran > 0 ? 'atender'
-      : r.sinDeclarar > 0 ? 'sindatos'
+    : sinServicio > 0 ? 'grave'
+      : r.pendientesConElevador > 0 ? 'atender'
         : 'bien';
+  const titular = !r ? '' : r.total === 0 ? r.titular
+    : sinServicio > 0 ? `${sinServicio} de ${r.total} sin servicio.`
+      : r.pendientesConElevador > 0 ? r.titular
+        : `Los ${r.total} equipos dan servicio.`;
 
   /* EL TREN VA EN EL TÍTULO, y no es decoración. El ámbito es un campo que
      alguien tiene que mantener; si a un jefe de tren le asignan el que no es,
@@ -177,16 +186,16 @@ export default function MisActivos() {
 
       {cargando && !r ? <EsqueletoTablero /> : r && (
         <>
-          <Titular tono={tono} texto={r.titular} />
+          <Titular tono={tono} texto={titular} />
 
+          {/* Síntesis 21/10 (§57.5): esta pantalla INFORMA. «Sin declarar»
+              es tarea de Mantenimiento y vive en Acceso y altura; aquí sólo
+              ruido. Se cuentan los que no dan servicio. */}
           <Cifras
             datos={[
               { n: r.total, et: 'equipos' },
+              { n: sinServicio, et: 'sin servicio' },
               { n: r.exigenElevador, et: 'exigen manlift' },
-              /* Sin declarar se enseña SIEMPRE, aunque sea 0. Es la cifra que
-                 dice cuánto vale el resto de la pantalla: con la mitad sin
-                 declarar, el «exigen manlift» de al lado está incompleto. */
-              { n: r.sinDeclarar, et: 'sin declarar' },
             ]}
           />
 
@@ -204,8 +213,7 @@ export default function MisActivos() {
                   </b>
                   {r.subidasQueSeAhorran > 0 && (
                     <div className="subidas-ahorro">
-                      Agrupando los trabajos se ahorran{' '}
-                      {plural(r.subidasQueSeAhorran, 'movilización', 'movilizaciones')}.
+                      {plural(r.subidasQueSeAhorran, 'movilización', 'movilizaciones')} menos
                     </div>
                   )}
                 </div>
@@ -221,22 +229,10 @@ export default function MisActivos() {
             </div>
           )}
 
-          {/* Lo que falta por declarar, dicho como una tarea concreta y no
-              como un reproche genérico al inventario. */}
-          {r.sinDeclararEnZonaDeAltura > 0 && (
-            <p className="nada-que-hacer">
-              <b>La cifra de arriba puede subir.</b>{' '}
-              {plural(r.sinDeclararEnZonaDeAltura, 'equipo está', 'equipos están')} en zonas
-              marcadas de altura y nadie ha declarado todavía cómo se llega a
-              {r.sinDeclararEnZonaDeAltura === 1 ? ' él' : ' ellos'}.
-            </p>
-          )}
-
           {r.contradicciones > 0 && (
             <p className="nada-que-hacer aviso-dato">
               <Icono n="alerta" size={14} />{' '}
-              {plural(r.contradicciones, 'equipo tiene', 'equipos tienen')} datos de acceso que
-              se contradicen. Están marcados en la lista.
+              {plural(r.contradicciones, 'equipo', 'equipos')} con datos de acceso que no cuadran (marcados abajo).
             </p>
           )}
 
@@ -247,9 +243,8 @@ export default function MisActivos() {
           <div className="filtros-acceso">
             {([
               ['', `Todo (${r.total})`],
+              ['CAIDOS', `Sin servicio (${sinServicio})`],
               ['ELEVADOR', `Exigen manlift (${r.exigenElevador})`],
-              ['SIN_DECLARAR', `Sin declarar (${r.sinDeclarar})`],
-              ['CAIDOS', 'Sin servicio'],
             ] as const).map(([v, et]) => (
               <button key={v || 'todo'} type="button"
                 className={'f-chip' + (filtro === v ? ' act' : '')}
@@ -263,7 +258,6 @@ export default function MisActivos() {
           {grupos.length === 0 ? (
             <div className="card vacio">
               <h3>Nada con ese filtro</h3>
-              <p>Prueba con «Todo» para ver el tren completo.</p>
             </div>
           ) : grupos.map((g: any) => (
             <Grupo key={g.clave} g={g} />
@@ -337,7 +331,6 @@ function Grupo({ g }: {
         <span className="grupo-n">{plural(g.activos.length, 'equipo', 'equipos')}</span>
         {g.caidos > 0 && <span className="badge crit">{g.caidos} sin servicio</span>}
         {g.exigenElevador > 0 && <span className="badge warn">{g.exigenElevador} manlift</span>}
-        {g.sinDeclarar > 0 && <span className="badge sindatos">{g.sinDeclarar} sin declarar</span>}
       </span>
     </>
   );
@@ -406,24 +399,25 @@ function Fila({ a }: {
         {a.referencia && <span className="activo-ref"> · {a.referencia}</span>}
       </div>
 
-      <div className="activo-acceso">
-        <span className={'acc ' + (CLASE_ACCESO[acc.veredicto] || '')}>
-          {ETIQUETA_ACCESO[acc.veredicto] || acc.veredicto}
-          {acc.alturaMetros != null && <span className="acc-m"> {acc.alturaMetros} m</span>}
-        </span>
-
-        {/* La propuesta sólo se enseña si NO hay declaración. Con declaración
-            sería ruido: ya está decidido. */}
-        {!acc.declarado && acc.propuesta && (
-          <span className="acc-propuesta">la zona dice que hay que subir</span>
-        )}
-
-        {acc.declarado && acc.declaradoPor && (
-          <span className="acc-quien">lo declaró {acc.declaradoPor}</span>
-        )}
-      </div>
-
-      {acc.nota && <div className="activo-nota">{acc.nota}</div>}
+      {/* Síntesis 21/10: el acceso sólo se pinta si obliga a algo (subir o
+          manlift). «A pie» y «sin declarar» en cada fila eran ruido para
+          quien informa (§57.5); quién lo declaró y la nota van al `title`. */}
+      {(acc.veredicto === 'EXIGE_ELEVADOR' || acc.veredicto === 'SUBIDA_SIN_ELEVADOR'
+        || (!acc.declarado && acc.propuesta)) && (
+        <div className="activo-acceso">
+          {acc.veredicto === 'SIN_DECLARAR' ? (
+            <span className="acc-propuesta" title="La zona está marcada de altura; falta declarar cómo se llega.">
+              ¿altura?
+            </span>
+          ) : (
+            <span className={'acc ' + (CLASE_ACCESO[acc.veredicto] || '')}
+              title={[acc.declaradoPor && `Lo declaró ${acc.declaradoPor}`, acc.nota].filter(Boolean).join(' · ') || undefined}>
+              {ETIQUETA_ACCESO[acc.veredicto] || acc.veredicto}
+              {acc.alturaMetros != null && <span className="acc-m"> {acc.alturaMetros} m</span>}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* La contradicción se enseña entera. Es el único texto largo que se
           permite en la fila, porque es el que evita que alguien suba sin

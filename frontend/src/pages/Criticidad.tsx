@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { EsqueletoTabla } from '../components/Esqueleto';
@@ -155,8 +155,8 @@ export default function Criticidad() {
            hay —Ubicaciones → la zona → «Seguridad de las personas»— y por eso
            ahora se dice DÓNDE. Prometer en pantalla algo que no se puede hacer
            es peor que no tenerlo. */
-        apoyo: 'Sin clasificar no entran en el plan: nadie sabe cada cuánto revisarlos. '
-          + 'La vía rápida es declararlo por zona, en Ubicaciones.',
+        apoyo: (<>Sin letra no entran en el plan.{' '}
+          {can('location.manage') && <Link to="/locations">Declararlo por zona</Link>}</>),
       };
     }
     return {
@@ -164,7 +164,7 @@ export default function Criticidad() {
       texto: `Los ${datos.total} equipos tienen su letra`,
       apoyo: `${reparto.A} de letra A · ${reparto.B} de B · ${reparto.C} de C.`,
     };
-  }, [datos, pendientes, reparto.A, reparto.B, reparto.C]);
+  }, [datos, pendientes, reparto.A, reparto.B, reparto.C, can]);
 
   if (cargando) return <EsqueletoTabla filas={8} />;
 
@@ -175,9 +175,8 @@ export default function Criticidad() {
           correcto: la criticidad es DEL EQUIPO. «De mantenimiento» sonaba a
           que era una escala interna del área, y no lo es — es una propiedad
           del activo que además decide cada cuánto se le hace mantenimiento. */}
-      <p className="muted" style={{ marginTop: -6 }}>
-        Cada cuánto hay que revisar cada equipo, y por qué. Método CTR:
-        frecuencia de falla × consecuencia.
+      <p className="muted" style={{ marginTop: -6 }} title="Método CTR: frecuencia de falla × consecuencia.">
+        Cada cuánto se revisa cada equipo, y por qué.
       </p>
 
       {titular && <Titular tono={titular.tono} texto={titular.texto} apoyo={titular.apoyo} />}
@@ -187,9 +186,7 @@ export default function Criticidad() {
           una decisión que nadie tomó. */}
       {datos && !datos.parametrosConfirmados && (
         <div className="crit-aviso-numeros">
-          Los cortes y los días de abajo son una <strong>propuesta de arranque</strong>,
-          todavía sin confirmar por la planta.
-          {can('wo.approve') && ' Ajústalos cuando tengas el criterio del ingeniero.'}
+          Cortes y días: <strong>propuesta de arranque</strong>, sin confirmar por la planta.
         </div>
       )}
 

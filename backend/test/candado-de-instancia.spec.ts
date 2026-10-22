@@ -150,7 +150,7 @@ describe('Los tres planificadores', () => {
     const tick = f.slice(f.indexOf('private async tick'), f.indexOf('private async alreadyRanToday'));
     expect(tick).toContain('conCandado(this.prisma, CANDADO.PREVENTIVO');
     expect(tick.indexOf('conCandado')).toBeLessThan(tick.indexOf('alreadyRanToday()'));
-    expect(tick.indexOf('alreadyRanToday()')).toBeLessThan(tick.indexOf('generateDue'));
+    expect(tick.indexOf('alreadyRanToday()')).toBeLessThan(tick.indexOf('programaDelDia'));
   });
 
   it('el RESUMEN anota el día en la BASE, no en memoria', () => {

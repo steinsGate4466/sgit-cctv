@@ -4,11 +4,12 @@ import { resolverContextoDePlanta } from '../../common/plant-context';
 import { computeEffectiveStatuses } from '../../common/asset-status';
 import { alcanza, ambitoDelUsuario, noVeNada } from '../../common/ambito-usuario';
 import { evaluarEspera } from '../maintenance/espera';
-import { proponer, resolver } from '../../common/intervenibilidad';
+import { Intervencion, proponer, resolver } from '../../common/intervenibilidad';
 import {
   construirLineaDeTiempo, enPalabras, resumirTiempo,
   titularDeMateriales, veredictoDeMaterial, EstadoMaterialLinea,
 } from '../../common/linea-de-tiempo';
+import { SOLO_FALLAS } from '../../common/aviso-sap';
 
 /**
  * QUÉ CÁMARA FALLA Y QUÉ SE ESTÁ HACIENDO — bloque 39.
@@ -130,7 +131,8 @@ export class CamarasCaidasService {
         select: { assetId: true, lastSeenAt: true, consecutiveFails: true, result: true },
       }),
       this.prisma.incident.findMany({
-        where: { assetId: { in: ids }, status: { in: ['ABIERTA', 'EN_DIAGNOSTICO', 'EN_PROCESO'] } },
+        // Bloque 180: lo que la dejó ciega es una FALLA; un aviso de condición no.
+        where: { assetId: { in: ids }, status: { in: ['ABIERTA', 'EN_DIAGNOSTICO', 'EN_PROCESO'] }, AND: [SOLO_FALLAS] },
         orderBy: { reportedAt: 'asc' },
         select: {
           assetId: true, code: true, title: true, priority: true, reportedAt: true,
@@ -230,8 +232,20 @@ export class CamarasCaidasService {
     const tiempo = resumirTiempo(hitos, ahora);
 
     // ¿Se puede tocar hoy sin parar el tren? Lo decide el bloque 28.
-    const propuesta = proponer(ctx?.ambiente, ctx?.requiereAltura);
-    const intervencion = resolver(propuesta, ctx?.intervencionFirmada);
+    /* Bloque 180 (de rebote): `ctx.intervencionFirmada` es un BOOLEANO —«hay
+       firma»—, no la clasificación firmada. Pasárselo a `resolver` como si
+       fuera la firma daba 500 en «Mis cámaras» en cuanto caía una cámara de
+       una zona FIRMADA (y con `false` decía «sin firma» aunque la hubiera).
+       El contexto de planta YA resolvió la firma más cercana: se usa tal cual.
+       Sólo sin contexto se calcula aquí, y sin firma: lo seguro. */
+    const intervencion = ctx?.intervencionAplica
+      ? {
+        aplica: ctx.intervencionAplica as Intervencion,
+        estaFirmada: !!ctx.intervencionFirmada,
+        firmaDesactualizada: !!ctx.intervencionDesactualizada,
+        motivo: ctx.intervencionMotivo as string,
+      }
+      : resolver(proponer(ctx?.ambiente, ctx?.requiereAltura), null);
 
     /* ¿ESTÁ PARADA ESPERANDO ALGO, Y DESDE CUÁNDO?
        -----------------------------------------------------------------------

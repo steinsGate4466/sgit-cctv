@@ -46,46 +46,40 @@ const alguno = (...ps: string[]): Puede => (can) => ps.some((p) => can(p));
 const todos = (...ps: string[]): Puede => (can) => ps.every((p) => can(p));
 
 export const MODULOS: Modulo[] = [
-  /* Qué se ve y qué no, ahora. Pasará a ser el Mapa (plano vivo) cuando
-     exista el plano de un área; hasta entonces no se llama «Mapa», porque
-     no lo es. */
+  /* =========================================================================
+     OPTIMIZACIÓN DEL 21/10 — de 53 entradas a 37.
+     Criterio único: UNA entrada por pregunta. Lo que contestaba la misma
+     pregunta desde otro ángulo pasa a ser una pestaña de la entrada que queda
+     (ver `pestanas.ts`). Ninguna ruta se borra: los enlaces viejos abren la
+     misma pantalla, ahora dentro de su entrada. Los permisos de cada pantalla
+     son los mismos de antes (`puede` de la pestaña).
+     ========================================================================= */
   {
     titulo: 'Estado de planta',
     descripcion: 'Qué se ve y qué no, ahora: mapa, trenes y cámaras.',
     icono: 'mapeo',
     pantallas: [
-      /* Bloque 151 · el plano real con cada equipo en su sitio. */
       { ruta: '/mapa', texto: 'Mapa', nota: 'El plano con cada equipo en su sitio', puede: alguno('asset.read', 'activos.mirar', 'om.mirar') },
-      { ruta: '/vista-general', texto: 'Resumen', nota: 'La planta entera en una pantalla', puede: con('om.mirar') },
-      { ruta: '/mi-tren', texto: 'Mi tren', nota: 'Sólo lo de tu tren',
-        puede: (can, u) => (u?.ambitoTrenes?.length ?? 0) > 0 && can('dashboard.read') },
-      { ruta: '/por-tren', texto: 'Por tren', nota: 'Comparar trenes', puede: con('om.mirar') },
-      { ruta: '/mis-camaras', texto: 'Mis cámaras', nota: 'Las cámaras que te tocan', puede: con('om.mirar') },
+      /* Resumen, Mi tren y Por tren eran tres pantallas para «¿cómo está el tren?». */
+      { ruta: '/por-tren', texto: 'Trenes', nota: 'Mi tren, toda la planta y comparar trenes', puede: con('om.mirar') },
+      { ruta: '/mis-camaras', texto: 'Cámaras', nota: 'Las cámaras del tren y cuáles no dan imagen', puede: con('om.mirar') },
       { ruta: '/cobertura', texto: 'Zonas críticas', nota: 'Zonas que no pueden quedarse sin imagen', puede: con('cobertura.mirar') },
       { ruta: '/dependencias', texto: 'Impacto de una caída', nota: 'Qué cae si cae un equipo', puede: con('om.mirar') },
     ],
   },
-  /* BLOQUE 155 · DOS ÁREAS DE TRABAJO, como pidió el usuario: «dos pantallas,
-     mantenimiento e instalación, y ahí se almacena todo lo que está
-     haciéndose». Cada orden y cada instalación guarda sus documentos. */
   {
     titulo: 'Mantenimiento',
-    descripcion: 'Incidencias, órdenes y su avance: el trabajo del día.',
+    descripcion: 'Incidencias, órdenes y cómo se hace el trabajo.',
     icono: 'orden',
     pantallas: [
       { ruta: '/bandeja', texto: 'Mi bandeja', nota: 'Lo que espera una decisión hoy', puede: con('dashboard.read') },
       { ruta: '/incidents', texto: 'Incidencias', nota: 'Fallas reportadas y su estado', puede: con('incident.read') },
-      { ruta: '/maintenance', texto: 'Órdenes', nota: 'Preventivo, correctivo y mejora', puede: alguno('wo.read', 'om.mirar') },
-      { ruta: '/tablero-om', texto: 'Avance', nota: 'Cómo van las órdenes abiertas', puede: con('om.mirar') },
-      { ruta: '/hojas-de-ruta', texto: 'Hojas de ruta', nota: 'Recorridos de preventivo', puede: con('wo.read') },
+      /* Avance y Campañas son vistas de las mismas órdenes: pestañas de Órdenes. */
+      { ruta: '/maintenance', texto: 'Órdenes', nota: 'Preventivo, correctivo, mejora, avance y campañas', puede: alguno('wo.read', 'om.mirar') },
+      /* Cómo se trabaja, hojas de ruta, catálogo de fallas y mejoras propuestas:
+         todo es «cómo se hace el trabajo». Antes estaban repartidos en dos módulos. */
+      { ruta: '/guia', texto: 'Procedimientos', nota: 'Cómo se trabaja, hojas de ruta, catálogo de fallas y mejoras' },
       { ruta: '/gruas', texto: 'Grúas', nota: 'Inspección de cámaras de grúa', puede: con('wo.read') },
-      /* Bloque 175 · vuelven al menú, de cualquier tipo (mapeo, instalación,
-         rotulado…) y con plan por zona. El bloque 130 las había sacado cuando
-         sólo eran de mapeo. Las ve también quien anota avance (`wo.read`). */
-      { ruta: '/campanas', texto: 'Campañas', nota: 'Trabajos por zonas, con fechas y meta', puede: alguno('asset.read', 'wo.read') },
-      /* Bloque 174 · el recorrido de una OM (Producción la crea, Mantenimiento
-         la atiende y la abre) explicado paso a paso. La ve todo el mundo. */
-      { ruta: '/guia', texto: 'Cómo se trabaja', nota: 'Quién hace cada paso de una OM' },
     ],
   },
   {
@@ -94,46 +88,40 @@ export const MODULOS: Modulo[] = [
     icono: 'instalar',
     pantallas: [
       { ruta: '/instalaciones', texto: 'Instalaciones', nota: 'Pedidos, visitas y montaje', puede: con('asset.read') },
-      /* Bloque 137 · Producción pide equipo nuevo. Quien ya ve la
-         infraestructura pide desde «Instalaciones», con el formulario entero. */
+      /* Bloque 137 · Producción pide equipo nuevo. */
       { ruta: '/pedir-instalacion', texto: 'Pedir instalación', nota: 'Pedir una cámara o equipo nuevo',
         puede: (can) => can('om.mirar') && !can('asset.read') },
     ],
   },
-  /* Qué hay montado en planta y cómo está su ficha. */
   {
     titulo: 'Equipos',
     descripcion: 'Qué hay montado en planta y cómo está su ficha.',
     icono: 'activos',
     pantallas: [
-      { ruta: '/assets', texto: 'Activos', nota: 'Fichas de todos los equipos', puede: con('asset.read') },
+      { ruta: '/assets', texto: 'Activos', nota: 'Fichas de todos los equipos y los retirados', puede: con('asset.read') },
       { ruta: '/mis-activos', texto: 'Mis activos', nota: 'Los equipos de tu tren', puede: con('activos.mirar') },
       { ruta: '/criticidad', texto: 'Criticidad', nota: 'A, B o C según el impacto', puede: alguno('asset.read', 'activos.mirar') },
       { ruta: '/access', texto: 'Acceso y altura', nota: 'Permisos y trabajo en altura', puede: con('access.read') },
-      { ruta: '/retirados', texto: 'Retirados', nota: 'Equipos dados de baja', puede: alguno('asset.read', 'activos.mirar') },
-      { ruta: '/mapeo', texto: 'Estado de la información', nota: 'Qué fichas faltan completar', puede: con('asset.read') },
-      { ruta: '/salud-de-datos', texto: 'Calidad de datos', nota: 'Datos incoherentes que corregir', puede: con('asset.update') },
+      /* «Estado de la información» y «Calidad de datos» medían lo mismo: qué falta cargar. */
+      { ruta: '/mapeo', texto: 'Calidad de la información', nota: 'Fichas por completar y datos que no cuadran', puede: con('asset.read') },
     ],
   },
-  /* 220 V → switch → cámara. Una sola cadena, un solo módulo. */
   {
     titulo: 'Red y energía',
     descripcion: 'La cadena 220 V → switch → cámara: puertos, IP y cableado.',
     icono: 'puertos',
     pantallas: [
-      { ruta: '/capacidad', texto: 'Capacidad', nota: 'Puertos libres y PoE por switch', puede: alguno('red.read', 'infra.read', 'asset.read') },
-      { ruta: '/conexiones', texto: 'Conexiones', nota: 'Qué está conectado a qué', puede: con('red.read') },
-      { ruta: '/mapa-de-red', texto: 'Mapa de red', nota: 'Red por gabinete y tablero', puede: con('red.read') },
-      { ruta: '/topologia', texto: 'Puntos críticos', nota: 'Equipos de los que cuelga mucho', puede: con('red.read') },
+      /* Capacidad y Conexiones son los mismos puertos: libres y ocupados. */
+      { ruta: '/capacidad', texto: 'Switches y puertos', nota: 'Puertos libres, PoE y qué está conectado', puede: alguno('red.read', 'infra.read', 'asset.read') },
+      /* Puntos críticos es una vista del mismo mapa. */
+      { ruta: '/mapa-de-red', texto: 'Mapa de red', nota: 'Red por gabinete y puntos críticos', puede: con('red.read') },
       { ruta: '/grabadores', texto: 'Grabadores', nota: 'NVR, canales y disco', puede: con('red.read') },
-      { ruta: '/ipam', texto: 'IP', nota: 'Direcciones IP y VLAN', puede: con('red.read') },
+      { ruta: '/ipam', texto: 'Direcciones IP', nota: 'Direcciones IP y VLAN', puede: con('red.read') },
       { ruta: '/cableado', texto: 'Cableado', nota: 'Tendidos y rutas de cable', puede: con('infra.read') },
-      { ruta: '/rotulado', texto: 'Rotulado', nota: 'Estándar de etiquetas', puede: con('infra.read') },
       { ruta: '/electricidad', texto: 'Electricidad', nota: 'Tableros, circuitos y UPS', puede: con('infra.read') },
       { ruta: '/monitoreo', texto: 'Monitoreo', nota: 'Equipos que no responden', puede: con('monitor.read') },
     ],
   },
-  /* Dónde está cada cosa. */
   {
     titulo: 'Ubicaciones',
     descripcion: 'Dónde está cada cosa: árbol de planta, gabinetes y planos.',
@@ -142,31 +130,28 @@ export const MODULOS: Modulo[] = [
       { ruta: '/locations', texto: 'Árbol de planta', nota: 'Trenes, áreas y salas', puede: con('asset.read') },
       { ruta: '/cabinets', texto: 'Gabinetes', nota: 'Gabinetes y lo que llevan dentro', puede: con('asset.read') },
       { ruta: '/zonas', texto: 'Zonas vitales', nota: 'Zonas que exigen vigilancia', puede: con('location.read') },
-      /* Bloque 151 · subir, calibrar y colocar los equipos en el plano. */
-      /* Bloque 176 · dibujar, mover y trazar en el plano: sólo el Jefe de
-         Mantenimiento (decisión del usuario). `wo.approve` sólo lo tiene él. */
+      /* Bloque 176 · dibujar y trazar en el plano: sólo el Jefe de Mantenimiento. */
       { ruta: '/planos', texto: 'Planos', nota: 'Colocar equipos, zonas de riesgo y cableado', puede: todos('location.manage', 'wo.approve') },
     ],
   },
   {
-    titulo: 'Repuestos',
-    descripcion: 'Almacén y equipos que se quedan sin repuesto.',
+    /* Antes «Repuestos», con «Almacén» dentro: el módulo se llama como lo que es. */
+    titulo: 'Almacén',
+    descripcion: 'Repuestos en stock y modelos que se quedan sin repuesto.',
     icono: 'inventario',
     pantallas: [
-      { ruta: '/inventory', texto: 'Almacén', nota: 'Stock, entradas y salidas', puede: alguno('inventory.read', 'om.mirar') },
-      { ruta: '/riesgo', texto: 'Obsolescencia', nota: 'Modelos sin repuesto o descontinuados', puede: con('infra.read') },
+      { ruta: '/inventory', texto: 'Repuestos', nota: 'Stock, entradas, salidas y obsolescencia', puede: alguno('inventory.read', 'om.mirar') },
     ],
   },
   {
-    titulo: 'Documentos',
-    descripcion: 'Manuales, planos y el vocabulario para cerrar órdenes.',
+    /* Antes «Documentos», que no decía nada. Son los manuales y las normas
+       de consulta; el catálogo de fallas pasó a Mantenimiento › Procedimientos. */
+    titulo: 'Manuales y normas',
+    descripcion: 'Manuales y planos de los equipos, y el estándar de rotulado.',
     icono: 'etiqueta',
     pantallas: [
       { ruta: '/documentos', texto: 'Manuales y planos', nota: 'Manuales y planos por equipo', puede: con('document.read') },
-      { ruta: '/catalogos', texto: 'Catálogo de fallas', nota: 'Síntomas, causas y acciones', puede: con('location.manage') },
-      { ruta: '/mejoras-procedimiento', texto: 'Mejoras propuestas', nota: 'Propuestas para mejorar procedimientos',
-        puede: alguno('procedimiento.manage', 'wo.update'),
-        textoPara: (can) => (can('procedimiento.manage') ? 'Mejoras propuestas' : 'Mis propuestas') },
+      { ruta: '/rotulado', texto: 'Estándar de rotulado', nota: 'Cómo se rotulan equipos y cables', puede: con('infra.read') },
     ],
   },
   {
@@ -174,26 +159,19 @@ export const MODULOS: Modulo[] = [
     descripcion: 'Cómo va la gestión, y los datos para sacarlos a Excel.',
     icono: 'indicadores',
     pantallas: [
-      /* Auditoría 20/10: `dashboard.read` lo llevan también los dos cargos de
-         Producción (lo necesitan para Mi tren y Mi bandeja). Lo que separa la
-         gestión es `wo.read`; el servidor pide las dos. */
-      { ruta: '/dashboard', texto: 'Dashboard', nota: 'Indicadores de gestión', puede: todos('dashboard.read', 'wo.read') },
-      { ruta: '/exportar', texto: 'Exportar', nota: 'Bajar los datos a Excel', puede: todos('dashboard.read', 'wo.read') },
+      /* Auditoría 20/10: lo que separa la gestión de Producción es `wo.read`. */
+      { ruta: '/dashboard', texto: 'Dashboard', nota: 'Análisis, indicadores y exportar a Excel', puede: todos('dashboard.read', 'wo.read') },
     ],
   },
-  /* No es un oficio: la cuenta de cada uno y la administración. Último a
-     propósito. «Mi cuenta» y «Avisos» los ve cualquiera. */
   {
     titulo: 'Ajustes',
     descripcion: 'Tu cuenta y la administración del sistema.',
     icono: 'usuarios',
     pantallas: [
-      { ruta: '/mi-cuenta', texto: 'Mi cuenta', nota: 'Tus datos y contraseña' },
+      { ruta: '/mi-cuenta', texto: 'Mi cuenta', nota: 'Tus datos y tus sesiones' },
       { ruta: '/avisos', texto: 'Avisos', nota: 'Lo que el sistema te avisa' },
-      { ruta: '/users', texto: 'Usuarios', nota: 'Altas, roles y trenes', puede: con('user.manage') },
-      { ruta: '/sesiones', texto: 'Sesiones', nota: 'Quién está conectado', puede: con('user.manage') },
-      { ruta: '/roles', texto: 'Roles', nota: 'Qué puede hacer cada rol', puede: con('role.manage') },
-      { ruta: '/equipos', texto: 'Equipos conocidos', nota: 'PCs y aparatos reconocidos', puede: con('user.manage') },
+      /* Usuarios, roles, sesiones y equipos conocidos: «quién entra y con qué». */
+      { ruta: '/users', texto: 'Usuarios y accesos', nota: 'Usuarios, roles, sesiones y equipos conocidos', puede: con('user.manage') },
       { ruta: '/audit', texto: 'Auditoría', nota: 'Quién hizo qué y cuándo', puede: con('audit.read') },
       { ruta: '/limpieza', texto: 'Limpieza', nota: 'Purgar datos de prueba', puede: con('asset.delete') },
     ],
@@ -284,6 +262,7 @@ export function puedeAbrir(ruta: string, can: Can, user: Usuario | null | undefi
   if (madre) {
     const p = pestanasDe(ruta).find((x) => x.ruta === ruta);
     if (p?.permiso && !can(p.permiso)) return false;
+    if (p?.puede && !p.puede(can, user)) return false;
     return puedeAbrir(madre, can, user);
   }
   const m = MODULOS.find((x) => x.pantallas.some((p) => p.ruta === ruta));

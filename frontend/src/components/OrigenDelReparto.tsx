@@ -12,10 +12,16 @@ import { plural } from '../formato';
  * cada orden. Cada cifra abre Órdenes filtrada con LAS MISMAS (§58: ve y manda).
  */
 const ORIGEN = {
-  AUTOMATICA: 'generadas por el sistema desde los planes',
+  AUTOMATICA: 'automáticas',
   INCIDENCIA: 'de incidencias',
-  MANUAL: 'registradas a mano',
+  MANUAL: 'a mano',
 } as const;
+/* Síntesis 21/10: la explicación larga de cada origen va al `title`. */
+const ORIGEN_AYUDA: Record<keyof typeof ORIGEN, string> = {
+  AUTOMATICA: 'Las generó el sistema desde los planes de preventivo',
+  INCIDENCIA: 'Abiertas desde una incidencia',
+  MANUAL: 'Registradas a mano por una persona',
+};
 type Origen = keyof typeof ORIGEN;
 
 export default function OrigenDelReparto({ r, dias }: { r: any; dias: number }) {
@@ -30,21 +36,21 @@ export default function OrigenDelReparto({ r, dias }: { r: any; dias: number }) 
       <Link to={enlace(tipo)}><b>{total} {et}</b></Link>
       {total > 0 && ': '}
       {(Object.keys(ORIGEN) as Origen[]).filter((k) => o[k] > 0).map((k, i) => (
-        <span key={k}>{i > 0 && ' · '}<Link to={enlace(tipo, k)}>{o[k]} {ORIGEN[k]}</Link></span>
+        <span key={k}>{i > 0 && ' · '}<Link to={enlace(tipo, k)} title={ORIGEN_AYUDA[k]}>{o[k]} {ORIGEN[k]}</Link></span>
       ))}
     </li>
   );
   return (
     <div className="origen-reparto">
-      <p>
-        Cuenta las OM creadas desde el {fecha(r.desde)} ({dias} días)
-        {r.canceladasFuera > 0 ? `, sin ${plural(r.canceladasFuera, 'cancelada', 'canceladas')}` : ''}.
+      <p title="Cuenta las órdenes CREADAS en el periodo; las canceladas no cuentan.">
+        OM desde el {fecha(r.desde)} ({dias} d)
+        {r.canceladasFuera > 0 ? ` · ${plural(r.canceladasFuera, 'cancelada fuera', 'canceladas fuera')}` : ''}
       </p>
       <ul>
         {fila('PREVENTIVO', 'preventivas', r.preventivo, r.origen.preventivo)}
         {fila('CORRECTIVO', 'correctivas', r.correctivo, r.origen.correctivo)}
       </ul>
-      {r.demo > 0 && <p className="origen-demo">Incluye {plural(r.demo, 'orden de demostración', 'órdenes de demostración')} (DEMO-…).</p>}
+      {r.demo > 0 && <p className="origen-demo">{plural(r.demo, 'de demostración', 'de demostración')} (DEMO-…)</p>}
     </div>
   );
 }

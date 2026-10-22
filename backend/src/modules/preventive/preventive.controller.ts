@@ -1,12 +1,13 @@
-import { Body, Controller, Get, Ip, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Ip, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { PreventiveService } from './preventive.service';
 import { UpsertPreventivePlanDto } from './dto/upsert-plan.dto';
-import { CambiarAutogenDto } from './dto/autogen.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { AmbitoDe } from '../../common/ambito.decorator';
+import { NumeroSapDto } from '../../common/numero-sap.dto';
 
 @ApiTags('preventive')
 @ApiBearerAuth()
@@ -34,28 +35,28 @@ export class PreventiveController {
     return this.preventive.upsertPlan(dto, user?.userId, ip);
   }
 
-  // Estado de la generación automática (activa, hora, última ejecución).
-  @Get('autogen-status')
+  /* ===========================================================================
+     BLOQUE 180 · EL PROGRAMA Y EL VÍNCULO CON SAP
+     ---------------------------------------------------------------------------
+     Se retiraron `generate`, `autogen` y `autogen-status`: SGIT ya no crea
+     órdenes preventivas (decisión 3 de Cristhian, «solo programa y vincula»).
+     La OM de una rutina la genera SAP; aquí se ve qué toca y se vincula.
+  =========================================================================== */
+
+  /** Qué rutina toca y cuándo, con su OM si ya la tiene. `dias`: cuántos días adelante (0-90). */
+  @Get('programa')
   @RequirePermissions('wo.read')
-  autoGenStatus() {
-    return this.preventive.autoGenStatus();
+  programa(@Query('dias') dias?: string) {
+    return this.preventive.programa(dias === undefined ? 30 : Number(dias));
   }
 
-  /* Bloque 143 · prender / apagar la generación automática desde la pantalla.
-     Con `wo.approve`: es la llave del Jefe de Mantenimiento, el que decide
-     cuándo se programa trabajo. Queda en auditoría quién y cuándo. */
-  @Post('autogen')
+  /* Vincular la OM que generó SAP a la rutina de ESTE equipo. Lo hace el Jefe
+     (`wo.approve`): decide qué trabajo entra en el programa de la planta. El
+     ámbito es el del equipo: sólo los de tu tren. */
+  @AmbitoDe('asset', 'assetId')
+  @Post('activo/:assetId/vincular-sap')
   @RequirePermissions('wo.approve')
-  cambiarAutogen(@Body() dto: CambiarAutogenDto, @CurrentUser() user: any, @Ip() ip: string) {
-    return this.preventive.cambiarAutogen(dto.activo, user?.userId ?? null, ip);
-  }
-
-  // Generación manual (además de la automática diaria). SOLO crea OM PREVENTIVAS.
-  // `days` permite adelantar las que vencen dentro de N días.
-  @Post('generate')
-  @RequirePermissions('wo.create')
-  generate(@CurrentUser() user: any, @Ip() ip: string, @Query('days') days?: string) {
-    const lookahead = Math.max(0, Math.min(90, Number(days) || 0));
-    return this.preventive.generateDue(user?.userId, ip, lookahead);
+  vincularSap(@Param('assetId') assetId: string, @Body() body: NumeroSapDto, @CurrentUser() user: any, @Ip() ip: string) {
+    return this.preventive.vincularSap(assetId, body?.numero ?? null, user?.userId ?? null, ip);
   }
 }

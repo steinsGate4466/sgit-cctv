@@ -73,7 +73,7 @@ export default function VistaGeneral() {
   if (error) {
     return (
       <div className="page">
-        <h1 className="page-title">Resumen de planta</h1>
+        <h1 className="page-title">Toda la planta</h1>
         <div className="card peligro">{error}</div>
       </div>
     );
@@ -83,7 +83,7 @@ export default function VistaGeneral() {
   if (!sectores.length) {
     return (
       <div className="page">
-        <h1 className="page-title">Resumen de planta</h1>
+        <h1 className="page-title">Toda la planta</h1>
         <div className="card vacio">
           <h3>Todavía no hay sectores en el árbol de planta</h3>
           <p>{d?.motivoAmbito || 'Ejecuta la semilla o crea los trenes en Ubicaciones.'}</p>
@@ -110,7 +110,7 @@ export default function VistaGeneral() {
 
   return (
     <div className="page">
-      <h1 className="page-title">Resumen de planta</h1>
+      <h1 className="page-title">Toda la planta</h1>
       {edad !== null && edad >= 2 && (
         <p className="edad-dato">Datos de hace {plural(edad, 'minuto')}.</p>
       )}
@@ -125,7 +125,7 @@ export default function VistaGeneral() {
           Grúas. Los que tienen cámaras sin imagen salen primero y abiertos.
         </p>
         <p>
-          Esta pantalla es un <b>índice</b>: el detalle vive en «Mis cámaras» y
+          Esta pantalla es un <b>índice</b>: el detalle vive en «Cámaras» y
           «Mis activos» son los enlaces de cada sector. Con rol sectorizado, sólo el tuyo.
         </p>
       </ComoSeCalcula>

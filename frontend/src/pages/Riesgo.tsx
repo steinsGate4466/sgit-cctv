@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
 import { plural } from '../formato';
+import { ComoSeCalcula } from '../components/Patron';
 
 /**
  * DÓNDE ESTAMOS EXPUESTOS A NO PODER ARREGLAR — bloque 36.
@@ -110,20 +111,8 @@ export default function Riesgo() {
     <div className="page">
       <h1 className="page-title">Repuestos y obsolescencia</h1>
 
-      <div className="card explica">
-        <b>Esta pantalla no dice qué está roto: dice qué no se va a poder arreglar.</b>
-        <div style={{ marginTop: 8 }}>
-          Son dos cosas distintas. <b>Almacén</b> es el repuesto que sostiene una
-          zona vital y no está en stock: el equipo anda, pero el día que falle no
-          hay con qué. <b>Equipos</b> es el modelo sin recambio en el mercado o
-          sin soporte del fabricante: eso no se arregla comprando una pieza, se
-          planifica un cambio de modelo con meses de antelación.
-        </div>
-        <div style={{ marginTop: 8 }}>
-          Lo que no tiene dato <b>no sale en verde</b>. Sale como «Sin datos»,
-          que es distinto de «sin riesgo» y es una tarea concreta para alguien.
-        </div>
-      </div>
+      {/* Síntesis 21/10: una línea; el porqué, plegado al final. */}
+      <p className="page-sub">Lo que no se podrá arreglar cuando falle.</p>
 
       <div className="pestanas">
         <button className={pestana === 'almacen' ? 'act' : ''} onClick={() => setPestana('almacen')}>
@@ -169,14 +158,14 @@ export default function Riesgo() {
                 className={'kpi kpi-boton ' + CLASE[n] + (filtroNivel === n ? ' kpi-activo' : '')}
                 onClick={() => setFiltroNivel(filtroNivel === n ? '' : n)}
                 aria-pressed={filtroNivel === n}
+                title={n === 'SIN_DATOS' ? 'Falta el dato para poder valorar. Pulsa para verlos.'
+                  : filtroNivel === n ? 'Pulsa otra vez para quitar el filtro' : 'Pulsa para ver sólo estos'}
               >
                 <div className="label">{ETIQUETA[n]}</div>
                 <div className="value">{datos.resumen?.[n] ?? 0}</div>
-                <div className="hint">
-                  {n === 'SIN_DATOS'
-                    ? 'Falta el dato para poder valorar'
-                    : filtroNivel === n ? 'Filtrando — pulsa otra vez para quitar' : 'Pulsa para ver sólo estos'}
-                </div>
+                {/* «Pulsa para ver sólo estos» en las cinco tarjetas era ruido:
+                    el `title` lo dice; la tarjeta marcada dice que filtra. */}
+                {filtroNivel === n && <div className="hint">Filtrando</div>}
               </button>
             ))}
           </div>
@@ -307,6 +296,16 @@ export default function Riesgo() {
           )}
         </>
       )}
+
+      <ComoSeCalcula>
+        <p>
+          No dice qué está roto: dice qué no se va a poder arreglar. <b>Almacén</b>:
+          el repuesto que sostiene una zona vital y no está en stock. <b>Equipos</b>:
+          el modelo sin recambio o sin soporte del fabricante; se planifica el
+          cambio de modelo con meses de antelación.
+        </p>
+        <p>Lo que no tiene dato sale «Sin datos», nunca en verde.</p>
+      </ComoSeCalcula>
     </div>
   );
 }

@@ -9,6 +9,7 @@ import BotonConMotivo from '../components/BotonConMotivo';
 import { mensajeDeError, queFalta } from '../avisos';
 import { fechaTabla } from '../fechas';
 import { plural } from '../formato';
+import { ComoSeCalcula } from '../components/Patron';
 
 /* =============================================================================
    HOJAS DE RUTA — bloque 75
@@ -216,7 +217,7 @@ export default function HojasDeRuta() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
         <div>
           <h1 className="page-title">Hojas de ruta</h1>
-          <p className="page-sub">{plural(filas.length, 'hoja')} · los pasos de cada preventivo</p>
+          <p className="page-sub">{plural(filas.length, 'hoja')} · pasos de cada preventivo</p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button className="btn-mini" disabled={bajando} onClick={() => descargar()}>
@@ -226,12 +227,6 @@ export default function HojasDeRuta() {
             <button className="btn-primary" onClick={abrirNueva}>+ Nueva hoja</button>
           )}
         </div>
-      </div>
-
-      {/* El texto es corto a propósito: esto es una lista de trabajo, no un
-          manual. Un párrafo encima de la tabla se salta a la segunda vez. */}
-      <div className="scan-note" style={{ marginBottom: 12 }}>
-        <b>Una hoja por tipo de equipo.</b> La de cámara vale para todas.
       </div>
 
       {msg && <div className="card ok" style={{ marginBottom: 12 }}>{msg}</div>}
@@ -303,6 +298,18 @@ export default function HojasDeRuta() {
         </div>
       )}
 
+      {/* Síntesis 21/10: «una hoja por tipo» y el límite de SAP, plegados. */}
+      <ComoSeCalcula>
+        <p>
+          Una hoja por tipo de equipo: la de cámara vale para todas las cámaras.
+          «Equipos» dice cuántos la usan.
+        </p>
+        <p>
+          SAP corta cada línea en {MAX} caracteres y, si una se pasa, rechaza la
+          carga entera. El contador avisa mientras se escribe.
+        </p>
+      </ComoSeCalcula>
+
       {/* ===================================================== EL FORMULARIO */}
       {edita && (
         <Modal
@@ -351,7 +358,7 @@ export default function HojasDeRuta() {
               {/* No se puede cambiar después: la hoja está atada a su tipo por
                   un índice único, y moverla dejaría a los equipos del tipo
                   viejo sin procedimiento sin que nadie se entere. */}
-              {edita.id && <small className="muted">El tipo no se cambia. Crea otra hoja si hace falta.</small>}
+              {edita.id && <small className="muted">No se cambia; crea otra hoja.</small>}
             </label>
 
             <label className="campo campo-ancho">
@@ -461,8 +468,8 @@ export default function HojasDeRuta() {
 
           {pasosLargos > 0 && (
             <div className="card peligro" style={{ marginTop: 12 }}>
-              <b>{plural(pasosLargos, 'paso pasa', 'pasos pasan')} de {MAX} caracteres.</b> SAP rechazaría
-              la carga entera, no sólo esas líneas.
+              <b>{plural(pasosLargos, 'paso pasa', 'pasos pasan')} de {MAX} caracteres:</b> SAP
+              rechazaría la carga entera.
             </div>
           )}
         </Modal>

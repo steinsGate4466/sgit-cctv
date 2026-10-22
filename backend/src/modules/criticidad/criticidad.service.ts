@@ -7,6 +7,7 @@ import {
 } from '../../common/criticidad-datos';
 import { PARAMETROS_PROPUESTOS, type ParametrosCriticidad } from '../../common/criticidad-abc';
 import { resolverContextoDePlanta, intervaloParaAmbiente } from '../../common/plant-context';
+import { SOLO_FALLAS } from '../../common/aviso-sap';
 
 /* =============================================================================
    CRITICIDAD A/B/C — el servicio que trae los datos de planta (bloque 76)
@@ -142,7 +143,10 @@ export class CriticidadService {
       }),
       this.prisma.incident.groupBy({
         by: ['assetId'],
-        where: { assetId: { not: null }, reportedAt: { gte: haceUnAnio } },
+        /* Bloque 180: la FRECUENCIA DE FALLA cuenta fallas. Un gabinete
+           que funciona y se va a dañar no ha fallado: contarlo subiría la
+           letra de un equipo que no falla. */
+        where: { assetId: { not: null }, reportedAt: { gte: haceUnAnio }, AND: [SOLO_FALLAS] },
         _count: { _all: true },
       }),
       this.prisma.switchPort.findMany({

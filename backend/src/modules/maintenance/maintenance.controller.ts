@@ -18,6 +18,7 @@ import { AsignarOmDto, DesdeIncidenciaDto, DetallarOmDto } from './dto/asignar-o
 import { RequirePermissions, RequireAlguno } from '../../common/decorators/permissions.decorator';
 import { AmbitoDe } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { NumeroSapDto } from '../../common/numero-sap.dto';
 
 @ApiTags('maintenance')
 @ApiBearerAuth()
@@ -96,6 +97,22 @@ export class MaintenanceController {
   @RequirePermissions('wo.create')
   asignar(@Body() body: AsignarOmDto, @CurrentUser() user: any, @Ip() ip: string) {
     return this.wo.asignar(body, user?.userId, ip);
+  }
+
+  /* ===========================================================================
+     BLOQUE 180 · EL N° DE LA OM EN SAP — «primero el N° SAP»
+     ---------------------------------------------------------------------------
+     Lo apunta quien creó la OM en SAP: Producción o el Jefe (decisión 2 de
+     Cristhian). Basta `wo.create` para APUNTARLO cuando falta; CAMBIARLO o
+     QUITARLO pide `wo.approve` —lo comprueba el servicio con el permiso de la
+     sesión—. Ámbito: sólo las órdenes de tu tren. Auditado (`WO_SAP`).
+  =========================================================================== */
+  @AmbitoDe('workOrder')
+  @Patch(':id/sap')
+  @RequireAlguno('wo.create', 'wo.approve')
+  numeroSap(@Param('id') id: string, @Body() body: NumeroSapDto, @CurrentUser() user: any, @Ip() ip: string) {
+    const puedeCorregir = (user?.permissions || []).includes('wo.approve');
+    return this.wo.registrarNumeroSap(id, body?.numero ?? null, user?.userId ?? null, puedeCorregir, ip);
   }
 
   /** Convertir una incidencia en orden, con lo que la incidencia ya sabe. */

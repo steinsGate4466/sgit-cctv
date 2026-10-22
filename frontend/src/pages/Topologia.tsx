@@ -7,6 +7,7 @@ import { EsqueletoTabla } from '../components/Esqueleto';
 import MapaRed from '../components/MapaRed';
 import { plural } from '../formato';
 import { NOMBRE_DE_TIPO } from '../tipos-de-equipo';
+import { ComoSeCalcula } from '../components/Patron';
 
 /**
  * PUNTOS CRÍTICOS DE LA RED (bloque 7).
@@ -77,7 +78,7 @@ export default function Topologia() {
     <div>
       <h1 className="page-title">Puntos críticos de la red</h1>
       <p className="page-sub">
-        Qué se deja de ver si cae cada equipo. Ordenado por daño, no por nombre.
+        Qué se deja de ver si cae cada equipo.
       </p>
 
       <FiltroAmbito valor={ambito} onChange={setAmbito} />
@@ -107,10 +108,7 @@ export default function Topologia() {
             <div className="card vacio">
               <Icono n="predictivo" size={38} />
               <h3>Todavía no hay red que dibujar</h3>
-              <p>
-                El mapa se arma con lo que esté registrado. Ahora mismo falta
-                todo esto, y por eso no hay nada que enseñar:
-              </p>
+              <p>Falta registrar:</p>
               <div style={{ textAlign: 'left', maxWidth: 460, margin: '14px auto 0' }}>
                 <div className="frow">
                   <span className="k">Puertos de switch ocupados</span>
@@ -125,10 +123,7 @@ export default function Topologia() {
                   <span className="v">en la ficha de la cámara</span>
                 </div>
               </div>
-              <p style={{ marginTop: 14 }}>
-                En cuanto haya un switch con equipos enchufados, el mapa
-                aparece solo. <b>No hace falta configurar nada más.</b>
-              </p>
+              <p style={{ marginTop: 14 }}>Con un switch con equipos enchufados, el mapa sale solo.</p>
             </div>
           )}
           {verMapa && (
@@ -139,9 +134,8 @@ export default function Topologia() {
                 <span><i style={{ background: 'var(--warn-texto)' }} /> Con incidencia</span>
                 <span><i style={{ background: 'var(--crit)' }} /> Fuera de servicio o sin camino al grabador</span>
                 <span><i className="anillo" /> Tramo de anillo</span>
-                <span className="muted">
-                  Las columnas son saltos hasta el grabador. Pulsa un equipo para ver qué se
-                  pierde si cae.
+                <span className="muted" title="Las columnas son saltos hasta el grabador.">
+                  Pulsa un equipo para ver qué se pierde si cae.
                 </span>
               </div>
             </div>
@@ -204,14 +198,13 @@ export default function Topologia() {
         </div>
       )}
 
-      <div className="hint-link">
-        <Icono n="alerta" size={14} />
-        <span>
-          Esto no adivina nada: se calcula con los puertos de switch ocupados,
-          los enlaces declarados y el NVR de cada cámara. <b>Cuanto mejor esté
-          el cableado registrado, más fiable es este número.</b>
-        </span>
-      </div>
+      <ComoSeCalcula>
+        <p>
+          Se calcula con los puertos de switch ocupados, los enlaces declarados
+          y el grabador de cada cámara: cuanto mejor esté registrado el cableado,
+          más fiable es. Ordenado por daño, no por nombre.
+        </p>
+      </ComoSeCalcula>
 
       {detalle && (
         <Modal title={`Impacto de ${detalle.equipo?.code || detalle.equipo?.code || 'el equipo'}`}
@@ -240,8 +233,7 @@ export default function Topologia() {
                 <div className="detail-sec">
                   <h4>Ya estaban sin llegar antes</h4>
                   <p className="muted" style={{ fontSize: 12, margin: '0 0 6px' }}>
-                    No se le imputan a este equipo: llevan tiempo sin camino al
-                    grabador. Pero convendría mirarlos.
+                    No se le imputan: llevan tiempo sin camino al grabador.
                   </p>
                   <div className="muted" style={{ fontSize: 12 }}>
                     {plural(detalle.yaAislados.length, 'equipo')}.

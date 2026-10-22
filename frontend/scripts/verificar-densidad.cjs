@@ -92,7 +92,11 @@ const EXENTAS = {
 const LINEA_BASE = {
   /* Bloque 171 · bajadas: Assets 244→241, Electricidad 305→289, Equipos
      305→288, Instalaciones 227→225, Limpieza 350→346, Órdenes 199→187,
-     Paradas 246→238. */
+     Paradas 246→238.
+     Síntesis 21/10 · bajadas: Assets 241→240, Limpieza 346→342, Paradas
+     238→133, Órdenes 187→170, Topología 218→142, Estado por tren 171→167,
+     Monitoreo 196→131, Indicadores 172→161, Riesgo 157→68. Avisos y
+     Conexiones ya cumplen el tope general y SALEN de la lista. */
   // pantalla:            [palabras, columnas, indicadores]
   /* 304 -> 305 en el bloque 146: la pantalla GANÓ el botón «QR» de cada
      tablero, una palabra. Es la etiqueta que el usuario pidió para pegar en la
@@ -101,32 +105,30 @@ const LINEA_BASE = {
      función que llega es legítimo; por un párrafo de más, no. */
   'Electricidad.tsx':      [289, 6, 0],
   'Equipos.tsx':           [288, 7, 0],
-  'Limpieza.tsx':          [346, 7, 0],
+  'Limpieza.tsx':          [342, 7, 0],
   'Instalaciones.tsx':     [225, 7, 0],
   /* 243 -> 244 en el bloque 131. La pantalla no se llenó de texto: GANÓ una
      función. «Declarar cómo se llega» se mudó aquí desde «Mis activos»,
      porque es información que sólo Mantenimiento puede tocar, y su botón
      cuesta una palabra —«Acceso»—. Subir la línea base por una función que
      llega es legítimo; subirla por un párrafo de más, no. */
-  'Assets.tsx':            [241, 10, 0],
-  'Paradas.tsx':           [238, 10, 0],
+  'Assets.tsx':            [240, 10, 0],
+  'Paradas.tsx':           [133, 10, 0],
   'Ipam.tsx':              [187, 7, 0],
-  'Maintenance.tsx':      [187, 7, 0],
+  'Maintenance.tsx':      [163, 7, 0],
   'Campanas.tsx':          [177, 6, 0],
-  'Topologia.tsx':         [218, 6, 0],
+  'Topologia.tsx':         [142, 6, 0],
   // Convertida a medias en el bloque 38: el titular y las acciones ya están
   // arriba, pero dentro lleva OCHO vistas con su propio texto. Bajar de aquí
   // exige repasar las ocho, y eso es un bloque propio.
-  'TrainBoard.tsx':        [171, 4, 9],
+  'TrainBoard.tsx':        [167, 4, 9],
   'Locations.tsx':         [194, 8, 0],
-  'Monitoreo.tsx':         [196, 4, 5],
-  'Conexiones.tsx':        [185, 6, 0],
-  'Indicadores.tsx':       [172, 6, 1],
+  'Monitoreo.tsx':         [131, 4, 5],
+  'Indicadores.tsx':       [161, 6, 1],
   'Grabadores.tsx':        [137, 6, 0],
-  'Avisos.tsx':            [152, 4, 5],
   // Recién hecha en el bloque 36 y ya pasa de columnas. Es la prueba de que
   // esto se degrada solo aunque quien escriba tenga la regla en la cabeza.
-  'Riesgo.tsx':            [157, 12, 1],
+  'Riesgo.tsx':            [68, 12, 1],
   // Quince indicadores. Es EL tablero, y aun así quince no se leen.
 };
 

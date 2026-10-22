@@ -30,7 +30,7 @@ export default function Pestanas() {
   const delModulo = modulo ? pantallasVisibles(modulo, can, user) : [];
   const dueña = rutaDueña(loc.pathname);
 
-  const internas = pestanasDe(loc.pathname).filter((p) => !p.permiso || can(p.permiso));
+  const internas = pestanasDe(loc.pathname).filter((p) => (!p.permiso || can(p.permiso)) && (!p.puede || p.puede(can, user)));
 
   const verModulo = delModulo.length >= 2;
   const verInternas = internas.length >= 2;

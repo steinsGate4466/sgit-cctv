@@ -209,9 +209,11 @@ export function titularDeRiesgo(
 ): string {
   if (!total) return 'Todavía no hay nada cargado para valorar.';
   if (criticos) {
-    return `${criticos} punto(s) sin recambio y en zona vital. Si fallan hoy, no se arreglan hoy.`;
+    return criticos === 1
+      ? '1 punto sin recambio en zona vital: si falla hoy, no se arregla hoy.'
+      : `${criticos} puntos sin recambio en zona vital: si fallan hoy, no se arreglan hoy.`;
   }
-  if (altos) return `${altos} punto(s) de riesgo alto. Ninguno deja una zona vital sin salida todavía.`;
-  if (sinDatos) return `Sin riesgos altos, pero faltan datos en ${sinDatos} de ${total}. Lo que no se sabe no se puede valorar.`;
+  if (altos) return `${altos === 1 ? '1 punto' : `${altos} puntos`} de riesgo alto. Ninguno deja una zona vital sin salida.`;
+  if (sinDatos) return `Sin riesgos altos; faltan datos en ${sinDatos} de ${total}.`;
   return 'Sin puntos de riesgo. Todo lo valorado tiene recambio.';
 }

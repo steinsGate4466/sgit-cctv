@@ -140,7 +140,7 @@ export default function Zonas() {
           porqué va plegado en «Cómo se calcula esto»; no se pierde, deja de
           tapar la respuesta. */}
       <p className="muted" style={{ margin: '0 0 12px' }}>
-        Producción dice qué zonas no pueden quedarse ciegas. <b>Alta</b> y <b>Crítica</b> piden el porqué.
+        Qué zonas no pueden quedarse ciegas. <b>Alta</b> y <b>Crítica</b> piden el porqué.
       </p>
       <ComoSeCalcula>
         <p>

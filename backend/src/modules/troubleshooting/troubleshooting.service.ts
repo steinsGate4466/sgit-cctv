@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { SOLO_FALLAS } from '../../common/aviso-sap';
 
 @Injectable()
 export class TroubleshootingService {
@@ -8,7 +9,8 @@ export class TroubleshootingService {
   // Métricas de resolución de problemas (MTTR, tiempo sin visión, patrones por causa)
   async metrics() {
     const resolved = await this.prisma.incident.findMany({
-      where: { status: { in: ['RESUELTA', 'CERRADA'] }, mttrMinutes: { not: null } },
+      // Bloque 180: el MTTR es de FALLAS: lo que funcionaba no se «restituye».
+      where: { status: { in: ['RESUELTA', 'CERRADA'] }, mttrMinutes: { not: null }, AND: [SOLO_FALLAS] },
       select: { mttrMinutes: true, visionDownMin: true, category: true },
     });
 
@@ -20,6 +22,7 @@ export class TroubleshootingService {
     // Reincidencia por causa raíz (patrones: saturación NVR, caída PMP, etc.)
     const byCategory = await this.prisma.incident.groupBy({
       by: ['category'],
+      where: { AND: [SOLO_FALLAS] },
       _count: { _all: true },
       orderBy: { _count: { category: 'desc' } },
     });

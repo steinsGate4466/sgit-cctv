@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { GruaService } from './grua.service';
 import { GruaController } from './grua.controller';
-import { MaintenanceModule } from '../maintenance/maintenance.module';
+import { IncidentsModule } from '../incidents/incidents.module';
 
 /**
  * INSPECCIÓN DE CÁMARAS DE GRÚA (bloque 14).
@@ -10,8 +10,9 @@ import { MaintenanceModule } from '../maintenance/maintenance.module';
  * grabación y gabinete.
  */
 @Module({
-  // Bloque 140: la inspección abre la orden con el alta normal de Órdenes.
-  imports: [MaintenanceModule],
+  // Bloque 180: la inspección abre un AVISO con el alta normal de Incidencias
+  // (la OM la crea SAP y la trata Mantenimiento).
+  imports: [IncidentsModule],
   controllers: [GruaController],
   providers: [GruaService],
   exports: [GruaService],

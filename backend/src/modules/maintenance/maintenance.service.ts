@@ -5,14 +5,14 @@ import { condicionDeOrigen } from '../indicadores/calculo';
 import { perfilDeSeguridadEn } from '../../common/seguridad-de-planta';
 import { requisitosSinMarcar } from '../../common/seguridad-del-trabajo';
 import { VENTANA_DIAS } from '../../common/reincidencia';
-import { Prisma } from '../../generated/prisma/client';
+import { Prisma, RootCause } from '../../generated/prisma/client';
 import * as argon2 from 'argon2';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { descendientes, filtroDeUbicaciones } from '../../common/ambito-planta';
 import { filtroConAmbito } from '../../common/ambito-usuario';
 import { BandejaSalidaService } from '../notificaciones/bandeja-salida.service';
-import { omCerrada, omAsignada, omEnEspera } from '../notificaciones/plantillas';
+import { omCerrada, omAsignada, omEnEspera, tuReporteSeResolvio } from '../notificaciones/plantillas';
 import { evaluarEspera } from './espera';
 import { estadoDeAvance, horasSinNoticias, FRASE_DE_AVANCE } from './avance';
 import { fechaLimite, estadoDetalle, actividadDesdeIncidencia } from './asignacion.util';
@@ -34,6 +34,7 @@ import {
   EstadoIncidencia, alAbrirOrden, alCerrarOrden, porQueCambio,
 } from '../../common/incidencia-sigue-a-la-om';
 import { exigirFirmanteConPermiso } from '../../common/firmante';
+import { motivoNumeroSapInvalido, motivoSinOmSap, normalizarNumeroSap, tipoDeOrdenSugerido } from '../../common/aviso-sap';
 // PDF: se carga con require para no depender de @types en el build.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PDFDocument = require('pdfkit');
@@ -43,7 +44,8 @@ const inc = {
   asset: { select: { id: true, assetCode: true, type: true, status: true, referencePlace: true, location: { select: { name: true } } } },
   location: { select: { id: true, code: true, name: true } },
   technician: { select: { id: true, fullName: true } },
-  incident: { select: { id: true, code: true, title: true } },
+  // Bloque 180: el aviso de SAP de la incidencia, y si funcionaba o no.
+  incident: { select: { id: true, code: true, title: true, avisoSap: true, tipoAviso: true } },
   createdBy: { select: { id: true, fullName: true, role: { select: { name: true } } } },
   openedBy: { select: { id: true, fullName: true } },
   closedBy: { select: { id: true, fullName: true } },
@@ -100,8 +102,70 @@ export class MaintenanceService {
     return siguienteCorrelativo(ultima?.code, prefijo);
   }
 
+  /**
+   * BLOQUE 180 · EL N° DE LA OM EN SAP, como lo enseña SAP.
+   *
+   * Si ya está en otra orden NO se rechaza: una OM de SAP puede, de verdad,
+   * repartirse en dos trabajos aquí, y un formulario que rechaza la realidad
+   * se deja de usar (bloque 16). Pero se DICE en la respuesta: un número mal
+   * tecleado no puede enganchar en silencio dos órdenes que no tienen nada que
+   * ver.
+   */
+  private async numeroSapDeOm(texto: string | null | undefined, excluirId: string | null) {
+    const numero = normalizarNumeroSap(texto);
+    if (!numero) return { numero: null as string | null, repetidaEn: null as string | null };
+    const motivo = motivoNumeroSapInvalido(numero);
+    if (motivo) throw new BadRequestException(motivo);
+    const otra = await this.prisma.workOrder.findFirst({
+      where: { externalRef: numero, ...(excluirId ? { id: { not: excluirId } } : {}) },
+      select: { code: true },
+    });
+    return { numero, repetidaEn: otra?.code ?? null };
+  }
+
+  private static avisoDeSapRepetido(numero: string | null, repetidaEn: string | null): string | null {
+    return numero && repetidaEn
+      ? `La OM SAP ${numero} también está en la orden ${repetidaEn}. Si es un error de tecleo, corrígelo con «N° SAP».`
+      : null;
+  }
+
+  /**
+   * BLOQUE 180 · APUNTAR EL N° DE LA OM DE SAP.
+   *
+   * Lo apunta quien la creó en SAP: Producción o el Jefe (decisión 2). Para
+   * APUNTARLO cuando falta basta `wo.create`; CAMBIAR o QUITAR uno que ya
+   * está —desenganchar la orden de SAP— es `wo.approve` (`puedeCorregir`).
+   * No se toca en una orden cerrada o cancelada: lo firmado no se edita.
+   */
+  async registrarNumeroSap(
+    id: string, texto: string | null, userId: string | null, puedeCorregir: boolean, ip?: string | null,
+  ) {
+    const wo = await this.prisma.workOrder.findUnique({ where: { id }, select: { id: true, code: true, status: true, externalRef: true } });
+    if (!wo) throw new NotFoundException('Orden de mantenimiento no encontrada');
+    if (wo.status === 'CERRADA' || wo.status === 'CANCELADA') {
+      throw new ConflictException('Esta orden ya está cerrada: lo firmado no se edita.');
+    }
+    const { numero, repetidaEn } = await this.numeroSapDeOm(texto, id);
+    const aviso = MaintenanceService.avisoDeSapRepetido(numero, repetidaEn);
+    if (numero === wo.externalRef) return { id: wo.id, code: wo.code, externalRef: numero, aviso };
+    if (wo.externalRef && !puedeCorregir) {
+      throw new ForbiddenException(
+        `Esta orden ya tiene la OM SAP ${wo.externalRef}. Cambiarla o quitarla lo decide el Jefe de Mantenimiento.`,
+      );
+    }
+    const r = await this.prisma.workOrder.update({
+      where: { id }, data: { externalRef: numero }, select: { id: true, code: true, externalRef: true },
+    });
+    await this.audit.record({
+      userId, action: 'WO_SAP', entity: 'work_orders', entityId: id, ip,
+      before: { externalRef: wo.externalRef }, after: { externalRef: numero, om: wo.code, repetidaEn },
+    });
+    return { ...r, aviso };
+  }
+
   async create(dto: CreateWorkOrderDto, creadaPorId?: string | null) {
     await exigirEjecutor(this.prisma, dto.technicianId); // bloque 172
+    const sap = await this.numeroSapDeOm(dto.externalRef, null); // bloque 180
     // Una orden tiene que decir SOBRE QUÉ es: un equipo concreto o una zona.
     // Sin ninguno de los dos, el técnico no sabe a dónde ir.
     if (!dto.assetId && !dto.locationId) {
@@ -131,7 +195,7 @@ export class MaintenanceService {
        viene del formulario (`dto.code`, un número de SAP escrito a mano) no se
        reintenta —repetirlo daría el mismo choque tres veces—: ese conflicto es
        real y tiene que llegarle a quien lo tecleó. */
-    return conReintentoDeCodigo(async (n) => this.prisma.workOrder.create({
+    const creada = await conReintentoDeCodigo(async (n) => this.prisma.workOrder.create({
       data: {
         code: dto.code || (await this.nextCode()),
         type: dto.type,
@@ -175,13 +239,15 @@ export class MaintenanceService {
         requestedBy: dto.requestedBy,
         requestChannel: dto.requestChannel,
         receivedAt: dto.receivedAt ? new Date(dto.receivedAt) : undefined,
-        externalRef: dto.externalRef,
+        externalRef: sap.numero,
         // Parada estimada (tentativa; la real la confirma el técnico por radio)
         plannedStopAt: dto.plannedStopAt ? new Date(dto.plannedStopAt) : undefined,
         plannedDurationMin: dto.plannedDurationMin,
       },
       include: inc,
     }), dto.code ? 1 : undefined);
+    // Bloque 180: si la OM de SAP ya está en otra orden, se dice (no se impide).
+    return { ...creada, avisoSap: MaintenanceService.avisoDeSapRepetido(sap.numero, sap.repetidaEn) };
   }
 
   /**
@@ -201,6 +267,10 @@ export class MaintenanceService {
         `La orden ya fue abierta el ${wo.startedAt.toLocaleString('es-PE')}.`,
       );
     }
+    /* BLOQUE 180 · «PRIMERO EL N° SAP». Va ANTES de la firma: decirlo después
+       de que alguien escribió su contraseña es hacerle perder el tiempo. */
+    const sinSapAlAbrir = motivoSinOmSap(wo, 'abre');
+    if (sinSapAlAbrir) throw new BadRequestException(sinSapAlAbrir);
 
     const signer = await this.prisma.user.findUnique({
       where: { email: dto.email },
@@ -280,6 +350,15 @@ export class MaintenanceService {
         seguridadInicio: seguridadInicio as any,
         // Si nadie la tenía asignada, queda a nombre de quien la abre.
         technicianId: wo.technicianId || signer!.id,
+        /* AUDITORÍA DE PROCESOS 21/10 · abrir delante del equipo ES detallar.
+           Lo único obligatorio del detalle es saber sobre qué se trabaja y qué
+           hay que hacer (`estadoDetalle`), y quien firma la apertura lo está
+           confirmando en el sitio. Sin esto el técnico tenía que «Detallar»
+           y luego «Abrir» —dos pasos para lo mismo— y la orden seguía en la
+           bandeja como «sin detallar» con el trabajo ya empezado. Detallar
+           sigue existiendo para cambiar el equipo o añadir materiales. */
+        ...(!wo.detailedAt && estadoDetalle(wo).faltan.length === 0
+          ? { detailedAt: new Date(), detailedById: signer!.id } : {}),
       },
       'abrir la orden',
     );
@@ -339,6 +418,9 @@ export class MaintenanceService {
       where.technicianId = userId;
       if (!q.status) where.status = { notIn: ['CERRADA', 'CANCELADA'] };
     }
+    /* «Vivas» (Mi tren): sin estado pedido, todo lo que no está cerrado ni
+       cancelado. Con estado pedido, manda el estado. */
+    if (q.vivas && !q.status) where.status = { notIn: ['CERRADA', 'CANCELADA'] };
 
     // Ámbito de planta. Una OM puede colgar de un ACTIVO o solo de una
     // UBICACIÓN (una campaña de barrido, por ejemplo), así que se aceptan las
@@ -363,7 +445,15 @@ export class MaintenanceService {
         { activity: { contains: term, mode: 'insensitive' } },
         { zone: { contains: term, mode: 'insensitive' } },
         { incident: { code: { contains: term, mode: 'insensitive' } } },
+        /* Bloque 180: el N° de SAP es lo que trae quien viene de SAP o de un
+           correo. Escrito como sea: «04000123456» encuentra «4000123456». */
+        { externalRef: { contains: normalizarNumeroSap(term) || term, mode: 'insensitive' } },
+        { incident: { avisoSap: { contains: normalizarNumeroSap(term) || term, mode: 'insensitive' } } },
       ];
+    }
+    // Bloque 180 · las vivas que todavía no tienen su OM de SAP (bandeja).
+    if (q.sinSap) {
+      condiciones.push({ externalRef: null, status: { notIn: ['CERRADA', 'CANCELADA'] } });
     }
     // Rango de fechas sobre la fecha programada (para volver a registros por periodo).
     if (q.from || q.to) {
@@ -475,6 +565,8 @@ export class MaintenanceService {
         take: MaintenanceService.TOPE_TABLERO,
         select: {
           id: true, code: true, type: true, status: true,
+          // Bloque 180: Producción busca su orden por el N° de SAP que creó.
+          externalRef: true,
           activity: true, zone: true, progressPct: true,
           detailedAt: true, startedAt: true, plannedStopAt: true,
           plannedDurationMin: true, scheduledDate: true, createdAt: true,
@@ -603,7 +695,45 @@ export class MaintenanceService {
     await exigirEjecutor(this.prisma, (dto as any).technicianId); // bloque 172
     const cur = await this.prisma.workOrder.findUnique({ where: { id } });
     if (!cur) throw new NotFoundException('Orden de mantenimiento no encontrada');
+    /* AUDITORÍA DE PROCESOS 21/10 · LA PUERTA DE ATRÁS DEL CIERRE.
+       Este PATCH pide `wo.update` (el técnico lo tiene) y aceptaba cualquier
+       estado: con `status: 'CERRADA'` se cerraba una orden SIN firma, sin
+       foto, sin síntoma/causa/acción, sin resolver su incidencia y sin
+       reprogramar el preventivo. Y una orden cerrada y firmada se podía
+       reabrir o cancelar por aquí. Probado contra la API: 200 las dos veces.
+       «Cerrar = wo.approve, sólo el Jefe» (bloque 62) no se afloja por una
+       puerta lateral. `puedeMoverFecha` es tener `wo.approve`. */
+    if (cur.status === 'CERRADA' || cur.status === 'CANCELADA') {
+      throw new ConflictException('Esta orden ya está cerrada: lo firmado no se edita.');
+    }
+    if (dto.status === 'CERRADA') {
+      throw new ForbiddenException('Cerrar una orden es un acto firmado: usa «Cerrar». Lo firma el Jefe de Mantenimiento.');
+    }
+    if (dto.status === 'CANCELADA' && !puedeMoverFecha) {
+      throw new ForbiddenException('Cancelar una orden lo decide el Jefe de Mantenimiento.');
+    }
+    /* BLOQUE 180 · el N° de OM SAP tiene su propia puerta (`PATCH :id/sap`),
+       con su permiso y su auditoría. Por aquí cualquiera con `wo.update` lo
+       cambiaría, y desengancharía la orden de SAP sin dejar rastro propio. */
+    if (dto.externalRef !== undefined) {
+      throw new BadRequestException('El N° de OM SAP se apunta con el botón «N° SAP» de la orden.');
+    }
+    // Y poner en proceso es ejecutar: «primero el N° SAP».
+    if (dto.status === 'EN_PROCESO' && cur.status !== 'EN_PROCESO') {
+      const sinSap = motivoSinOmSap(cur, 'pone en proceso');
+      if (sinSap) throw new BadRequestException(sinSap);
+    }
     const data: any = { ...dto };
+    /* La propuesta de síntoma y acción (de «Registrar intervención») tiene que
+       existir en su catálogo, igual que al 100 % del avance. */
+    for (const [kind, campo] of [['SINTOMA', 'symptomCode'], ['ACCION', 'actionCode']] as const) {
+      const codigo = dto[campo]?.trim();
+      if (dto[campo] === undefined) continue;
+      if (!codigo) { data[campo] = null; continue; }
+      const existe = await this.prisma.catalogItem.count({ where: { kind, code: codigo, active: true } });
+      if (!existe) throw new BadRequestException(`«${codigo}» no está en la lista. Elige otra opción.`);
+      data[campo] = codigo;
+    }
     if (dto.scheduledDate) {
       data.scheduledDate = new Date(dto.scheduledDate);
       const cambia = !cur.scheduledDate || cur.scheduledDate.getTime() !== data.scheduledDate.getTime();
@@ -617,7 +747,6 @@ export class MaintenanceService {
       // Quien sí puede moverla deja la fecha original guardada, una sola vez.
       if (cambia && cur.scheduledDate && !cur.fechaOriginal) data.fechaOriginal = cur.scheduledDate;
     }
-    if (dto.status === 'CERRADA' && !cur.executedDate) data.executedDate = new Date();
     const actualizada = await this.prisma.workOrder.update({ where: { id }, data, include: inc });
 
     // AVISO AL PONER EN ESPERA.
@@ -729,6 +858,9 @@ export class MaintenanceService {
   async closeSigned(id: string, dto: CloseWorkOrderDto, ip?: string | null) {
     const wo = await this.prisma.workOrder.findUnique({ where: { id } });
     if (!wo) throw new NotFoundException('Orden de mantenimiento no encontrada');
+    // Bloque 180 · «primero el N° SAP»: lo que se cierra aquí se cierra en SAP.
+    const sinSapAlCerrar = motivoSinOmSap(wo, 'cierra');
+    if (sinSapAlCerrar) throw new BadRequestException(sinSapAlCerrar);
     const signer = await this.prisma.user.findUnique({ where: { email: dto.email } });
     const valid = signer && signer.active
       ? await argon2.verify(signer.passwordHash, dto.password).catch(() => false)
@@ -810,7 +942,13 @@ export class MaintenanceService {
         // Cierre en campo (Bloque 1)
         endedAt: fin,
         closedById: signer!.id,
-        rootCause: dto.rootCause ?? undefined,
+        /* El enum viejo se rellena SÓLO si el código del catálogo coincide con
+           él. Antes la pantalla mandaba el código también como enum, y una
+           causa NUEVA creada desde Catálogo de fallas tumbaba el cierre con
+           un 400 (no es valor del enum). Ahora lo decide el servidor. */
+        rootCause: dto.rootCause
+          ?? (dto.rootCauseCode && (Object.values(RootCause) as string[]).includes(dto.rootCauseCode)
+            ? dto.rootCauseCode as RootCause : undefined),
         // Se escriben LAS DOS cuando el código elegido existe también en el
         // enum: así los informes viejos siguen funcionando y los nuevos leen
         // una sola columna. Una causa creada por el usuario solo cabe aquí.
@@ -829,7 +967,7 @@ export class MaintenanceService {
     /* Y al cerrarla, la incidencia pasa a RESUELTA — pero sólo si no le queda
        ninguna otra orden abierta (bloque 97). */
     if (wo.incidentId) {
-      await this.reflejarEnIncidencia(wo.incidentId, wo.code, 'cerrar', signer!.id, ip);
+      await this.reflejarEnIncidencia(wo.incidentId, wo.code, 'cerrar', signer!.id, ip, fin);
     }
 
     // Duración real del trabajo, en minutos. Sirve para comparar contra la
@@ -919,6 +1057,9 @@ export class MaintenanceService {
     if (wo.status === 'CERRADA' || wo.status === 'CANCELADA') {
       throw new BadRequestException('No se puede reportar avance sobre una orden cerrada.');
     }
+    // Bloque 180 · «primero el N° SAP»: sin orden en SAP no se ejecuta.
+    const sinSapAlAvanzar = motivoSinOmSap(wo, 'anota avance');
+    if (sinSapAlAvanzar) throw new BadRequestException(sinSapAlAvanzar);
 
     const pct = Math.max(0, Math.min(100, Number(dto.pct)));
     // El avance no retrocede sin explicación: si alguien baja el porcentaje,
@@ -958,6 +1099,23 @@ export class MaintenanceService {
        ========================================================================== */
     const ESTADOS_QUE_ADMITEN_AVANCE = ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'] as const;
 
+    /* AUDITORÍA DE PROCESOS 21/10 · «terminé» lleva la propuesta del técnico.
+       Síntoma, causa y acción quedan en la orden como PROPUESTA (sigue abierta)
+       y el cierre del Jefe los trae ya marcados: él revisa y firma. Cada código
+       tiene que existir en su catálogo: con texto libre no se puede contar
+       después qué falla más (bloque 169). */
+    const propuesta: { symptomCode?: string; rootCauseCode?: string; actionCode?: string } = {};
+    if (pct === 100) {
+      const pares = [['SINTOMA', 'symptomCode'], ['CAUSA', 'rootCauseCode'], ['ACCION', 'actionCode']] as const;
+      for (const [kind, campo] of pares) {
+        const codigo = dto[campo]?.trim();
+        if (!codigo) continue;
+        const existe = await this.prisma.catalogItem.count({ where: { kind, code: codigo, active: true } });
+        if (!existe) throw new BadRequestException(`«${codigo}» no está en la lista. Elige otra opción.`);
+        propuesta[campo] = codigo;
+      }
+    }
+
     const updated = await this.prisma.$transaction(async (tx) => {
       const movidas = await tx.workOrder.updateMany({
         where: { id, status: { in: ESTADOS_QUE_ADMITEN_AVANCE as any } },
@@ -965,6 +1123,7 @@ export class MaintenanceService {
           progressPct: pct,
           // Reportar avance implica que el trabajo está en marcha.
           status: wo.status === 'ABIERTA' ? 'EN_PROCESO' : wo.status,
+          ...propuesta,
         },
       });
 
@@ -1017,7 +1176,10 @@ export class MaintenanceService {
       entityId: id,
       ip,
       before: { avance: wo.progressPct },
-      after: { om: wo.code, avance: pct, motivo: dto.note || null },
+      after: {
+        om: wo.code, avance: pct, motivo: dto.note || null,
+        ...(Object.keys(propuesta).length ? { propuestaDeCierre: propuesta } : {}),
+      },
     });
 
     // Si el parte de avance dejó la orden EN ESPERA, se avisa igual: es el
@@ -1206,6 +1368,9 @@ export class MaintenanceService {
     };
 
     heading('Datos de la orden');
+    // Bloque 180: la OM es de SAP; en papel va su número primero.
+    line('N° de OM SAP', wo.externalRef || 'Sin N° de OM SAP');
+    if (wo.incident?.avisoSap) line('Aviso SAP', wo.incident.avisoSap);
     line('Tipo', wo.type);
     line('Estado', wo.status);
     line('Activo', wo.asset ? `${wo.asset.assetCode} (${wo.asset.type})` : '—');
@@ -1363,11 +1528,17 @@ export class MaintenanceService {
     momento: 'abrir' | 'cerrar',
     userId?: string | null,
     ip?: string | null,
+    /** Fin real del trabajo (cierre de la OM). Es cuando volvió a verse. */
+    cuando?: Date,
   ): Promise<void> {
     try {
       const inci = await this.prisma.incident.findUnique({
         where: { id: incidentId },
-        select: { id: true, code: true, status: true, resolvedAt: true },
+        select: {
+          id: true, code: true, status: true, resolvedAt: true, reportedAt: true,
+          mttrMinutes: true, reportedById: true, zone: true,
+          asset: { select: { assetCode: true } },
+        },
       });
       if (!inci) return;
       const actual = inci.status as EstadoIncidencia;
@@ -1386,6 +1557,21 @@ export class MaintenanceService {
       }
       if (!destino) return;
 
+      /* AUDITORÍA DE PROCESOS 21/10 — el camino normal se quedaba a medias.
+         Desde el bloque 97 la incidencia se RESUELVE sola al cerrar su orden,
+         pero tres cosas sólo pasaban en la resolución firmada aparte
+         (`resolveSigned`), que en ese camino ya no se usa:
+           · el MTTR de la incidencia (`mttrMinutes`) quedaba vacío;
+           · el evento de falla no se cerraba (`restoredAt`), así que
+             «Reparar» y «Sin ver» de Indicadores decían «sin datos» siempre;
+           · a quien reportó no le llegaba «ya se ve otra vez» (bloque 51-B),
+             y un canal que no contesta se abandona.
+         Se hacen aquí, con la hora de fin del trabajo. Nada nuevo que firmar:
+         la firma del cierre de la OM es la que afirma que volvió a funcionar. */
+      const resuelta = destino === 'RESUELTA';
+      const resueltaEn = inci.resolvedAt || cuando || new Date();
+      const mttr = inci.mttrMinutes
+        ?? Math.max(0, Math.round((resueltaEn.getTime() - inci.reportedAt.getTime()) / 60000));
       await this.prisma.incident.update({
         where: { id: incidentId },
         data: {
@@ -1393,9 +1579,27 @@ export class MaintenanceService {
           /* `resolvedAt` es la mitad del MTTR. Se escribe SÓLO si estaba
              vacía: si la incidencia ya se había resuelto una vez, pisarla
              movería una fecha que ya se contó en el informe del mes. */
-          ...(destino === 'RESUELTA' && !inci.resolvedAt ? { resolvedAt: new Date() } : {}),
+          ...(resuelta && !inci.resolvedAt ? { resolvedAt: resueltaEn } : {}),
+          ...(resuelta && inci.mttrMinutes == null ? { mttrMinutes: mttr } : {}),
         },
       });
+      if (resuelta) {
+        await this.prisma.failureEvent.updateMany({
+          where: { incidentId, restoredAt: null },
+          data: { restoredAt: resueltaEn },
+        });
+        if (inci.reportedById) {
+          await this.avisos.encolar(
+            'REPORTE_RESUELTO',
+            tuReporteSeResolvio({
+              code: inci.code, equipo: inci.asset?.assetCode, zona: inci.zone,
+              duracionMin: mttr, enlace: enlaceA(`/incidents?q=${inci.code}`),
+            }),
+            await this.avisos.aUnaPersona(inci.reportedById).catch(() => []),
+            incidentId,
+          ).catch(() => 0);
+        }
+      }
 
       await this.audit.record({
         userId: userId || null,
@@ -1446,6 +1650,8 @@ export class MaintenanceService {
     const programada = dto.scheduledDate
       ? new Date(dto.scheduledDate)
       : fechaLimite(criticidad, new Date());
+    // Bloque 180: si ya existe en SAP, su número viene desde el principio.
+    const sap = await this.numeroSapDeOm(dto.externalRef, null);
 
     // AVISO DE DUPLICADO: no se impide, porque a veces hacen falta dos
     // trabajos distintos sobre el mismo equipo. Pero abrir la segunda sin
@@ -1480,6 +1686,7 @@ export class MaintenanceService {
         technicianId: dto.technicianId || null,
         scheduledDate: programada,
         assignedById: userId || null,
+        externalRef: sap.numero,
         // Nace SIN detallar: eso es lo que la distingue del trabajo listo.
         detailedAt: null,
       },
@@ -1524,7 +1731,7 @@ export class MaintenanceService {
       await this.avisos.destinatarios('TECNICO', wo.technicianId).catch(() => []),
       wo.id,
     ).catch(() => 0);
-    return { ...wo, avisoDuplicado };
+    return { ...wo, avisoDuplicado, avisoSap: MaintenanceService.avisoDeSapRepetido(sap.numero, sap.repetidaEn) };
   }
 
   /**
@@ -1635,16 +1842,20 @@ export class MaintenanceService {
     // include se encontraría con un error incomprensible.
     const incidencia = await this.prisma.incident.findUnique({
       where: { id: incidentId },
-      select: { id: true, code: true, title: true, description: true, assetId: true, priority: true },
+      select: { id: true, code: true, title: true, description: true, assetId: true, priority: true, tipoAviso: true },
     });
     if (!incidencia) throw new NotFoundException('Incidencia no encontrada');
 
     return this.asignar({
-      type: dto?.type || 'CORRECTIVO',
+      /* Bloque 180: el tipo lo decide Mantenimiento al tratar el aviso. Si no
+         lo dice, se toma el que SUGIERE el aviso —falla → correctivo,
+         condición → preventivo, pedido → mejora—, no un correctivo para todo. */
+      type: dto?.type || tipoDeOrdenSugerido(incidencia.tipoAviso),
       activity: dto?.activity?.trim() || actividadDesdeIncidencia(incidencia),
       assetId: dto?.assetId ?? incidencia.assetId,
       technicianId: dto?.technicianId,
       scheduledDate: dto?.scheduledDate,
+      externalRef: dto?.externalRef,
       incidentId: incidencia.id,
     }, userId, ip);
   }

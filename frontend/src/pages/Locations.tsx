@@ -62,10 +62,10 @@ export default function Locations() {
   useEffect(() => { Promise.all([load(), loadStages()]).then(() => setLoading(false)); }, []);
 
   // ------------------------------------------------------------------ ubicaciones
-  function openNew() { setForm({ code: '', name: '', type: 'AREA', parentId: '', responsibleArea: '', howToGet: '', siglaTren: '', environment: '' }); }
+  function openNew() { setForm({ code: '', name: '', type: 'AREA', parentId: '', responsibleArea: '', howToGet: '', siglaTren: '', environment: '', sapLocationCode: '' }); }
   function openEdit(l: any) {
     setForm({ id: l.id, code: l.code, name: l.name, type: l.type, parentId: l.parentId || '', responsibleArea: l.responsibleArea || '',
-      howToGet: l.howToGet || '', siglaTren: l.siglaTren || '', environment: l.environment || '' });
+      howToGet: l.howToGet || '', siglaTren: l.siglaTren || '', environment: l.environment || '', sapLocationCode: l.sapLocationCode || '' });
   }
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -77,12 +77,15 @@ export default function Locations() {
           // Bloque 168: vacío = «no declarado» (se borra), no «sin cambios».
           howToGet: form.howToGet, siglaTren: form.type === 'TREN' ? form.siglaTren.trim().toUpperCase() || null : undefined,
           environment: form.environment || null,
+          // Bloque 180: '' la borra (vuelve a «sin declarar»).
+          sapLocationCode: form.sapLocationCode.trim(),
         });
       } else {
         await api.post('/locations', {
           code: form.code, name: form.name, type: form.type, parentId: form.parentId || undefined, responsibleArea: form.responsibleArea || undefined,
           howToGet: form.howToGet || undefined, siglaTren: form.type === 'TREN' ? form.siglaTren.trim().toUpperCase() || undefined : undefined,
           environment: form.environment || undefined,
+          sapLocationCode: form.sapLocationCode.trim() || undefined,
         });
       }
       setForm(null);
@@ -322,6 +325,13 @@ export default function Locations() {
             </label>
             <label>Área responsable
               <input value={form.responsibleArea} onChange={(e) => setForm({ ...form, responsibleArea: e.target.value })} />
+            </label>
+            {/* Bloque 180 · la pide el aviso de SAP. Se declara aquí una vez y la
+                heredan los equipos que cuelgan de este sitio. */}
+            <label>{'Ubicación técnica SAP'}
+              <input value={form.sapLocationCode} maxLength={40} placeholder="Ej.: 1221AE0303" className="num-sap"
+                title="El código de la ubicación técnica en SAP. Lo copia el aviso de SAP de los equipos de aquí."
+                onChange={(e) => setForm({ ...form, sapLocationCode: e.target.value.toUpperCase() })} />
             </label>
             {/* Bloque 168: alimentan la seguridad del trabajo y el rótulo. */}
             {form.type === 'TREN' && (

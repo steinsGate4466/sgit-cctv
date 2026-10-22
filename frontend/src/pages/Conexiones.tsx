@@ -10,6 +10,7 @@ import { useDialogos } from '../components/Dialogos';
 import BotonConMotivo from '../components/BotonConMotivo';
 import { mensajeDeError, queFalta } from '../avisos';
 import { TarjetaSwitch } from '../components/SwitchYPuertos';
+import { ComoSeCalcula } from '../components/Patron';
 
 /**
  * CONEXIONES DE RED (bloque 12.1).
@@ -126,16 +127,8 @@ export default function Conexiones() {
         <FiltroAmbito valor={ambito} onChange={setAmbito} />
       </div>
 
-      <div className="card explica">
-        <b>Aquí se declara qué está conectado con qué.</b> De esto salen el mapa
-        de la red y el cálculo de qué se deja de ver si un equipo cae. Sin esto,
-        el mapa son cajas sueltas.
-        <div style={{ marginTop: 6, fontSize: 12.5 }}>
-          <b>Puertos</b> para lo que va a un puerto numerado del switch — es el dato bueno.{' '}
-          <b>Enlaces</b> para el anillo de fibra y los radioenlaces.{' '}
-          Las cámaras se enlazan a su grabador en la pantalla <b>Grabadores</b>.
-        </div>
-      </div>
+      {/* Síntesis 21/10: una línea arriba; el resto, plegado al final. */}
+      <p className="page-sub">Qué está conectado con qué.</p>
 
       <div className="pestanas">
         <button className={pestana === 'puertos' ? 'act' : ''} onClick={() => setPestana('puertos')}>
@@ -154,10 +147,7 @@ export default function Conexiones() {
         switches.length === 0 ? (
           <div className="card vacio">
             <h3>No hay switches registrados</h3>
-            <p>
-              Da de alta los switches como activos de tipo <strong>SWITCH</strong> en
-              la pantalla de Activos. Aparecerán aquí para ir enchufando equipos.
-            </p>
+            <p>Se dan de alta en <Link to="/assets">Activos</Link> como tipo Switch.</p>
           </div>
         ) : (
           <>
@@ -202,12 +192,7 @@ export default function Conexiones() {
           {enlaces.length === 0 ? (
             <div className="card vacio">
               <h3>No hay enlaces declarados</h3>
-              <p>
-                Aquí van la fibra del anillo del core y los radioenlaces entre naves.
-                Marcar un tramo como <strong>anillo</strong> es lo que permite al
-                análisis entender que hay camino alternativo — y por eso un anillo
-                bien montado da impacto cero.
-              </p>
+              <p>Fibra del anillo y radioenlaces entre naves.</p>
             </div>
           ) : (
             <table className="tabla">
@@ -250,8 +235,8 @@ export default function Conexiones() {
               <button className="btn-mini" onClick={() => setNuevoEnlace(false)}>Cancelar</button>
               <BotonConMotivo onClick={guardarEnlace} ocupado={guardando}
                 falta={queFalta(
-                  [!ladoA, 'Elige el equipo del lado A: el enlace necesita sus dos extremos.'],
-                  [!ladoB, 'Elige el equipo del lado B: el enlace necesita sus dos extremos.'],
+                  [!ladoA, 'Elige el equipo del lado A.'],
+                  [!ladoB, 'Elige el equipo del lado B.'],
                 )}>
                 {guardando ? 'Guardando…' : 'Crear enlace'}
               </BotonConMotivo>
@@ -299,15 +284,13 @@ export default function Conexiones() {
           </label>
 
 
-          {medio === 'FIBRA' && (<>
-          <label style={{ display: 'flex', gap: 7, alignItems: 'center', fontSize: 13, margin: '10px 0' }}>
+          {medio === 'FIBRA' && (
+          <label style={{ display: 'flex', gap: 7, alignItems: 'center', fontSize: 13, margin: '10px 0' }}
+            title="Marcarlo permite detectar camino alternativo: un anillo declarado da impacto cero.">
             <input type="checkbox" checked={anillo} onChange={(e) => setAnillo(e.target.checked)} />
             Es un tramo del anillo de fibra
           </label>
-          <small className="muted" style={{ display: 'block', marginBottom: 10 }}>
-            Marcarlo permite detectar camino alternativo. Un anillo declarado da impacto cero.
-          </small>
-          </>)}
+          )}
 
           <label className="campo">
             <span>Detalle (opcional)</span>
@@ -318,6 +301,19 @@ export default function Conexiones() {
           </label>
         </Modal>
       )}
+
+      <ComoSeCalcula>
+        <p>
+          De aquí salen el mapa de la red y qué se deja de ver si un equipo cae.
+          <b> Puertos</b>: lo que va a un puerto numerado del switch (el dato bueno).
+          <b> Enlaces</b>: fibra del anillo y radioenlaces.
+        </p>
+        <p>
+          Un tramo marcado como <b>anillo</b> le dice al análisis que hay camino
+          alternativo: un anillo bien montado da impacto cero. Las cámaras se
+          enlazan a su grabador en <b>Grabadores</b>.
+        </p>
+      </ComoSeCalcula>
     </div>
   );
 }

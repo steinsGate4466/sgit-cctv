@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { motivoSinOmSap } from '../../common/aviso-sap';
 
 /**
  * PREPARACIÓN DE LA ORDEN — herramientas, materiales y reemplazo de equipo.
@@ -394,6 +395,10 @@ export class PreparacionService {
   ) {
     const wo = await this.prisma.workOrder.findUnique({ where: { id: workOrderId } });
     if (!wo) throw new NotFoundException('Orden de mantenimiento no encontrada');
+    /* Bloque 180 · el material sale del almacén CONTRA la OM de SAP. Sin su
+       número no hay a qué cargarlo, y el espejo del almacén se descuadra. */
+    const sinSap = motivoSinOmSap(wo, 'saca material del almacén');
+    if (sinSap) throw new BadRequestException(sinSap);
 
     const donde: any = { workOrderId, status: 'SOLICITADO' };
     // Si vienen ids, solo esas líneas: el ingeniero puede autorizar una parte.

@@ -13,6 +13,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import {
   CrearInstalacionDto, DecidirInstalacionDto, EvaluarInstalacionDto, InstaladaDto, SolicitarInstalacionDto,
 } from './dto/instalacion.dto';
+import { NumeroSapDto } from '../../common/numero-sap.dto';
 
 @ApiTags('instalaciones')
 @ApiBearerAuth()
@@ -122,8 +123,9 @@ export class InstalacionController {
   @AmbitoDe('instalacion')
   @Post(':id/orden')
   @RequirePermissions('wo.create')
-  generarOrden(@Param('id') id: string, @CurrentUser() u: any, @Ip() ip: string) {
-    return this.inst.generarOrden(id, u?.userId, ip);
+  generarOrden(@Param('id') id: string, @CurrentUser() u: any, @Ip() ip: string, @Body() body: NumeroSapDto) {
+    // Bloque 180: el N° de la OM de SAP, si ya existe. Opcional.
+    return this.inst.generarOrden(id, u?.userId, ip, body?.numero ?? null);
   }
 
   /** Cerrar el ciclo: nace el activo. Exige poder crear activos. */

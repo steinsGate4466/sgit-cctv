@@ -31,6 +31,7 @@ import { motivoParaNoCrearComoActivo } from '../../common/tipos-de-equipo';
 import { iconoDelEquipo } from '../planos/icono';
 import type { AssetStatus } from '../../generated/prisma/client';
 import { exigirFirmanteConPermiso } from '../../common/firmante';
+import { SOLO_FALLAS } from '../../common/aviso-sap';
 
 @Injectable()
 export class AssetsService {
@@ -197,7 +198,9 @@ export class AssetsService {
               OR: [
                 { status: { in: ['FUERA_SERVICIO', 'MANTENIMIENTO'] as AssetStatus[] } },
                 { workOrders: { some: { status: { in: WO_EN_CURSO } } } },
-                { incidents: { some: { status: { in: INCIDENCIA_ABIERTA } } } },
+                /* Bloque 180: sin servicio es que NO funciona. Una condición
+                   («funciona, pero se va a dañar») o un pedido no lo dejan. */
+                { incidents: { some: { status: { in: INCIDENCIA_ABIERTA }, AND: [SOLO_FALLAS] } } },
               ],
             }]
           : []),
@@ -581,6 +584,8 @@ export class AssetsService {
             id: true,
             code: true, type: true, status: true, activity: true,
             scheduledDate: true, executedDate: true,
+            // Bloque 180: sin N° de OM SAP no se anota avance; el QR lo dice antes.
+            externalRef: true,
             technician: { select: { fullName: true } },
           },
         },

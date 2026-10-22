@@ -194,9 +194,14 @@ export function tuPropuestaSeDecidio(d: {
  */
 export function resumenDiario(d: {
   vencidas: number; paradas: number; bajoMinimo: number; sinDetallar: number;
+  /* Bloque 180 · órdenes vivas sin su N° de OM SAP (no se pueden abrir) y
+     rutinas que tocan hoy sin OM de SAP vinculada (hay que ir a SAP). */
+  sinSap?: number; rutinasSinOm?: number;
   enlace?: string | null;
 }): Aviso | null {
-  const total = d.vencidas + d.paradas + d.bajoMinimo + d.sinDetallar;
+  const sinSap = d.sinSap ?? 0;
+  const rutinasSinOm = d.rutinasSinOm ?? 0;
+  const total = d.vencidas + d.paradas + d.bajoMinimo + d.sinDetallar + sinSap + rutinasSinOm;
   // Sin nada que contar NO SE MANDA NADA. Un "hoy no hay novedades" diario es
   // la forma más rápida de que alguien silencie el bot.
   if (total === 0) return null;
@@ -206,6 +211,8 @@ export function resumenDiario(d: {
     d.vencidas ? `${d.vencidas} vencida(s)` : '',
     d.paradas ? `${d.paradas} parada(s)` : '',
     d.bajoMinimo ? `${d.bajoMinimo} repuesto(s) bajo mínimo` : '',
+    sinSap ? `${sinSap} sin N° de OM SAP` : '',
+    rutinasSinOm ? `${rutinasSinOm} rutina(s) sin su OM de SAP` : '',
   ].filter(Boolean);
 
   return {

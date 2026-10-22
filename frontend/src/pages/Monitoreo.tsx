@@ -62,23 +62,14 @@ export default function Monitoreo() {
   return (
     <div>
       <h1 className="page-title">Monitoreo de red</h1>
-      <p className="page-sub">
-        Lo que se ve en la red, aparte de lo que dice el sistema.
-      </p>
+      <p className="page-sub">Qué responde de verdad en la red.</p>
 
       {apagado ? (
         <div className="card vacio">
           <Icono n="alerta" size={40} />
           <h3>El monitoreo está montado, pero apagado</h3>
-          <p>
-            Todo está listo: la base de datos, la puerta de entrada y el
-            programa que hace las comprobaciones. Falta una sola cosa —
-            <b> instalar el agente en una máquina de planta</b>, y para eso
-            hace falta el visto bueno de TI.
-          </p>
-          <p style={{ marginTop: 12 }}>
-            El agente <b>no abre ningún puerto</b>: se conecta él hacia fuera,
-            por HTTPS. La red industrial no queda expuesta.
+          <p title="El agente no abre ningún puerto: se conecta hacia fuera por HTTPS. La red industrial no queda expuesta.">
+            Falta <b>instalar el agente en una máquina de planta</b> (visto bueno de TI).
           </p>
         </div>
       ) : (
@@ -103,10 +94,8 @@ export default function Monitoreo() {
           {agentes.length === 0 ? (
             <div className="card vacio">
               <h3>Todavía no hay ningún agente</h3>
-              <p>
-                Cuando TI autorice, crea uno aquí, copia su token y arranca el
-                programa <code>agente/agente-planta.js</code> en una máquina de
-                planta con Node.js.
+              <p title="Crea uno, copia su token y arranca agente/agente-planta.js en una máquina de planta con Node.js.">
+                Se crea cuando TI lo autorice.
               </p>
             </div>
           ) : (
@@ -193,10 +182,9 @@ export default function Monitoreo() {
 
 function Kpi({ label, v, cls, hint }: { label: string; v: number; cls?: string; hint: string }) {
   return (
-    <div className={'kpi ' + (cls || '')}>
+    <div className={'kpi ' + (cls || '')} title={hint}>
       <div className="label">{label}</div>
       <div className="value">{v ?? 0}</div>
-      <div className="hint">{hint}</div>
     </div>
   );
 }

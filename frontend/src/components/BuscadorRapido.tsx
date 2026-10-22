@@ -57,7 +57,7 @@ const DESTINOS: Destino[] = [
   { ruta: '/por-tren', nombre: 'Por tren', seccion: 'General', alias: 'selector tren 1 2 3 elegir sector por zona todo del tren como esta mi tren zonas vitales manlift', permiso: 'om.mirar' },
   { ruta: '/vista-general', nombre: 'Vista general', seccion: 'General', alias: 'sectores por tren oficinas gruas desplegable resumen indice todo', permiso: 'om.mirar' },
   { ruta: '/dependencias', nombre: 'De qué depende cada cámara', seccion: 'General', alias: 'dependencia antena camaras colgadas de la antena que cuelga de que depende porque me quede sin ver switch grabador cadena diagrama arbol', permiso: 'om.mirar' },
-  { ruta: '/mis-camaras', nombre: 'Mis cámaras', seccion: 'General', alias: 'camara caida falla que pasa con esa camara avance om jefe de tren produccion', permiso: 'om.mirar' },
+  { ruta: '/mis-camaras', nombre: 'Cámaras del tren', seccion: 'General', alias: 'camara caida falla que pasa con esa camara avance om jefe de tren produccion', permiso: 'om.mirar' },
   { ruta: '/mis-activos', nombre: 'Mis activos', seccion: 'General', alias: 'manlift altura gabinete tablero campo inventario por tren que hay en mi tren subida elevador andamio escalera acceso costo produccion activos por tren', permiso: 'activos.mirar' },
   { ruta: '/riesgo', nombre: 'Riesgo', seccion: 'Infraestructura', alias: 'obsolescencia repuesto sin recambio fin de soporte viejo no se arregla stock critico', permiso: 'asset.read' },
   { ruta: '/rotulado', nombre: 'Estándar de rotulado', seccion: 'Infraestructura', alias: 'etiqueta codigo color cable tia 606 nomenclatura como se llama', permiso: 'asset.read' },

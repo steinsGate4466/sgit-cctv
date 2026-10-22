@@ -184,7 +184,7 @@ export default function Limpieza() {
         ) : (
           <>
             <div className="card explica">
-              Activos <b>sin orden ni incidencia</b>, ordenados por señales de basura. Es una pista: mira el código antes de borrar.
+              Activos <b>sin orden ni incidencia</b>, por señales de basura: mira el código antes de borrar.
             </div>
             <div className="desliza"><table className="tabla">
               <thead>

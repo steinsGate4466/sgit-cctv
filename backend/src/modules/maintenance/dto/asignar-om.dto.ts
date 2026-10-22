@@ -11,8 +11,8 @@ import { Fecha, Id, Numero, Texto, UnoDe } from '../../../common/validacion';
    dejaría de guardar (bloque 90). No transforman: el servicio convierte.
 ============================================================================= */
 
-/** Todos los valores del enum `WorkOrderType` de schema.prisma. */
-const TIPOS_DE_ORDEN = ['PREVENTIVO', 'CORRECTIVO', 'MEJORA', 'PREDICTIVO', 'MAPEO'] as const;
+/** Todos los valores del enum `WorkOrderType` de schema.prisma (INSTALACION, bloque 180). */
+const TIPOS_DE_ORDEN = ['PREVENTIVO', 'CORRECTIVO', 'MEJORA', 'PREDICTIVO', 'MAPEO', 'INSTALACION'] as const;
 
 /** POST /work-orders/asignar — la orden rápida del ingeniero. */
 export class AsignarOmDto {
@@ -24,6 +24,8 @@ export class AsignarOmDto {
   @Id() incidentId?: string | null;
   @Id() technicianId?: string | null;
   @Fecha() scheduledDate?: string;
+  /** Bloque 180 · el N° de la OM en SAP, si ya existe. Lo normaliza el servicio. */
+  @Texto(30) externalRef?: string | null;
 }
 
 /**
@@ -36,6 +38,8 @@ export class DesdeIncidenciaDto {
   @Id() assetId?: string | null;
   @Id() technicianId?: string | null;
   @Fecha() scheduledDate?: string;
+  /** Bloque 180 · el N° de la OM en SAP, si ya existe. */
+  @Texto(30) externalRef?: string | null;
 }
 
 /** PATCH /work-orders/:id/detallar — lo que completa el técnico. */

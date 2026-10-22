@@ -9,5 +9,7 @@ import { NotificacionesModule } from '../notificaciones/notificaciones.module';
   imports: [AuditModule, StorageModule, NotificacionesModule],
   controllers: [IncidentsController],
   providers: [IncidentsService],
+  // Bloque 180: la inspección de grúa abre su aviso con este mismo alta.
+  exports: [IncidentsService],
 })
 export class IncidentsModule {}

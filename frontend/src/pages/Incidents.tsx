@@ -11,6 +11,12 @@ import { useDialogos } from '../components/Dialogos';
 import { fechaHora, PRIORIDAD_ES, plural } from '../formato';
 import { fechaCorta, fechaTabla, haceCuanto } from '../fechas';
 import { useBusquedaEnVivo } from '../useBusquedaEnVivo';
+import ElegirConClics from '../components/ElegirConClics';
+import AvisoSapDeIncidencia from '../components/AvisoSapDeIncidencia';
+import {
+  CLASE_DEL_AVISO, OPCIONES_DEL_AVISO, QUE_SIGNIFICA_EL_AVISO, TIPOS_DE_AVISO, TIPO_DE_AVISO_ES,
+  avisoDelNumeroSap, normalizarNumeroSap, tipoDeAviso,
+} from '../avisoSap';
 
 // Categorías agrupadas para el selector (CCTV/NVR, Red/energía, Entorno de planta).
 const CATEGORY_GROUPS: { label: string; items: string[] }[] = [
@@ -92,6 +98,7 @@ export default function Incidents() {
   const [fq, setFq] = useState(() => new URLSearchParams(window.location.search).get('q') || '');
   const [fCat, setFCat] = useState('');
   const [fStatus, setFStatus] = useState('');
+  const [fTipo, setFTipo] = useState('');
   const [ambito, setAmbito] = useState<Ambito>(AMBITO_VACIO);
   // Convertir la incidencia en orden sin reescribir a mano lo que ya está
   // escrito justo al lado: equipo, zona y descripción.
@@ -103,7 +110,12 @@ export default function Incidents() {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   // Bloque 168: prioridad '' = la de la zona (el servidor no deja bajarla).
-  const [form, setForm] = useState<any>({ title: '', category: 'GENERAL', priority: '', assetId: '', zone: '', description: '', affectedCameras: '' });
+  /* Bloque 180: `tipoAviso` nace vacío a propósito. «¿El equipo funciona?» se
+     CONTESTA; un valor por defecto diría que alguien lo contestó. */
+  const FORM_VACIO = { title: '', category: 'GENERAL', priority: '', assetId: '', zone: '', description: '', affectedCameras: '', tipoAviso: '', avisoSap: '' };
+  const [form, setForm] = useState<any>(FORM_VACIO);
+  // Bloque 180: la incidencia cuyo aviso de SAP se está mirando.
+  const [avisoSapDe, setAvisoSapDe] = useState<any>(null);
   const [causas, setCausas] = useState<any[]>([]);
   const [acciones, setAcciones] = useState<any[]>([]);
   /** La zona se sabe por el equipo: se rellena si nadie la escribió. */
@@ -147,6 +159,7 @@ export default function Incidents() {
     if (fq.trim()) params.set('q', fq.trim());
     if (fCat) params.set('category', fCat);
     if (fStatus) params.set('status', fStatus);
+    if (fTipo) params.set('tipoAviso', fTipo);
     if (from) params.set('from', new Date(from + 'T00:00:00').toISOString());
     if (to) params.set('to', new Date(to + 'T23:59:59.999').toISOString());
     if (ambito.tren) params.set('tren', ambito.tren);
@@ -186,7 +199,14 @@ export default function Incidents() {
       const equipo = assets.find((a) => a.id === form.assetId)?.assetCode;
       const titulo = form.title.trim() || [completaTecnico && form.category !== 'GENERAL' ? catEs(form.category) : '', equipo].filter(Boolean).join(' — ');
       if (titulo.length < 3) { await avisar('Elige la categoría y el equipo, o escribe qué pasa.'); return; }
-      const body: any = { title: titulo };
+      /* Bloque 180: decide si cuenta como falla. Sin contestarlo, el MTBF
+         contaría como avería un gabinete que funciona. */
+      if (!form.tipoAviso) { await avisar('Contesta si el equipo funciona: decide si cuenta como falla.'); return; }
+      const malSap = avisoDelNumeroSap(form.avisoSap);
+      if (malSap) { await avisar(malSap); return; }
+      const body: any = { title: titulo, tipoAviso: form.tipoAviso };
+      const avisoSap = normalizarNumeroSap(form.avisoSap);
+      if (avisoSap) body.avisoSap = avisoSap;
       if (completaTecnico) { body.category = form.category; if (form.priority) body.priority = form.priority; }
       if (form.assetId) body.assetId = form.assetId;
       if (form.zone) body.zone = form.zone.trim();
@@ -194,7 +214,7 @@ export default function Incidents() {
       if (form.affectedCameras) body.affectedCameras = Number(form.affectedCameras);
       await api.post('/incidents', body);
       setShowForm(false);
-      setForm({ title: '', category: 'GENERAL', priority: '', assetId: '', zone: '', description: '', affectedCameras: '' });
+      setForm(FORM_VACIO);
       await load();
     } catch (err: any) {
       const m = err?.response?.data?.message;
@@ -247,6 +267,7 @@ export default function Incidents() {
   function openProposal(i: any) {
     setPropId(i.id);
     setProp({
+      tipoAviso: tipoDeAviso(i.tipoAviso),
       category: i.category || 'GENERAL', priority: i.priority || 'MEDIA',
       proposal: i.proposal || '', proposalCost: i.proposalCost || '',
       proposalRisk: i.proposalRisk || '', requiresThirdParty: !!i.requiresThirdParty,
@@ -258,6 +279,8 @@ export default function Incidents() {
     try {
       await api.patch('/incidents/' + propId, {
         // Bloque 139: aquí el técnico completa lo que quien reportó no sabía.
+        // Bloque 180: y corrige si funciona o no, que decide si cuenta como falla.
+        tipoAviso: prop.tipoAviso || undefined,
         category: prop.category || undefined,
         priority: prop.priority || undefined,
         proposal: prop.proposal || undefined,
@@ -300,7 +323,7 @@ export default function Incidents() {
     } catch { await avisar('No se pudo generar el informe.'); }
   }
 
-  function clearFilters() { setFq(''); setFCat(''); setFStatus(''); setFrom(''); setTo(''); }
+  function clearFilters() { setFq(''); setFCat(''); setFStatus(''); setFTipo(''); setFrom(''); setTo(''); }
 
   // Cambio de estado NO terminal (Abierta / En diagnóstico / En proceso / En espera).
   // El cierre (Resuelta) se hace con firma del Jefe (botón "Resolver").
@@ -358,7 +381,8 @@ export default function Incidents() {
 
       <div className="filters">
         <FiltroAmbito valor={ambito} onChange={setAmbito} />
-        <div style={{ flex: 1, minWidth: 160 }}><label>Buscar<input placeholder="código, título, zona…" value={fq} onChange={(e) => setFq(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} /></label></div>
+        <div style={{ flex: 1, minWidth: 160 }}><label>Buscar<input placeholder="código, título, zona, aviso SAP…" value={fq} onChange={(e) => setFq(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} /></label></div>
+        <div><label>Tipo<select value={fTipo} onChange={(e) => setFTipo(e.target.value)}><option value="">Todos</option>{TIPOS_DE_AVISO.map((t) => <option key={t} value={t}>{TIPO_DE_AVISO_ES[t]}</option>)}</select></label></div>
         <div><label>Categoría<select value={fCat} onChange={(e) => setFCat(e.target.value)}><option value="">Todas</option>{CATEGORY_GROUPS.map((g) => <optgroup key={g.label} label={g.label}>{g.items.map((c) => <option key={c} value={c}>{catEs(c)}</option>)}</optgroup>)}</select></label></div>
         <div><label>Estado<select value={fStatus} onChange={(e) => setFStatus(e.target.value)}><option value="">Todos</option>{STATUSES.map((s) => <option key={s} value={s}>{stEs(s)}</option>)}</select></label></div>
         <div><label>Desde<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></label></div>
@@ -394,7 +418,15 @@ export default function Incidents() {
                     son ocho, y `verificar:densidad` lo cazó al añadir la fecha. */}
                 <td>
                   {i.title}
-                  <div className="muted" style={{ fontSize: 11 }}>{catEs(i.category)}</div>
+                  {/* Bloque 180: si funciona o no —decide si cuenta como falla—
+                      y el aviso de SAP, si ya lo tiene. */}
+                  <div className="linea-aviso">
+                    <span className={CLASE_DEL_AVISO[tipoDeAviso(i.tipoAviso)]} title={QUE_SIGNIFICA_EL_AVISO[tipoDeAviso(i.tipoAviso)]}>
+                      {TIPO_DE_AVISO_ES[tipoDeAviso(i.tipoAviso)]}
+                    </span>
+                    <span className="muted">{catEs(i.category)}</span>
+                    {i.avisoSap && <span className="num-sap" title="N° del aviso en SAP">{'SAP ' + i.avisoSap}</span>}
+                  </div>
                 </td>
                 <td className="muted" style={{ fontSize: 12 }}>{i.zone || '—'}</td>
                 {/* REPORTADA Y RESUELTA EN UNA SOLA COLUMNA.
@@ -499,6 +531,12 @@ export default function Incidents() {
                       aria-label="Más acciones de esta incidencia" title="Más acciones">⋯</summary>
                     <div className="acciones-fila-menu">
                       {can('incident.update') && <button className="btn-mini" onClick={() => openPhotos(i.id)}>Fotos</button>}
+                      {(can('incident.update') || can('incident.create')) && (
+                        <button className="btn-mini" onClick={() => setAvisoSapDe(i)}
+                          title="Lo que lleva el aviso en SAP, para copiar, y su N°">
+                          {i.avisoSap ? 'Aviso SAP ✓' : 'Aviso SAP'}
+                        </button>
+                      )}
                       {can('incident.update') && openIssue(i) && (
                         <button className="btn-mini" onClick={() => openProposal(i)}>
                           <><Icono n="nota" size={13} /> {i.proposal ? 'Propuesta ✓' : 'Propuesta'}</>
@@ -538,6 +576,11 @@ export default function Incidents() {
               onChange={(id) => setForm({ ...form, assetId: id, zone: form.zone.trim() && form.zone !== zonaDe(form.assetId) ? form.zone : zonaDe(id) })}
               vacio="— ninguno —"
             />
+            {/* Bloque 180 · se contesta con un clic y decide si cuenta como
+                falla. Un gabinete destrozado que funciona no es una avería. */}
+            <ElegirConClics etiqueta="¿El equipo funciona?" opciones={OPCIONES_DEL_AVISO}
+              valor={form.tipoAviso ? [form.tipoAviso] : []}
+              onChange={(v) => setForm({ ...form, tipoAviso: v[0] || '' })} />
             <label>{completaTecnico ? 'Título' : '¿Qué pasa?'}
               <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required={!completaTecnico} minLength={3}
                 placeholder={completaTecnico ? 'Opcional: se arma con la categoría y el equipo' : 'Ej.: la cámara del lecho se ve negra'} />
@@ -559,6 +602,12 @@ export default function Incidents() {
               <input type="number" min={0} value={form.affectedCameras} onChange={(e) => setForm({ ...form, affectedCameras: e.target.value })} />
             </label>
             )}
+            {/* Bloque 180 · si el aviso ya se creó en SAP. Si no, se apunta después. */}
+            <label title="Si ya se creó en SAP. Si no, se apunta después con «Aviso SAP».">{'N° de aviso SAP'}
+              <input className="num-sap" value={form.avisoSap} maxLength={20} inputMode="numeric" placeholder="Si ya existe, p. ej. 10000261278"
+                onChange={(e) => setForm({ ...form, avisoSap: e.target.value })} />
+            </label>
+            {avisoDelNumeroSap(form.avisoSap) && <div className="num-sap-falta" style={{ fontSize: 12 }}>{avisoDelNumeroSap(form.avisoSap)}</div>}
             <button className="btn" disabled={saving}>{saving ? 'Guardando…' : 'Crear incidencia'}</button>
           </form>
         </Modal>
@@ -570,6 +619,11 @@ export default function Incidents() {
             <div className="sign-note">
               <b>Qué se propone hacer</b> para resolverlo de fondo. Va al informe.
             </div>
+            {/* Bloque 180 · quien está delante corrige si funciona: decide si
+                cuenta como falla y el tipo de orden que se propone. */}
+            <ElegirConClics etiqueta="¿El equipo funciona?" opciones={OPCIONES_DEL_AVISO}
+              valor={prop.tipoAviso ? [prop.tipoAviso] : []}
+              onChange={(v) => setProp({ ...prop, tipoAviso: v[0] || prop.tipoAviso })} />
             {/* Bloque 139 · la clasificación la completa el técnico, no quien
                 reportó. Va primero: es lo que ordena la bandeja. */}
             <div style={{ display: 'flex', gap: 10 }}>
@@ -604,7 +658,7 @@ export default function Incidents() {
       {photoId && (
         <Modal title="Fotografías de campo" onClose={() => setPhotoId(null)}>
           <form onSubmit={uploadPhoto}>
-            <div className="sign-note">Fotos de campo. Van al informe PDF.</div>
+            <div className="sign-note">Van al informe PDF.</div>
             <label>Imagen (JPG / PNG)
               <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
             </label>
@@ -684,6 +738,10 @@ export default function Incidents() {
       )}
       {convirtiendo && (
         <AsignarOm incidente={convirtiendo} onHecho={load} onClose={() => setConvirtiendo(null)} />
+      )}
+      {avisoSapDe && (
+        <AvisoSapDeIncidencia incidencia={avisoSapDe} puedeCorregir={can('incident.update')}
+          onHecho={load} onClose={() => setAvisoSapDe(null)} />
       )}
 
     </div>

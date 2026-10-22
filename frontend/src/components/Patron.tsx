@@ -187,7 +187,7 @@ export function LoQueHayQueHacer({
       </div>
       {restantes > 0 && (
         <p className="acciones-resto">
-          y {restantes} más — están abajo, en el detalle.
+          y {restantes} más, abajo.
         </p>
       )}
     </>

@@ -287,7 +287,7 @@ export interface RepartoDeTrabajo {
   /** Porcentajes, o null si no hay ni una orden que repartir. */
   pct: { correctivo: number; preventivo: number } | null;
   /** Fuera del reparto, pero se enseñan para que el total cuadre. */
-  otros: { mejora: number; mapeo: number; predictivo: number };
+  otros: { mejora: number; mapeo: number; predictivo: number; instalacion: number };
   /** Qué habría que mover para acercarse a un mantenimiento planificado. */
   lectura: string;
   /** Bloque 164 · de dónde salió cada orden que entra en el reparto. */
@@ -308,6 +308,10 @@ export function repartoDeTrabajo(ordenes: OrdenParaCalculo[]): RepartoDeTrabajo 
     mejora: cuenta('MEJORA'),
     mapeo: cuenta('MAPEO'),
     predictivo: cuenta('PREDICTIVO'),
+    /* Bloque 180 · INSTALACIÓN tiene tipo propio (decisión 4 de Cristhian):
+       equipos nuevos y planos. Ni se rompió nada ni se previene nada: contarla
+       como correctivo —que es lo que pasaba— inflaba el correctivo del comité. */
+    instalacion: cuenta('INSTALACION'),
   };
   const base = correctivo + preventivo;
   const desglose = (t: string) => {
@@ -321,7 +325,7 @@ export function repartoDeTrabajo(ordenes: OrdenParaCalculo[]): RepartoDeTrabajo 
   if (base === 0) {
     return {
       correctivo, preventivo, base, otros, pct: null, origen, demo,
-      lectura: 'Sin órdenes de mantenimiento en el periodo. No hay reparto que medir.',
+      lectura: 'Sin órdenes en el periodo: no hay reparto que medir.',
     };
   }
 
@@ -334,20 +338,18 @@ export function repartoDeTrabajo(ordenes: OrdenParaCalculo[]): RepartoDeTrabajo 
      alguien lo interprete en voz alta en cada reunión. */
   let lectura: string;
   if (pct.correctivo >= 60) {
-    lectura = `${pct.correctivo} % del trabajo es correctivo: se apagan incendios. `
-      + 'El objetivo es bajarlo subiendo el preventivo planificado.';
+    lectura = `${pct.correctivo} % correctivo: se apagan incendios. Hay que subir el preventivo.`;
   } else if (planificado >= 70) {
-    lectura = `${planificado} % del trabajo es planificado. El mantenimiento se `
-      + 'adelanta a la avería.';
+    lectura = `${planificado} % planificado: el mantenimiento se adelanta a la avería.`;
   } else {
-    lectura = `${planificado} % planificado frente a ${pct.correctivo} % correctivo. `
-      + 'La meta es seguir moviendo trabajo al lado planificado.';
+    lectura = `${planificado} % planificado frente a ${pct.correctivo} % correctivo.`;
   }
 
   /* Si la mayoría de las preventivas las creó el programador, el «% planificado»
-     mide lo que el sistema PROGRAMÓ, no lo que se hizo. Se avisa en la lectura. */
+     mide lo que el sistema PROGRAMÓ, no lo que se hizo. Se avisa en la lectura:
+     el desglose de abajo da el número, esto da la interpretación. */
   if (origen.preventivo.AUTOMATICA > 0 && origen.preventivo.AUTOMATICA * 2 >= preventivo) {
-    lectura += ` Ojo: ${origen.preventivo.AUTOMATICA} de las ${preventivo} preventivas las generó el sistema desde los planes.`;
+    lectura += ` Ojo: ${origen.preventivo.AUTOMATICA} de las ${preventivo} preventivas las generó el sistema.`;
   }
 
   return { correctivo, preventivo, base, otros, pct, lectura, origen, demo };

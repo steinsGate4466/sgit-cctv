@@ -1,12 +1,10 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { WorkOrderStatus } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { autogenApagadaPorEntorno } from './autogen-entorno';
 import { AuditService } from '../audit/audit.service';
 import { UpsertPreventivePlanDto } from './dto/upsert-plan.dto';
-import {
-  conReintentoDeCodigo, esChoqueDeUnicidad, siguienteCorrelativo,
-} from '../../common/correlativo';
+import { conReintentoDeCodigo, siguienteCorrelativo } from '../../common/correlativo';
+import { motivoNumeroSapInvalido, normalizarNumeroSap } from '../../common/aviso-sap';
 import {
   PlanParaProgramar, VentanaParaProgramar, actividadDeLaOrden, programar,
 } from '../../common/programacion-preventiva';
@@ -163,61 +161,29 @@ export class PreventiveService {
     return { ...plan, statusPlan: this.planStatus(plan.nextDueAt, plan.active) };
   }
 
-  /**
-   * Genera órdenes de mantenimiento **PREVENTIVAS** (y solo preventivas) para los planes
-   * vencidos. Es la única generación automática del sistema: correctivo, mejora y
-   * predictivo siempre nacen de una decisión humana (incidencia, análisis o mejora).
-   *
-   * Reglas de negocio aplicadas:
-   *  1. Solo planes ACTIVOS y con vencimiento dentro de la ventana (vencidos + lookahead).
-   *  2. Se excluyen activos dados de baja (deletedAt) o en estado BAJA / STOCK:
-   *     no tiene sentido mantener un equipo que no está en operación.
-   *  3. No se duplica: si el activo ya tiene una OM preventiva abierta, se omite.
-   *  4. La OM hereda la ZONA del activo (ubicación) para ubicar el trabajo en planta.
-   *  5. `scheduledDate` = fecha real de vencimiento del plan (no "hoy"), para que el
-   *     indicador de OM vencidas refleje el atraso verdadero.
-   *  6. Todo queda auditado con el detalle de lo generado.
-   *
-   * @param lookaheadDays  genera también las que vencen dentro de N días (0 = solo vencidas).
-   */
-  async generateDue(userId?: string | null, ip?: string | null, lookaheadDays = 0) {
-    const now = new Date();
-    const limit = lookaheadDays > 0 ? this.addDays(now, lookaheadDays) : now;
+  /* ===========================================================================
+     BLOQUE 180 · EL PREVENTIVO PROGRAMA Y VINCULA. NO CREA ÓRDENES SOLO.
+     ---------------------------------------------------------------------------
+     Decisión 3 de Cristhian (22/10/2026): «solo programa y vincula». La OM de
+     una rutina la genera SAP —plan de mantenimiento + hoja de ruta— y aquí se
+     VINCULA a su rutina. Hasta el bloque 179 este servicio creaba órdenes
+     preventivas cada madrugada con número propio: dos órdenes para el mismo
+     trabajo, una en SAP y otra aquí, y el reparto del comité contando las que
+     nadie pidió.
 
-    const due = await this.prisma.preventivePlan.findMany({
-      where: {
-        active: true,
-        nextDueAt: { lte: limit },
-        // Solo activos vigentes y en operación.
-        asset: { deletedAt: null, status: { notIn: ['BAJA', 'STOCK'] as any } },
-      },
-      include: {
-        asset: {
-          select: {
-            id: true, assetCode: true, type: true,
-            location: { select: { name: true } },
-            cabinet: { select: { code: true } },
-          },
-        },
-      },
-      orderBy: { nextDueAt: 'asc' },
-    });
+     Lo que SÍ sigue haciendo, y es lo que vale: decir QUÉ rutina toca y CUÁNDO
+     (vencimiento, letra A/B/C, ambiente, ventana de parada) y, al vincular,
+     poner en la orden los pasos de su hoja de ruta y la fecha programada.
+     =========================================================================== */
 
-    /* ------------------------------------------------------------------ b78
-       LO QUE HACE FALTA PARA PROGRAMAR DE VERDAD, y no sólo para «crear hoy».
-
-       Tres consultas más, UNA VEZ para todo el lote — no una por plan. El lote
-       corre de madrugada sobre cuatrocientos activos: una consulta por plan
-       serían mil doscientas.
-
-         · ventanas   → cuándo se puede entrar si la zona exige tren parado
-         · hojas      → qué hacer, por tipo de equipo
-         · letras     → cada cuánto según el método CTR
-         · contexto   → tren y ambiente de cada activo
-
-       Si algo de esto falla, el lote SIGUE con lo que tenía antes: generar la
-       orden aunque sea sin pasos vale más que no generarla. */
-    const activos = due.map((d) => ({ id: d.assetId, locationId: (d.asset as any).locationId ?? null }));
+  /** Lo que hace falta para programar, UNA vez para todo el lote (bloque 78). */
+  private async contextoDeProgramacion(
+    planes: Array<{ assetId: string; asset: any }>,
+    now: Date,
+  ) {
+    const activos = planes.map((d) => ({ id: d.assetId, locationId: d.asset?.locationId ?? null }));
+    /* Si algo de esto falla, se programa con lo que haya: una rutina sin sus
+       pasos vale más que no saber que toca. */
     const [ventanas, hojas, letras, ctx] = await Promise.all([
       this.prisma.ventanaParada.findMany({
         where: { estado: { in: ['ANUNCIADA', 'CONFIRMADA'] as any }, inicioPrevisto: { gte: now } },
@@ -237,249 +203,256 @@ export class PreventiveService {
       }).catch(() => ({} as Record<string, any>)),
       resolverContextoDePlanta(this.prisma, activos).catch(() => ({} as any)),
     ]);
-
     const pasosPorTipo = new Map<string, { op: number; sub: number | null; texto: string }[]>();
     for (const h of hojas as any[]) {
       pasosPorTipo.set(h.tipoEquipo, (h.operaciones || []).map((o: any) => ({
         op: o.operacion, sub: o.subOperacion, texto: o.descripcion,
       })));
     }
-
-    const created: { code: string; asset: string; dueAt: Date | null }[] = [];
-    const skipped: { asset: string; motivo: string }[] = [];
-    /* Las que se generan sin poder hacerse todavía. Van en la respuesta y no
-       en el registro de auditoría: es trabajo que alguien tiene que desatascar
-       pidiendo una parada, no un fallo del lote. */
-    const esperandoParada: { asset: string; tren: string | null }[] = [];
-
-    /* UNA CONSULTA PARA TODOS, NO UNA POR ACTIVO — bloque 105.
-       ----------------------------------------------------------------------
-       Antes esto preguntaba «¿tiene ya una preventiva abierta?» DENTRO del
-       bucle: una consulta por activo vencido. Con cuatrocientos equipos es
-       cuatrocientas idas y vueltas a la base en cada tick del planificador,
-       cada una atando una conexión del pool.
-
-       No se veía porque el planificador corre solo y nadie lo mira — pero es
-       exactamente el trabajo que CRECE con el tamaño de la planta, que es la
-       única clase de lentitud que acaba importando.
-
-       Ahora es UNA consulta y un conjunto en memoria. El resultado es idéntico;
-       lo que cambia es que ya no depende de cuántos equipos venzan. */
-    const idsVencidos = due
-      .map((p) => p.assetId)
-      .filter((x): x is string => !!x);
-    const conPreventivaAbierta = new Set(
-      idsVencidos.length
-        ? (await this.prisma.workOrder.findMany({
-            where: {
-              assetId: { in: idsVencidos },
-              type: 'PREVENTIVO',
-              status: { in: OPEN_WO },
-            },
-            select: { assetId: true },
-          }))
-          .map((w) => w.assetId)
-          .filter((x): x is string => !!x)
-        : [],
-    );
-
-    for (const plan of due) {
-      // Regla 3: no duplicar si ya hay una preventiva en curso para ese activo.
-      if (conPreventivaAbierta.has(plan.assetId)) {
-        skipped.push({ asset: plan.asset.assetCode, motivo: 'ya tiene una OM preventiva abierta' });
-        continue;
-      }
-
-      // Regla 4: zona = gabinete (si está montado) o ubicación del activo.
-      const zone = plan.asset.cabinet?.code
-        ? `${plan.asset.location?.name || 'Planta'} — ${plan.asset.cabinet.code}`
-        : plan.asset.location?.name || undefined;
-
-      /* --------------------------------------------------------------- b78
-         SE PROGRAMA DE VERDAD: fecha, frecuencia y pasos.
-
-         Antes esto era `scheduledDate: plan.nextDueAt || now` y una frase.
-         Ahora la fecha sale de casar tres cosas —cuándo vence, qué frecuencia
-         manda y cuándo se puede entrar— y la orden nace con los pasos de su
-         hoja de ruta dentro. */
-      const c = (ctx as any)[plan.assetId];
-      const paraProgramar: PlanParaProgramar = {
-        assetId: plan.assetId,
-        assetCode: plan.asset.assetCode,
-        tipoEquipo: plan.asset.type as string,
-        trenCode: c?.trenCode ?? null,
-        vencePlan: plan.nextDueAt,
-        diasDelPlan: plan.intervalDays,
-        diasPorLetra: (letras as any)[plan.assetId]?.diasEntreRevisiones ?? null,
-        diasPorAmbiente: c?.intervaloDias ?? intervaloParaAmbiente(c?.ambiente ?? null),
-        /* Lo FIRMADO, no la propuesta. Sin firma vale EXIGE_PARADA: un equipo
-           sin declarar espera ventana, que es fallar hacia el lado seguro. */
-        intervencionAplica: c?.intervencionAplica ?? 'EXIGE_PARADA',
-      };
-      const pr = programar(paraProgramar, ventanas as VentanaParaProgramar[], now);
-      if (pr.esperandoVentana) {
-        esperandoParada.push({ asset: plan.asset.assetCode, tren: paraProgramar.trenCode });
-      }
-      const actividad = actividadDeLaOrden(
-        pr,
-        pasosPorTipo.get(plan.asset.type as string) ?? [],
-      );
-
-      /* BLOQUE 37 — SE REINTENTA EN VEZ DE OMITIR.
-         --------------------------------------------------------------------
-         Antes, un choque de código dejaba el plan fuera del lote con el
-         motivo «código en uso, reintentar». Pero nadie reintentaba: el lote
-         lo lanza el programador automático de madrugada y no lo mira nadie.
-         Resultado: un preventivo que tocaba y no se generó, y el aviso
-         enterrado en el resumen de una tarea nocturna.
-
-         Ahora el choque se absorbe. Lo que SÍ se sigue omitiendo es
-         cualquier otro fallo: eso no es concurrencia y el lote no puede
-         pararse entero por un plan malo. */
-      try {
-        const code = await conReintentoDeCodigo(async () => {
-          const c = await this.nextCode();
-          await this.prisma.workOrder.create({
-            data: {
-              code: c,
-              type: 'PREVENTIVO',
-              status: 'ABIERTA',
-              assetId: plan.assetId,
-              zone,
-              activity: actividad,
-              // La fecha ya viene resuelta: vencimiento real, o la ventana de
-              // parada si la zona la exige.
-              scheduledDate: pr.fecha,
-            },
-          });
-          return c;
-        });
-        created.push({ code, asset: plan.asset.assetCode, dueAt: plan.nextDueAt });
-      } catch (e: any) {
-        skipped.push({
-          asset: plan.asset.assetCode,
-          motivo: esChoqueDeUnicidad(e)
-            ? 'el código siguió ocupado tras tres intentos'
-            : (e?.message || 'no se pudo crear la orden'),
-        });
-      }
-    }
-
-    await this.audit.record({
-      userId: userId || null,
-      action: 'PREVENTIVE_GENERATE',
-      entity: 'work_orders',
-      ip,
-      after: {
-        generadas: created.length,
-        omitidas: skipped.length,
-        ventanaDias: lookaheadDays,
-        codigos: created.map((c) => c.code),
-        detalleOmitidas: skipped.slice(0, 20),
-      },
-    });
-
     return {
-      generated: created.length,
-      codes: created.map((c) => c.code),
-      created,
-      skipped,
-      /* Se devuelve aparte para que la pantalla lo pueda pintar como lo que
-         es: trabajo generado que NADIE PUEDE HACER hasta que se pida una
-         parada. Mezclado con las creadas pasaría desapercibido. */
-      esperandoParada,
+      ventanas: ventanas as VentanaParaProgramar[],
+      pasosPorTipo,
+      letras: letras as Record<string, any>,
+      ctx: ctx as Record<string, any>,
     };
   }
 
   /**
-   * Estado de la generación automática (para mostrarlo en el tablero de Preventivo):
-   * si está activa, a qué hora corre y cuándo fue la última ejecución automática.
+   * Programa UNA rutina: fecha, si espera parada y la actividad con los pasos
+   * de su hoja de ruta (bloque 78). La fecha casa tres cosas —cuándo vence,
+   * qué frecuencia manda y cuándo se puede entrar—.
    */
-  /* ===========================================================================
-     EL INTERRUPTOR DE LOS PREVENTIVOS AUTOMÁTICOS — bloque 143
-     ---------------------------------------------------------------------------
-     Antes sólo se apagaba con la variable PREVENTIVE_AUTOGEN=off, es decir,
-     tocando el despliegue. Mantenimiento no puede pedirle a TI un redespliegue
-     para parar la generación en una parada de planta.
-
-     DOS LLAVES, Y MANDA LA MÁS RESTRICTIVA:
-       · la variable de entorno APAGA y nadie la enciende desde la pantalla
-         (es la decisión de quien despliega);
-       · la pantalla apaga y enciende dentro de lo que el despliegue permite.
-     Se guarda en `configuracion_sistema`, se audita quién lo cambió, y el
-     programador lo lee EN CADA CICLO: no hace falta reiniciar nada.
-     =========================================================================== */
-  private static readonly CLAVE_AUTOGEN = 'preventivo.autogen';
-
-  private apagadaPorEntorno(): boolean {
-    return autogenApagadaPorEntorno();
+  private programarRutina(
+    plan: { assetId: string; nextDueAt: Date | null; intervalDays: number; asset: any },
+    contexto: Awaited<ReturnType<PreventiveService['contextoDeProgramacion']>>,
+    now: Date,
+  ) {
+    // Zona = gabinete (si está montado) o ubicación del activo.
+    const zone: string | undefined = plan.asset?.cabinet?.code
+      ? `${plan.asset?.location?.name || 'Planta'} — ${plan.asset.cabinet.code}`
+      : plan.asset?.location?.name || undefined;
+    const c = contexto.ctx?.[plan.assetId];
+    const paraProgramar: PlanParaProgramar = {
+      assetId: plan.assetId,
+      assetCode: plan.asset?.assetCode,
+      tipoEquipo: plan.asset?.type as string,
+      trenCode: c?.trenCode ?? null,
+      vencePlan: plan.nextDueAt,
+      diasDelPlan: plan.intervalDays,
+      diasPorLetra: contexto.letras?.[plan.assetId]?.diasEntreRevisiones ?? null,
+      diasPorAmbiente: c?.intervaloDias ?? intervaloParaAmbiente(c?.ambiente ?? null),
+      /* Lo FIRMADO, no la propuesta. Sin firma vale EXIGE_PARADA: un equipo
+         sin declarar espera ventana, que es fallar hacia el lado seguro. */
+      intervencionAplica: c?.intervencionAplica ?? 'EXIGE_PARADA',
+    };
+    const pr = programar(paraProgramar, contexto.ventanas, now);
+    const actividad = actividadDeLaOrden(pr, contexto.pasosPorTipo.get(plan.asset?.type as string) ?? []);
+    return { zone, pr, actividad, trenCode: paraProgramar.trenCode };
   }
 
-  /** ¿Toca generar? Falso si la apaga el entorno O la pantalla. */
-  async autogenEncendida(): Promise<boolean> {
-    if (this.apagadaPorEntorno()) return false;
-    const fila = await this.prisma.configuracionSistema
-      .findUnique({ where: { clave: PreventiveService.CLAVE_AUTOGEN } })
-      .catch(() => null);
-    return fila?.valor !== 'off';
-  }
-
-  async cambiarAutogen(activo: boolean, userId: string | null, ip?: string) {
-    if (activo && this.apagadaPorEntorno()) {
-      throw new BadRequestException(
-        'La generación automática está apagada en el despliegue (PREVENTIVE_AUTOGEN=off). '
-        + 'Sólo quien despliega puede encenderla.',
-      );
-    }
-    const antes = await this.autogenEncendida();
-    await this.prisma.configuracionSistema.upsert({
-      where: { clave: PreventiveService.CLAVE_AUTOGEN },
-      create: {
-        clave: PreventiveService.CLAVE_AUTOGEN,
-        valor: activo ? 'on' : 'off',
-        descripcion: 'Generación automática diaria de OM preventivas (bloque 143)',
-        actualizadoPor: userId,
+  /** Las rutinas activas de equipos en operación: ni dados de baja ni en almacén. */
+  private planesQueTocan(hasta: Date) {
+    return this.prisma.preventivePlan.findMany({
+      where: {
+        active: true,
+        nextDueAt: { lte: hasta },
+        asset: { deletedAt: null, status: { notIn: ['BAJA', 'STOCK'] as any } },
       },
-      update: { valor: activo ? 'on' : 'off', actualizadoEn: new Date(), actualizadoPor: userId },
+      include: {
+        asset: {
+          select: {
+            id: true, assetCode: true, type: true, locationId: true,
+            location: { select: { name: true } },
+            cabinet: { select: { code: true } },
+          },
+        },
+      },
+      orderBy: { nextDueAt: 'asc' },
     });
-    await this.audit.record({
-      userId,
-      action: activo ? 'PREVENTIVE_AUTOGEN_ON' : 'PREVENTIVE_AUTOGEN_OFF',
-      entity: 'configuracion_sistema',
-      entityId: PreventiveService.CLAVE_AUTOGEN,
-      ip,
-      before: { encendida: antes },
-      after: { encendida: activo },
-    });
-    return this.autoGenStatus();
   }
 
-  async autoGenStatus() {
-    const apagadaPorEntorno = this.apagadaPorEntorno();
-    const enabled = await this.autogenEncendida();
-    const cambio = await this.prisma.configuracionSistema
-      .findUnique({ where: { clave: PreventiveService.CLAVE_AUTOGEN } })
-      .catch(() => null);
-    const quien = cambio?.actualizadoPor
-      ? await this.prisma.user.findUnique({ where: { id: cambio.actualizadoPor }, select: { fullName: true } }).catch(() => null)
-      : null;
-    const hour = Number(process.env.PREVENTIVE_AUTOGEN_HOUR ?? 6);
-    const lookaheadDays = Number(process.env.PREVENTIVE_LOOKAHEAD_DAYS ?? 0);
-    const last = await this.prisma.auditLog.findFirst({
-      where: { action: 'PREVENTIVE_GENERATE', ip: 'sistema (automático)' },
-      orderBy: { createdAt: 'desc' },
-      select: { createdAt: true, after: true },
+  /**
+   * BLOQUE 180 · EL PROGRAMA: qué rutina toca y cuándo. NO crea nada.
+   *
+   * Por rutina dice si ya tiene su OM —y si esa OM tiene ya su N° de SAP—. Lo
+   * que queda «sin OM» es trabajo que SAP todavía no ha generado o que nadie
+   * ha vinculado: es la lista con la que el Jefe va a SAP.
+   */
+  async programa(diasAdelante = 30) {
+    const now = new Date();
+    const dias = Math.max(0, Math.min(90, Math.round(Number(diasAdelante) || 0)));
+    const planes = await this.planesQueTocan(this.addDays(now, dias));
+    const ids = planes.map((p) => p.assetId);
+    /* Una consulta para todas, no una por rutina (lección del bloque 105). Se
+       queda la MÁS ANTIGUA de cada equipo: es la que lleva más esperando. */
+    const abiertas = ids.length
+      ? await this.prisma.workOrder.findMany({
+          where: { assetId: { in: ids }, type: 'PREVENTIVO', status: { in: OPEN_WO } },
+          orderBy: { createdAt: 'asc' },
+          select: { id: true, code: true, externalRef: true, assetId: true, status: true },
+        })
+      : [];
+    const ordenDe = new Map<string, (typeof abiertas)[number]>();
+    for (const o of abiertas) if (o.assetId && !ordenDe.has(o.assetId)) ordenDe.set(o.assetId, o);
+
+    const contexto = await this.contextoDeProgramacion(planes, now);
+    const filas = planes.map((p) => {
+      const { zone, pr, actividad, trenCode } = this.programarRutina(p, contexto, now);
+      const orden = ordenDe.get(p.assetId) ?? null;
+      return {
+        planId: p.id,
+        assetId: p.assetId,
+        assetCode: p.asset.assetCode,
+        tipo: p.asset.type,
+        zona: zone ?? null,
+        tren: trenCode,
+        vence: p.nextDueAt,
+        vencida: !!p.nextDueAt && p.nextDueAt.getTime() < now.getTime(),
+        programada: pr.fecha,
+        esperandoParada: pr.esperandoVentana,
+        actividad,
+        orden: orden ? { id: orden.id, code: orden.code, externalRef: orden.externalRef, status: orden.status } : null,
+      };
     });
     return {
-      enabled,
-      apagadaPorEntorno,
-      cambiadaEn: cambio?.actualizadoEn ?? null,
-      cambiadaPor: quien?.fullName ?? null,
-      hour,
-      lookaheadDays,
-      lastRunAt: last?.createdAt || null,
-      lastRunGenerated: (last?.after as any)?.generadas ?? null,
+      generadoEn: now.toISOString(),
+      diasAdelante: dias,
+      resumen: {
+        tocan: filas.length,
+        sinOm: filas.filter((f) => !f.orden).length,
+        omSinSap: filas.filter((f) => f.orden && !f.orden.externalRef).length,
+        vinculadas: filas.filter((f) => f.orden?.externalRef).length,
+        esperandoParada: filas.filter((f) => f.esperandoParada).length,
+      },
+      filas,
     };
+  }
+
+  /**
+   * BLOQUE 180 · VINCULAR LA OM DE SAP A SU RUTINA.
+   *
+   * SAP generó la orden de la rutina (plan + hoja de ruta) y aquí se apunta.
+   * La orden de SGIT nace con lo que el programa ya sabe: fecha programada,
+   * zona y los pasos de su hoja de ruta, COPIADOS (bloque 78: si mañana cambia
+   * la hoja, una orden emitida no cambia sola).
+   *
+   * Reglas:
+   *   1. Sólo PREVENTIVO. Correctivo, mejora e instalación nacen de un aviso.
+   *   2. Si el equipo ya tiene una preventiva viva SIN N° SAP (las que creaba
+   *      este servicio hasta el bloque 179), se le pone el número a ESA: dos
+   *      órdenes para la misma rutina son dos cuadrillas al mismo poste.
+   *   3. Si ya tiene una con OTRO N° SAP, no se crea otra: se dice cuál es.
+   *   4. Si el N° SAP ya está en otra orden, se avisa (no se impide).
+   *   5. Queda auditado con quién lo vinculó.
+   */
+  async vincularSap(assetId: string, texto: string | null | undefined, userId: string | null, ip?: string | null) {
+    const numero = normalizarNumeroSap(texto);
+    if (!numero) throw new BadRequestException('Escribe el N° de la OM preventiva que generó SAP.');
+    const malo = motivoNumeroSapInvalido(numero);
+    if (malo) throw new BadRequestException(malo);
+
+    const plan = await this.prisma.preventivePlan.findUnique({
+      where: { assetId },
+      include: {
+        asset: {
+          select: {
+            id: true, assetCode: true, type: true, locationId: true, deletedAt: true, status: true,
+            location: { select: { name: true } },
+            cabinet: { select: { code: true } },
+          },
+        },
+      },
+    });
+    if (!plan) throw new NotFoundException('Este equipo no tiene rutina preventiva: créala en «+ Nuevo plan».');
+    if (!plan.active) throw new BadRequestException('La rutina de este equipo está desactivada.');
+    if (plan.asset.deletedAt || ['BAJA', 'STOCK'].includes(plan.asset.status as string)) {
+      throw new BadRequestException('El equipo no está en operación (baja o almacén): su rutina no se ejecuta.');
+    }
+
+    const viva = await this.prisma.workOrder.findFirst({
+      where: { assetId, type: 'PREVENTIVO', status: { in: OPEN_WO } },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, code: true, externalRef: true },
+    });
+    if (viva?.externalRef && viva.externalRef !== numero) {
+      throw new ConflictException(
+        `${plan.asset.assetCode} ya tiene la preventiva ${viva.code} con la OM SAP ${viva.externalRef}. `
+        + 'Si la de SAP es otra, cierra o corrige esa primero.',
+      );
+    }
+    const otra = await this.prisma.workOrder.findFirst({
+      where: { externalRef: numero, ...(viva ? { id: { not: viva.id } } : {}) },
+      select: { code: true },
+    });
+    const aviso = otra
+      ? `La OM SAP ${numero} también está en la orden ${otra.code}. Si es un error de tecleo, corrígelo con «N° SAP».`
+      : null;
+    if (viva?.externalRef === numero) {
+      return { orden: viva, creada: false, aviso };
+    }
+    if (viva) {
+      const orden = await this.prisma.workOrder.update({
+        where: { id: viva.id }, data: { externalRef: numero }, select: { id: true, code: true, externalRef: true },
+      });
+      await this.audit.record({
+        userId, action: 'PREVENTIVE_VINCULAR_SAP', entity: 'work_orders', entityId: viva.id, ip,
+        after: { activo: plan.asset.assetCode, om: viva.code, externalRef: numero, creada: false },
+      });
+      return { orden, creada: false, aviso };
+    }
+
+    const now = new Date();
+    const contexto = await this.contextoDeProgramacion([plan], now);
+    const { zone, pr, actividad } = this.programarRutina(plan, contexto, now);
+    const orden = await conReintentoDeCodigo(async () => this.prisma.workOrder.create({
+      data: {
+        code: await this.nextCode(),
+        type: 'PREVENTIVO',
+        status: 'ABIERTA',
+        assetId: plan.assetId,
+        zone,
+        activity: actividad,
+        // La fecha la pone el programa: vencimiento real, o la ventana de parada.
+        scheduledDate: pr.fecha,
+        externalRef: numero,
+        requestChannel: 'SAP',
+        receivedAt: now,
+        createdById: userId || undefined,
+      },
+      select: { id: true, code: true, externalRef: true },
+    }));
+    await this.audit.record({
+      userId, action: 'PREVENTIVE_VINCULAR_SAP', entity: 'work_orders', entityId: orden.id, ip,
+      after: {
+        activo: plan.asset.assetCode, om: orden.code, externalRef: numero, creada: true,
+        programada: pr.fecha.toISOString(), esperandoParada: pr.esperandoVentana,
+      },
+    });
+    return { orden, creada: true, aviso, esperandoParada: pr.esperandoVentana };
+  }
+
+  /**
+   * BLOQUE 180 · LO QUE TOCA HOY, DOCUMENTADO.
+   *
+   * Lo llama el planificador UNA vez al día (bloque 100: con candado). No crea
+   * nada: deja en la auditoría qué rutinas tocaban hoy y cuántas seguían sin su
+   * OM de SAP. «Lo que no está documentado, no ocurrió»: en una auditoría, esto
+   * es lo que demuestra que el programa avisó a tiempo.
+   */
+  async programaDelDia(ip = 'sistema (automático)') {
+    const p = await this.programa(0);
+    const pendientes = p.filas.filter((f) => !f.orden || !f.orden.externalRef);
+    await this.audit.record({
+      userId: null, action: 'PREVENTIVE_PROGRAMA', entity: 'preventive_plans', ip,
+      after: {
+        tocan: p.resumen.tocan,
+        sinOm: p.resumen.sinOm,
+        omSinSap: p.resumen.omSinSap,
+        esperandoParada: p.resumen.esperandoParada,
+        equipos: pendientes.slice(0, 40).map((f) => f.assetCode),
+      },
+    });
+    return p.resumen;
   }
 
   /**

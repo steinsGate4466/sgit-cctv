@@ -16,6 +16,7 @@
 // =============================================================================
 import { PrismaService } from '../prisma/prisma.service';
 import type { IncidentStatus, WorkOrderStatus } from '../generated/prisma/client';
+import { cuentaComoFalla } from './aviso-sap';
 
 export type EffectiveStatus =
   | 'OPERATIVO'
@@ -34,6 +35,19 @@ const OPEN_INCIDENT_STATUS = ['ABIERTA', 'EN_DIAGNOSTICO', 'EN_PROCESO'];
 export const WO_EN_CURSO = ACTIVE_WO_STATUS as WorkOrderStatus[];
 export const INCIDENCIA_ABIERTA = OPEN_INCIDENT_STATUS as IncidentStatus[];
 const HIGH_PRIORITY = ['ALTA', 'CRITICA'];
+
+/* BLOQUE 180 · EL ESTADO DICE SI FUNCIONA, Y ESO SÓLO LO CAMBIA UNA FALLA.
+   -----------------------------------------------------------------------------
+   Un aviso de CONDICIÓN —«funciona, pero se va a dañar»— o una SOLICITUD no
+   quitan servicio: el equipo sigue OPERATIVO. Si contaran, «Mis cámaras», el
+   mapa y «Estado por tren» darían por ciega una cámara que el púlpito está
+   viendo, y la lista de caídas dejaría de creerse. El aviso sigue a la vista
+   donde se trabaja: en Incidencias, en la bandeja y en la ficha del equipo.
+   Una sola regla para el estado y para su motivo: si fueran dos, el badge y la
+   frase de al lado acabarían contradiciéndose. */
+export function pesaComoCaida(x: { priority: string; tipoAviso?: string | null }): boolean {
+  return HIGH_PRIORITY.includes(x.priority) && cuentaComoFalla(x.tipoAviso);
+}
 
 interface AssetLike {
   id: string;
@@ -62,13 +76,13 @@ export async function computeEffectiveStatuses(
   // Incidencias abiertas y su prioridad (para distinguir crítico de degradado).
   const openInc = await prisma.incident.findMany({
     where: { assetId: { in: ids }, status: { in: OPEN_INCIDENT_STATUS as any } },
-    select: { assetId: true, priority: true },
+    select: { assetId: true, priority: true, tipoAviso: true },
   });
-  const incPriority = new Map<string, Set<string>>();
+  const avisosPorActivo = new Map<string, Array<{ priority: string; tipoAviso?: string | null }>>();
   for (const i of openInc) {
-    if (!i.assetId) continue;
-    if (!incPriority.has(i.assetId)) incPriority.set(i.assetId, new Set());
-    incPriority.get(i.assetId)!.add(i.priority);
+    if (!i.assetId || !cuentaComoFalla(i.tipoAviso)) continue;
+    if (!avisosPorActivo.has(i.assetId)) avisosPorActivo.set(i.assetId, []);
+    avisosPorActivo.get(i.assetId)!.push(i);
   }
 
   for (const a of assets) {
@@ -84,9 +98,9 @@ export async function computeEffectiveStatuses(
       continue;
     }
     // 3/4) Incidencia abierta.
-    const prios = incPriority.get(a.id);
-    if (prios && prios.size) {
-      const critical = HIGH_PRIORITY.some((p) => prios.has(p));
+    const avisos = avisosPorActivo.get(a.id);
+    if (avisos && avisos.length) {
+      const critical = avisos.some(pesaComoCaida);
       result[a.id] = critical ? 'FUERA_SERVICIO' : 'CON_INCIDENCIA';
       continue;
     }
@@ -172,7 +186,7 @@ export async function motivosDelEstado(
 
   const incidencias = await prisma.incident.findMany({
     where: { assetId: { in: ids }, status: { in: OPEN_INCIDENT_STATUS as any } },
-    select: { id: true, assetId: true, code: true, priority: true },
+    select: { id: true, assetId: true, code: true, priority: true, tipoAviso: true },
     /* `reportedAt`, NO `createdAt`: `Incident` no tiene ese campo. Lo cazó el
        typecheck, y es el mismo tropiezo del `name` del bloque 6 y del
        `environment` del 16.2 — dar por hecho que un modelo tiene un campo
@@ -181,13 +195,13 @@ export async function motivosDelEstado(
   });
   const porIncidencia = new Map<string, (typeof incidencias)[number]>();
   for (const i of incidencias) {
-    if (!i.assetId) continue;
+    if (!i.assetId || !cuentaComoFalla(i.tipoAviso)) continue;
     const previa = porIncidencia.get(i.assetId);
     /* Gana la de MAYOR prioridad; a igualdad, la más antigua (ya vienen
        ordenadas). Si se quedara la primera a secas, un equipo con una avería
        crítica y una menor anterior explicaría su FUERA_SERVICIO citando la
        menor — y el motivo diría lo contrario que el estado. */
-    if (!previa || (HIGH_PRIORITY.includes(i.priority) && !HIGH_PRIORITY.includes(previa.priority))) {
+    if (!previa || (pesaComoCaida(i) && !pesaComoCaida(previa))) {
       porIncidencia.set(i.assetId, i);
     }
   }
@@ -225,7 +239,7 @@ export async function motivosDelEstado(
 
     const inc = porIncidencia.get(a.id);
     if (inc) {
-      const grave = HIGH_PRIORITY.includes(inc.priority);
+      const grave = pesaComoCaida(inc);
       result[a.id] = {
         tipo: 'INCIDENCIA',
         id: inc.id,

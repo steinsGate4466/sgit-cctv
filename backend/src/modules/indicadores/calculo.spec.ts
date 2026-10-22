@@ -221,7 +221,16 @@ describe('reparto correctivo / preventivo', () => {
     const r = repartoDeTrabajo([...om('CORRECTIVO', 5), ...om('MEJORA', 20), ...om('MAPEO', 30)]);
     expect(r.base).toBe(5);
     expect(r.pct).toEqual({ correctivo: 100, preventivo: 0 });
-    expect(r.otros).toEqual({ mejora: 20, mapeo: 30, predictivo: 0 });
+    expect(r.otros).toEqual({ mejora: 20, mapeo: 30, predictivo: 0, instalacion: 0 });
+  });
+
+  it('bloque 180 · la INSTALACIÓN tampoco entra: equipos nuevos no son correctivo', () => {
+    /* Hasta el bloque 179 la orden de una instalación nacía CORRECTIVO e
+       inflaba el lado de «apagar incendios» con trabajo que no es avería. */
+    const r = repartoDeTrabajo([...om('CORRECTIVO', 2), ...om('PREVENTIVO', 2), ...om('INSTALACION', 6)]);
+    expect(r.base).toBe(4);
+    expect(r.pct).toEqual({ correctivo: 50, preventivo: 50 });
+    expect(r.otros.instalacion).toBe(6);
   });
 
   it('SIN ÓRDENES devuelve null, nunca «0 % correctivo»', () => {

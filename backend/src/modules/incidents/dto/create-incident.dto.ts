@@ -1,5 +1,5 @@
-import { ArrayMaxSize, IsArray, IsDateString, IsEnum, IsInt, IsOptional, IsString, MinLength } from 'class-validator';
-import { IncidentCategory, Priority } from '../../../generated/prisma/client';
+import { ArrayMaxSize, IsArray, IsDateString, IsEnum, IsInt, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IncidentCategory, Priority, TipoAviso } from '../../../generated/prisma/client';
 
 export class CreateIncidentDto {
   @IsString() @MinLength(3) title: string;
@@ -37,4 +37,17 @@ export class CreateIncidentDto {
   @IsOptional() @IsArray() @ArrayMaxSize(4)
   @IsEnum(IncidentCategory, { each: true })
   categoriasExtra?: IncidentCategory[];
+
+  /* «¿EL EQUIPO FUNCIONA?» — bloque 180.
+     -------------------------------------------------------------------------
+     FALLA (no funciona) · CONDICIÓN (funciona, pero se va a dañar) ·
+     SOLICITUD (un pedido o un cambio). Sólo la FALLA crea evento de falla y
+     cuenta en MTBF y MTTR. Opcional en la petición: sin decirlo vale FALLA,
+     que es lo que significaba reportar antes de este bloque. */
+  @IsOptional() @IsEnum(TipoAviso) tipoAviso?: TipoAviso;
+
+  /* El N° del aviso en SAP, si ya se creó allí. El servicio lo deja como lo
+     enseña SAP (sin espacios ni ceros delante) y rechaza el que no lo sea:
+     ver `common/aviso-sap.ts`. El tope de 30 es sólo para la petición. */
+  @IsOptional() @IsString() @MaxLength(30) avisoSap?: string;
 }

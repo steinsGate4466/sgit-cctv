@@ -166,11 +166,13 @@ export default function Gruas() {
 
     try {
       const r = await api.post('/gruas', cuerpo);
-      /* Bloque 140: el hallazgo abre la orden, y se dice cuál. */
-      const om = r.data?.om;
+      /* Bloques 140 y 180: el hallazgo abre un AVISO (no una orden: la OM la
+         crea SAP y la trata Mantenimiento), y se dice cuál. */
+      const aviso = r.data?.aviso;
+      const tipo = aviso?.tipo === 'FALLA' ? 'de falla' : 'de condición';
       setHecho(`Inspección ${r.data?.code} registrada.`
-        + (om ? (om.nueva ? ` Se abrió la orden ${om.code}.` : ` Se enlazó a la orden abierta ${om.code}.`) : '')
-        + (r.data?.omError ? ` ${r.data.omError}` : ''));
+        + (aviso ? (aviso.nuevo ? ` Se abrió el aviso ${tipo} ${aviso.code}.` : ` Se enlazó al aviso abierto ${aviso.code}.`) : '')
+        + (r.data?.avisoError ? ` ${r.data.avisoError}` : ''));
       setNueva(false);
       await cargar();
     } catch (e: any) {
@@ -278,7 +280,8 @@ export default function Gruas() {
               <tr key={i.id}>
                 <td>
                   <strong>{i.code}</strong>
-                  {/* Bloque 140: la orden que abrió este hallazgo. */}
+                  {/* Bloque 180: el aviso que abrió este hallazgo (y la orden, si se hizo dentro de una). */}
+                  {i.aviso && <div><Link to={`/incidents?q=${encodeURIComponent(i.aviso)}`} style={{ fontSize: 12 }}>{i.aviso}</Link></div>}
                   {i.om && <div><Link to={`/maintenance?om=${encodeURIComponent(i.om)}`} style={{ fontSize: 12 }}>{i.om}</Link></div>}
                 </td>
                 <td>{i.grua}{i.posicion ? ` · ${i.posicion}` : ''}</td>

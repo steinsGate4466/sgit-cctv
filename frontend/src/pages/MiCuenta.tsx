@@ -107,30 +107,22 @@ export default function MiCuenta() {
           >
             {refrescando ? 'Actualizando…' : 'Actualizar mis permisos'}
           </button>
-          <span className="mc-nota">
-            Si el ingeniero acaba de cambiar tu rol y no lo ves reflejado, pulsa aquí.
-          </span>
+          <span className="mc-nota">Si te cambiaron el rol y no lo ves.</span>
         </div>
       </div>
 
       {msg && <div role="status" className="aviso-ok">{msg}</div>}
       {error && <div role="alert" className="aviso-error aviso-cerrable" onClick={() => setError('')} title="Toca para cerrar este aviso">{error}</div>}
 
-      <div className="card explica">
-        <b>Aquí ves desde dónde está abierta tu cuenta.</b> Cada vez que entras
-        desde un equipo se abre una sesión, y se queda abierta aunque cierres el
-        navegador.
-        <div style={{ marginTop: 8 }}>
-          <b>Si pierdes el celular en planta</b>, entra desde cualquier otro equipo y
-          pulsa «Cerrar todas». En este sistema eso <b>revoca de verdad</b>: invalida
-          el acceso en el servidor, no sólo en el dispositivo. El cierre es inmediato.
-        </div>
+      {/* Síntesis 21/10: una línea; el detalle de la revocación, al `title`. */}
+      <div className="section-title"
+        title="Cada entrada abre una sesión que sigue abierta aunque cierres el navegador. «Cerrar todas» la invalida en el servidor al instante.">
+        Desde dónde está abierta tu cuenta
       </div>
 
       {cargando && !sesiones.length ? <EsqueletoTabla filas={3} /> : sesiones.length === 0 ? (
         <div className="card vacio">
-          <h3>No hay otras sesiones abiertas</h3>
-          <p>Sólo estás dentro desde aquí.</p>
+          <h3>Sólo estás dentro desde aquí</h3>
         </div>
       ) : (
         <>
@@ -154,7 +146,7 @@ export default function MiCuenta() {
           </table></div>
 
           <div className="card peligro">
-            <b>¿Ves una sesión que no reconoces?</b>
+            <b>¿Una sesión que no reconoces? ¿Perdiste el celular?</b>
             <div style={{ margin: '6px 0 10px', fontSize: 13.5 }}>
               {/* Auditoría 20/10: prometía «cambia la contraseña» y aquí no hay
                   dónde. La cambia quien administra usuarios. */}

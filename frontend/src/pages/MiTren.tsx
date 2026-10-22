@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import Icono from '../components/Iconos';
 import { EsqueletoTablero } from '../components/Esqueleto';
 import { NadaPendiente } from '../components/Ilustraciones';
-import { useDialogos } from '../components/Dialogos';
 import { useVolverALaPantalla } from '../useVolverALaPantalla';
+import { useAuth } from '../auth/AuthContext';
 import { Cifras, Titular, Tono } from '../components/Patron';
+import { WO_STATUS_ES } from './omCatalogos';
+import { fechaTabla } from '../fechas';
 
 /**
  * El tono de la línea.
@@ -46,29 +49,28 @@ const tono = (total: number, caidos: number): Tono => {
  * dirección, no lo ve. Un filtro de pantalla nunca es un permiso.
  */
 export default function MiTren() {
-  const { avisar } = useDialogos();
+  const { can } = useAuth();
   const [datos, setDatos] = useState<any>(null);
-  const [ordenes, setOrdenes] = useState<any[]>([]);
+  /* Órdenes VIVAS por tren (código → lista). AUDITORÍA 21/10: antes se pedía
+     `status=ABIERTA` y se filtraba por `o.tren`, un campo que la lista de
+     órdenes no trae: la pantalla decía «nada pendiente» con cuatro órdenes en
+     marcha en el tren. Ahora se piden al servidor por tren, ya cruzadas con el
+     ámbito del usuario. */
+  const [ordenes, setOrdenes] = useState<Record<string, any[]>>({});
   const [cargando, setCargando] = useState(true);
   const [fallo, setFallo] = useState('');
-  const [bajando, setBajando] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
-    // No se traga el error en silencio: si el servidor falla, "no hay datos"
-    // y "no pude preguntar" son cosas distintas y el usuario merece saber
-    // cuál de las dos es.
+    // No se traga el error en silencio: «no hay datos» y «no pude preguntar»
+    // son cosas distintas.
     try {
-      const [infra, oms] = await Promise.all([
-        api.get('/dashboard/infra/trenes').then((r) => r.data),
-        // La ruta es /work-orders, NO /maintenance. El módulo se llama
-        // maintenance pero su controlador expone 'work-orders'. Lo escribí
-        // mal y esta pantalla habría salido siempre vacía: el 404 se lo
-        // traga el catch y se lee como "no hay órdenes en tu tren".
-        api.get('/work-orders', { params: { status: 'ABIERTA', pageSize: 50 } })
-          .then((r) => r.data),
-      ]);
+      const infra = await api.get('/dashboard/infra/trenes').then((r) => r.data);
+      const trenes: any[] = infra?.trenes || [];
+      const listas = await Promise.all(trenes.map((t) =>
+        api.get('/work-orders', { params: { vivas: 1, tren: t.code, pageSize: 50 } })
+          .then((r) => [t.code, r.data?.data || r.data?.items || []] as const)));
       setDatos(infra);
-      setOrdenes(oms?.items || oms?.data || []);
+      setOrdenes(Object.fromEntries(listas));
       setFallo('');
     } catch (e: any) {
       setFallo(
@@ -83,34 +85,6 @@ export default function MiTren() {
 
   // Bloque 37: al volver del bolsillo, lo que se ve es lo que hay.
   useVolverALaPantalla(cargar);
-
-  /**
-   * EL INFORME NO SE ABRE CON UN ENLACE.
-   *
-   * Un <a href> normal no lleva la cabecera de autorización —el token vive
-   * en el navegador, no en una cookie— así que el servidor respondería 401 y
-   * el jefe de línea vería una pestaña con un error en vez de su PDF.
-   * Se pide con el mismo cliente que el resto, y el archivo se guarda desde
-   * la memoria.
-   */
-  async function descargarInforme(o: any) {
-    setBajando(o.id);
-    try {
-      const { data } = await api.get(`/work-orders/${o.id}/report`, { responseType: 'blob' });
-      const url = URL.createObjectURL(data);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${o.code || 'informe'}.pdf`;
-      a.click();
-      // Sin esto, cada descarga deja el archivo entero retenido en memoria
-      // hasta recargar la página. Con diez informes seguidos se nota.
-      URL.revokeObjectURL(url);
-    } catch {
-      await avisar('No se pudo descargar el informe. Vuelve a intentarlo.');
-    } finally {
-      setBajando(null);
-    }
-  }
 
   if (cargando) return <EsqueletoTablero kpis={3} paneles={1} />;
 
@@ -133,9 +107,7 @@ export default function MiTren() {
     return (
       <div className="card vacio">
         <h3>Todavía no tienes un tren asignado</h3>
-        <p>
-          Pide al ingeniero que te asigne tu tren en Usuarios.
-        </p>
+        <p>Pide al ingeniero que te lo asigne en Usuarios.</p>
       </div>
     );
   }
@@ -146,81 +118,68 @@ export default function MiTren() {
 
       {trenes.map((t) => {
         const a = t.activos || {};
-        const total = a.total ?? 0;
-        const caidos = (a.fueraServicio ?? 0) + (a.conIncidencia ?? 0) + (a.mantenimiento ?? 0);
-        const viendo = Math.max(total - caidos, 0);
-        const pct = total > 0 ? Math.round((viendo / total) * 100) : 100;
-        const suyas = ordenes.filter((o) => (o.tren || o.trenCode) === t.code);
+        /* AUDITORÍA 21/10: contaba TODOS los equipos y sumaba `a.mantenimiento`,
+           un campo que no existe (el servidor manda `enMantenimiento`). Decía
+           «1 cámara no está viendo» con cuatro caídas. Ahora son CÁMARAS, con
+           el mismo cálculo que «Cámaras» y «Comparar trenes». */
+        const total = a.camaras ?? 0;
+        const caidos = Math.min(a.camarasCaidas ?? 0, total);
+        const viendo = total - caidos;
+        const suyas = ordenes[t.code] || [];
+        const nombre = t.nombre || t.code;
 
         return (
           <div key={t.code || t.id} style={{ marginBottom: 26 }}>
-            {/* -------- LA RESPUESTA (bloque 38) --------
-                Antes el nombre del tren era el titular y el estado la letra
-                pequeña. Estaba al revés: el jefe de línea YA SABE en qué tren
-                está; lo que no sabe es si tiene que moverse. */}
             <Titular
               tono={tono(total, caidos)}
               texto={
                 total === 0
-                  ? `${t.nombre || t.code}: todavía sin cámaras cargadas`
+                  ? `${nombre}: todavía sin cámaras cargadas`
                   : caidos === 0
-                    ? `${t.nombre || t.code}: con vista completa`
-                    : `${caidos} ${caidos === 1 ? 'cámara no está viendo' : 'cámaras no están viendo'} en ${t.nombre || t.code}`
+                    ? `${nombre}: con vista completa`
+                    : `${caidos} ${caidos === 1 ? 'cámara sin imagen' : 'cámaras sin imagen'} en ${nombre}`
               }
-              apoyo={
-                total === 0
-                  ? 'No se puede medir nada hasta que se carguen. No sale 0 % ni 100 %: los dos serían mentira.'
-                  : `${viendo} de ${total} con visión (${pct} %) · ${suyas.length} ${suyas.length === 1 ? 'orden abierta' : 'órdenes abiertas'}`
-              }
+              apoyo={total === 0 ? 'Sin cámaras no se mide nada: ni 0 % ni 100 %.' : undefined}
             />
 
             {total > 0 && (
               <Cifras
                 datos={[
-                  { n: viendo, de: total, et: 'con visión' },
-                  { n: suyas.length, et: suyas.length === 1 ? 'orden abierta' : 'órdenes abiertas' },
+                  { n: viendo, de: total, et: 'con imagen' },
+                  { n: suyas.length, et: suyas.length === 1 ? 'orden en curso' : 'órdenes en curso' },
                 ]}
               />
             )}
 
-            <div className="bloque-titulo">Qué está caído y qué se está haciendo</div>
+            <div className="bloque-titulo">Órdenes en curso</div>
 
             {suyas.length === 0 ? (
               <div className="card vacio">
                 <NadaPendiente size={110} />
                 <h3>Nada pendiente en tu línea</h3>
-                <p>
-                  Sin órdenes abiertas en los equipos de este tren.
-                </p>
               </div>
             ) : (
-              <div className="card">
+              <div className="card desliza">
                 <table>
                   <thead>
-                    <tr>
-                      <th>Orden</th><th>Equipo</th><th>Qué pasa</th>
-                      <th>Estado</th><th>Prevista</th><th></th>
-                    </tr>
+                    <tr><th>Orden</th><th>Equipo</th><th>Qué pasa</th><th>Estado</th><th>Avance</th><th>Prevista</th></tr>
                   </thead>
                   <tbody>
                     {suyas.map((o) => (
                       <tr key={o.id}>
-                        <td>{o.code}</td>
-                        <td>{o.asset?.assetCode || o.asset?.referencePlace || '—'}</td>
-                        <td>{o.activity || o.description || '—'}</td>
-                        <td><span className={'badge ' + (o.status || '')}>{etiqueta(o.status)}</span></td>
-                        <td>{fecha(o.scheduledDate)}</td>
-                        <td>
-                          {/* Sólo aparece si la orden está cerrada: un informe
-                              de algo sin terminar no es un informe. */}
-                          {o.status === 'CERRADA' && (
-                            <button className="btn-mini" onClick={() => descargarInforme(o)}
-                                    disabled={bajando === o.id}>
-                              <Icono n="mapeo" size={14} />
-                              {bajando === o.id ? ' Bajando…' : ' Informe'}
-                            </button>
-                          )}
+                        {/* §58: la orden lleva a la orden, ya filtrada. */}
+                        <td style={{ whiteSpace: 'nowrap' }}>
+                          <Link to={`/maintenance?om=${encodeURIComponent(o.code)}`}>{o.code}</Link>
+                          {/* Bloque 180: Producción la reconoce por el N° que creó en SAP. */}
+                          {o.externalRef
+                            ? <div className="num-sap muted" style={{ fontSize: 11 }}>{'SAP ' + o.externalRef}</div>
+                            : <div className="num-sap-falta" style={{ fontSize: 11 }} title="Sin él no se abre: lo apunta quien la creó en SAP">{'Sin N° SAP'}</div>}
                         </td>
+                        <td style={{ whiteSpace: 'nowrap' }}>{o.asset?.assetCode || o.zone || '—'}</td>
+                        <td title={o.activity || undefined}>{primeraFrase(o.activity || o.description)}</td>
+                        <td><span className={'badge ' + (o.status || '')}>{WO_STATUS_ES[o.status] || o.status}</span></td>
+                        <td className="num">{o.progressPct ?? 0} %</td>
+                        <td>{fechaTabla(o.scheduledDate)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -231,28 +190,23 @@ export default function MiTren() {
         );
       })}
 
-      <div className="hint-link">
-        <Icono n="candado" size={14} />
-        <span>
-          Esta pantalla es de <b>sólo consulta</b>. Para reportar una cámara
-          caída, avisa al ingeniero de mantenimiento: él abre la orden y aquí
-          la verás aparecer.
-        </span>
-      </div>
+      {/* AUDITORÍA 21/10: decía «sólo consulta; para reportar avisa al
+          ingeniero». Falso desde el bloque 139: Producción reporta sus
+          incidencias. Se le lleva al formulario, no se le explica. */}
+      {can('incident.create') && (
+        <div className="hint-link">
+          <Icono n="alerta" size={14} />
+          <span>¿Una cámara sin imagen?</span>
+          <Link className="btn-mini" to="/incidents?nueva=1">Reportar incidencia</Link>
+        </div>
+      )}
     </div>
   );
 }
 
-function etiqueta(s?: string) {
-  const m: Record<string, string> = {
-    ABIERTA: 'Abierta', EN_PROCESO: 'En proceso', EN_ESPERA: 'En espera',
-    CERRADA: 'Cerrada', ANULADA: 'Anulada',
-  };
-  return m[s || ''] || s || '—';
-}
-
-function fecha(v?: string) {
-  if (!v) return '—';
-  const d = new Date(v);
-  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('es-PE');
+/** La actividad en la tabla: sólo su primera frase; entera en el `title`. */
+function primeraFrase(t?: string | null): string {
+  if (!t) return '—';
+  const corte = t.search(/[.:;]\s/);
+  return corte > 0 && corte < 90 ? t.slice(0, corte) : t.length > 90 ? t.slice(0, 88) + '…' : t;
 }

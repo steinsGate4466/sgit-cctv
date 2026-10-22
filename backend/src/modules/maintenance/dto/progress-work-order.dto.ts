@@ -26,4 +26,12 @@ export class ProgressWorkOrderDto {
 
   /** Detalle libre, opcional. Lo que la lista no prevé. */
   @IsOptional() @IsString() @MaxLength(500) note?: string;
+
+  /* AUDITORÍA DE PROCESOS 21/10 · al TERMINAR (100 %) el técnico propone qué
+     vio, por qué falló y qué hizo, con clics del catálogo. Es él quien lo
+     sabe; el Jefe lo confirma al cerrar con su firma, en vez de elegirlo a
+     ciegas. Sólo cuenta con pct = 100. */
+  @IsOptional() @IsString() @MaxLength(60) symptomCode?: string;
+  @IsOptional() @IsString() @MaxLength(60) rootCauseCode?: string;
+  @IsOptional() @IsString() @MaxLength(60) actionCode?: string;
 }

@@ -1,37 +1,47 @@
 /**
- * ¿ESTA INSPECCIÓN ABRE UNA ORDEN? — bloque 140.
+ * ¿ESTA INSPECCIÓN ABRE UN AVISO? — bloques 140 y 180.
  *
- * Antes la inspección de grúa anotaba el hallazgo y ahí se quedaba: el
- * ingeniero tenía que leerla y acordarse de abrir la orden. Lo que no se
- * convierte en trabajo, no se hace.
+ * Bloque 140: antes la inspección de grúa anotaba el hallazgo y ahí se
+ * quedaba; lo que no se convierte en trabajo, no se hace. Se le hizo abrir un
+ * CORRECTIVO solo.
+ *
+ * Bloque 180 (corrección de Cristhian, 22/10/2026): la OM NO la crea SGIT, la
+ * crea SAP; y una observación no es un correctivo. Así que la inspección abre
+ * un AVISO —una incidencia— con lo que vio, y Mantenimiento lo TRATA: decide
+ * el tipo de orden y la crea en SAP.
  *
  * Regla, en orden:
- *   · Ya viene hecha DENTRO de una orden   → no se abre otra.
- *   · FUERA DE SERVICIO                    → se abre (correctivo).
- *   · Con observaciones y «requiere seguimiento» marcado → se abre.
+ *   · Ya viene hecha DENTRO de una orden   → no (el hallazgo va a esa orden).
+ *   · FUERA DE SERVICIO                    → aviso de FALLA («no funciona»).
+ *   · Con observaciones y «requiere seguimiento» → aviso de CONDICIÓN
+ *     («funciona, pero se va a dañar»): no cuenta como falla en el MTBF.
  *   · Operativa, o no se pudo acceder      → no. Si no se llegó al equipo no
- *     hay hallazgo que arreglar: hay que volver a subir, y eso lo programa
- *     el ingeniero con el manlift.
+ *     hay hallazgo: hay que volver a subir, y eso lo programa el ingeniero.
  *
- * Si la cámara ya tiene un correctivo ABIERTO, se enlaza a ese en vez de
- * abrir otro: dos órdenes sobre la misma cámara son dos cuadrillas a la
- * misma grúa.
+ * Si la cámara ya tiene un aviso VIVO, se enlaza a ése en vez de abrir otro:
+ * dos avisos de la misma cámara son el mismo problema contado dos veces.
  */
-export type DecisionOm = 'ABRIR' | 'NO';
+export type DecisionAviso = 'FALLA' | 'CONDICION' | 'NO';
 
-export function decidirOmDeInspeccion(i: {
+export function decidirAvisoDeInspeccion(i: {
   resultado?: string | null;
   requiereSeguimiento?: boolean | null;
   workOrderId?: string | null;
-}): DecisionOm {
+}): DecisionAviso {
   if (i.workOrderId) return 'NO';
-  if (i.resultado === 'FUERA_DE_SERVICIO') return 'ABRIR';
-  if (i.resultado === 'OPERATIVA_CON_OBSERVACIONES' && i.requiereSeguimiento) return 'ABRIR';
+  if (i.resultado === 'FUERA_DE_SERVICIO') return 'FALLA';
+  if (i.resultado === 'OPERATIVA_CON_OBSERVACIONES' && i.requiereSeguimiento) return 'CONDICION';
   return 'NO';
 }
 
-/** Lo que dice la orden: qué se vio y dónde, para que el técnico no tenga que abrir la inspección. */
-export function actividadDeLaOm(i: { code: string; grua: string; posicionEnGrua?: string | null; resultado?: string | null; hallazgos?: string | null }): string {
+/** El título del aviso: qué y dónde, corto (lo lee la bandeja sin abrir nada). */
+export function tituloDelAviso(i: { grua: string; posicionEnGrua?: string | null; resultado?: string | null }): string {
+  const que = i.resultado === 'FUERA_DE_SERVICIO' ? 'Cámara fuera de servicio' : 'Observaciones en cámara';
+  return `${que} · grúa ${i.grua.trim()}${i.posicionEnGrua ? ` (${i.posicionEnGrua})` : ''}`.slice(0, 160);
+}
+
+/** El detalle del aviso: qué se vio y de qué inspección salió, para no tener que abrirla. */
+export function descripcionDelAviso(i: { code: string; grua: string; posicionEnGrua?: string | null; resultado?: string | null; hallazgos?: string | null }): string {
   const donde = `grúa ${i.grua}${i.posicionEnGrua ? ` (${i.posicionEnGrua})` : ''}`;
   const que = i.resultado === 'FUERA_DE_SERVICIO' ? 'Cámara fuera de servicio' : 'Seguimiento de observaciones';
   const detalle = (i.hallazgos || '').trim();

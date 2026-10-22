@@ -4,6 +4,7 @@ import { computeEffectiveStatuses } from '../../common/asset-status';
 import { resolverContextoDePlanta } from '../../common/plant-context';
 import { alcanza, ambitoDelUsuario } from '../../common/ambito-usuario';
 import { ordenarZonas, titularDeCobertura, porcentajeCobertura } from './cobertura-orden';
+import { SOLO_FALLAS } from '../../common/aviso-sap';
 
 /**
  * COBERTURA — lo que Producción MIRA.
@@ -74,6 +75,8 @@ export class CoberturaService {
       where: {
         status: { in: ['ABIERTA', 'EN_DIAGNOSTICO', 'EN_PROCESO'] },
         assetId: { in: activos.map((a) => a.id) },
+        // Bloque 180: «caída desde» lo dice una FALLA, no un aviso de «funciona, pero…».
+        AND: [SOLO_FALLAS],
       },
       select: { assetId: true, reportedAt: true },
       orderBy: { reportedAt: 'asc' },

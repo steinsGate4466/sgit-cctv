@@ -116,10 +116,7 @@ export default function Dependencias() {
 
       <Titular tono={tono} texto={d.titular} />
 
-      <p className="dep-intro">
-        Cada pestaña es un equipo. Ábrela y verás qué cámaras se dejan de ver si
-        ese equipo se cae.
-      </p>
+      {/* Síntesis 21/10: «cada pestaña es un equipo» lo dicen las pestañas. */}
 
       {soportes.map((s) => <Soporte key={s.id} s={s} />)}
 

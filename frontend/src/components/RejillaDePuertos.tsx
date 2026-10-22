@@ -58,7 +58,8 @@ export default function RejillaDePuertos({ sw, puedeEditar, recien, marcado, onA
         return (
           <div key={n} className={clases.join(' ')} role="listitem">
             <button type="button" className="puerto-abrir" disabled={!onAbrir}
-              aria-label={etiqueta} title={p?.aviso || etiqueta}
+              aria-label={etiqueta}
+              title={p?.aviso || (!eq && onAbrir ? `Enchufar un equipo en el puerto ${n}` : etiqueta)}
               onClick={() => onAbrir?.(n, p)}>
               <span className="p-num">
                 {n}
@@ -74,7 +75,10 @@ export default function RejillaDePuertos({ sw, puedeEditar, recien, marcado, onA
                   </span>
                 </>
               ) : (
-                <span className="p-libre">{puedeEditar ? '+ enchufar' : 'libre'}</span>
+                /* Síntesis 21/10: «+ enchufar» repetido en cada puerto libre
+                   era la mitad del texto de Conexiones. El color ya dice libre
+                   y el `title` del botón dice qué hace. */
+                <span className="p-libre" aria-hidden="true">{puedeEditar ? '+' : '—'}</span>
               )}
             </button>
             {eq && puedeEditar && onDesenchufar && (

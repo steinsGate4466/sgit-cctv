@@ -165,16 +165,13 @@ export default function CamaraCaida({ c }: { c: any }) {
               {' '}«{c.orden.ultimaNota.texto}»
             </p>
           ) : (
-            <p className="cam-nota muted">
-              El técnico todavía no ha registrado ningún avance.
-            </p>
+            <p className="cam-nota muted">Sin avances registrados.</p>
           )}
         </div>
       ) : (
         <p className="cam-sinorden">
           <Icono n="alerta" size={15} />
-          <b>Todavía no hay nadie asignado.</b> La incidencia está registrada,
-          pero no se ha abierto una orden de trabajo.
+          <b>Sin orden de trabajo todavía.</b>
         </p>
       )}
 
@@ -184,13 +181,21 @@ export default function CamaraCaida({ c }: { c: any }) {
           <Icono n="inventario" size={16} />
           <div>
             <b>{c.faltaMaterial}</b>
-            <ul>
-              {c.materiales.filter((m: any) => m.bloquea).map((m: any) => (
-                <li key={m.descripcion}>
-                  <b>{m.descripcion}</b> — {m.texto}
-                </li>
-              ))}
-            </ul>
+            {/* Síntesis 21/10: con UN material el titular ya lo nombra; sólo
+                se añade la cuenta. Con varios, la lista. */}
+            {c.materiales.filter((m: any) => m.bloquea).length === 1 ? (
+              <div className="muted" style={{ fontSize: 12.5 }}>
+                {c.materiales.find((m: any) => m.bloquea)?.texto}
+              </div>
+            ) : (
+              <ul>
+                {c.materiales.filter((m: any) => m.bloquea).map((m: any) => (
+                  <li key={m.descripcion}>
+                    <b>{m.descripcion}</b> — {m.texto}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       )}
@@ -209,7 +214,7 @@ export default function CamaraCaida({ c }: { c: any }) {
         <div className={'cam-pie ' + (c.espera.excedida ? 'cam-pie-grave' : 'cam-pie-atender')}>
           <Icono n="pausa" size={17} />
           <div>
-            <div className="cam-pie-que">Parada: hasta aquí se puede llegar hoy</div>
+            <div className="cam-pie-que">En espera</div>
             <div className="cam-pie-porque">{c.espera.texto}</div>
           </div>
         </div>

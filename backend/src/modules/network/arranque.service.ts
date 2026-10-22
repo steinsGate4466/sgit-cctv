@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { computeEffectiveStatuses } from '../../common/asset-status';
 import { arranqueDeDiagnostico, EntradaDeArranque } from './arranque-de-diagnostico';
 import { papelDe } from './dependencias';
+import { SOLO_FALLAS } from '../../common/aviso-sap';
 
 /**
  * EL ARRANQUE DE DIAGNÓSTICO, CON DATOS REALES — bloque 51.
@@ -128,7 +129,8 @@ export class ArranqueService {
         select: { endedAt: true, rootCause: true, diagnosis: true },
       }),
       this.prisma.incident.count({
-        where: { assetId, reportedAt: { gte: hace90 } },
+        // Bloque 180: son FALLAS; un aviso de «funciona, pero…» no lo es.
+        where: { assetId, reportedAt: { gte: hace90 }, AND: [SOLO_FALLAS] },
       }),
     ]);
 

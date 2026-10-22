@@ -114,9 +114,9 @@ export default function Rotulado() {
     <div className="page">
       <h1 className="page-title">Estándar de rotulado</h1>
 
-      <div className="card explica">
+      {/* Síntesis 21/10: la nota larga de la norma va al `title`. */}
+      <div className="card explica" title={norma?.nota}>
         <b>{norma?.norma}</b>
-        <div style={{ marginTop: 8 }}>{norma?.nota}</div>
       </div>
 
       {/* ---------------- COLORES DE CHAQUETA (bloque 45) ----------------
@@ -126,17 +126,16 @@ export default function Rotulado() {
       {colores.length > 0 && (
         <div className="card">
           <div className="section-title">Colores de chaqueta del cable</div>
-          <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
-            La norma no impone un color: exige coherencia. Éste es el estándar
-            interno de la planta, y se edita como cualquier catálogo.
+          <p className="muted" style={{ fontSize: 13, marginTop: 0 }}
+            title="La norma no impone un color: exige coherencia.">
+            Estándar interno; se edita en el catálogo.
           </p>
           <div className="leyenda-colores">
             {colores.map((c) => (
-              <div key={c.code} className="color-item">
+              <div key={c.code} className="color-item" title={c.porQue || undefined}>
                 <span className="color-chip" style={{ background: c.hex }} />
                 <div>
                   <b>{c.nombre}</b> — {c.uso}
-                  {c.porQue && <div className="muted" style={{ fontSize: 12 }}>{c.porQue}</div>}
                   {origenDe(c.nombre) && <div className="muted" style={{ fontSize: 11.5 }}>{origenDe(c.nombre)}</div>}
                 </div>
               </div>
@@ -148,10 +147,9 @@ export default function Rotulado() {
       {/* ---------------- GENERADOR ---------------- */}
       <div className="card">
         <div className="section-title">Cómo se llama este equipo</div>
-        <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
-          Fórmula: <code>{norma?.formula}</code> — por ejemplo <code>{norma?.ejemplo}</code>.
-          Se lee de un vistazo estando delante del equipo, que es cuando hace
-          falta: el técnico ve el rótulo y ya sabe tren y zona sin sacar el teléfono.
+        <p className="muted" style={{ fontSize: 13, marginTop: 0 }}
+          title="Delante del equipo, el rótulo dice tren y zona sin sacar el teléfono.">
+          <code>{norma?.formula}</code> · ej. <code>{norma?.ejemplo}</code>
         </p>
 
         <div className="form-grid">
@@ -211,11 +209,9 @@ export default function Rotulado() {
       {/* ---------------- REVISOR ---------------- */}
       <div className="card">
         <div className="section-title">Revisar un rótulo que ya está pegado</div>
-        <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
-          Se teclea el código de una etiqueta existente y dice si cumple. Un
-          formato imposible es <b>error</b>; un desfase con el árbol es sólo
-          <b> aviso</b>, porque puede ser que el equipo se haya movido y el
-          rótulo esté bien.
+        <p className="muted" style={{ fontSize: 13, marginTop: 0 }}
+          title="Un desfase con el árbol es sólo aviso: puede que el equipo se haya movido y el rótulo esté bien.">
+          Formato imposible = <b>error</b>; no cuadra con el árbol = <b>aviso</b>.
         </p>
         <div className="filters">
           <div style={{ flex: 1 }}>
@@ -263,10 +259,9 @@ export default function Rotulado() {
       {colores.length === 0 && (
       <div className="card">
         <div className="section-title">Código de color del cable</div>
-        <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
-          El color es <b>recomendado</b>, no obligatorio. Lo que se audita es que
-          el criterio esté escrito y se aplique igual en toda la planta. Cada
-          fila dice de dónde sale el color: la norma o una decisión interna.
+        <p className="muted" style={{ fontSize: 13, marginTop: 0 }}
+          title="Lo que se audita es que el criterio esté escrito y se aplique igual en toda la planta.">
+          Color <b>recomendado</b>, no obligatorio.
         </p>
         <div className="card" style={{ padding: 0, overflowX: 'auto' }}>
           <table className="tabla">
@@ -302,10 +297,7 @@ export default function Rotulado() {
       {/* ---------------- ABREVIATURAS ---------------- */}
       <div className="card">
         <div className="section-title">Abreviaturas por tipo</div>
-        <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
-          Cortas y sin vocales ambiguas: tienen que leerse en una etiqueta de
-          6 mm impresa con una etiquetadora de campo.
-        </p>
+        {/* Cortas y sin vocales ambiguas: se leen en una etiqueta de 6 mm. */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {Object.entries(norma?.abreviaturas ?? {}).map(([k, v]) => (
             <span key={k} className="chip">

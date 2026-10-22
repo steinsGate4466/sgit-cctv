@@ -58,24 +58,23 @@ export default function Exportar() {
 
   return (
     <div className="page">
-      <p className="page-sub">
-        Una hoja de cálculo por tema, con los mismos datos que su pantalla.
-      </p>
+      <p className="page-sub">Un Excel por tema.</p>
 
       {fallo && <div className="card aviso-error">{fallo}</div>}
 
       <div className="export-grid">
         {visibles.map((t) => (
+          /* Síntesis 21/10: el detalle de cada hoja, al `title`. */
           <button
             key={t.clave}
             className="export-card"
             disabled={!!bajando}
             onClick={() => bajar(t.clave)}
+            title={t.detalle}
           >
             <div className="ec-nombre">
               <Icono n="bandeja" size={16} /> {t.nombre}
             </div>
-            <div className="ec-detalle">{t.detalle}</div>
             <div className="ec-accion">
               {bajando === t.clave ? 'Generando…' : 'Descargar .xlsx'}
             </div>
@@ -87,15 +86,9 @@ export default function Exportar() {
         <>
           <div className="section-title">Libro completo</div>
           <div className="card">
-            <p style={{ marginTop: 0 }}>
-              Todas las hojas en un solo archivo, con una portada que explica
-              qué es. Es la copia que conviene <b>guardar fuera</b> y mandarle
-              al ingeniero cada cierto tiempo.
-            </p>
-            <p className="muted" style={{ fontSize: 12.5 }}>
-              Aviso honesto: volver a subir estas hojas <b>no reconstruye el
-              sistema</b> — los datos están enlazados entre sí por
-              identificadores. La restauración se hace desde los respaldos de la base.
+            <p style={{ marginTop: 0 }}
+              title="Volver a subir estas hojas no reconstruye el sistema: la restauración se hace desde los respaldos de la base.">
+              Todas las hojas en un archivo: la copia para <b>guardar fuera</b>.
             </p>
             <button className="btn-primary" disabled={!!bajando} onClick={() => bajar('todo')}>
               {bajando === 'todo' ? 'Generando el libro…' : 'Descargar el libro completo'}

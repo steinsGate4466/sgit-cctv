@@ -54,6 +54,8 @@ export class LocationsService {
         howToGet: dto.howToGet?.trim() || undefined,
         siglaTren: dto.type === 'TREN' ? dto.siglaTren || undefined : undefined,
         environment: dto.environment || undefined,
+        // Bloque 180: la ubicación técnica de SAP, como la escribe SAP (mayúsculas).
+        sapLocationCode: (dto.sapLocationCode || '').trim().toUpperCase() || undefined,
       },
     });
   }
@@ -80,6 +82,7 @@ export class LocationsService {
         ...(dto.howToGet !== undefined ? { howToGet: dto.howToGet.trim() || null } : {}),
         ...(dto.siglaTren !== undefined && exists.type === 'TREN' ? { siglaTren: dto.siglaTren || null } : {}),
         ...(dto.environment !== undefined ? { environment: dto.environment || null } : {}),
+        ...(dto.sapLocationCode !== undefined ? { sapLocationCode: dto.sapLocationCode.trim().toUpperCase() || null } : {}),
       },
     });
   }

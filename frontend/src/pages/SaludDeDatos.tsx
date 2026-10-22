@@ -98,7 +98,9 @@ export default function SaludDeDatos() {
       <h2 className="sub-titulo">Por dimensión</h2>
       <div className="dims">
         {d.dimensiones.map((x: any) => (
-          <div key={x.dimension} className={`dim ${x.puntos === null ? 'dim-sinmedir' : ''}`}>
+          /* Síntesis 21/10: qué mide cada dimensión va al `title`. */
+          <div key={x.dimension} className={`dim ${x.puntos === null ? 'dim-sinmedir' : ''}`}
+            title={x.porQueNo || x.queMide}>
             <div className="dim-cabeza">
               <span className="dim-nombre">{x.nombre}</span>
               {x.puntos === null
@@ -119,16 +121,14 @@ export default function SaludDeDatos() {
                 style={{ width: `${x.puntos ?? 100}%` }}
               />
             </div>
-            <p className="dim-que">{x.porQueNo || x.queMide}</p>
           </div>
         ))}
       </div>
 
-      <h2 className="sub-titulo">Lo que falta, por orden de cuánto afecta</h2>
+      <h2 className="sub-titulo">Lo que falta</h2>
       {huecos.length === 0 ? (
         <div className="card vacio">
           <h3>No falta nada</h3>
-          <p>Todas las fichas tienen lo que hace falta para trabajar.</p>
         </div>
       ) : (
         <div className="huecos">
@@ -137,9 +137,12 @@ export default function SaludDeDatos() {
               <span className="hueco-n">{h.cuantos}</span>
               <div className="hueco-txt">
                 <b>{h.falta}</b>
+                {/* Tres ejemplos que llevan a su ficha (§57.1); el resto, contado. */}
                 <span className="hueco-ej">
-                  Por ejemplo: {h.ejemplos.join(', ')}
-                  {h.cuantos > h.ejemplos.length && `, y ${h.cuantos - h.ejemplos.length} más`}
+                  {h.ejemplos.slice(0, 3).map((c: string, j: number) => (
+                    <span key={c}>{j > 0 && ', '}<Link to={`/assets?search=${encodeURIComponent(c)}`}>{c}</Link></span>
+                  ))}
+                  {h.cuantos > Math.min(3, h.ejemplos.length) && ` y ${h.cuantos - Math.min(3, h.ejemplos.length)} más`}
                 </span>
               </div>
               {/* Quién lo carga. Sin esto la lista la lee todo el mundo y no

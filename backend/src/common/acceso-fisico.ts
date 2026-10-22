@@ -350,32 +350,32 @@ export function resumirAcceso(
  * foto tranquila.
  */
 function titularDeAcceso(r: ResumenDeAcceso): string {
+  /* Síntesis 21/10: una frase corta por caso, sin perder el dato que la
+     justifica (el ahorro «en vez de», que la cifra «todavía puede subir»). */
+  const eq = (n: number) => `${n} ${n === 1 ? 'equipo' : 'equipos'}`;
+  const subidas = (n: number) => `${n} ${n === 1 ? 'subida' : 'subidas'}`;
   if (r.total === 0) return 'Todavía no hay equipos cargados en este tren.';
 
   if (r.subidasQueSeAhorran > 0) {
-    return `${r.pendientesConElevador} equipos con trabajo pendiente exigen manlift, `
-      + `y están en ${r.subidas.length} ${r.subidas.length === 1 ? 'punto' : 'puntos'}: `
-      + `se pueden atender en ${r.subidas.length} ${r.subidas.length === 1 ? 'subida' : 'subidas'} `
-      + `en vez de ${r.pendientesConElevador}.`;
+    return `${eq(r.pendientesConElevador)} con trabajo y manlift: `
+      + `${subidas(r.subidas.length)} en vez de ${r.pendientesConElevador}.`;
   }
 
   if (r.pendientesConElevador > 0) {
-    return `${r.pendientesConElevador} ${r.pendientesConElevador === 1 ? 'equipo pendiente exige' : 'equipos pendientes exigen'} `
-      + 'manlift. No comparten punto, así que no se pueden juntar.';
+    return `${eq(r.pendientesConElevador)} con trabajo exigen manlift, en puntos distintos.`;
   }
 
   if (r.sinDeclararEnZonaDeAltura > 0) {
-    return `${r.exigenElevador} ${r.exigenElevador === 1 ? 'equipo exige' : 'equipos exigen'} manlift, `
-      + `pero faltan ${r.sinDeclararEnZonaDeAltura} por declarar en zonas de altura: `
-      + 'esa cifra todavía puede subir.';
+    return `${eq(r.exigenElevador)} con manlift; la cifra todavía puede subir: `
+      + `${r.sinDeclararEnZonaDeAltura} sin declarar en zonas de altura.`;
   }
 
   if (r.sinDeclarar > 0) {
-    return `${r.sinDeclarar} de ${r.total} ${r.sinDeclarar === 1 ? 'equipo no tiene' : 'equipos no tienen'} `
-      + 'declarado cómo se llega. Hasta que se declare no se puede planificar una subida.';
+    return `${r.sinDeclarar} de ${r.total} ${r.sinDeclarar === 1 ? 'no tiene' : 'no tienen'} declarado cómo se llega.`;
   }
 
-  return r.exigenElevador > 0
-    ? `${r.exigenElevador} de ${r.total} equipos exigen manlift, y ninguno tiene trabajo pendiente hoy.`
-    : `Los ${r.total} equipos de este tren se alcanzan sin equipo elevador.`;
+  if (r.exigenElevador > 0) return `${r.exigenElevador} de ${r.total} exigen manlift; ninguno con trabajo hoy.`;
+  return r.total === 1
+    ? 'El equipo se alcanza sin equipo elevador.'
+    : `Los ${r.total} equipos se alcanzan sin equipo elevador.`;
 }

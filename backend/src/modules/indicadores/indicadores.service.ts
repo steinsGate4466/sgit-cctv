@@ -324,7 +324,7 @@ export class IndicadoresService {
       }),
       this.prisma.workOrder.findMany({
         where: { status: 'CERRADA', createdAt: { gte: desde } },
-        select: { code: true, type: true, rootCause: true },
+        select: { code: true, type: true, rootCause: true, rootCauseCode: true },
       }),
       this.prisma.asset.findMany({
         where: dondeActivo,
@@ -358,8 +358,12 @@ export class IndicadoresService {
         revisarAntesDe: z.revisarAntesDe,
         tieneActivos: conActivos.has(z.id),
       })),
+      /* AUDITORÍA 21/10: desde el bloque 169 la causa se elige del CATÁLOGO y
+         se guarda en `rootCauseCode`; `rootCause` (el enum viejo) sólo se
+         rellena si el código coincide con él. Mirar sólo el enum decía «no
+         declara su causa raíz» de órdenes cerradas con causa. */
       ordenesCerradas: ordenes.map((o) => ({
-        code: o.code, tipo: o.type as string, rootCause: o.rootCause,
+        code: o.code, tipo: o.type as string, rootCause: o.rootCauseCode ?? o.rootCause,
       })),
       activos: activos.map((a) => ({
         assetCode: a.assetCode,
@@ -427,7 +431,7 @@ export class IndicadoresService {
         falsasAlarmas: fallas.filter((f) => f.esFalsaAlarma).length,
         sinHoraRealDeCaida: fallas.filter((f) => !f.esFalsaAlarma && f.ocurrioEsEstimado).length,
         aviso: fallas.length < 5
-          ? 'Con menos de cinco averías registradas estos números son orientativos.'
+          ? 'Menos de cinco averías: cifras orientativas.'
           : null,
       },
       deteccion: {

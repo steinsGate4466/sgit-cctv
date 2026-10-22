@@ -102,9 +102,15 @@ describe('Bloque 83 — el motivo del estado', () => {
   it('entre incidencias gana la de MAYOR prioridad', () => {
     /* Con la primera a secas, un equipo con una avería crítica y una menor
        anterior explicaría su FUERA_SERVICIO citando la menor — el motivo
-       diría lo contrario que el estado. */
-    expect(MOTIVOS).toContain('HIGH_PRIORITY.includes(i.priority)');
-    expect(MOTIVOS).toContain('!HIGH_PRIORITY.includes(previa.priority)');
+       diría lo contrario que el estado.
+       BLOQUE 180: «mayor» es la que PESA COMO CAÍDA —alta o crítica y además
+       FALLA—, con la MISMA función que usa el estado. Una condición de zona
+       crítica funciona: no puede ganarle a una falla ni pintar en rojo. */
+    expect(MOTIVOS).toContain('pesaComoCaida(i) && !pesaComoCaida(previa)');
+    const regla = funcion('export function pesaComoCaida');
+    expect(regla).toContain('HIGH_PRIORITY.includes(x.priority)');
+    expect(regla).toContain('cuentaComoFalla(x.tipoAviso)');
+    expect(funcion('async function computeEffectiveStatuses')).toContain('avisos.some(pesaComoCaida)');
   });
 
   it('devuelve el código y el id: sin ellos no se puede ir a cerrarla', () => {

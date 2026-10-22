@@ -204,17 +204,13 @@ export function fronteraDe(
 
   let motivo: string | null = null;
   if (!candidatas.length) {
-    motivo = 'No tiene ninguna dirección declarada, así que no se puede saber '
-      + 'si el púlpito llega a él.';
+    motivo = 'No tiene ninguna dirección declarada.';
   } else if (!camaras && !cctv) {
-    motivo = 'Sus direcciones no caen en ninguna de las dos redes de vídeo '
-      + 'registradas. Revisa el plan de direcciones.';
+    motivo = 'Sus direcciones no caen en ninguna red de vídeo registrada.';
   } else if (!camaras) {
-    motivo = 'Le falta la pata de la red de cámaras: sólo se conoce su lado '
-      + 'del púlpito.';
+    motivo = 'Le falta la dirección de la red de cámaras.';
   } else if (!cctv) {
-    motivo = 'Le falta la pata de la red CCTV. Las cámaras llegan a él, pero '
-      + 'no consta cómo lo alcanza el púlpito.';
+    motivo = 'Le falta la dirección de la red CCTV (la del púlpito).';
   }
 
   return {
@@ -298,8 +294,7 @@ export function revisarSegmentos(
       out.push({
         clave: 'SIN_IP', gravedad: 'AVISO', equipoId: e.id, equipo: e.codigo,
         que: 'No tiene dirección declarada.',
-        queHacer: 'Sin IP no se puede comprobar en qué red está ni monitorearlo. '
-          + 'Se completa en la ficha del equipo.',
+        queHacer: 'Se completa en la ficha del equipo.',
       });
       continue;
     }
@@ -308,8 +303,7 @@ export function revisarSegmentos(
       out.push({
         clave: 'FUERA_DE_PLAN', gravedad: 'ERROR', equipoId: e.id, equipo: e.codigo,
         que: `Su dirección ${e.ip} no cae en ninguna subred registrada.`,
-        queHacer: 'O la IP está mal, o falta registrar esa subred en '
-          + 'Direccionamiento IP. Las dos cosas hay que arreglarlas.',
+        queHacer: 'Corrige la IP o registra la subred en Direcciones IP.',
       });
       continue;
     }
@@ -318,9 +312,7 @@ export function revisarSegmentos(
       out.push({
         clave: 'CAMARA_EN_RED_CCTV', gravedad: 'ERROR', equipoId: e.id, equipo: e.codigo,
         que: 'Es una cámara y está en la red CCTV, no en la de cámaras.',
-        queHacer: 'Las cámaras van en la red de cámaras y llegan al púlpito a '
-          + 'través del grabador. Una cámara colgada directamente de la red '
-          + 'troncal se salta esa frontera.',
+        queHacer: 'Las cámaras van en la red de cámaras y llegan al púlpito por el grabador.',
       });
     }
 
@@ -328,8 +320,7 @@ export function revisarSegmentos(
       out.push({
         clave: 'SWITCH_CAMPO_EN_RED_CCTV', gravedad: 'AVISO', equipoId: e.id, equipo: e.codigo,
         que: 'Es un switch de campo y está direccionado en la red CCTV.',
-        queHacer: 'Comprueba si es un caso justificado o un error de registro. '
-          + 'Los switches de campo suelen ir en la red de cámaras.',
+        queHacer: 'Lo habitual es la red de cámaras: comprueba el registro.',
       });
     }
 
@@ -337,8 +328,7 @@ export function revisarSegmentos(
       out.push({
         clave: 'FORTI_EN_LAN_CAMARAS', gravedad: 'AVISO', equipoId: e.id, equipo: e.codigo,
         que: 'Es un switch troncal y está direccionado en la red de cámaras.',
-        queHacer: 'Comprueba el registro: lo habitual es que el troncal viva en '
-          + 'la red CCTV.',
+        queHacer: 'Lo habitual es la red CCTV: comprueba el registro.',
       });
     }
 
@@ -348,9 +338,7 @@ export function revisarSegmentos(
         out.push({
           clave: 'GRABADOR_SIN_PUENTE', gravedad: 'ERROR', equipoId: e.id, equipo: e.codigo,
           que: f.motivo || 'No hace de puente entre las dos redes.',
-          queHacer: 'Declara sus dos direcciones en la ficha del grabador: la '
-            + 'de la red de cámaras y la de la red CCTV. Sin las dos, el sistema '
-            + 'no puede decir si el púlpito llega a verlo.',
+          queHacer: 'Declara en su ficha las dos direcciones: red de cámaras y red CCTV.',
         });
       }
     }

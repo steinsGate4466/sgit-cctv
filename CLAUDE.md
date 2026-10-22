@@ -6960,3 +6960,54 @@ Salió de recorrer 61 pantallas con tres perfiles (`docs/AUDITORIA_PANTALLAS_201
   filtros en dos columnas.
 - Pendiente: el formato mm/dd/aaaa de los `<input type="date">` lo pone el navegador
   (idioma del sistema), no la página.
+
+## §103 · BLOQUE 179 — MENOS LETRAS Y LOS PROCESOS QUE SOBRABAN (21-22/10/2026)
+
+- Palabras de pantalla −37 % Jefe, −29 % Producción, −36 % Técnico; la explicación va al `title`
+  o a «Cómo se calcula esto». `verificar:densidad` bajó sus líneas base.
+- **`PATCH /work-orders/:id` ya no cierra ni cancela** (un técnico lo hacía sin firma: 200). CERRADA
+  sólo por el cierre firmado; CANCELADA sólo con `wo.approve`; lo cerrado no se edita.
+- Abrir la OM la deja detallada; al 100 % el técnico propone síntoma/causa/acción y el cierre del
+  Jefe las trae marcadas. La incidencia resuelta por su OM cierra el evento de falla y el MTTR.
+- Prueba: `test/procesos-21102026.spec.ts`.
+
+## §104 · BLOQUE 180 — EL AVISO Y LA ORDEN, COMO EN SAP (22/10/2026)
+
+Decisiones de Cristhian (detalle: `claude/DISENO-AVISO-OM-SAP.md` del proyecto). **No deshacer.**
+
+1. **Una incidencia es un AVISO, no siempre un correctivo.** Se contesta «¿El equipo funciona?»:
+   FALLA (no funciona) · CONDICIÓN (funciona, pero se va a dañar) · SOLICITUD (pedido o cambio).
+   - Sólo la FALLA crea evento de falla, cuenta en MTBF/MTTR/frecuencia de la criticidad y quita
+     servicio (estado efectivo). Una condición de zona crítica sigue OPERATIVA.
+   - Sin tipo (lo de antes) = FALLA. Filtros de Prisma con `SOLO_FALLAS` (`common/aviso-sap.ts`):
+     **nunca** `tipoAviso: { not: … }`, que en SQL deja fuera los NULL de todo el histórico.
+   - Reclasificar apaga el evento con `esFalsaAlarma` + nota «Reclasificado…» (no se borra).
+   - El aviso PROPONE el tipo de OM (falla→correctivo, condición→preventivo, pedido→mejora);
+     lo DECIDE quien la trata. Se revirtió el «convertir = siempre correctivo» del 21/10.
+2. **La OM la crea SAP. «Primero el N° SAP»**: sin `externalRef` no se abre, no avanza, no pone
+   EN_PROCESO, no saca material y no se cierra (`motivoSinOmSap`). Se apunta con
+   `PATCH /work-orders/:id/sap` (apuntar: `wo.create` = Producción o el Jefe; cambiar/quitar:
+   `wo.approve`); el PATCH general lo rechaza. Repetido en otra orden: se AVISA, no se impide.
+   Normalizado como lo enseña SAP (sin espacios ni ceros delante, 4-12 caracteres).
+   - Aviso SAP de la incidencia: `PATCH /incidents/:id/aviso-sap` (apuntar si falta con
+     `incident.create`; cambiarlo, `incident.update`) y `GET /incidents/:id/para-sap`
+     (ubicación técnica heredada del árbol, texto breve de 40, texto largo, inicio de avería).
+   - `Location.sapLocationCode` ya se edita en Ubicaciones («Ubicación técnica SAP»).
+3. **El preventivo PROGRAMA y VINCULA; no crea OM.** Se retiraron `generate`, `autogen` y el
+   interruptor (bloque 143). `GET /preventive/programa?dias=` dice qué toca y con qué OM;
+   `POST /preventive/activo/:assetId/vincular-sap` (`wo.approve`) crea la PREVENTIVA con la OM de
+   SAP, la fecha del programa y los pasos de la hoja (o numera la viva sin N° SAP). El planificador
+   sólo documenta cada día lo que tocaba (`PREVENTIVE_PROGRAMA`).
+4. **Grúa → aviso** (falla o condición) en `InspeccionGrua.incidentId`; si la cámara ya tiene uno
+   vivo se enlaza y, si estaba como condición y sale fuera de servicio, pasa a FALLA.
+5. **INSTALACIÓN tiene tipo de OM propio**, fuera del reparto (`otros.instalacion`).
+
+- Bandeja: «Falta la OM de SAP» y «Rutinas sin su OM de SAP». Resumen diario: las dos cuentas.
+- De rebote: «Mis cámaras» daba 500 al caer una cámara de zona FIRMADA (pasaba el booleano
+  `intervencionFirmada` como si fuera la firma). Usa la intervención ya resuelta del contexto.
+- Migración aditiva `20261022010000_aviso_y_om_sap`. Pruebas: `test/aviso-y-om-sap.spec.ts`,
+  `preventive.service.spec.ts` y `grua-abre-om.spec.ts` reescritas con la decisión nueva.
+- Pendiente de decidir con él: si el MAPEO también exige N° SAP (hoy sí, como toda OM) y si se
+  eximen las OM vivas de antes del 22/10 (hoy no: Railway aplica la migración al arrancar y,
+  desde ese momento, toda OM viva sin N° SAP queda frenada hasta que se le apunte; la bandeja
+  las lista en «Falta la OM de SAP»).

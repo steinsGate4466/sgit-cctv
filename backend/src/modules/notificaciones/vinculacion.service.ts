@@ -53,8 +53,8 @@ export class VinculacionService {
       codigo,
       activo,
       instrucciones: activo
-        ? `Busca el bot en Telegram y escríbele:  /start ${codigo}`
-        : 'El bot todavía no está configurado. Cuando TI lo autorice, este código servirá para vincularte.',
+        ? 'Busca el bot en Telegram.'
+        : 'El bot aún no está configurado: el código servirá cuando lo esté.',
     };
   }
 

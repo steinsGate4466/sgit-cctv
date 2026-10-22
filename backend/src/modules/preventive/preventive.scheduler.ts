@@ -5,22 +5,24 @@ import { PreventiveService } from './preventive.service';
 import { autogenApagadaPorEntorno } from './autogen-entorno';
 
 /**
- * Tarea programada de generación automática de OM **PREVENTIVAS**.
+ * Tarea diaria del PROGRAMA PREVENTIVO.
  *
- * Por qué existe: con 400+ activos en planta, depender de que alguien pulse un botón
- * cada día hace que el plan preventivo se incumpla. Esta tarea lo ejecuta sola.
+ * BLOQUE 180 · YA NO CREA ÓRDENES. Hasta el bloque 179 generaba cada madrugada
+ * las OM preventivas vencidas con número propio. Cristhian lo corrigió (22/10):
+ * la OM de una rutina la genera SAP —plan + hoja de ruta— y aquí se VINCULA.
+ * Generarla también aquí eran dos órdenes para el mismo trabajo.
  *
- * Alcance (importante): SOLO genera preventivas. Correctivo, mejora y predictivo
- * nacen siempre de una decisión humana (incidencia, análisis o propuesta de mejora).
+ * Lo que hace ahora, una vez al día: deja DOCUMENTADO en la auditoría qué
+ * rutinas tocaban y cuántas seguían sin su OM de SAP (`programaDelDia`). Es lo
+ * que demuestra, en una auditoría, que el programa avisó a tiempo.
  *
  * Implementación deliberadamente sin dependencias externas (sin @nestjs/schedule):
  * un temporizador propio evita tocar package.json y mantiene el despliegue estable.
  *
  * Configuración por variables de entorno:
- *   PREVENTIVE_AUTOGEN=off|false|0|no -> desactiva la generación automática (por defecto: activa)
- *                                    (además, Mantenimiento la apaga y enciende desde Preventivo — bloque 143)
+ *   PREVENTIVE_AUTOGEN=off|false|0|no -> desactiva este documento diario (por defecto: activo)
+ *                                    (el interruptor de la pantalla, bloque 143, se retiró en el 180)
  *   PREVENTIVE_AUTOGEN_HOUR=6     -> hora local de planta a partir de la cual corre (0-23)
- *   PREVENTIVE_LOOKAHEAD_DAYS=0   -> también genera las que vencen en N días
  *   PLANT_UTC_OFFSET=-5           -> huso horario de la planta (Perú = -5)
  */
 @Injectable()
@@ -39,13 +41,13 @@ export class PreventiveScheduler implements OnModuleInit, OnModuleDestroy {
 
   onModuleInit() {
     if (autogenApagadaPorEntorno()) {
-      this.logger.log(`Generación automática de preventivos DESACTIVADA (PREVENTIVE_AUTOGEN=${process.env.PREVENTIVE_AUTOGEN}).`);
+      this.logger.log(`Programa preventivo diario DESACTIVADO (PREVENTIVE_AUTOGEN=${process.env.PREVENTIVE_AUTOGEN}).`);
       return;
     }
     // No bloquear el arranque de la app: se agenda en segundo plano.
     setTimeout(() => this.tick(), this.FIRST_CHECK_MS);
     this.timer = setInterval(() => this.tick(), this.CHECK_EVERY_MS);
-    this.logger.log('Generación automática de OM preventivas activada.');
+    this.logger.log('Programa preventivo diario activo (documenta lo que toca; no crea OM).');
   }
 
   onModuleDestroy() {
@@ -81,21 +83,19 @@ export class PreventiveScheduler implements OnModuleInit, OnModuleDestroy {
       const now = this.plantNow();
       if (now.getUTCHours() < startHour) return; // aún no es la hora de planta
 
-      /* Bloque 143: el interruptor de la pantalla se lee en CADA ciclo, así
-         que apagarlo surte efecto sin reiniciar el servicio. */
-      if (!(await this.preventive.autogenEncendida())) return;
-
+      /* Bloque 180: el interruptor de la pantalla (bloque 143) se retiró con
+         la generación: ya no se crea nada que haya que poder parar. La
+         variable de entorno sigue apagando este documento diario. */
       const r = await conCandado(this.prisma, CANDADO.PREVENTIVO, async () => {
         if (await this.alreadyRanToday()) return null;
-        const lookahead = Number(process.env.PREVENTIVE_LOOKAHEAD_DAYS ?? 0);
-        return this.preventive.generateDue(null, 'sistema (automático)', lookahead);
+        return this.preventive.programaDelDia('sistema (automático)');
       });
 
       if (r.motivo === 'fallo') {
         /* No poder tomar el candado NO se ejecuta: no se puede demostrar que
            la otra réplica no esté haciéndolo. Se reintenta en 30 minutos. */
         this.logger.error(
-          `No se pudo tomar el candado de la generación automática; se salta este ciclo: ${
+          `No se pudo tomar el candado del programa preventivo; se salta este ciclo: ${
             (r.error as any)?.message || r.error
           }`,
         );
@@ -105,15 +105,15 @@ export class PreventiveScheduler implements OnModuleInit, OnModuleDestroy {
       if (!r.tomado || !r.valor) return;
 
       this.logger.log(
-        `Generación automática: ${r.valor.generated} OM preventiva(s) creada(s), ${r.valor.skipped.length} omitida(s).`,
+        `Programa del día: ${r.valor.tocan} rutina(s) tocan; ${r.valor.sinOm + r.valor.omSinSap} sin su OM de SAP.`,
       );
     } catch (e: any) {
       // Nunca tumbar la aplicación por un fallo del job; se reintenta en el próximo ciclo.
-      this.logger.error(`Fallo en la generación automática: ${e?.message || e}`);
+      this.logger.error(`Fallo en el programa preventivo diario: ${e?.message || e}`);
     }
   }
 
-  /** ¿Ya se ejecutó la generación automática en el día de planta en curso? */
+  /** ¿Ya se documentó el programa del día de planta en curso? */
   private async alreadyRanToday(): Promise<boolean> {
     const offset = Number(process.env.PLANT_UTC_OFFSET ?? -5);
     const plant = this.plantNow();
@@ -123,7 +123,7 @@ export class PreventiveScheduler implements OnModuleInit, OnModuleDestroy {
     );
     const run = await this.prisma.auditLog.findFirst({
       where: {
-        action: 'PREVENTIVE_GENERATE',
+        action: 'PREVENTIVE_PROGRAMA',
         ip: 'sistema (automático)', // marca de ejecución automática
         createdAt: { gte: startOfPlantDayUtc },
       },

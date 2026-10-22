@@ -11,6 +11,7 @@ import RutinaEnCampo from './RutinaEnCampo';
 import SeguridadAlEmpezar, { Perfil } from './SeguridadAlEmpezar';
 import { useDialogos } from './Dialogos';
 import { ahoraParaInputLocal } from '../fechas';
+import { FaltaOmSap } from './NumeroSapDeOm';
 
 /**
  * Pantallas de EJECUCIÓN EN CAMPO de una orden de mantenimiento.
@@ -43,6 +44,10 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
   const [tecnicos, setTecnicos] = useState<any[]>([]);
+  /* Bloque 180 · «primero el N° SAP». Se guarda aquí para que, apuntado desde
+     el aviso de arriba, el formulario siga sin tener que cerrarlo y volver. */
+  const [sap, setSap] = useState<string | null>(wo?.externalRef ?? null);
+  const queSeIntenta = accion === 'abrir' ? 'abre' : accion === 'avance' ? 'anota avance' : 'cierra';
 
   // ---- abrir ----
   const [inicio, setInicio] = useState('');
@@ -58,12 +63,14 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
 
   // ---- cerrar ----
   const [fin, setFin] = useState('');
-  const [causa, setCausa] = useState('');
-  const [sintoma, setSintoma] = useState('');
+  /* AUDITORÍA DE PROCESOS 21/10: si el técnico ya marcó al terminar qué vio,
+     la causa y qué hizo, el cierre lo trae puesto. El Jefe revisa y firma. */
+  const [causa, setCausa] = useState<string>(wo?.rootCauseCode || '');
+  const [sintoma, setSintoma] = useState<string>(wo?.symptomCode || '');
   // OJO con el nombre: la propiedad `acción` ya es el modo de la pantalla
   // (abrir / avance / cerrar). Esta es la ACCIÓN REALIZADA del catálogo, y si
   // se llamara igual la taparía sin que TypeScript dijera nada.
-  const [accionRealizada, setAccionRealizada] = useState('');
+  const [accionRealizada, setAccionRealizada] = useState<string>(wo?.actionCode || '');
   const [causaNota, setCausaNota] = useState('');
   const [motivoAvance, setMotivoAvance] = useState('');
   // Catálogos editables (3E). Se piden al servidor: no están en el código.
@@ -165,6 +172,8 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
   async function enviar(e: FormEvent) {
     e.preventDefault();
     setError('');
+    // El servidor lo vuelve a comprobar; esto sólo ahorra pedir la firma en vano.
+    if (!sap) { setError(`Falta el N° de OM SAP: sin él no se ${queSeIntenta}.`); return; }
     setGuardando(true);
     try {
       if (accion === 'abrir') {
@@ -203,6 +212,12 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
           reasonCode: motivoAvance || undefined,
           pct: Number(pct),
           note: nota.trim() || undefined,
+          // Al 100 %, la propuesta de cierre del técnico (la confirma el Jefe).
+          ...(Number(pct) === 100 ? {
+            symptomCode: sintoma || undefined,
+            rootCauseCode: causa || undefined,
+            actionCode: accionRealizada || undefined,
+          } : {}),
         });
       } else {
         // Bloque 163: lo primero que se mira es la evidencia. Si falta, se dice
@@ -270,8 +285,9 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
           endedAt: iso(fin),
           // Se manda el CÓDIGO del catálogo. El servidor escribe también el
           // enum cuando coincide, para que los informes viejos sigan leyendo.
+          // (Mandarlo también como enum hacía fallar el cierre con una causa
+          // nueva creada desde Catálogo de fallas.)
           rootCauseCode: causa || undefined,
-          rootCause: causa || undefined,
           symptomCode: sintoma || undefined,
           actionCode: accionRealizada || undefined,
           rootCauseNote: causaNota.trim() || undefined,
@@ -296,6 +312,10 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
   return (
     <Modal title={titulo} onClose={onClose}>
       <form onSubmit={enviar}>
+        {!sap && (
+          <FaltaOmSap wo={wo} queSeIntenta={queSeIntenta}
+            onApuntado={(n) => { setSap(n); setError(''); onHecho(); }} />
+        )}
 
         {/* ---------------------------------------------------------- ABRIR */}
         {accion === 'abrir' && acceso?.aplica && (
@@ -359,22 +379,24 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
         )}
 
         {/* --------------------------------------------------------- AVANCE */}
-        {accion === 'avance' && (
+        {/* Al 100 % no hay «por qué no se avanzó más»: se pregunta lo que se encontró. */}
+        {accion === 'avance' && pct < 100 && (
           <ListaCatalogo
             etiqueta="¿Por qué no se avanzó más?"
             valor={motivoAvance}
             onChange={setMotivoAvance}
             items={catalogos?.MOTIVO_AVANCE}
-            vacio="Todavía no hay motivos configurados. Se crean en Documentos › Catálogo de fallas."
+            vacio="Todavía no hay motivos configurados. Se crean en Mantenimiento › Procedimientos › Catálogo de fallas."
           />
         )}
 
         {accion === 'avance' && (
           <>
-            <div className="sign-note">
-              Si el trabajo no se terminó, deja el avance y el motivo. La orden
-              queda en proceso: no hace falta cerrarla ni inventar un final.
-            </div>
+            {pct < 100 && (
+              <div className="sign-note">
+                Si no se terminó, deja el avance y el motivo: la orden sigue en proceso.
+              </div>
+            )}
 
             <label>Avance: <strong>{pct}%</strong></label>
             <input aria-label="Porcentaje de avance" type="range" min={0} max={100} step={5} value={pct}
@@ -391,6 +413,23 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
             <textarea aria-label="Nota del avance" value={nota} onChange={(e) => setNota(e.target.value)} rows={3}
               style={{ width: '100%', resize: 'vertical' }}
               placeholder="Ej: la parada se acortó, Producción reinició antes / faltó manlift / no llegó el repuesto" />
+
+            {/* AUDITORÍA DE PROCESOS 21/10 · «terminé» con lo que sólo sabe
+                quien estuvo delante: qué vio, por qué falló y qué hizo. Con
+                clics. El Jefe lo encuentra marcado al cerrar y sólo firma. */}
+            {pct === 100 && (
+              <>
+                <div className="sign-note" style={{ marginTop: 10 }}>
+                  Terminado: marca lo que viste, la causa y qué hiciste. El Jefe lo confirma al cerrar.
+                </div>
+                <ListaCatalogo etiqueta="¿Qué viste? (síntoma)" valor={sintoma} onChange={setSintoma}
+                  items={catalogos?.SINTOMA} vacio="No hay síntomas configurados." />
+                <ListaCatalogo etiqueta="Causa encontrada" valor={causa} onChange={setCausa}
+                  items={catalogos?.CAUSA} vacio="No hay causas configuradas." />
+                <ListaCatalogo etiqueta="¿Qué hiciste? (acción)" valor={accionRealizada} onChange={setAccionRealizada}
+                  items={catalogos?.ACCION} vacio="No hay acciones configuradas." />
+              </>
+            )}
 
             {historial.length > 0 && (
               <div style={{ marginTop: 14 }}>
@@ -412,7 +451,9 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
         {accion === 'cerrar' && (
           <>
             <div className="sign-note">
-              El cierre lo firma el Jefe de Mantenimiento. La causa alimenta el análisis.
+              {wo.symptomCode || wo.rootCauseCode || wo.actionCode
+                ? 'El técnico ya marcó lo que encontró: revisa y firma.'
+                : 'El cierre lo firma el Jefe de Mantenimiento. La causa alimenta el análisis.'}
             </div>
 
             {wo.startedAt && (
@@ -470,7 +511,7 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
               valor={sintoma}
               onChange={setSintoma}
               items={catalogos?.SINTOMA}
-              vacio="Todavía no hay síntomas configurados. Se crean en Documentos › Catálogo de fallas."
+              vacio="Todavía no hay síntomas configurados. Se crean en Mantenimiento › Procedimientos › Catálogo de fallas."
             />
 
             <ListaCatalogo
@@ -486,7 +527,7 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
               valor={accionRealizada}
               onChange={setAccionRealizada}
               items={catalogos?.ACCION}
-              vacio="Todavía no hay acciones configuradas. Se crean en Documentos › Catálogo de fallas."
+              vacio="Todavía no hay acciones configuradas. Se crean en Mantenimiento › Procedimientos › Catálogo de fallas."
             />
 
             {causa === 'SIN_FALLA_ENCONTRADA' && (
@@ -503,7 +544,7 @@ export default function OmCampo({ wo, accion, onClose, onHecho }: Props) {
 
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
               <input type="checkbox" checked={reincidente} onChange={(e) => setReincidente(e.target.checked)} />
-              <span>Este problema ya se había presentado antes</span>
+              <span>Ya había fallado antes <span className="muted" style={{ fontWeight: 400 }}>(si hubo otra correctiva de este equipo, el sistema lo marca solo)</span></span>
             </label>
 
             {/* El Jefe ve qué declaró el técnico al salir. Si faltó una

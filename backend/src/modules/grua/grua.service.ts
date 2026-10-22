@@ -4,8 +4,9 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { resolverContextoDePlanta } from '../../common/plant-context';
 import { alcanza, ambitoDelUsuario, noVeNada } from '../../common/ambito-usuario';
 import { CrearInspeccionGruaDto } from './dto/inspeccion-grua.dto';
-import { MaintenanceService } from '../maintenance/maintenance.service';
-import { actividadDeLaOm, decidirOmDeInspeccion } from './om-de-inspeccion';
+import { IncidentsService } from '../incidents/incidents.service';
+import { decidirAvisoDeInspeccion, descripcionDelAviso, tituloDelAviso } from './om-de-inspeccion';
+import { tipoDeAviso } from '../../common/aviso-sap';
 
 /**
  * INSPECCIÓN DE CÁMARAS DE GRÚA (bloque 14).
@@ -25,7 +26,9 @@ export class GruaService {
     private readonly prisma: PrismaService,
     /* Bloque 140: el hallazgo abre la orden. Se usa el MISMO alta que el
        formulario de Órdenes, con su código y su fecha, no un atajo. */
-    private readonly ordenes: MaintenanceService,
+    /* Bloque 180: la inspección abre un AVISO (incidencia), no una orden: la
+       OM la crea SAP y la trata Mantenimiento. Mismo alta que Incidencias. */
+    private readonly incidencias: IncidentsService,
   ) {}
 
   /** Código correlativo por año: GRU-2026-0001. */
@@ -94,8 +97,10 @@ export class GruaService {
         camaraEstado: true, antenaEstado: true, cableEstado: true,
         asset: { select: { assetCode: true, status: true, locationId: true } },
         inspeccionadoPor: { select: { fullName: true } },
-        // Bloque 140: la orden que abrió (o a la que se enlazó).
+        // Bloque 140: la orden en la que se hizo (si se hizo dentro de una).
         workOrder: { select: { code: true } },
+        // Bloque 180: el aviso que abrió (o al que se enlazó).
+        incident: { select: { code: true, tipoAviso: true } },
       },
       orderBy: { fecha: 'desc' },
       take: 200,
@@ -123,6 +128,8 @@ export class GruaService {
         equipo: f.asset?.assetCode ?? null,
         assetId: f.assetId,
         om: f.workOrder?.code ?? null,
+        aviso: f.incident?.code ?? null,
+        tipoAviso: f.incident ? tipoDeAviso(f.incident.tipoAviso) : null,
         estadoEquipo: f.asset?.status ?? null,
         tren: ctx[f.assetId]?.trenCode ?? null,
         fecha: f.fecha,
@@ -150,6 +157,7 @@ export class GruaService {
         asset: { select: { assetCode: true, status: true, referencePlace: true } },
         inspeccionadoPor: { select: { fullName: true } },
         workOrder: { select: { code: true } },
+        incident: { select: { code: true, tipoAviso: true } },
       },
     });
     if (!f) throw new NotFoundException('Esa inspección no existe.');
@@ -292,31 +300,47 @@ export class GruaService {
       select: { id: true, code: true },
     });
 
-    /* BLOQUE 140 · EL HALLAZGO SE CONVIERTE EN TRABAJO.
-       La inspección ya está guardada: si abrir la orden fallara, lo subido al
-       manlift NO se pierde, y la respuesta lo dice para abrirla a mano. */
-    let om: { code: string; nueva: boolean } | null = null;
-    let omError: string | null = null;
-    if (decidirOmDeInspeccion({ ...dto, workOrderId }) === 'ABRIR') {
+    /* BLOQUES 140 Y 180 · EL HALLAZGO SE CONVIERTE EN UN AVISO.
+       La inspección ya está guardada: si abrir el aviso fallara, lo subido al
+       manlift NO se pierde, y la respuesta lo dice para reportarlo a mano.
+       Si la cámara ya tiene un aviso VIVO se enlaza a ése; y si la inspección
+       la encontró FUERA DE SERVICIO y el aviso decía que funcionaba, el aviso
+       pasa a FALLA —el problema empeoró y desde hoy cuenta como caída—. */
+    let aviso: { code: string; nuevo: boolean; tipo: string } | null = null;
+    let avisoError: string | null = null;
+    const decision = decidirAvisoDeInspeccion({ ...dto, workOrderId });
+    if (decision !== 'NO') {
       try {
-        const abierta = await this.prisma.workOrder.findFirst({
-          where: { assetId: dto.assetId, type: 'CORRECTIVO', status: { in: ['ABIERTA', 'EN_PROCESO', 'EN_ESPERA'] } },
-          orderBy: { createdAt: 'desc' },
-          select: { id: true, code: true },
+        const vivo = await this.prisma.incident.findFirst({
+          where: { assetId: dto.assetId, status: { in: ['ABIERTA', 'EN_DIAGNOSTICO', 'EN_PROCESO', 'EN_ESPERA'] } },
+          orderBy: { reportedAt: 'desc' },
+          select: { id: true, code: true, tipoAviso: true },
         });
-        const orden = abierta ?? await this.ordenes.create({
-          type: 'CORRECTIVO',
-          assetId: dto.assetId,
-          activity: actividadDeLaOm({ code: creada.code, grua: dto.grua, posicionEnGrua: dto.posicionEnGrua, resultado: dto.resultado, hallazgos: dto.hallazgos }),
-          zone: `Grúa ${dto.grua.trim()}`,
-        } as any, userId ?? null);
-        await this.prisma.inspeccionGrua.update({ where: { id: creada.id }, data: { workOrderId: orden.id } });
-        om = { code: orden.code, nueva: !abierta };
+        let tipo: string = decision;
+        let inc: { id: string; code: string };
+        if (vivo) {
+          inc = vivo;
+          tipo = tipoDeAviso(vivo.tipoAviso);
+          if (decision === 'FALLA' && tipo !== 'FALLA') {
+            await this.incidencias.update(vivo.id, { tipoAviso: 'FALLA' } as any);
+            tipo = 'FALLA';
+          }
+        } else {
+          inc = await this.incidencias.create({
+            title: tituloDelAviso({ grua: dto.grua, posicionEnGrua: dto.posicionEnGrua, resultado: dto.resultado }),
+            description: descripcionDelAviso({ code: creada.code, grua: dto.grua, posicionEnGrua: dto.posicionEnGrua, resultado: dto.resultado, hallazgos: dto.hallazgos }),
+            tipoAviso: decision,
+            assetId: dto.assetId,
+            zone: `Grúa ${dto.grua.trim()}`,
+          } as any, userId ?? null);
+        }
+        await this.prisma.inspeccionGrua.update({ where: { id: creada.id }, data: { incidentId: inc.id } });
+        aviso = { code: inc.code, nuevo: !vivo, tipo };
       } catch (e: any) {
-        omError = 'La inspección se guardó, pero no se pudo abrir la orden: ' + (e?.message || 'error') + '. Ábrela a mano.';
+        avisoError = 'La inspección se guardó, pero no se pudo abrir el aviso: ' + (e?.message || 'error') + '. Repórtalo a mano en Incidencias.';
       }
     }
-    return { ...creada, om, omError };
+    return { ...creada, aviso, avisoError };
   }
 
   /**

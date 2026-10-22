@@ -99,7 +99,7 @@ export default function MisCamaras() {
   if (!trenes.length) {
     return (
       <div className="page">
-        <h1 className="page-title">Mis cámaras</h1>
+        <h1 className="page-title">Cámaras del tren</h1>
         <div className="card vacio">
           <h3>Todavía no hay trenes en el árbol de planta</h3>
           <p>En cuanto se creen, aquí aparece el estado de sus cámaras.</p>
@@ -120,7 +120,7 @@ export default function MisCamaras() {
   return (
     <div className="page">
       <h1 className="page-title">
-        Mis cámaras{suTren ? ` · ${suTren.nombre}` : ''}
+        Cámaras{suTren ? ` · ${suTren.nombre}` : ''}
       </h1>
       {edad !== null && edad >= 2 && (
         <p className="edad-dato">Datos de hace {plural(edad, 'minuto')}.</p>
@@ -192,8 +192,8 @@ export default function MisCamaras() {
           {/* EL AVISO DEL AGENTE. No es una queja: es una petición concreta a
               TI, con el motivo delante. Sólo sale cuando de verdad falta. */}
           {d.avisoSinAgente && hay && (
-            <p className="nada-que-hacer">
-              <b>La hora de caída no se conoce.</b> {d.avisoSinAgente}
+            <p className="nada-que-hacer" title={d.avisoSinAgente}>
+              <b>Hora de caída desconocida:</b> se cuenta desde el reporte.
             </p>
           )}
 

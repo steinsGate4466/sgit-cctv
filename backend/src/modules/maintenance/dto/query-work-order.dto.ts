@@ -23,6 +23,11 @@ export class QueryWorkOrderDto {
      la planta. Se transforma igual que `mias`, por el mismo motivo. */
   @IsOptional() @Transform(({ value }) => value === true || value === 'true' || value === '1')
   @IsBoolean() asignadas?: boolean;
+  /* Síntesis 21/10 · «Mi tren»: las órdenes VIVAS (ni cerradas ni canceladas).
+     La pantalla pedía `status=ABIERTA` y se perdía todo lo EN_PROCESO y
+     EN_ESPERA: decía «nada pendiente» con cuatro órdenes en marcha. */
+  @IsOptional() @Transform(({ value }) => value === true || value === 'true' || value === '1')
+  @IsBoolean() vivas?: boolean;
   /* Bloque 164 · «Ver en Órdenes» desde Indicadores/Dashboard: las MISMAS que
      contó el reparto. `creadasDesde` va sobre la fecha de CREACIÓN (el reparto
      cuenta por creación; `from`/`to` van sobre la programada). */
@@ -33,6 +38,10 @@ export class QueryWorkOrderDto {
   /* Bloque 165 · «las órdenes de esta zona» desde el Mapa: el id de la
      ubicación de la zona (sala eléctrica, púlpito…) y todo lo que cuelga. */
   @IsOptional() @IsString() zona?: string;
+  /* Bloque 180 · las vivas sin N° de OM SAP: lo que espera a que alguien la
+     cree en SAP. Es el bloque de la bandeja. */
+  @IsOptional() @Transform(({ value }) => value === true || value === 'true' || value === '1')
+  @IsBoolean() sinSap?: boolean;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) pageSize?: number;
 }

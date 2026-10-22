@@ -98,6 +98,11 @@ async function textoDeLaHoja(buffer: Buffer, nombre: string): Promise<string[]> 
 }
 
 describe('La hoja de Órdenes del Excel', () => {
+  /* Estas pruebas ARMAN un libro de 20.000 filas y lo vuelven a abrir. En una
+     máquina de 2 núcleos tardan más de los 5 s por defecto de Jest y se caían
+     por tiempo, no por el archivo. El tope es del reloj, no de lo que se mide. */
+  jest.setTimeout(60_000);
+
   it('cuando NO se recortó, no lleva ningún aviso', async () => {
     /* Un aviso permanente se deja de leer, y entonces no sirve el día que sí
        hay recorte (regla de los verificadores desde el bloque 9). */

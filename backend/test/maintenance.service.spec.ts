@@ -32,7 +32,11 @@ describe('MaintenanceService — ejecución de OM en campo', () => {
        toca, y devuelve cuántas cambió — igual que PostgreSQL. Con eso se puede
        probar de verdad la carrera: basta con cambiar `filaViva.status` entre
        medias para simular que otro cerró la orden. */
-    const filaViva: any = { id: 'w1', ...(over.wo || {}) };
+    /* Bloque 180 · «primero el N° SAP»: sin él no se abre, ni avanza, ni se
+       cierra. Estas pruebas son de lo que pasa DESPUÉS, así que la orden de
+       prueba ya trae su N° de OM SAP. La falta tiene su propio archivo
+       (aviso-y-om-sap.spec.ts). */
+    const filaViva: any = { id: 'w1', externalRef: '4000004711', ...(over.wo || {}) };
 
     const prisma: any = {
       workOrder: {
@@ -151,12 +155,13 @@ describe('MaintenanceService — ejecución de OM en campo', () => {
       await svc.create({
         type: 'CORRECTIVO', assetId: 'a1',
         requestedBy: 'Ing. Producción', requestChannel: 'WHATSAPP',
-        externalRef: 'SAP-4711', plannedStopAt: '2026-07-30T14:00:00Z',
+        externalRef: ' 004000004711 ', plannedStopAt: '2026-07-30T14:00:00Z',
       } as any);
       const d = prisma.workOrder.create.mock.calls[0][0].data;
       expect(d.requestedBy).toBe('Ing. Producción');
       expect(d.requestChannel).toBe('WHATSAPP');
-      expect(d.externalRef).toBe('SAP-4711');
+      // Bloque 180: como lo enseña SAP, sin espacios ni ceros delante.
+      expect(d.externalRef).toBe('4000004711');
       expect(d.plannedStopAt).toBeInstanceOf(Date);
     });
   });
@@ -500,7 +505,7 @@ describe('MaintenanceService — ejecución de OM en campo', () => {
        devuelva la foto vieja mientras la fila real ya está cerrada. */
     function conCierreEntreMedias(over: any) {
       const b = build(over);
-      b.prisma.workOrder.findUnique.mockImplementationOnce(() => ({ ...over.wo }));
+      b.prisma.workOrder.findUnique.mockImplementationOnce(() => ({ externalRef: '4000004711', ...over.wo }));
       b.prisma.__fila.status = 'CERRADA';
       return b;
     }
@@ -562,7 +567,7 @@ describe('MaintenanceService — ejecución de OM en campo', () => {
          rehacer el trabajo. El estado actual es la mitad útil del mensaje. */
       const base = { ...enProceso, status: 'ABIERTA', startedAt: null };
       const { svc, prisma } = build({ wo: base });
-      prisma.workOrder.findUnique.mockImplementationOnce(() => ({ ...base }));
+      prisma.workOrder.findUnique.mockImplementationOnce(() => ({ externalRef: '4000004711', ...base }));
       prisma.__fila.status = 'CANCELADA';   // el Jefe la cancela entre medias
 
       await expect(
