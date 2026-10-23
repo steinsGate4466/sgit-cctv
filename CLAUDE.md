@@ -7011,3 +7011,38 @@ Decisiones de Cristhian (detalle: `claude/DISENO-AVISO-OM-SAP.md` del proyecto).
   eximen las OM vivas de antes del 22/10 (hoy no: Railway aplica la migración al arrancar y,
   desde ese momento, toda OM viva sin N° SAP queda frenada hasta que se le apunte; la bandeja
   las lista en «Falta la OM de SAP»).
+
+## §105 · BLOQUE 181 — EL MAPA A PANTALLA COMPLETA, DE VERDAD (23/10/2026)
+
+Pedido: «que la pantalla del mapa se extienda sobre toda la pantalla en el clic de extensión».
+
+- **Un solo botón** «⛶ Pantalla completa», en la barra y en la esquina del plano. El mapa —barra,
+  zonas, plano y lista— tapa la VENTANA: menú, cabecera y pestañas quedan debajo (`position: fixed`,
+  z-index 45, por debajo de Modal 50). Donde existe (PC, Android) se pide además la pantalla completa
+  del navegador sobre `document.documentElement`, no sobre el mapa: lo que se abre en portal tiene que
+  seguir viéndose.
+- Antes: «Ampliar» sólo ensanchaba dentro de la página y en el celular no hacía NADA (ya iba a una
+  columna); «Pantalla completa» usaba la del navegador, que el iPhone no tiene, y escondía filtros y capas.
+- Se sale con «Salir», con la ✕ de la esquina, con Esc (salvo que haya un `aria-modal` encima) y cuando
+  el navegador sale de su pantalla completa. Mientras dura, `body` no se desplaza. Al ir a «Planta» o a
+  otra pantalla («Ficha», «Ir a la orden») se suelta todo.
+- **«Atención N»** muestra u oculta la lista; tocar un punto abre su ficha aunque esté oculta. PC: al
+  costado (360 px). Celular: DEBAJO del plano, nunca encima: el punto elegido se centra en el plano y,
+  tapado, se centraría donde no se ve. En el celular «Atención» y «Salir» van primero en la fila.
+- **«Ver el plano entero» pasa de ⤢ a ⌂**: ⤢ es el ícono de ampliar, y quien lo tocaba esperando
+  pantalla completa sólo conseguía volver a ver el plano entero.
+- Celular vertical con plano apaisado: aviso «Gira el teléfono» (se cierra). Los cuatro contadores
+  van en una fila: el plano sube unos 60 px.
+- De rebote, en la tarjeta del punto:
+  - Decía a la vez «En mantenimiento: tiene una orden abierta» y «Todavía no hay orden abierta»
+    cuando el MANTENIMIENTO venía de la ficha y no de una OM. `colorDelPunto(…, conOrden)` sólo
+    afirma la orden si la hay.
+  - La incidencia abierta dice su tipo de aviso (falla, condición, solicitud) y su N° de aviso SAP.
+  - «Generar OM» propone el tipo según el aviso (bloque 180): una condición ya no sale como mejora.
+  - Ya no repite dos veces «sin monitoreo automático».
+- Pruebas: `plano-vivo.spec.ts` (+1). Recorridos en la nube: PC y celular SIN la pantalla completa del
+  navegador (como el iPhone), modo noche, editor de planos sin el botón; barrido de 61 pantallas (Jefe
+  en PC, Producción en celular) sin errores.
+- Pendiente de decidir con él: con un aviso de CONDICIÓN abierto (punto verde) el mapa oculta
+  «Reportar»; si ese equipo cae, la falla no se puede reportar desde el mapa. ¿Se permite y se escala
+  el aviso a falla, como hace la inspección de grúa?

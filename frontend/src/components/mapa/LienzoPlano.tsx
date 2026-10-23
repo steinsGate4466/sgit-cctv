@@ -24,7 +24,7 @@ export interface AlArrastrar {
 }
 
 export default function LienzoPlano({
-  imagenUrl, anchoPx, altoPx, metrosPorPx, hijos, alPulsar, enfocar, alto = 'clamp(420px, 70vh, 780px)', alArrastrar, llenar = false,
+  imagenUrl, anchoPx, altoPx, metrosPorPx, hijos, alPulsar, enfocar, alto = 'clamp(420px, 70vh, 780px)', alArrastrar, llenar = false, pantalla,
 }: {
   imagenUrl: string | null;
   anchoPx: number;
@@ -35,6 +35,8 @@ export default function LienzoPlano({
   alArrastrar?: AlArrastrar | null;
   /** Bloque 177 · ocupar todo `alto` (pantalla completa), no sólo lo que pide la forma del plano. */
   llenar?: boolean;
+  /** Bloque 181 · el botón de pantalla completa en la esquina del plano, donde se busca. */
+  pantalla?: { activa: boolean; alternar: () => void };
   /** Clic en un punto vacío del plano, en píxeles de la imagen. */
   alPulsar?: (x: number, y: number) => void;
   /** Si cambia, se centra ahí (x, y en píxeles de la imagen). Con `w`, encuadra ese ancho (una zona). */
@@ -222,9 +224,19 @@ export default function LienzoPlano({
         {hijos(escala, aPlano)}
       </svg>
       <div className="lienzo-controles">
-        <button type="button" aria-label="Acercar" onClick={() => zoom(1 / 1.4, vb.x + vb.w / 2, vb.y + vb.h / 2)}>+</button>
-        <button type="button" aria-label="Alejar" onClick={() => zoom(1.4, vb.x + vb.w / 2, vb.y + vb.h / 2)}>−</button>
-        <button type="button" aria-label="Ver el plano entero" onClick={() => setVb(ENTERA)}>⤢</button>
+        {/* Bloque 181 · la pantalla completa va ARRIBA y aparte: es el botón que
+            se busca en la esquina de un mapa. «Ver el plano entero» llevaba el
+            ícono ⤢, que es justo el de ampliar, y quien lo tocaba esperando
+            pantalla completa sólo conseguía volver a ver el plano entero. */}
+        {pantalla && (
+          <button type="button" className="lienzo-pantalla" aria-pressed={pantalla.activa}
+            aria-label={pantalla.activa ? 'Salir de pantalla completa' : 'Pantalla completa'}
+            title={pantalla.activa ? 'Salir de pantalla completa (Esc)' : 'El mapa ocupa toda la pantalla'}
+            onClick={pantalla.alternar}>{pantalla.activa ? '✕' : '⛶'}</button>
+        )}
+        <button type="button" aria-label="Acercar" title="Acercar" onClick={() => zoom(1 / 1.4, vb.x + vb.w / 2, vb.y + vb.h / 2)}>+</button>
+        <button type="button" aria-label="Alejar" title="Alejar" onClick={() => zoom(1.4, vb.x + vb.w / 2, vb.y + vb.h / 2)}>−</button>
+        <button type="button" aria-label="Ver el plano entero" title="Ver el plano entero" onClick={() => setVb(ENTERA)}>⌂</button>
       </div>
       {barra && (
         <div className="lienzo-escala">

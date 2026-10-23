@@ -82,27 +82,70 @@ export default function Mapa() {
   const [capaCables, setCapaCables] = useState(true);
   const [resaltar, setResaltar] = useState<Set<string> | null>(null);
   const [riesgoSel, setRiesgoSel] = useState<string | null>(null);
-  /* Bloque 177 · AGRANDAR. «Ampliar» lleva el plano a todo el ancho (el panel
-     baja); «Pantalla completa» se usa en el púlpito o para presentar. */
-  const [ampliado, setAmpliado] = useState<boolean>(() => {
-    try { return localStorage.getItem('sgit:mapa-ampliado') === '1'; } catch { return false; }
-  });
-  useEffect(() => { try { localStorage.setItem('sgit:mapa-ampliado', ampliado ? '1' : '0'); } catch { /* sin persistencia */ } }, [ampliado]);
-  const escenario = useRef<HTMLDivElement | null>(null);
-  const [completa, setCompleta] = useState(false);
-  useEffect(() => {
-    const alCambiar = () => setCompleta(document.fullscreenElement === escenario.current && !!escenario.current);
-    document.addEventListener('fullscreenchange', alCambiar);
-    return () => document.removeEventListener('fullscreenchange', alCambiar);
-  }, []);
-  function pantallaCompleta() {
-    const el = escenario.current;
-    if (!el) return;
-    if (document.fullscreenElement) { document.exitFullscreen?.().catch(() => null); return; }
-    // Sin pantalla completa (iPhone) se amplía, que es lo más cerca.
-    if (!el.requestFullscreen) { setAmpliado(true); return; }
-    el.requestFullscreen().catch(() => setAmpliado(true));
+  /* BLOQUE 181 · PANTALLA COMPLETA DE VERDAD. Palabras del usuario: «que el
+     mapa se extienda sobre toda la pantalla en el clic de ampliar».
+
+     Antes había DOS botones y ninguno lo hacía. «Ampliar» sólo ensanchaba el
+     plano dentro de la página —el menú y la cabecera seguían ahí— y en el
+     celular no hacía NADA, porque ahí ya iba a una sola columna. «Pantalla
+     completa» usaba la del navegador, que el iPhone no tiene (caía en
+     «Ampliar», o sea en nada), y además escondía los filtros y las capas.
+
+     Ahora es UNO. El mapa tapa la ventana entera —menú, cabecera y pestañas—
+     con su barra arriba, y donde el navegador lo permite (PC y Android) se
+     pide también su pantalla completa, para quitar sus barras. Se sale con
+     «Salir», con la ✕ de la esquina del plano o con Esc.
+
+     La lista (lo que pide atención y la ficha del punto) va al costado en el
+     PC y debajo del plano en el celular; se abre sola al tocar un punto y se
+     oculta con «Atención» para dejarle al plano toda la pantalla. */
+  const [entera, setEntera] = useState(false);
+  const [verLista, setVerLista] = useState(true);
+  const [sinGiro, setSinGiro] = useState(false);
+  const conNavegador = useRef(false);
+  function entrarEntera() {
+    // En el celular el plano sale solo; la lista, a un toque.
+    setVerLista(!window.matchMedia?.('(max-width: 960px)').matches);
+    setEntera(true);
+    const raiz = document.documentElement;
+    if (raiz.requestFullscreen && !document.fullscreenElement) {
+      raiz.requestFullscreen().then(() => { conNavegador.current = true; }).catch(() => { conNavegador.current = false; });
+    }
   }
+  function salirEntera() {
+    setEntera(false);
+    conNavegador.current = false;
+    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => null);
+  }
+  useEffect(() => {
+    if (!entera) return;
+    /* Esc sale, salvo que haya una ventana abierta encima: esa Esc es suya. */
+    const tecla = (ev: KeyboardEvent) => {
+      if (ev.key !== 'Escape' || document.querySelector('[aria-modal="true"]')) return;
+      setEntera(false);
+      conNavegador.current = false;
+      if (document.fullscreenElement) document.exitFullscreen?.().catch(() => null);
+    };
+    /* Con la pantalla completa del NAVEGADOR, Esc no llega a la página: la
+       consume él. Si se sale de ella (Esc, F11 o su aviso), se sale también de
+       la del mapa; si no, quedaría el mapa tapando todo sin saber por qué. */
+    const alCambiar = () => {
+      if (!document.fullscreenElement && conNavegador.current) { conNavegador.current = false; setEntera(false); }
+    };
+    document.addEventListener('keydown', tecla);
+    document.addEventListener('fullscreenchange', alCambiar);
+    // La página de detrás no se desplaza mientras el mapa la tapa.
+    const antes = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', tecla);
+      document.removeEventListener('fullscreenchange', alCambiar);
+      document.body.style.overflow = antes;
+    };
+  }, [entera]);
+  /* Al irse a otra pantalla («Ir a la orden», «Ficha»…) se suelta también la
+     pantalla completa del navegador: la pantalla siguiente no la pidió. */
+  useEffect(() => () => { if (document.fullscreenElement) document.exitFullscreen?.().catch(() => null); }, []);
 
   // 1. Los planos que esta persona puede ver.
   useEffect(() => {
@@ -238,10 +281,19 @@ export default function Mapa() {
      la vista hasta su ficha. Si no, el toque parecía no hacer nada. */
   const panel = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
+    // En pantalla completa la ficha ya está a la vista, debajo del plano.
+    if (entera) return;
     if ((sel || cercanos) && window.matchMedia?.('(max-width: 960px)').matches) {
       panel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-  }, [sel, cercanos]);
+  }, [sel, cercanos, entera]);
+  /* Bloque 181 · la lista se ve si la pidieron o si hay algo elegido: tocar un
+     punto con la lista oculta abre su ficha igual. */
+  const hayFicha = !!(elegido || cercanos || riesgo || zona);
+  const conLista = verLista || hayFicha;
+  /* En un teléfono vertical, un plano apaisado (un tren es largo y bajo) se ve
+     como una franja: se avisa de que girarlo lo agranda. */
+  const planoApaisado = !!vista && vista.plano.anchoPx > vista.plano.altoPx * 1.3;
 
   function pulsarPunto(e: any, escala: number, x?: number, y?: number) {
     /* Los discos miden 19 px de radio en pantalla: se pregunta sólo si el
@@ -296,7 +348,7 @@ export default function Mapa() {
   }
 
   return (
-    <div className="mapa">
+    <div className={'mapa' + (entera ? ' mapa-entera' + (conLista ? ' con-lista' : '') : '')}>
       <h1 className="page-title">Mapa</h1>
       {/* Bloque 173 · las migas y el plano van en UNA fila, y las zonas en una
           tira que se desliza: en la pantalla del púlpito (1366 × 768) el
@@ -304,7 +356,8 @@ export default function Mapa() {
       <div className="mapa-barra">
         {(hayVariosPlanos || vista?.padre) && (
           <nav className="mapa-migas" aria-label="Dónde estás">
-            {hayVariosPlanos && <button type="button" onClick={() => setModo('planta')}>Planta</button>}
+            {/* La vista de planta no es un plano: se sale de la pantalla completa. */}
+            {hayVariosPlanos && <button type="button" onClick={() => { if (entera) salirEntera(); setModo('planta'); }}>Planta</button>}
             {vista?.padre && <><span>›</span><button type="button" onClick={() => abrirPlano(vista.padre.id)}>{vista.padre.nombre}</button></>}
             <span>›</span>
           </nav>
@@ -338,13 +391,18 @@ export default function Mapa() {
             <Capa on={impacto} set={setImpacto} icono="◎" texto="Impacto" ayuda="Elige un equipo: se marca lo que dejaría de verse si cae" />
           )}
         </div>
-        <div className="mapa-capas" role="group" aria-label="Tamaño del mapa">
-          <button type="button" className={'mapa-capa-btn' + (ampliado ? ' on' : '')} aria-pressed={ampliado}
-            title="El plano a todo el ancho; el panel pasa abajo" onClick={() => setAmpliado(!ampliado)}>
-            <span aria-hidden="true">{ampliado ? '⇲' : '⇱'}</span> {ampliado ? 'Reducir' : 'Ampliar'}
-          </button>
-          <button type="button" className="mapa-capa-btn" title="Pantalla completa (Esc para salir)" onClick={pantallaCompleta}>
-            <span aria-hidden="true">⛶</span> Pantalla completa
+        <div className="mapa-capas mapa-pantalla" role="group" aria-label="Pantalla completa">
+          {entera && (
+            <button type="button" className={'mapa-capa-btn' + (conLista ? ' on' : '')} aria-pressed={conLista}
+              title={hayFicha ? 'La ficha del punto elegido: ciérrala para ver el plano solo' : 'Lo que pide atención: ocúltalo para ver el plano solo'}
+              onClick={() => { if (hayFicha) { setSel(null); setCercanos(null); setRiesgoSel(null); setZonaSel(null); setResaltar(null); setVerLista(false); } else setVerLista(!verLista); }}>
+              <span aria-hidden="true">☰</span> Atención <b>{atencion.length}</b>
+            </button>
+          )}
+          <button type="button" className={'mapa-capa-btn' + (entera ? ' on' : '')} aria-pressed={entera}
+            title={entera ? 'Volver a la página (Esc)' : 'El mapa ocupa toda la pantalla'}
+            onClick={entera ? salirEntera : entrarEntera}>
+            <span aria-hidden="true">{entera ? '✕' : '⛶'}</span> {entera ? 'Salir' : 'Pantalla completa'}
           </button>
         </div>
         {vista && (
@@ -391,10 +449,17 @@ export default function Mapa() {
         </section>
       )}
 
-      <div className={'mapa-escenario' + (ampliado ? ' ampliado' : '') + (completa ? ' completa' : '')} ref={escenario}>
+      <div className="mapa-escenario">
+        {entera && planoApaisado && !sinGiro && (
+          <p className="mapa-girar" role="note">
+            <span aria-hidden="true">↻</span> Gira el teléfono: el plano se ve más grande.
+            <button type="button" aria-label="Cerrar el aviso" onClick={() => setSinGiro(true)}>×</button>
+          </p>
+        )}
         {vista ? (
           <LienzoPlano key={vista.plano.id}
-            alto={completa ? 'calc(100vh - 24px)' : ampliado ? 'calc(100vh - 210px)' : undefined} llenar={completa}
+            alto={entera ? '100%' : undefined} llenar={entera}
+            pantalla={{ activa: entera, alternar: entera ? salirEntera : entrarEntera }}
             imagenUrl={imagen}
             anchoPx={vista.plano.anchoPx}
             altoPx={vista.plano.altoPx}

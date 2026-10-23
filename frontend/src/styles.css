@@ -5365,8 +5365,8 @@ tbody tr:hover td { background: var(--brillo); }
 
 /* =============================================================================
    Bloque 177 · EL MAPA, MÁS GRANDE Y MÁS LIMPIO.
-   Las capas como botones redondos en una cajita; «Ampliar» lleva el plano a
-   todo el ancho; en pantalla completa el panel flota a la derecha.
+   Las capas como botones redondos en una cajita. (El «Ampliar» de aquí se
+   fue en el bloque 181: ver «PANTALLA COMPLETA DE VERDAD» más abajo.)
 ============================================================================= */
 .mapa-capas { display: inline-flex; flex-wrap: wrap; gap: 4px; background: var(--card); border: 1px solid var(--border);
   border-radius: 999px; padding: 3px; box-shadow: var(--sombra-1); }
@@ -5375,10 +5375,6 @@ tbody tr:hover td { background: var(--brillo); }
 .mapa-capa-btn:hover { color: var(--text); background: var(--suave-fondo); }
 .mapa-capa-btn.on { background: var(--navy); color: #ffffff; }
 .planos-herramientas .mapa-capa-btn { border-color: var(--border); }
-.mapa-escenario.ampliado { grid-template-columns: minmax(0, 1fr); }
-.mapa-escenario.ampliado .mapa-panel { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); align-items: start; }
-.mapa-escenario.completa { background: var(--bg); padding: 12px; height: 100vh; box-sizing: border-box; grid-template-columns: minmax(0, 1fr) 360px; }
-.mapa-escenario.completa .mapa-panel { max-height: calc(100vh - 24px); overflow-y: auto; }
 .mapa-norma > summary { list-style: none; display: flex; align-items: center; gap: 6px; padding: 6px 0; }
 .mapa-norma > summary::-webkit-details-marker { display: none; }
 .mapa-norma > summary::before { content: '▸'; color: var(--muted); }
@@ -5394,6 +5390,71 @@ tbody tr:hover td { background: var(--brillo); }
   /* En el celular las capas van en UNA fila que se desliza: partidas en dos, la cápsula se deformaba. */
   .mapa-capas { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; scrollbar-width: none; }
   .mapa-capa-btn { flex: none; }
+  /* Bloque 181 · los cuatro contadores, también en una fila: en dos, el plano
+     empezaba casi a 600 px de la parte de arriba del teléfono. */
+  .mapa-contadores { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; scrollbar-width: none; }
+  .mapa-contador { flex: none; }
+}
+
+/* =============================================================================
+   BLOQUE 181 · PANTALLA COMPLETA DE VERDAD
+   -----------------------------------------------------------------------------
+   «Que el mapa se extienda sobre toda la pantalla.» El mapa entero —su barra,
+   sus zonas, el plano y la lista— pasa a tapar la VENTANA: menú, cabecera y
+   pestañas quedan debajo. Es CSS y no la pantalla completa del navegador, que
+   el iPhone no tiene; donde sí existe se pide además, para quitar sus barras.
+
+   z-index 45: por encima del menú (40) y la cabecera (20), por DEBAJO de las
+   ventanas (Modal 50, foto grande 90, buscador 200, diálogos 1200). Lo que se
+   abra encima del mapa tiene que seguir viéndose.
+
+   Va con `position: fixed` y funciona porque ningún antepasado lleva
+   `transform` (bloque 167: eso convierte la pantalla en el marco de todo lo
+   fijo que tenga dentro, y lo vigila `verificar:tema`).
+============================================================================= */
+.mapa.mapa-entera {
+  position: fixed; inset: 0; z-index: 45;
+  height: 100vh; height: 100dvh; box-sizing: border-box;
+  padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  background: var(--bg); gap: 8px; overflow: hidden; overscroll-behavior: contain;
+}
+.mapa-entera .page-title { display: none; }
+.mapa-entera .mapa-barra, .mapa-entera .mapa-zonas, .mapa-entera .mapa-impacto { flex: none; margin: 0; }
+.mapa-entera .ruta-a-pie { flex: none; margin: 0; max-height: 30vh; overflow-y: auto; }
+.mapa-entera .mapa-escenario {
+  flex: 1 1 auto; min-height: 0; position: relative;
+  grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); align-items: stretch;
+}
+.mapa-entera.con-lista .mapa-escenario { grid-template-columns: minmax(0, 1fr) 360px; }
+.mapa-entera .mapa-panel { display: none; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.mapa-entera.con-lista .mapa-panel { display: flex; }
+/* El botón de la esquina del plano: aparte de + / − y en el color de la marca. */
+.lienzo-controles .lienzo-pantalla { color: var(--tinta-marca); font-weight: 700; border-bottom-width: 3px; }
+.lienzo-controles .lienzo-pantalla[aria-pressed="true"] { background: var(--navy); color: #ffffff; }
+/* «Gira el teléfono»: sólo con el teléfono en vertical y un plano apaisado. */
+.mapa-girar { display: none; }
+@media (max-width: 960px) {
+  .mapa.mapa-entera { gap: 6px; padding-left: max(8px, env(safe-area-inset-left)); padding-right: max(8px, env(safe-area-inset-right)); }
+  /* La barra, en UNA fila que se desliza: el plano necesita el alto. */
+  .mapa-entera .mapa-barra { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 8px; }
+  .mapa-entera .mapa-barra > * { flex: none; }
+  .mapa-entera .mapa-barra > select { max-width: 64vw; }
+  /* «Atención» y «Salir», lo PRIMERO de la fila: lo demás se desliza, y la
+     salida no puede quedar escondida fuera de la pantalla. */
+  .mapa-entera .mapa-pantalla { order: -1; }
+  /* La lista va DEBAJO del plano, no encima: un punto elegido se centra en el
+     plano, y si la lista lo tapara se centraría justo donde no se ve. */
+  .mapa-entera.con-lista .mapa-escenario { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; gap: 8px; }
+  .mapa-entera .mapa-panel { max-height: 46vh; max-height: 46dvh; }
+}
+@media (max-width: 960px) and (orientation: portrait) {
+  .mapa-entera .mapa-girar {
+    display: flex; align-items: center; gap: 8px; position: absolute; top: 10px; left: 10px; z-index: 2;
+    margin: 0; padding: 6px 6px 6px 12px; max-width: calc(100% - 80px);
+    background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 999px;
+    box-shadow: var(--sombra-2); font-size: 12.5px;
+  }
+  .mapa-girar button { border: 0; background: none; color: var(--muted); font-size: 18px; line-height: 1; padding: 2px 6px; cursor: pointer; }
 }
 
 /* ---- AUDITORÍA 20/10 · LAS TARJETAS DE TEXTO SALÍAN PEGADAS AL BORDE ----

@@ -10,6 +10,7 @@ import { NOMBRE_DE_TIPO } from '../../tipos-de-equipo';
 import { IconoEquipo, NOMBRE_ICONO, iconoDe } from './Marcador';
 import ReportarCaida from '../ReportarCaida';
 import ReportarAveria from '../ReportarAveria';
+import { TIPO_DE_AVISO_ES, tipoDeAviso, tipoDeOrdenSugerido } from '../../avisoSap';
 
 /**
  * LA TARJETA DE UN PUNTO — bloque 151. «Tipo videojuego»: lo que es, cómo
@@ -71,10 +72,15 @@ export default function TarjetaEquipo({ e, cable, cablesDelSwitch, onCerrar, onR
   }, [esSwitch, e.assetId]);
 
   /* La OM sale con el equipo, la actividad y —si la hay— la incidencia ya
-     puestos: quien la genera sólo revisa y guarda. Correctiva si el punto no
-     está bien; si está bien, es una mejora o una revisión (el tipo se cambia
-     en el formulario). */
-  const generarOm = `/maintenance?nueva=1&tipo=${e.estado === 'ok' ? 'MEJORA' : 'CORRECTIVO'}&activo=${encodeURIComponent(e.assetId)}`
+     puestos: quien la genera sólo revisa y guarda. El tipo se cambia en el
+     formulario; aquí sólo se PROPONE.
+     Bloque 181 · con aviso, lo propone el aviso, igual que en Incidencias
+     (bloque 180): falla → correctivo, condición → preventivo, pedido →
+     mejora. Antes un aviso de «funciona, pero se va a dañar» —punto verde—
+     salía propuesto como mejora. Sin aviso: correctiva si el punto no está
+     bien; si está bien, una mejora o una revisión. */
+  const tipoOm = e.incidencia ? tipoDeOrdenSugerido(e.incidencia.tipoAviso) : e.estado === 'ok' ? 'MEJORA' : 'CORRECTIVO';
+  const generarOm = `/maintenance?nueva=1&tipo=${tipoOm}&activo=${encodeURIComponent(e.assetId)}`
     + `&actividad=${encodeURIComponent(e.incidencia ? `${e.codigo}: ${e.incidencia.titulo}` : `${e.codigo}: ${e.estadoTexto}`)}`
     + (e.incidencia?.id ? `&incidencia=${encodeURIComponent(e.incidencia.id)}` : '');
   const trabaja = can('wo.update');
@@ -93,7 +99,8 @@ export default function TarjetaEquipo({ e, cable, cablesDelSwitch, onCerrar, onR
       </header>
       <div className="tarjeta-mapa-cuerpo">
         <p style={{ margin: 0 }}>{e.estadoTexto}</p>
-        {e.fuente === 'declarado' && <p className="muted" style={{ margin: 0, fontSize: 12 }}>Sin monitoreo automático: es lo declarado.</p>}
+        {/* Bloque 181 · sin repetirlo: el estado «operativo» ya dice que no hay monitoreo. */}
+        {e.fuente === 'declarado' && !/monitoreo/i.test(e.estadoTexto || '') && <p className="muted" style={{ margin: 0, fontSize: 12 }}>Sin monitoreo automático: es lo declarado.</p>}
 
         {e.referencia && (
           <section>
@@ -188,12 +195,15 @@ export default function TarjetaEquipo({ e, cable, cablesDelSwitch, onCerrar, onR
 
         {e.incidencia && (
           <section>
-            <h3>Incidencia abierta</h3>
+            {/* Bloque 181 · el tipo de aviso: una condición no es una caída, y
+                el punto verde con «incidencia abierta» sin decirlo confundía. */}
+            <h3>Incidencia abierta · {TIPO_DE_AVISO_ES[tipoDeAviso(e.incidencia.tipoAviso)]}</h3>
             <p>
               {(can('incident.read') || can('om.mirar'))
                 ? <Link to={`/incidents?q=${encodeURIComponent(e.incidencia.code)}`}>{e.incidencia.code}</Link>
                 : e.incidencia.code} · {e.incidencia.titulo}
             </p>
+            {e.incidencia.avisoSap && <p className="muted" style={{ margin: '2px 0 0', fontSize: 12 }}>Aviso SAP {e.incidencia.avisoSap}</p>}
           </section>
         )}
 

@@ -42,10 +42,17 @@ export type ColorMapa = 'ok' | 'alerta' | 'caida' | 'sindato';
  *   3. Si nunca hubo monitoreo, el estado DECLARADO del equipo (OM o
  *      incidencia abierta, fuera de servicio), marcado como declarado para
  *      que nadie lo confunda con una medición.
+ *
+ * BLOQUE 181 · `conOrden`. «En mantenimiento» sale de una OM abierta O del
+ * estado que el técnico dejó puesto en la ficha (`asset-status.ts`, paso 5).
+ * El texto decía siempre «tiene una orden abierta», y la tarjeta del mapa
+ * ponía debajo «Todavía no hay orden abierta»: las dos frases a la vez, en
+ * la misma tarjeta. Ahora sólo se afirma la orden si la hay.
  */
 export function colorDelPunto(
   veredicto: { estado: 'RESPONDE' | 'CAIDO' | 'INESTABLE' | 'SIN_DATO'; texto: string; caducada: boolean } | null,
   estadoEfectivo: string | null | undefined,
+  conOrden = true,
 ): { color: ColorMapa; texto: string; fuente: 'monitoreo' | 'declarado' } {
   if (veredicto && veredicto.estado !== 'SIN_DATO') {
     const color: ColorMapa = veredicto.estado === 'RESPONDE' ? 'ok' : veredicto.estado === 'CAIDO' ? 'caida' : 'alerta';
@@ -60,7 +67,11 @@ export function colorDelPunto(
     case 'CON_INCIDENCIA':
       return { color: 'alerta', texto: 'Tiene una incidencia abierta.', fuente: 'declarado' };
     case 'MANTENIMIENTO':
-      return { color: 'alerta', texto: 'En mantenimiento: tiene una orden abierta.', fuente: 'declarado' };
+      return {
+        color: 'alerta',
+        texto: conOrden ? 'En mantenimiento: tiene una orden abierta.' : 'En mantenimiento según su ficha, sin orden abierta.',
+        fuente: 'declarado',
+      };
     case 'OPERATIVO':
       return { color: 'ok', texto: 'Operativo según lo declarado. No hay monitoreo automático.', fuente: 'declarado' };
     default:

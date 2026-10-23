@@ -46,6 +46,13 @@ describe('El color del punto', () => {
     expect(colorDelPunto(null, 'CON_INCIDENCIA').color).toBe('alerta');
     expect(colorDelPunto(null, 'OPERATIVO')).toMatchObject({ color: 'ok', fuente: 'declarado' });
   });
+  it('bloque 181: «en mantenimiento» sólo afirma la orden si la hay', () => {
+    expect(colorDelPunto(null, 'MANTENIMIENTO', true).texto).toMatch(/tiene una orden abierta/);
+    const sinOrden = colorDelPunto(null, 'MANTENIMIENTO', false);
+    expect(sinOrden.color).toBe('alerta');
+    expect(sinOrden.texto).not.toMatch(/tiene una orden/);
+    expect(sinOrden.texto).toMatch(/sin orden abierta/);
+  });
 });
 
 describe('PlanosService — reglas de gestión', () => {

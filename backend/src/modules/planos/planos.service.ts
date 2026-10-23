@@ -226,7 +226,8 @@ export class PlanosService {
       this.prisma.incident.findMany({
         where: { assetId: { in: ids }, status: { in: ABIERTAS_INC as any } },
         orderBy: { reportedAt: 'desc' },
-        select: { id: true, assetId: true, code: true, priority: true, title: true },
+        // Bloque 181 · el tipo de aviso y su N° SAP (bloque 180), para la tarjeta.
+        select: { id: true, assetId: true, code: true, priority: true, title: true, tipoAviso: true, avisoSap: true },
       }),
       /* Bloque 163: la última orden CERRADA de cada equipo, para que la
          tarjeta diga «última intervención: OM-… hace 12 días». Una por equipo
@@ -249,9 +250,9 @@ export class PlanosService {
     const equipos = posiciones.map((x) => {
       const obs = obsDe.get(x.assetId);
       const ver = obs ? evaluar(obs as any, ahora) : null;
-      const est = colorDelPunto(ver, efectivos[x.assetId]);
-      const sw = (x.asset as any).camera?.switchPort;
       const om = omDe.get(x.assetId);
+      const est = colorDelPunto(ver, efectivos[x.assetId], !!om);
+      const sw = (x.asset as any).camera?.switchPort;
       const inc = incDe.get(x.assetId);
       const ult = ultimaDe.get(x.assetId);
       return {
@@ -268,7 +269,10 @@ export class PlanosService {
         alturaM: x.alturaM, rumbo: x.rumbo, anguloVision: x.anguloVision, alcanceM: x.alcanceM,
         estado: est.color, estadoTexto: est.texto, fuente: est.fuente,
         om: om ? { code: om.code, tipo: om.type, avance: om.progressPct, estado: om.status } : null,
-        incidencia: inc ? { id: inc.id, code: inc.code, prioridad: inc.priority, titulo: inc.title } : null,
+        incidencia: inc ? {
+          id: inc.id, code: inc.code, prioridad: inc.priority, titulo: inc.title,
+          tipoAviso: inc.tipoAviso ?? null, avisoSap: inc.avisoSap ?? null,
+        } : null,
         ultima: ult ? { code: ult.code, tipo: ult.type, fecha: ult.executedDate } : null,
         switch: veRed && sw?.switchAsset ? { assetId: sw.switchAsset.id, codigo: sw.switchAsset.assetCode, puerto: sw.portNumber } : null,
       };
