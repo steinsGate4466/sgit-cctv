@@ -473,6 +473,11 @@ jobs:
     env:
       DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_e2e?schema=public
       NODE_ENV: production
+      # UTF-8 EXPLICITO (bloque 184). Sin el, Chromium en Linux no sabe escribir
+      # una «é» en un nombre de archivo y descarga «download» a secas: la
+      # ficha «Ficha técnica …pdf» salia sin nombre. En Windows no pasa.
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
       # De USAR Y TIRAR, solo para este contenedor efimero. La base se destruye
       # al terminar. Los de Pisco viven en Railway y no estan en el repositorio.
       CREDENTIAL_ENC_KEY: clave-de-recorridos-no-usar-en-planta-000000000001
@@ -506,6 +511,18 @@ jobs:
       # defecto el frontend apunta a `localhost:3000` y, servido desde
       # `127.0.0.1`, eso es justo la mezcla de origenes de arriba.
       VITE_API_URL: http://127.0.0.1:3000/api/v1
+
+      # EL ALMACEN DE ARCHIVOS (bloque 184).
+      # -----------------------------------------------------------------------
+      # El recorrido 9 SUBE un PDF de verdad (la ficha tecnica). Sin almacen,
+      # el backend contesta 503 «MinIO no disponible» y la prueba no prueba
+      # nada. Se usa s3rver: un servidor S3 hecho en Node que habla el mismo
+      # protocolo que MinIO, se baja de npm (sin Docker) y vive lo que dura el
+      # trabajo. Estas claves son las de fabrica de s3rver: no abren nada.
+      MINIO_ENDPOINT: 127.0.0.1
+      MINIO_PORT: '9000'
+      MINIO_ACCESS_KEY: S3RVER
+      MINIO_SECRET_KEY: S3RVER
 
     steps:
       - name: Descargar el codigo
@@ -572,6 +589,16 @@ jobs:
 
       - name: Levantar la pila y correr los recorridos
         run: |
+          # El almacen S3 de pruebas, ANTES que el backend (ver MINIO_* arriba).
+          # Version FIJA, como `serve` en el Dockerfile.
+          mkdir -p "$RUNNER_TEMP/s3"
+          npx --yes s3rver@3.7.1 --directory "$RUNNER_TEMP/s3" --address 127.0.0.1 --port 9000 > s3.log 2>&1 &
+          S3=$!
+          for i in $(seq 1 60); do
+            curl -s -o /dev/null http://127.0.0.1:9000 && break
+            sleep 1
+          done
+
           node backend/dist/main.js > backend.log 2>&1 &
           API=$!
           # `vite preview` se lanza DESDE frontend/ y en una subshell: si se
@@ -612,7 +639,7 @@ jobs:
             echo "::endgroup::"
           fi
 
-          kill $API $WEB 2>/dev/null || true
+          kill $API $WEB $S3 2>/dev/null || true
           exit $CODIGO
 
       # EL INFORME SE GUARDA SI FALLA **O SI SE CANCELA**.
@@ -635,4 +662,5 @@ jobs:
             frontend/test-results/
             backend.log
             web.log
+            s3.log
           retention-days: 7

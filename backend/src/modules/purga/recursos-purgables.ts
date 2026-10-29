@@ -159,6 +159,15 @@ export const RECURSOS: RecursoPurgable[] = [
     permiso: 'document.manage',
     camposResumen: ['title', 'category', 'createdAt'],
     sobrevive: {},
+    avisos: [
+      {
+        /* Bloque 184 · el PDF de una ficha técnica es su prueba: la base no deja
+           borrarlo mientras la ficha exista (Restrict). Se dice ANTES de pedir
+           la confirmación, no con un error después. */
+        contar: { modelo: 'fichaOptica', donde: (id) => ({ documentoId: id }) },
+        texto: (n) => `Es la prueba de ${n} ficha(s) técnica(s): no se puede borrar suelto. Borra la ficha en Equipos › Fichas técnicas.`,
+      },
+    ],
   },
   {
     clave: 'catalogo',

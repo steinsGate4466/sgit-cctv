@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { filtroConAmbito } from '../../common/ambito-usuario';
 import { AuditService } from '../audit/audit.service';
 import { CreateCableDto, UpdateCableDto, QueryCableDto } from './dto/cable.dto';
+import { diaDePlanta } from '../../common/dia-de-planta';
 
 /**
  * TRAMOS DE CABLE.
@@ -150,7 +151,7 @@ export class CablesService {
         fromAssetId: dto.fromAssetId || null,
         fromPortNumber: dto.fromPortNumber ?? null,
         toAssetId: dto.toAssetId || null,
-        installedAt: dto.installedAt ? new Date(dto.installedAt) : null,
+        installedAt: dto.installedAt ? diaDePlanta(dto.installedAt) : null,
         notes: dto.notes?.trim() || null,
       },
       include: {
@@ -196,7 +197,7 @@ export class CablesService {
         fromAssetId: dto.fromAssetId !== undefined ? dto.fromAssetId || null : undefined,
         fromPortNumber: dto.fromPortNumber ?? undefined,
         toAssetId: dto.toAssetId !== undefined ? dto.toAssetId || null : undefined,
-        installedAt: dto.installedAt ? new Date(dto.installedAt) : undefined,
+        installedAt: dto.installedAt ? diaDePlanta(dto.installedAt) : undefined,
         notes: dto.notes !== undefined ? dto.notes?.trim() || null : undefined,
       },
       include: {

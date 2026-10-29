@@ -3,6 +3,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { diaDePlanta } from '../../common/dia-de-planta';
 
 /**
  * QUÉ APARATO ESTÁ PUESTO EN ESTE SITIO — bloque 106-B.
@@ -165,7 +166,7 @@ export class EquipoInstaladoService {
       );
     }
 
-    const desde = dto.desde ? new Date(dto.desde) : new Date();
+    const desde = dto.desde ? diaDePlanta(dto.desde) : new Date();
     if (Number.isNaN(desde.getTime())) {
       throw new BadRequestException('La fecha de instalación no es una fecha válida.');
     }
@@ -271,7 +272,7 @@ export class EquipoInstaladoService {
       throw new BadRequestException('Este sitio no tiene ningún aparato registrado ahora mismo.');
     }
 
-    const hasta = dto.hasta ? new Date(dto.hasta) : new Date();
+    const hasta = dto.hasta ? diaDePlanta(dto.hasta) : new Date();
     if (Number.isNaN(hasta.getTime())) {
       throw new BadRequestException('La fecha de retiro no es una fecha válida.');
     }

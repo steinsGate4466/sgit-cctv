@@ -5,6 +5,7 @@ import { useAuth } from '../auth/AuthContext';
 import { puedeAbrir } from '../modulos';
 import LienzoPlano from '../components/mapa/LienzoPlano';
 import Marcador, { ConoDeVision, IconoEquipo, NOMBRE_ICONO, iconoDe } from '../components/mapa/Marcador';
+import { NIVELES_DORI } from '../dori';
 import TarjetaEquipo from '../components/mapa/TarjetaEquipo';
 import TarjetaZona from '../components/mapa/TarjetaZona';
 import VistaDePlanta from '../components/mapa/VistaDePlanta';
@@ -45,6 +46,10 @@ export default function Mapa() {
   const [sel, setSel] = useState<string | null>(null);
   const [filtro, setFiltro] = useState<string>('');
   const [conos, setConos] = useState(true);
+  /* Bloque 184 · NOCHE: cada cámara sólo hasta donde llega SU infrarrojo, sin
+     la luz de la planta. Es la pregunta del turno de noche: «¿esto se ve a
+     oscuras?». Sólo aparece si alguna cámara del plano tiene ficha. */
+  const [noche, setNoche] = useState(false);
   const [etiquetas, setEtiquetas] = useState(false);
   const [enfocar, setEnfocar] = useState<{ x: number; y: number; n: number; w?: number } | null>(null);
   /* Bloque 165 · la vista de planta (todos los planos) y la zona elegida. */
@@ -269,6 +274,9 @@ export default function Mapa() {
   const atencion = equipos.filter((e) => e.estado !== 'ok').sort((a, b) => ORDEN[a.estado] - ORDEN[b.estado]);
   const elegido = sel ? equipos.find((e) => e.assetId === sel) : null;
   const mpp = vista?.plano?.metrosPorPx ?? null;
+  /* Bloque 184 · cuántas cámaras del plano dibujan lo que ven con su ficha. */
+  const camaras = equipos.filter((e) => e.tipo === 'CAMERA');
+  const conFicha = camaras.filter((e) => e.vision).length;
   const cables: Cable[] = useMemo(() => vista?.cables ?? [], [vista]);
   const avisos: any[] = useMemo(() => vista?.avisos ?? [], [vista]);
   const areas: any[] = useMemo(() => vista?.riesgos ?? [], [vista]);
@@ -381,7 +389,10 @@ export default function Mapa() {
         {/* Bloque 177 · las capas, como botones redondos encendidos/apagados en una
             sola cajita: las casillas sueltas se veían como un formulario. */}
         <div className="mapa-capas" role="group" aria-label="Capas del mapa">
-          <Capa on={conos} set={setConos} icono="◔" texto="Cobertura" ayuda="Hacia dónde mira cada cámara" />
+          <Capa on={conos} set={setConos} icono="◔" texto="Cobertura" ayuda="Hacia dónde mira cada cámara y, con su ficha técnica, hasta dónde se ve bien" />
+          {conos && conFicha > 0 && (
+            <Capa on={noche} set={setNoche} icono="☾" texto="Noche" ayuda="Sólo con el infrarrojo de cada cámara, sin la luz de la planta" />
+          )}
           <Capa on={etiquetas} set={setEtiquetas} icono="#" texto="Códigos" ayuda="El código de cada equipo" />
           <Capa on={capaRiesgo} set={setCapaRiesgo} icono="⚠" texto="Riesgo" ayuda="Bordes de color: alto riesgo, eléctrico, altura, calor y zona vital" />
           {vista && (cables.length > 0 || (vista.enlaces?.length ?? 0) > 0) && (
@@ -478,7 +489,8 @@ export default function Mapa() {
                     onPulsar={(c) => { setCercanos(null); setRiesgoSel(null); setSel(c.assetId); setResaltar(new Set([c.assetId])); }} />
                 )}
                 {conos && visibles.filter((e) => e.tipo === 'CAMERA').map((e) => (
-                  <ConoDeVision key={'c' + e.assetId} e={e} metrosPorPx={mpp} />
+                  <ConoDeVision key={'c' + e.assetId} e={e} metrosPorPx={mpp} noche={noche}
+                    escala={escala} conCotas={e.assetId === sel} />
                 ))}
                 {caen && visibles.filter((e) => caen.ids.has(e.assetId)).map((e) => (
                   <circle key={'i' + e.assetId} cx={e.xPx} cy={e.yPx} r={26 * escala} className="impacto-halo" />
@@ -587,6 +599,21 @@ export default function Mapa() {
                       {NIVELES.filter((n) => nivelesEnPlano.includes(n.nivel)).map((n) => (
                         <li key={n.nivel}><span className={'riesgo-chip riesgo-' + n.nivel}>{n.icono} {n.texto}</span><span className="muted">{n.ayuda}</span></li>
                       ))}
+                    </ul>
+                  </details>
+                )}
+                {/* Bloque 184 · cómo se lee el cono de una cámara con ficha técnica. */}
+                {conos && camaras.length > 0 && (
+                  <details className="mapa-iconos">
+                    <summary>{`Qué ve cada cámara (${conFicha} de ${camaras.length} con ficha)`}</summary>
+                    <ul>
+                      {NIVELES_DORI.map((n) => (
+                        <li key={n.clave} className="punto-ok" title={n.norma}>
+                          <i className={'dori-muestra dori-' + n.clave} aria-hidden="true" /><span>{n.texto}</span><span />
+                        </li>
+                      ))}
+                      <li><i className="leyenda-cono punteado" aria-hidden="true" /><span>{'Borde punteado: ficha sin verificar'}</span><span /></li>
+                      <li><i className="leyenda-cono a-mano" aria-hidden="true" /><span>{'Sin franjas: sin ficha, cono a mano'}</span><span /></li>
                     </ul>
                   </details>
                 )}

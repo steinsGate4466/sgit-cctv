@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { ProcedimientosService } from './procedimientos.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { disposicion } from '../../common/descarga';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequireAlguno, RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { AmbitoDe, SinAmbito } from '../../common/ambito.decorator';
@@ -100,7 +101,7 @@ export class ProcedimientosController {
   async pdf(@Param('id') id: string, @CurrentUser() u: any, @Ip() ip: string, @Res() res: Response) {
     const { buffer, filename } = await this.svc.pdfDeMejora(id, u?.userId ?? null, u?.permissions ?? [], ip);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Disposition', disposicion(filename));
     res.send(buffer);
   }
 

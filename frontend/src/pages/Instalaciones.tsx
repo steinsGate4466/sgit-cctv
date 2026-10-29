@@ -119,7 +119,7 @@ export default function Instalaciones() {
 
   async function abrir(id: string) {
     try { setDetalle(await api.get(`/instalaciones/${id}`).then((r) => r.data)); setError(''); }
-    catch { setError('No se pudo abrir.'); }
+    catch (err) { setError(mensajeDeError(err, 'abrir')); }
   }
 
   async function crear() {

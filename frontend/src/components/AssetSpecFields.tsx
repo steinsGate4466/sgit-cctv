@@ -16,6 +16,8 @@
  * campo vacío. El sistema marca la ficha como incompleta y recuerda qué falta.
  */
 
+import ElegirFichaOptica from './ElegirFichaOptica';
+
 // ---- Catálogos, con los textos que se usan en planta ----
 export const ROL_SWITCH: Record<string, string> = {
   CORE_ANILLO: 'Core del anillo',
@@ -88,9 +90,12 @@ interface Props {
   tren?: string | null;
   /** Optimización 21/10 · el formulario ya pide la IP arriba: aquí no se repite. */
   sinIp?: boolean;
+  /** Bloque 184 · marca y modelo del equipo: sus fichas técnicas salen primero. */
+  marca?: string;
+  modelo?: string;
 }
 
-export default function AssetSpecFields({ tipo, spec, onChange, opciones, propioId, tren, sinIp }: Props) {
+export default function AssetSpecFields({ tipo, spec, onChange, opciones, propioId, tren, sinIp, marca, modelo }: Props) {
   const bloque = FICHA_DE[tipo];
   if (!bloque) {
     return (
@@ -186,6 +191,10 @@ export default function AssetSpecFields({ tipo, spec, onChange, opciones, propio
                 .map((o) => <option key={o} value={o}>{o}</option>)}
             </select>
           </label>
+
+          {/* Bloque 184 · de la ficha sale lo que el mapa dibuja que ve. */}
+          <ElegirFichaOptica valor={v.fichaOpticaId} marca={marca} modelo={modelo}
+            onChange={(id) => onChange({ ...v, fichaOpticaId: id })} />
 
           <label>Resolución
             <input value={v.resolution || ''} onChange={txt('resolution')} placeholder="Ej: 2560x1440" />

@@ -76,7 +76,7 @@ Probado con las tres URL: las dos de producción se bloquean, `localhost` pasa.
 
 ---
 
-## Los seis recorridos, y qué bug concreto caza cada uno
+## Los nueve recorridos, y qué bug concreto caza cada uno
 
 | # | Recorrido | El bug real que habría cazado |
 |---|---|---|
@@ -86,8 +86,11 @@ Probado con las tres URL: las dos de producción se bloquean, `localhost` pasa.
 | **4** | Abrir la orden | **El peor de todos**: las OM nacían sin fecha, nunca vencían, no entraban en el backlog y el cumplimiento del preventivo mentía *(b. 64)* |
 | **5** | Quién puede qué | El QR cerrado para el Jefe de Tren *(b. 68)*, el QR imprimible a medias *(b. 77)* y Producción sin poder ver sus órdenes *(b. 83)*. **Tres veces el mismo fallo** |
 | **6** | Los indicadores | Los gráficos que enseñaban «value : 3» *(b. 64)*, las 21 fechas con formatos distintos y el Excel del bloque 84 |
+| **7** | Guardar un rol | «property nombre should not exist»: la pantalla que reparte el poder dejó de guardar *(b. 85)* |
+| **8** | Todas las pantallas | Las que revientan al dibujarse, las llamadas con 5xx y lo que empuja el celular de lado. Lee las rutas de `App.tsx`: una pantalla nueva entra sola *(b. 171)* |
+| **9** | Fichas técnicas | Lo único que no se ve sin navegador: **leer el PDF del fabricante en el navegador** (pdf.js y su *worker* servidos por el build), que el asistente proponga los números, que avise del error de dedo, que el PDF se suba y se baje con su nombre, y que quien la cargó NO la pueda verificar *(b. 184)* |
 
-**23 pruebas en 6 archivos**, en escritorio (1366×768, la pantalla de los
+**29 pruebas en 9 archivos**, en escritorio (1366×768, la pantalla de los
 púlpitos) y el QR además en móvil (iPhone 13, porque el técnico usa su propio
 teléfono).
 
@@ -139,24 +142,25 @@ ruido rojo sobre un fallo ya reportado más arriba.
 trocea los archivos por ruta ni ejercita `lazy-con-reintento`, así que probar
 ahí dejaría fuera justo la clase de fallo que se ve tras un despliegue.
 
+**Un almacén S3 de pruebas (bloque 184).** El recorrido 9 SUBE un PDF. Sin
+almacén el backend contesta 503 («MinIO no disponible») y la prueba no prueba
+nada. El trabajo levanta `s3rver@3.7.1` (un servidor S3 en Node, mismo
+protocolo que MinIO, sin Docker) en el puerto 9000 y apunta `MINIO_*` a él.
+Vive lo que dura el trabajo.
+
+**UTF-8 explícito (`LANG=C.UTF-8`).** Sin él, Chromium en Linux no sabe escribir
+una «é» en un nombre de archivo y descarga «download» a secas. En Windows no
+pasa; en la CI sí, y el recorrido 9 comprueba ese nombre.
+
 ---
 
-## Lo que NO se pudo hacer aquí
+## Dónde se ejecutan
 
-**No se han ejecutado.** El entorno del agente no puede descargar el navegador
-de Playwright: el dominio está bloqueado.
+Desde el bloque 171 se ejecutan también en el entorno del agente, con una
+réplica del trabajo de la CI: base nueva desde las migraciones, semilla con las
+variables de la CI, backend y frontend compilados, almacén S3 de pruebas y
+Chromium. **Lo que no hay ahí es WebKit**: el perfil `movil` (iPhone) se corre
+con Chromium, así que un fallo que sólo se vea en Safari sólo sale en la CI.
 
-```
-Error: Failed to download Chrome for Testing ... Download failure, code=1
-```
-
-Lo que **sí** se comprobó, y se dice tal cual:
-
-- los 6 archivos **compilan** (`tsc` sobre `e2e/`, limpio);
-- Playwright **los lee**: lista las 23 pruebas en los dos perfiles;
-- la **guarda de producción funciona**, probada con las dos URL reales y con
-  `localhost`.
-
-La primera ejecución de verdad es en tu máquina. **Es normal que la primera vez
-falle alguna** — no porque el software esté roto, sino porque un selector no
-coincida con el texto exacto de tu pantalla. Mándame el error y lo ajusto.
+*(Lo de abajo era cierto en el bloque 85 y ya no lo es: entonces no se podían
+ejecutar aquí porque el navegador no se podía descargar.)*

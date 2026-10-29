@@ -8,6 +8,7 @@ import Icono from '../components/Iconos';
 import { useDialogos } from '../components/Dialogos';
 import { fecha } from '../formato';
 import AvisoDeRecorte, { Recorte, recorteDe } from '../components/AvisoDeRecorte';
+import { mensajeDeError } from '../avisos';
 
 /**
  * Bandeja de Accesibilidad y Trabajo en Altura.
@@ -58,7 +59,7 @@ export default function Access() {
     try {
       const res = await api.get('/access-requests/photos/' + ph.id + '/file', { responseType: 'blob' });
       window.open(URL.createObjectURL(res.data), '_blank');
-    } catch { await avisar('No se pudo abrir la foto.'); }
+    } catch (err) { await avisar(mensajeDeError(err, 'abrir la foto')); }
   }
   async function downloadReport(r: any) {
     try {
@@ -66,7 +67,7 @@ export default function Access() {
       const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
       const a = document.createElement('a'); a.href = url; a.download = (r.code || 'acceso') + '.pdf';
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    } catch { await avisar('No se pudo generar el documento.'); }
+    } catch (err) { await avisar(mensajeDeError(err, 'generar el documento')); }
   }
 
   function openDecide(r: any, status: string) {

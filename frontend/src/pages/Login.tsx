@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { MarcaSGIT, LineaLaminacion } from '../components/Ilustraciones';
 import Icono from '../components/Iconos';
+import { leerSalida, textoDeSalida } from '../auth/salida';
 import { plural } from '../formato';
 
 export default function Login() {
@@ -38,8 +39,10 @@ export default function Login() {
   const [tries, setTries] = useState(5);
   // Si la sesión se cerró sola por inactividad, el usuario tiene que entender
   // por qué: si no, lo vive como un fallo del sistema.
-  const [porInactividad] = useState(
-    () => new URLSearchParams(location.search).get('motivo') === 'inactividad',
+  /* Bloque 183: no sólo la inactividad. Cada salida forzada dice su motivo
+     (auth/salida.ts): si fue el servidor, aquí sale lo que dijo. */
+  const [avisoSalida] = useState(
+    () => textoDeSalida(new URLSearchParams(location.search).get('motivo'), leerSalida()),
   );
 
   async function submit(e: FormEvent) {
@@ -117,10 +120,8 @@ export default function Login() {
           Flotando y fijo, en un celular acostado tapaba el campo de correo
           justo cuando el usuario iba a escribir: el sistema parecía roto dos
           veces seguidas. */}
-      {porInactividad && (
-        <div className="login-aviso">
-          Tu sesión se cerró por inactividad. Vuelve a ingresar.
-        </div>
+      {avisoSalida && (
+        <div className="login-aviso" role="status">{avisoSalida}</div>
       )}
 
       <div className="login-wrap">

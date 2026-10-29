@@ -72,6 +72,13 @@ export class AssetsService {
    * traza de auditoría (CREATE_ASSET) con el firmante. Registrar un activo es crítico
    * porque contiene información sensible (IP, red, accesos).
    */
+  /** Bloque 184 · la ficha técnica elegida tiene que existir (si no, la base daría un error mudo). */
+  private async comprobarFichaOptica(id?: string | null) {
+    if (!id) return;
+    const f = await this.prisma.fichaOptica.findUnique({ where: { id }, select: { id: true } });
+    if (!f) throw new BadRequestException('Esa ficha técnica ya no existe: elige otra o déjala vacía.');
+  }
+
   async createSigned(dto: SignedCreateAssetDto, ip?: string | null) {
     /* UN GABINETE NO ES UN ACTIVO — bloque 95.
        -----------------------------------------------------------------------
@@ -112,6 +119,7 @@ export class AssetsService {
     // sabría que quedó a medias.
     const base = sinFichas(resto);
     const ficha = fichaParaCrear(dto.type, dto);
+    await this.comprobarFichaOptica(dto.camera?.fichaOpticaId);
 
     const asset = await this.prisma.asset.create({
       data: { ...(base as any), ...ficha },
@@ -787,6 +795,7 @@ export class AssetsService {
     // corresponde, dejando filas en la tabla equivocada.
     const base = sinFichas(resto);
     const ficha = fichaParaActualizar(asset.type, dto);
+    await this.comprobarFichaOptica(dto.camera?.fichaOpticaId);
 
     const updated = await this.prisma.asset.update({
       where: { id },

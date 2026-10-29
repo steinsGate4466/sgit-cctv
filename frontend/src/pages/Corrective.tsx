@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import { useDialogos } from '../components/Dialogos';
 import { fecha } from '../formato';
 import { WO_STATUS_ES } from './omCatalogos';
+import { mensajeDeError } from '../avisos';
 
 
 export default function Corrective() {
@@ -26,7 +27,7 @@ export default function Corrective() {
       const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
       const a = document.createElement('a'); a.href = url; a.download = (w.code || 'informe') + '.pdf';
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    } catch { await avisar('No se pudo generar el informe.'); }
+    } catch (err) { await avisar(mensajeDeError(err, 'generar el informe')); }
   }
 
   if (loading) return <div className="loading">Cargando historial correctivo…</div>;

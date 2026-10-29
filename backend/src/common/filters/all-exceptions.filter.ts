@@ -40,7 +40,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
         }
         case 'P2003':
           status = HttpStatus.BAD_REQUEST;
-          message = 'Referencia inválida: el registro relacionado no existe.';
+          /* Bloque 184 · P2003 sale en los DOS sentidos: al guardar algo que
+             apunta a un registro que no existe, y al BORRAR algo de lo que
+             dependen otros datos. Decir sólo lo primero mentía en el segundo. */
+          message = 'Referencia inválida: el registro relacionado no existe, o hay otros datos que dependen de éste.';
           break;
         case 'P2025':
           status = HttpStatus.NOT_FOUND;

@@ -1,64 +1,76 @@
 import { useEffect, useRef, useState } from 'react';
+import { escriturasEnCurso } from '../api/client';
 
-/**
- * Cierre de sesión por inactividad.
- *
- * POR QUÉ EXISTE
- * El sistema muestra IP y contraseñas de equipos de planta. Una sesión abierta
- * en un teléfono o en el púlpito es un acceso abierto a esa información.
- *
- * POR QUÉ NO SON 5 MINUTOS PARA TODOS
- * En escritorio 15 minutos es razonable. En campo el técnico camina varios
- * minutos entre una cámara y otra con el teléfono en el bolsillo: si le cerrara
- * sesión cada 5 minutos, pasaría el día tecleando en vez de mapeando —y el
- * resultado real sería que empiece a compartir contraseñas.
- *
- * Se detecta "campo" por el ancho de pantalla (teléfono).
- */
+/* =============================================================================
+   CIERRE DE SESIÓN POR INACTIVIDAD — rehecho en el bloque 183
+   -----------------------------------------------------------------------------
+   POR QUÉ EXISTE
+   El sistema enseña IP y contraseñas de equipos de planta. Un PC del púlpito
+   o un teléfono con la sesión abierta y nadie delante es un acceso abierto.
+   El bloque 182 lo quitó porque «generaba bugs»; Cristhian lo pidió de vuelta
+   el mismo día como barrera de seguridad, «pero bien hecho». Esto es eso.
+
+   LA PANTALLA FIJA DEL PÚLPITO NO PASA POR AQUÍ
+   Un monitor con el mapa abierto todo el turno no tiene a nadie tocándolo, y
+   eso NO es abandono. Para eso existe el permiso `sesion.pantalla_fija`
+   (bloque 183): sólo se puede dar a un rol de SÓLO LECTURA y sin credenciales
+   — el servidor lo impide —, así que una sesión que no caduca no abre nada
+   que se pueda tocar. AuthContext no monta este reloj para esa cuenta.
+
+   -----------------------------------------------------------------------------
+   LOS FALLOS DE ANTES, Y QUÉ CIERRA CADA UNO
+
+   1. Las señales se escuchaban en `window` en fase de BURBUJA: cualquier
+      componente que llame a `stopPropagation()` (menús, el mapa, diálogos)
+      escondía sus clics y teclas.
+      AHORA: se escucha en `document` en fase de CAPTURA. La captura llega
+      antes que nadie, así que nada de la aplicación puede ocultar la señal.
+
+   1-bis. SÓLO CUENTA LO QUE HACE UNA PERSONA (`isTrusted`, y ni `scroll` ni
+      `focus`). Lo encontró el recorrido del bloque 183: el botón «Sigo aquí»
+      se enfoca solo al salir el aviso, ese foco contaba como actividad y el
+      aviso se borraba a sí mismo en el acto. Con `scroll` pasa lo mismo: la
+      aplicación desplaza cosas sola (la pestaña activa se centra, las listas
+      se recargan). Una barrera que la propia pantalla mantiene abierta no es
+      una barrera. Desplazar a mano SIEMPRE trae rueda, dedo o tecla, y ésos
+      sí cuentan.
+
+   2. Sólo eventos de ratón. En las pantallas táctiles y con lápiz, los
+      eventos de ratón de compatibilidad se suprimen si un componente hace
+      `preventDefault` (lo hace el plano para poder arrastrar).
+      AHORA: eventos de PUNTERO (`pointerdown`, `pointermove`), que cubren
+      ratón, dedo y lápiz, más teclado, rueda, escritura y foco.
+
+   3. Te podía echar a mitad de un guardado (subiendo fotos con mala wifi).
+      AHORA: con una escritura sin contestar, el reloj espera.
+
+   4. Una pestaña cerraba sesión y las otras seguían «dentro» con un token
+      borrado; al rato fallaban sin explicación.
+      AHORA: lo resuelve AuthContext escuchando el almacenamiento.
+
+   Y lo que ya estaba bien se queda: la actividad se comparte entre pestañas
+   (bloque 170), el reloj arranca al iniciar sesión (no al cargar la página) y
+   cualquier actividad retira el aviso.
+
+   OJO: lo que te sacaba «mientras trabajabas» casi nunca fue este reloj, sino
+   el servidor rechazando la renovación. Eso se arregla en auth.service
+   (respuesta de renovación perdida) y ahora la pantalla de acceso DICE cuál
+   de los dos fue (auth/salida.ts).
+============================================================================= */
 
 const MIN = 60 * 1000;
 
-// Escritorio: aviso a los 12, cierre a los 15.
-const ESCRITORIO = { aviso: 12 * MIN, cierre: 15 * MIN };
-// Campo (teléfono): aviso a los 25, cierre a los 30.
-const CAMPO = { aviso: 25 * MIN, cierre: 30 * MIN };
+// PC: aviso a los 13, cierre a los 15. Teléfono: aviso a los 28, cierre a los 30.
+// El teléfono va más largo porque el técnico camina entre cámaras con él en el
+// bolsillo: cerrarle cada 15 minutos le haría compartir contraseñas.
+export const LIMITES_PC = { aviso: 13 * MIN, cierre: 15 * MIN };
+export const LIMITES_CELULAR = { aviso: 28 * MIN, cierre: 30 * MIN };
 
-/* =============================================================================
-   EVENTOS QUE CUENTAN COMO «EL USUARIO SIGUE AHÍ»
-   -----------------------------------------------------------------------------
-   BUG REAL, Y DE LOS CAROS: faltaba `mousemove`.
+/** Lo que cuenta como «la persona sigue ahí». Se escucha en CAPTURA. */
+export const SENALES = [
+  'pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart', 'touchmove', 'input',
+] as const;
 
-   El usuario estaba EXPONIENDO EL SOFTWARE delante de un ingeniero. Movía el
-   ratón, señalaba, explicaba, hablaba — media hora sin pulsar un botón ni
-   escribir una letra. El sistema lo echó en mitad de la demostración.
-
-   Con la lista de antes, «estar delante del ordenador trabajando» no contaba
-   como actividad salvo que hicieras clic, escribieras o hicieras scroll. Eso
-   no es medir inactividad: es medir tecleo.
-
-   `mousemove` dispara muy seguido, pero el registrador sólo escribe una marca
-   de tiempo en una referencia —no provoca repintado— así que el coste es
-   despreciable y el `passive: true` evita bloquear el desplazamiento.
-
-   `focus` y `visibilitychange` entran por lo mismo: volver a la pestaña es
-   una señal clarísima de que la persona está ahí.
-============================================================================= */
-const SENALES = [
-  'mousemove', 'mousedown', 'keydown', 'touchstart', 'touchmove',
-  'scroll', 'wheel', 'focus', 'visibilitychange',
-];
-
-/* =============================================================================
-   LA ACTIVIDAD SE COMPARTE ENTRE PESTAÑAS — bloque 170
-   -----------------------------------------------------------------------------
-   Segunda causa de «me echa aunque esté trabajando»: con dos pestañas
-   abiertas (una ficha abierta aparte, el mapa en otra), la pestaña que NO se
-   usa contaba sus 15 minutos sola y cerraba la sesión — que es la misma para
-   las dos. Trabajabas en una y te echaba la otra.
-
-   Ahora cada pestaña deja la hora de su última actividad en el navegador
-   (como mucho una escritura cada 5 s) y todas miden desde la más reciente.
-============================================================================= */
 const CLAVE_ACTIVIDAD = 'sgit.actividad';
 const CADA_MS = 5000;
 
@@ -66,7 +78,7 @@ function leerCompartida(): number {
   try { return Number(localStorage.getItem(CLAVE_ACTIVIDAD)) || 0; } catch { return 0; }
 }
 function escribirCompartida(t: number) {
-  try { localStorage.setItem(CLAVE_ACTIVIDAD, String(t)); } catch { /* sin almacenamiento: cuenta sólo esta pestaña */ }
+  try { localStorage.setItem(CLAVE_ACTIVIDAD, String(t)); } catch { /* cuenta sólo esta pestaña */ }
 }
 
 /** La última actividad que cuenta: la de esta pestaña o la de otra, la más reciente. */
@@ -77,115 +89,76 @@ export function ultimaActividad(propia: number, compartida: number): number {
 export type Decision = 'ok' | 'avisar' | 'cerrar';
 
 /**
- * Qué hacer según el tiempo inactivo. Función PURA para poder probarla: la
- * lógica de un temporizador dentro de un hook es de las que fallan en el
- * límite exacto y nadie se entera hasta que echa a alguien de campo.
+ * Qué hacer según el tiempo inactivo. Función PURA para poder probarla.
+ * Con una escritura en curso nunca se cierra ni se avisa.
  */
-export function decidir(inactivoMs: number, limites: { aviso: number; cierre: number }): Decision {
+export function decidir(
+  inactivoMs: number,
+  limites: { aviso: number; cierre: number },
+  escribiendo = 0,
+): Decision {
+  if (escribiendo > 0) return 'ok';
   if (inactivoMs >= limites.cierre) return 'cerrar';
   if (inactivoMs >= limites.aviso) return 'avisar';
   return 'ok';
 }
 
-export function useInactivity(activo: boolean, alCerrar: () => void) {
+export function useInactivity(activo: boolean, alCerrar: (minutos: number) => void) {
   // Segundos restantes cuando el aviso está en pantalla; null = sin aviso.
   const [restante, setRestante] = useState<number | null>(null);
   const ultimo = useRef(Date.now());
   const avisando = useRef(false);
+  // alCerrar en una ref: si cambiara de identidad no debe reiniciar el reloj.
+  const cerrarRef = useRef(alCerrar);
+  cerrarRef.current = alCerrar;
 
-  const esCampo = typeof window !== 'undefined' && window.innerWidth < 768;
-  const limites = esCampo ? CAMPO : ESCRITORIO;
+  const esCelular = typeof window !== 'undefined' && window.innerWidth < 768;
+  const limites = esCelular ? LIMITES_CELULAR : LIMITES_PC;
+  const { aviso, cierre } = limites;
 
   useEffect(() => {
-    if (!activo) return;
+    if (!activo) { setRestante(null); return; }
 
-    // EL RELOJ EMPIEZA AQUÍ, AL ACTIVARSE LA SESIÓN. No al cargar la página.
-    //
-    // BUG QUE ESTO ARREGLA (reportado desde planta)
-    // `ultimo` se inicializaba al montar el proveedor, o sea cuando se carga
-    // la página. Si el sistema te expulsaba por inactividad, la app iba a
-    // /login; si te levantabas y volvías veinte minutos después a iniciar
-    // sesión, el reloj YA traía esos veinte minutos acumulados y te expulsaba
-    // en el primer tic. Parecía que el sistema estaba roto.
-    //
-    // Y peor: `avisando` tampoco se reiniciaba, y mientras vale true el
-    // registrador IGNORA el ratón y el teclado. Así que ni moviéndote se
-    // arreglaba: la sesión nueva nacía condenada.
-    //
-    // Lo que se mide es la inactividad DENTRO de la sesión, no el tiempo
-    // desde que se abrió el navegador.
+    // El reloj empieza al activarse la sesión, no al cargar la página.
     ultimo.current = Date.now();
     avisando.current = false;
     setRestante(null);
     escribirCompartida(ultimo.current);
     let escrito = ultimo.current;
 
-    /* CUALQUIER ACTIVIDAD CUENTA, TAMBIÉN CON EL AVISO EN PANTALLA.
-       -------------------------------------------------------------------
-       Aquí había un `if (avisando.current) return;` que hacía que, una vez
-       aparecía el aviso, el sistema IGNORARA que el usuario siguiera
-       trabajando. Podías estar escribiendo y pulsando botones: te echaba
-       igual. Sólo te salvaba pulsar el botón del aviso.
-
-       El razonamiento original era «que el aviso signifique algo y no se
-       descarte al pasar el ratón por encima». Suena bien y es falso: en un
-       púlpito o en una demostración el aviso puede quedar fuera de la vista,
-       y entonces el sistema echa a alguien que está delante trabajando. Eso
-       es peor que un aviso descartado por accidente.
-
-       Sesión = INACTIVIDAD. Si hay actividad, no hay inactividad. Punto. */
-    const registrar = () => {
-      ultimo.current = Date.now();
-      if (ultimo.current - escrito >= CADA_MS) { escribirCompartida(ultimo.current); escrito = ultimo.current; }
-      if (avisando.current) {
-        // Estaba avisando y la persona ha vuelto: se retira el aviso solo.
-        avisando.current = false;
-        setRestante(null);
-      }
+    const registrar = (e: Event) => {
+      if (!e.isTrusted) return;            // lo dispara el código, no una persona
+      const ahora = Date.now();
+      ultimo.current = ahora;
+      if (ahora - escrito >= CADA_MS) { escribirCompartida(ahora); escrito = ahora; }
+      if (avisando.current) { avisando.current = false; setRestante(null); }
     };
 
-    SENALES.forEach((e) => window.addEventListener(e, registrar, { passive: true }));
+    const opciones = { capture: true, passive: true } as const;
+    SENALES.forEach((e) => document.addEventListener(e, registrar, opciones));
 
     const reloj = setInterval(() => {
       const inactivo = Date.now() - ultimaActividad(ultimo.current, leerCompartida());
-
-      switch (decidir(inactivo, limites)) {
+      switch (decidir(inactivo, { aviso, cierre }, escriturasEnCurso())) {
         case 'cerrar':
           avisando.current = false;
           setRestante(null);
-          alCerrar();
+          cerrarRef.current(Math.round(cierre / MIN));
           return;
         case 'avisar':
           avisando.current = true;
-          setRestante(Math.ceil((limites.cierre - inactivo) / 1000));
+          setRestante(Math.max(1, Math.ceil((cierre - inactivo) / 1000)));
           return;
         default:
-          if (avisando.current) {
-            avisando.current = false;
-            setRestante(null);
-          }
+          if (avisando.current) { avisando.current = false; setRestante(null); }
       }
     }, 1000);
 
     return () => {
-      SENALES.forEach((e) => window.removeEventListener(e, registrar));
+      SENALES.forEach((e) => document.removeEventListener(e, registrar, opciones));
       clearInterval(reloj);
     };
-    /* SE DEPENDE DE LOS VALORES, NO DEL OBJETO — y el linter pide el objeto.
-       -------------------------------------------------------------------------
-       `limites` se rehace en cada repintado, así que ponerlo entero aquí
-       reiniciaría el temporizador CONTINUAMENTE: el aviso de sesión no
-       llegaría nunca y nadie sabría por qué. Es exactamente el fallo del
-       bloque 67 —el buscador que no buscaba porque `load` se recreaba en cada
-       repintado y el temporizador no llegaba a cumplirse—.
-
-       `limites.aviso` y `limites.cierre` son números: si cambian de verdad,
-       el efecto se relanza; si no, no. Que es lo correcto.
-
-       Se silencia AQUÍ, con el motivo escrito (bloque 93). Un aviso que sale
-       en cada ejecución y que nadie va a arreglar enseña a ignorarlos todos. */
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activo, limites.aviso, limites.cierre, alCerrar]);
+  }, [activo, aviso, cierre]);
 
   /** El usuario confirma que sigue ahí. */
   function seguir() {
@@ -195,7 +168,7 @@ export function useInactivity(activo: boolean, alCerrar: () => void) {
     setRestante(null);
   }
 
-  return { restante, seguir, minutosCierre: Math.round(limites.cierre / MIN) };
+  return { restante, seguir, minutosCierre: Math.round(cierre / MIN) };
 }
 
 /**

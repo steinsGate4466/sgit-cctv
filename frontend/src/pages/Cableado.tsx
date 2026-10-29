@@ -9,6 +9,7 @@ import FiltroAmbito, { Ambito, AMBITO_VACIO, conAmbito, AvisoAmbito } from '../c
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
 import { useDialogos } from '../components/Dialogos';
+import { mensajeDeError } from '../avisos';
 
 /**
  * TRAMOS DE CABLE.
@@ -142,7 +143,7 @@ export default function Cableado() {
       `explicando fallas pasadas y borrarlo dejaría sin sentido el historial de ` +
       `esas órdenes.`))) return;
     try { await api.delete('/assets/cables/' + c.id); await load(); }
-    catch { await avisar('No se pudo retirar el tramo.'); }
+    catch (err) { await avisar(mensajeDeError(err, 'retirar el tramo')); }
   }
 
   const nombre = (id: string) => opciones.find((o) => o.id === id)?.assetCode || '—';

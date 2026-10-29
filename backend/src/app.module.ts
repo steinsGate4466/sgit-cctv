@@ -54,11 +54,13 @@ import { ZonasModule } from './modules/zonas/zonas.module';
 import { ProcedimientosModule } from './modules/procedimientos/procedimientos.module';
 import { EstandaresModule } from './modules/estandares/estandares.module';
 import { RiesgoModule } from './modules/riesgo/riesgo.module';
+import { ModelosModule } from './modules/modelos/modelos.module';
 import { AvisoDePermisosService } from './common/aviso-de-permisos';
 
 @Module({
   imports: [
     RiesgoModule,
+    ModelosModule,
     EstandaresModule,
     ProcedimientosModule,
     ZonasModule,

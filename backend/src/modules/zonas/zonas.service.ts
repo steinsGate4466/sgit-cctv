@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { proponer, resolver, ETIQUETA, Intervencion } from '../../common/intervenibilidad';
+import { diaDePlanta } from '../../common/dia-de-planta';
 
 /**
  * ZONAS VITALES PARA LA PRODUCCIÓN — bloque 26.
@@ -204,7 +205,7 @@ export class ZonasService {
 
     let revisar: Date | null = null;
     if (dto.revisarAntesDe) {
-      revisar = new Date(dto.revisarAntesDe);
+      revisar = diaDePlanta(dto.revisarAntesDe);
       if (Number.isNaN(revisar.getTime())) {
         throw new BadRequestException('La fecha de revisión no es válida.');
       }

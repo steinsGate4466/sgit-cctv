@@ -1978,6 +1978,13 @@ label.campo > span,
 .aviso-ok { background: #e7f7ee; color: #14663a; border-color: #bfe9cf; }
 .aviso-error { background: #fdecec; color: #8c1414; border-color: #f6c9c9; }
 .aviso-ok b, .aviso-error b { font-weight: 700; }
+/* Bloque 184 · lo que falta por hacer y no es un error: ámbar, como el
+   motivo de un botón (bloque 67). El rojo se reserva para lo que falló. */
+.aviso-pendiente {
+  padding: 11px 14px; border-radius: 10px; font-size: 13.5px; line-height: 1.5; margin-bottom: 14px;
+  background: var(--warn-fondo); color: var(--warn-texto); border: 1px solid var(--warn-borde);
+}
+.aviso-pendiente ul, .aviso-error ul { margin: 4px 0 0; padding-left: 18px; }
 
 /* BLOQUE 47 — DOS FALLOS QUE ARRASTRABAN LOS 44 AVISOS DEL SISTEMA.
    -------------------------------------------------------------------------
@@ -4571,6 +4578,20 @@ input::-webkit-datetime-edit { padding: 0; }
 @keyframes pulso-mapa { from { transform: scale(.8); opacity: .9; } to { transform: scale(2.2); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .marcador-pulso { animation: none; } }
 .cono { fill: var(--c-punto); fill-opacity: .12; stroke: var(--c-punto); stroke-opacity: .45; stroke-width: 1; vector-effect: non-scaling-stroke; pointer-events: none; }
+/* Bloque 184 · con ficha técnica, cuatro franjas DORI: más fuerte cuanto más
+   detalle. La opacidad de cada una es la de `NIVELES_DORI` (dori.ts). Las
+   franjas reciben el ratón sólo para decir qué se ve ahí (su <title>). */
+.cono-franja { fill: var(--c-punto); fill-opacity: var(--dori-opacidad); stroke: none; pointer-events: visiblePainted; }
+.dori-identificar { --dori-opacidad: .42; }
+.dori-reconocer { --dori-opacidad: .3; }
+.dori-observar { --dori-opacidad: .19; }
+.dori-detectar { --dori-opacidad: .09; }
+.cono-corte { fill: none; stroke: var(--c-punto); stroke-opacity: .5; stroke-width: 1; vector-effect: non-scaling-stroke; pointer-events: none; }
+.cono-borde { fill: none; stroke: var(--c-punto); stroke-opacity: .85; stroke-width: 1.6; vector-effect: non-scaling-stroke; pointer-events: none; }
+.cono-borde.sin-verificar { stroke-dasharray: 7 5; }
+.cono-noche-sin-dato { fill: none; stroke: var(--c-punto); stroke-opacity: .7; stroke-width: 1.2; stroke-dasharray: 2 5;
+  vector-effect: non-scaling-stroke; pointer-events: visiblePainted; }
+.cono-cota { fill: #0f1a20; font-size: 11px; font-weight: 700; paint-order: stroke; stroke: #fff; stroke-width: 3px; pointer-events: none; }
 .punto-calibrar { fill: #f5b041; stroke: #0f1a20; stroke-width: 2; }
 .linea-calibrar { stroke: #f5b041; stroke-dasharray: 6 4; }
 
@@ -4850,6 +4871,19 @@ tbody tr:hover td { background: var(--brillo); }
 .mapa-iconos summary { cursor: pointer; color: var(--tinta-marca); font-weight: 600; min-height: 32px; display: flex; align-items: center; }
 .mapa-iconos ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; grid-template-columns: 1fr; gap: 5px; }
 .mapa-iconos li { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 8px; }
+/* Bloque 184 · lo que ve una cámara: la lista y su muestra de color, la misma
+   franja que en el mapa (borde lleno y relleno con la opacidad de su nivel). */
+.lo-que-ve { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 5px; font-size: 13px; }
+.lo-que-ve li { display: grid; grid-template-columns: 16px 1fr auto; align-items: center; gap: 8px; }
+.lo-que-ve b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.lo-que-ve-noche { color: var(--muted); }
+.lo-que-ve-noche i { font-style: normal; text-align: center; }
+.dori-muestra { position: relative; width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--c-punto, var(--ok)); overflow: hidden; }
+.dori-muestra::before { content: ''; position: absolute; inset: 0; background: var(--c-punto, var(--ok)); opacity: var(--dori-opacidad); }
+.mapa-iconos .dori-muestra { justify-self: center; }
+.leyenda-cono { justify-self: center; width: 16px; height: 16px; border-radius: 4px; }
+.leyenda-cono.punteado { border: 1.6px dashed var(--muted); }
+.leyenda-cono.a-mano { border: 1px solid var(--border); background: var(--suave-fondo); }
 
 /* =============================================================================
    BLOQUE 162 · EL APARATO DIBUJADO (DibujoEquipo)
@@ -5510,3 +5544,41 @@ tbody tr:hover td { background: var(--brillo); }
 }
 .aviso-falta-sap-fila { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
 .aviso-falta-sap-fila input { flex: 1; min-width: 0; }
+
+/* Bloque 183 · aviso de cierre por inactividad. Por encima de todo (también
+   del mapa a pantalla completa y de los diálogos): si no se ve, no avisa. */
+.aviso-inactividad {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(15, 23, 42, .55);
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.aviso-inactividad-caja {
+  background: var(--card); border-radius: 12px; padding: 24px 26px;
+  max-width: 400px; width: 100%; text-align: center;
+  border-top: 4px solid var(--warn); box-shadow: 0 20px 50px rgba(0, 0, 0, .3);
+}
+.aviso-inactividad-tit { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+.aviso-inactividad-txt { font-size: 14px; margin-bottom: 6px; line-height: 1.45; }
+.aviso-inactividad-nota { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+.distintivo-pantalla-fija {
+  display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
+  font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 999px;
+  background: var(--warn-fondo); color: var(--warn-texto); border: 1px solid var(--warn-borde);
+}
+@media (max-width: 767px) { .distintivo-pantalla-fija { display: none; } }
+
+/* =============================================================================
+   BLOQUE 184 · FICHAS TÉCNICAS
+   Una pastilla por lente: verde con ✓ si otra persona la verificó, ámbar si
+   aún no. Se pulsa para ver la ficha entera.
+   ========================================================================== */
+.lentes { display: flex; flex-wrap: wrap; gap: 6px; }
+.lente { display: inline-flex; align-items: center; gap: 5px; min-height: 32px; padding: 4px 10px; border-radius: 999px; white-space: nowrap;
+  font-size: 12.5px; font-weight: 600; cursor: pointer; border: 1px solid var(--warn-borde); background: var(--warn-fondo); color: var(--warn-texto); }
+.lente.verificada { border-color: var(--ok-borde); background: var(--ok-fondo); color: var(--ok-texto); }
+.lente:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+.lente-elegir { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+.lente-elegir button[aria-pressed="true"] { background: var(--navy); color: #fff; border-color: var(--navy); }
+.ficha-vista { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 18px; margin-top: 6px; }
+.ficha-vista h4 { margin: 0 0 4px; font-size: 13px; }
+.lista-pendientes { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 4px; font-size: 13px; }

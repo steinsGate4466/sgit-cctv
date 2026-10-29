@@ -14,12 +14,14 @@ import { mensajeDeError } from '../avisos';
  * lleva por delante; después hay que escribir el código a mano.
  */
 export default function BorrarDefinitivo({
-  tipo, id, onCerrar, onBorrado,
+  tipo, id, onCerrar, onBorrado, onDesactivar,
 }: {
   tipo: 'activo' | 'om' | 'usuario';
   id: string;
   onCerrar: () => void;
   onBorrado: (r: any) => void;
+  /** Bloque 183. Usuarios: si no se puede borrar, desactivarlo aquí mismo. */
+  onDesactivar?: () => Promise<void>;
 }) {
   const [previa, setPrevia] = useState<any>(null);
   const [cargando, setCargando] = useState(true);
@@ -28,6 +30,18 @@ export default function BorrarDefinitivo({
   const [error, setError] = useState('');
   // Segunda llave para lo que trae avisos (orden cerrada, material retirado).
   const [forzar, setForzar] = useState(false);
+  const [desactivando, setDesactivando] = useState(false);
+
+  /* Bloque 183 · «no se puede borrar» sin salida es un callejón: la persona
+     ya decidió que esa cuenta no debe entrar. Desactivar es lo correcto y se
+     ofrece en el mismo sitio, sin tener que ir a buscar otro formulario. */
+  async function desactivar() {
+    if (!onDesactivar || desactivando) return;
+    setDesactivando(true); setError('');
+    try { await onDesactivar(); } catch (e: any) {
+      setError(mensajeDeError(e, 'desactivar esta cuenta'));
+    } finally { setDesactivando(false); }
+  }
 
   useEffect(() => {
     let vivo = true;
@@ -95,6 +109,14 @@ export default function BorrarDefinitivo({
               queda constancia de que se pidió y de que no se hizo.
             </p>
           )}
+          {tipo === 'usuario' && onDesactivar && previa.usuario?.activo && (
+            <button className="btn-peligro" style={{ marginTop: 12 }} onClick={desactivar} disabled={desactivando}>
+              {desactivando ? 'Desactivando…' : 'Desactivar ahora (pierde el acceso en el acto)'}
+            </button>
+          )}
+          {tipo === 'usuario' && !previa.usuario?.activo && (
+            <p style={{ marginBottom: 0, fontSize: 13 }}>Ya está desactivada: no puede entrar.</p>
+          )}
         </div>
       )}
 
@@ -152,7 +174,7 @@ export default function BorrarDefinitivo({
           ) : (
             <p style={{ fontSize: 13.5 }}>
               Se borrará <b>{previa.usuario.nombre}</b> ({previa.usuario.email}).
-              No firmó ningún documento, así que no queda nada huérfano.
+              No tiene trabajo registrado en el sistema, así que no queda nada huérfano.
               {previa.ordenesAsignadas > 0 && (
                 <> Tenía <b>{previa.ordenesAsignadas}</b> orden(es) asignada(s): quedarán sin técnico.</>
               )}

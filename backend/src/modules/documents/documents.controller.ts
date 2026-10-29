@@ -6,6 +6,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { DocumentsService } from './documents.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { disposicion } from '../../common/descarga';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { SinAmbito } from '../../common/ambito.decorator';
@@ -52,7 +53,7 @@ export class DocumentsController {
       // Genérico y como adjunto SIEMPRE: aunque alguien colara un HTML, el
       // navegador no lo ejecutaría dentro del dominio del sistema.
       'Content-Type': 'application/octet-stream',
-      'Content-Disposition': `attachment; filename="${nombre}"`,
+      'Content-Disposition': disposicion(nombre),
       'Content-Length': String(buffer.length),
       'X-Content-Type-Options': 'nosniff',
     });

@@ -56,8 +56,18 @@ async function todoElMenuSeAbre(page: any) {
 
   expect(rutas.length, 'Este usuario no ve ninguna entrada de menú').toBeGreaterThan(0);
 
+  /* LAS PESTAÑAS DE CADA MÓDULO TAMBIÉN SON MENÚ — bloque 184.
+     -------------------------------------------------------------------------
+     Desde el bloque 179 la barra lateral enseña MÓDULOS (12 entradas) y cada
+     pantalla del módulo vive en su fila de pestañas. Este barrido sólo leía
+     lo visible al entrar y se quedaba en 17 rutas: dejaba fuera la mitad de
+     las pantallas y la prueba fallaba con «el menú no cargó entero», que no
+     era verdad. Ahora, al abrir cada entrada, se recogen sus pestañas y se
+     visitan justo después (siguen a la vista, así se pulsan y no se recarga). */
+  const vistas = new Set(rutas);
   const vacias: string[] = [];
-  for (const ruta of rutas) {
+  for (let i = 0; i < rutas.length; i++) {
+    const ruta = rutas[i];
     /* SE NAVEGA COMO NAVEGA UNA PERSONA: PULSANDO EL MENÚ.
        -----------------------------------------------------------------------
        Antes esto hacía `page.goto(ruta)` treinta veces, y un `goto` es una
@@ -97,6 +107,19 @@ async function todoElMenuSeAbre(page: any) {
     const contenedor = page.locator('main, .page, .contenido').first();
     await contenedor.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
 
+    const nuevas = ((await enlaces.evaluateAll(
+      (as: any[]) => as.map((a) => a.getAttribute('href') || ''),
+    )) as string[]).filter((r) => r && r !== '/login' && !vistas.has(r));
+    nuevas.forEach((r) => vistas.add(r));
+    rutas.splice(i + 1, 0, ...nuevas);
+
+    /* «CARGANDO» NO ES «VACÍA» — bloque 184.
+       Se leía el texto en cuanto aparecía el contenedor. El Mapa, la primera
+       entrada del menú, todavía decía «Cargando planos…» (17 letras) y salía
+       como pantalla en blanco: una carrera de la prueba, que en el reintento
+       pasaba. Se espera a que termine de cargar; si a los 15 s sigue
+       cargando, eso SÍ es un fallo y lo caza la comprobación de abajo. */
+    await expect(contenedor).not.toContainText(/Cargando/i, { timeout: 15_000, useInnerText: true }).catch(() => {});
     const cuerpo = await contenedor.innerText().catch(() => '');
 
     /* «No tienes permiso» EN UNA PANTALLA QUE EL MENÚ ENSEÑA es el fallo

@@ -1,4 +1,5 @@
 import { DibujoEquipo } from '../DibujoEquipo';
+import { NIVELES_DORI, metros, type VisionDelPunto } from '../../dori';
 
 /**
  * UN EQUIPO EN EL PLANO — bloques 151, 161 y 162.
@@ -106,23 +107,130 @@ export default function Marcador({
   );
 }
 
-/** El cono de lo que ve una cámara, en METROS reales del plano. */
-export function ConoDeVision({ e, metrosPorPx }: {
-  e: { xPx: number; yPx: number; rumbo?: number | null; anguloVision?: number | null; alcanceM?: number | null; estado: string };
+/* -----------------------------------------------------------------------------
+   EL CONO DE LO QUE VE — bloques 151 y 184.
+
+   CON FICHA TÉCNICA: cuatro franjas, una por nivel DORI, a las distancias que
+   publica el fabricante y al zoom en que quedó la cámara (lo calcula el
+   servidor). La franja más fuerte es donde se le ve la cara a alguien; la más
+   tenue, donde sólo se nota que hay alguien. Más allá del borde, borroso.
+   Si nadie ha verificado la ficha todavía, el borde va PUNTEADO: el dato está,
+   pero aún no lo ha comparado otra persona con el PDF.
+
+   SIN FICHA: el cono de siempre, el que alguien dibujó a mano con «Apuntar».
+   No se inventa ninguna franja: sin ficha no se sabe hasta dónde se ve bien.
+
+   El color sigue siendo el del estado (verde, ámbar, rojo, gris): el púlpito
+   ya lee así el mapa y un cono rojo sigue queriendo decir «esto no se ve».
+----------------------------------------------------------------------------- */
+const rad = (g: number) => (g * Math.PI) / 180;
+
+/** Un sector de corona: de r0 a r1, entre dos ángulos (en grados de pantalla). */
+function sector(cx: number, cy: number, r0: number, r1: number, desde: number, hasta: number): string {
+  const p = (r: number, a: number) => `${cx + r * Math.cos(rad(a))} ${cy + r * Math.sin(rad(a))}`;
+  const grande = hasta - desde > 180 ? 1 : 0;
+  if (r0 <= 0) return `M${cx} ${cy} L${p(r1, desde)} A${r1} ${r1} 0 ${grande} 1 ${p(r1, hasta)} Z`;
+  return `M${p(r0, desde)} L${p(r1, desde)} A${r1} ${r1} 0 ${grande} 1 ${p(r1, hasta)}`
+    + ` L${p(r0, hasta)} A${r0} ${r0} 0 ${grande} 0 ${p(r0, desde)} Z`;
+}
+
+/**
+ * Qué distancias se escriben sobre el cono sin que se pisen. De noche dos
+ * niveles pueden quedar a 4 m («26 m» y «30 m») y se leían «26 r30 m». Se
+ * recorre de FUERA hacia dentro —el alcance máximo es lo que más se pregunta—
+ * y se salta la que caería encima de la ya escrita, o encima del propio equipo.
+ * `escala` pasa píxeles de pantalla a píxeles del plano: una cota mide unos
+ * 40 px en pantalla.
+ */
+function cotasQueCaben(radios: number[], escala: number): number[] {
+  const hueco = 40 * escala;
+  const quedan: number[] = [];
+  let ultima = Infinity;
+  for (let i = radios.length - 1; i >= 0; i--) {
+    if (radios[i] <= 0 || (i > 0 && radios[i] <= radios[i - 1])) continue;
+    // Pegada al disco del equipo no se lee: queda debajo del dibujo.
+    if (radios[i] < 30 * escala || ultima - radios[i] < hueco) continue;
+    quedan.push(i);
+    ultima = radios[i];
+  }
+  return quedan;
+}
+
+/** Sólo el arco de un radio: la raya que separa dos franjas. */
+function arco(cx: number, cy: number, r: number, desde: number, hasta: number): string {
+  const p = (a: number) => `${cx + r * Math.cos(rad(a))} ${cy + r * Math.sin(rad(a))}`;
+  return `M${p(desde)} A${r} ${r} 0 ${hasta - desde > 180 ? 1 : 0} 1 ${p(hasta)}`;
+}
+
+export function ConoDeVision({ e, metrosPorPx, noche = false, escala = 1, conCotas = false }: {
+  e: {
+    codigo?: string; xPx: number; yPx: number; rumbo?: number | null; anguloVision?: number | null;
+    alcanceM?: number | null; estado: string; vision?: VisionDelPunto | null;
+  };
   metrosPorPx: number | null;
+  /** Capa «Noche»: sólo hasta donde llega su infrarrojo. */
+  noche?: boolean;
+  /** Para que las cotas midan lo mismo en pantalla con cualquier zoom. */
+  escala?: number;
+  /** Las distancias escritas sobre el cono (la cámara elegida). */
+  conCotas?: boolean;
 }) {
-  if (e.rumbo == null || !e.alcanceM || !metrosPorPx) return null;
-  const r = e.alcanceM / metrosPorPx;
-  const ang = e.anguloVision || 70;
-  const a1 = ((e.rumbo - ang / 2) * Math.PI) / 180;
-  const a2 = ((e.rumbo + ang / 2) * Math.PI) / 180;
-  const p1 = [e.xPx + r * Math.cos(a1), e.yPx + r * Math.sin(a1)];
-  const p2 = [e.xPx + r * Math.cos(a2), e.yPx + r * Math.sin(a2)];
-  const grande = ang > 180 ? 1 : 0;
+  if (e.rumbo == null || !metrosPorPx) return null;
+  const v = e.vision;
+
+  if (!v) {
+    if (!e.alcanceM) return null;
+    const ang = Math.min(e.anguloVision || 70, 359.9);
+    return (
+      <path className={'cono punto-' + e.estado}
+        d={sector(e.xPx, e.yPx, 0, e.alcanceM / metrosPorPx, e.rumbo - ang / 2, e.rumbo + ang / 2)} />
+    );
+  }
+
+  const ang = Math.min(v.angulo, 359.9);
+  const desde = e.rumbo - ang / 2;
+  const hasta = e.rumbo + ang / 2;
+  const quien = [e.codigo, v.marca && v.modelo ? `${v.marca} ${v.modelo} · ${v.lente}` : v.lente].filter(Boolean).join(' · ');
+
+  /* De noche y sin el dato del infrarrojo NO se supone nada: se marca sólo
+     hasta dónde llegaría de día, punteado, y se dice por qué. */
+  if (noche && !v.noche) {
+    return (
+      <path className={'cono-noche-sin-dato punto-' + e.estado}
+        d={sector(e.xPx, e.yPx, 0, v.dia.detectar / metrosPorPx, desde, hasta)}>
+        <title>{`${quien}: su ficha no dice hasta dónde llega el infrarrojo.`}</title>
+      </path>
+    );
+  }
+
+  const d = (noche ? v.noche : v.dia)!;
+  const radios = NIVELES_DORI.map((n) => d[n.clave] / metrosPorPx);
   return (
-    <path
-      className={'cono punto-' + e.estado}
-      d={`M${e.xPx} ${e.yPx} L${p1[0]} ${p1[1]} A${r} ${r} 0 ${grande} 1 ${p2[0]} ${p2[1]} Z`}
-    />
+    <g className={'punto-' + e.estado}>
+      {NIVELES_DORI.map((n, i) => {
+        const r0 = i === 0 ? 0 : radios[i - 1];
+        if (radios[i] <= r0) return null;   // de noche dos niveles pueden quedar en el mismo sitio
+        return (
+          <path key={n.clave} className={'cono-franja dori-' + n.clave} d={sector(e.xPx, e.yPx, r0, radios[i], desde, hasta)}>
+            <title>{`${quien}\n${n.texto}: hasta ${metros(d[n.clave])}${noche ? ' (de noche)' : ''}`}</title>
+          </path>
+        );
+      })}
+      {radios.slice(0, -1).map((r, i) => r > 0 && r < radios[3] && (
+        <path key={'c' + i} className="cono-corte" d={arco(e.xPx, e.yPx, r, desde, hasta)} />
+      ))}
+      <path className={'cono-borde' + (v.verificada ? '' : ' sin-verificar')}
+        d={sector(e.xPx, e.yPx, 0, radios[3], desde, hasta)} />
+      {conCotas && cotasQueCaben(radios, escala).map((i) => {
+        const n = NIVELES_DORI[i];
+        const x = e.xPx + radios[i] * Math.cos(rad(e.rumbo!));
+        const y = e.yPx + radios[i] * Math.sin(rad(e.rumbo!));
+        return (
+          <g key={'t' + n.clave} transform={`translate(${x} ${y}) scale(${escala})`}>
+            <text className="cono-cota" textAnchor="middle" dominantBaseline="central">{metros(d[n.clave])}</text>
+          </g>
+        );
+      })}
+    </g>
   );
 }

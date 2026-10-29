@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import Icono from '../components/Iconos';
 import { useAuth } from '../auth/AuthContext';
+import { descargarDeApi } from '../descargar';
 
 /**
  * EXPORTAR A EXCEL (bloque 11.1).
@@ -37,16 +38,7 @@ export default function Exportar() {
     setBajando(clave);
     setFallo('');
     try {
-      const r = await api.get(`/exportacion/${clave}`, { responseType: 'blob' });
-      const nombre =
-        /filename="?([^";]+)"?/.exec(r.headers['content-disposition'] || '')?.[1] ||
-        `sgit_${clave}.xlsx`;
-      const url = URL.createObjectURL(r.data);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = nombre;
-      a.click();
-      URL.revokeObjectURL(url);
+      await descargarDeApi(`/exportacion/${clave}`, `sgit_${clave}.xlsx`);
     } catch {
       setFallo('No se pudo generar el archivo. Vuelve a intentarlo; si sigue, avisa qué tema fallaba.');
     } finally {

@@ -123,11 +123,21 @@ const EN_CATALOGO = new Set([...catTxt.matchAll(/code:\s*'([^']+)'/g)].map((m) =
 
 // --- 4. Lo que usa el frontend -----------------------------------------------
 const enFront = new Map();
+/* Bloque 184 · también `can(CONSTANTE)` cuando la constante es un permiso
+   escrito una vez (`export const PERMISO_PANTALLA_FIJA = 'sesion.pantalla_fija'`).
+   Sin esto, un permiso nombrado con constante —que es lo correcto, para no
+   escribirlo dos veces— salía como «nadie lo exige» y el aviso mentía. */
+const constantes = new Map();
+for (const f of archivos(RAIZ_FRONT)) {
+  for (const m of leer(f).matchAll(/\bconst\s+([A-Z][A-Z0-9_]+)\s*=\s*'([a-z_]+\.[a-z_.]+)'/g)) constantes.set(m[1], m[2]);
+}
 for (const f of archivos(RAIZ_FRONT)) {
   const txt = leer(f);
-  for (const m of txt.matchAll(/\bcan\(\s*'([^']+)'\s*\)/g)) {
-    if (!enFront.has(m[1])) enFront.set(m[1], []);
-    enFront.get(m[1]).push(rel(f));
+  for (const m of txt.matchAll(/\bcan\(\s*(?:'([^']+)'|([A-Z][A-Z0-9_]+))\s*\)/g)) {
+    const p = m[1] ?? constantes.get(m[2]);
+    if (!p) continue;
+    if (!enFront.has(p)) enFront.set(p, []);
+    enFront.get(p).push(rel(f));
   }
 }
 

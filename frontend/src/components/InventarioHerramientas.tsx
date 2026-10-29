@@ -4,6 +4,7 @@ import Modal from './Modal';
 import { useAuth } from '../auth/AuthContext';
 import { WO_TYPES, WO_TYPE_ES } from '../pages/omCatalogos';
 import { useDialogos } from './Dialogos';
+import { mensajeDeError } from '../avisos';
 
 /**
  * CATÁLOGO DE HERRAMIENTAS + informe de las que más faltan.
@@ -79,7 +80,7 @@ export default function InventarioHerramientas() {
       `¿Desactivar "${t.name}"?\n\nNo se borra: las verificaciones pasadas de las ` +
       `órdenes la referencian y borrarla dejaría esos registros sin sentido.`))) return;
     try { await api.delete('/inventory/tools/' + t.id); await cargar(); }
-    catch { await avisar('No se pudo desactivar.'); }
+    catch (err) { await avisar(mensajeDeError(err, 'desactivar')); }
   }
 
   function alternarTipo(tipo: string) {

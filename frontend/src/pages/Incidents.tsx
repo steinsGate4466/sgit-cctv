@@ -8,6 +8,7 @@ import BotonPurgar from '../components/BotonPurgar';
 import { useAuth } from '../auth/AuthContext';
 import Icono from '../components/Iconos';
 import { useDialogos } from '../components/Dialogos';
+import { mensajeDeError } from '../avisos';
 import { fechaHora, PRIORIDAD_ES, plural } from '../formato';
 import { fechaCorta, fechaTabla, haceCuanto } from '../fechas';
 import { useBusquedaEnVivo } from '../useBusquedaEnVivo';
@@ -189,36 +190,43 @@ export default function Incidents() {
 
   async function create(e: FormEvent) {
     e.preventDefault();
+    if (saving) return;                       // dos pulsaciones = dos incidencias
+    /* LO QUE FALTA SE PREGUNTA ANTES DE «GUARDANDO…». Antes se marcaba el
+       guardado primero y el aviso salía con el botón diciendo «Guardando…» y
+       apagado: parecía que estaba guardando algo que todavía no se mandó. */
+    /* Bloque 139: quien sólo reporta no clasifica. Categoría y prioridad las
+       pone el técnico después; mandarlas con el valor por defecto diría que
+       alguien las eligió. */
+    /* Bloque 169: el título, si no se escribe, se arma con lo ELEGIDO
+       (categoría + equipo). Prioridad vacía = la de la zona (no se manda). */
+    const equipo = assets.find((a) => a.id === form.assetId)?.assetCode;
+    const titulo = form.title.trim() || [completaTecnico && form.category !== 'GENERAL' ? catEs(form.category) : '', equipo].filter(Boolean).join(' — ');
+    if (titulo.length < 3) { await avisar('Elige la categoría y el equipo, o escribe qué pasa.'); return; }
+    /* Bloque 180: decide si cuenta como falla. Sin contestarlo, el MTBF
+       contaría como avería un gabinete que funciona. */
+    if (!form.tipoAviso) { await avisar('Contesta si el equipo funciona: decide si cuenta como falla.'); return; }
+    const malSap = avisoDelNumeroSap(form.avisoSap);
+    if (malSap) { await avisar(malSap); return; }
+    const body: any = { title: titulo, tipoAviso: form.tipoAviso };
+    const avisoSap = normalizarNumeroSap(form.avisoSap);
+    if (avisoSap) body.avisoSap = avisoSap;
+    if (completaTecnico) { body.category = form.category; if (form.priority) body.priority = form.priority; }
+    if (form.assetId) body.assetId = form.assetId;
+    if (form.zone) body.zone = form.zone.trim();
+    if (form.description) body.description = form.description;
+    if (form.affectedCameras) body.affectedCameras = Number(form.affectedCameras);
+
     setSaving(true);
     try {
-      /* Bloque 139: quien sólo reporta no clasifica. Categoría y prioridad las
-         pone el técnico después; mandarlas con el valor por defecto diría que
-         alguien las eligió. */
-      /* Bloque 169: el título, si no se escribe, se arma con lo ELEGIDO
-         (categoría + equipo). Prioridad vacía = la de la zona (no se manda). */
-      const equipo = assets.find((a) => a.id === form.assetId)?.assetCode;
-      const titulo = form.title.trim() || [completaTecnico && form.category !== 'GENERAL' ? catEs(form.category) : '', equipo].filter(Boolean).join(' — ');
-      if (titulo.length < 3) { await avisar('Elige la categoría y el equipo, o escribe qué pasa.'); return; }
-      /* Bloque 180: decide si cuenta como falla. Sin contestarlo, el MTBF
-         contaría como avería un gabinete que funciona. */
-      if (!form.tipoAviso) { await avisar('Contesta si el equipo funciona: decide si cuenta como falla.'); return; }
-      const malSap = avisoDelNumeroSap(form.avisoSap);
-      if (malSap) { await avisar(malSap); return; }
-      const body: any = { title: titulo, tipoAviso: form.tipoAviso };
-      const avisoSap = normalizarNumeroSap(form.avisoSap);
-      if (avisoSap) body.avisoSap = avisoSap;
-      if (completaTecnico) { body.category = form.category; if (form.priority) body.priority = form.priority; }
-      if (form.assetId) body.assetId = form.assetId;
-      if (form.zone) body.zone = form.zone.trim();
-      if (form.description) body.description = form.description;
-      if (form.affectedCameras) body.affectedCameras = Number(form.affectedCameras);
       await api.post('/incidents', body);
       setShowForm(false);
       setForm(FORM_VACIO);
       await load();
     } catch (err: any) {
-      const m = err?.response?.data?.message;
-      await avisar(Array.isArray(m) ? m.join(', ') : m || 'No se pudo crear la incidencia.');
+      /* Sin respuesta no es «no se pudo»: es «no llegó, NO se guardó, puedes
+         repetirlo» (avisos.ts). Con «No se pudo crear» la gente repetía sin
+         saber si la primera había entrado. */
+      await avisar(mensajeDeError(err, 'crear la incidencia'));
     } finally { setSaving(false); }
   }
 
@@ -311,7 +319,7 @@ export default function Incidents() {
       setFile(null); setCaption('');
       const ev = await api.get('/incidents/' + photoId + '/evidence').then((r) => r.data).catch(() => []);
       setEvidence(ev || []);
-    } catch { await avisar('No se pudo subir la imagen.'); }
+    } catch (err) { await avisar(mensajeDeError(err, 'subir la imagen')); }
     finally { setUploading(false); }
   }
   async function downloadReport(i: any) {
@@ -320,7 +328,7 @@ export default function Incidents() {
       const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
       const a = document.createElement('a'); a.href = url; a.download = (i.code || 'informe') + '.pdf';
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    } catch { await avisar('No se pudo generar el informe.'); }
+    } catch (err) { await avisar(mensajeDeError(err, 'generar el informe')); }
   }
 
   function clearFilters() { setFq(''); setFCat(''); setFStatus(''); setFTipo(''); setFrom(''); setTo(''); }

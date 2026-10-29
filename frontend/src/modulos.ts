@@ -101,6 +101,8 @@ export const MODULOS: Modulo[] = [
       { ruta: '/assets', texto: 'Activos', nota: 'Fichas de todos los equipos y los retirados', puede: con('asset.read') },
       { ruta: '/mis-activos', texto: 'Mis activos', nota: 'Los equipos de tu tren', puede: con('activos.mirar') },
       { ruta: '/criticidad', texto: 'Criticidad', nota: 'A, B o C según el impacto', puede: alguno('asset.read', 'activos.mirar') },
+      /* Bloque 184 · catálogo de modelos: obsolescencia y lo que ve cada cámara. */
+      { ruta: '/fichas', texto: 'Fichas técnicas', nota: 'Modelos, soporte y lo que ve cada cámara', puede: con('asset.read') },
       { ruta: '/access', texto: 'Acceso y altura', nota: 'Permisos y trabajo en altura', puede: con('access.read') },
       /* «Estado de la información» y «Calidad de datos» medían lo mismo: qué falta cargar. */
       { ruta: '/mapeo', texto: 'Calidad de la información', nota: 'Fichas por completar y datos que no cuadran', puede: con('asset.read') },

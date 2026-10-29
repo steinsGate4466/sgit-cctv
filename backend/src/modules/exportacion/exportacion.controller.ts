@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { ExportacionService } from './exportacion.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { disposicion } from '../../common/descarga';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { Ritmo } from '../../common/guards/ritmo.guard';
@@ -58,7 +59,7 @@ export class ExportacionController {
   private responder(res: Response, nombre: string, buffer: Buffer) {
     res.set({
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': `attachment; filename="${nombre}"`,
+      'Content-Disposition': disposicion(nombre),
       'Content-Length': String(buffer.length),
     });
     res.end(buffer);

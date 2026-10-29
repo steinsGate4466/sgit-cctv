@@ -9,6 +9,7 @@ import {
   CreateAccessRequestDto, DecideAccessRequestDto, QueryAccessRequestDto, UpdateAccessRequestDto,
 } from './dto/access.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { disposicion } from '../../common/descarga';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { AmbitoDe } from '../../common/ambito.decorator';
@@ -57,7 +58,7 @@ export class AccessController {
   async report(@Param('id') id: string, @Res() res: Response) {
     const { buffer, filename } = await this.access.buildReport(id);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Disposition', disposicion(filename));
     res.send(buffer);
   }
 

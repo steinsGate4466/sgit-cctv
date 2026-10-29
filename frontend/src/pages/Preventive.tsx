@@ -72,7 +72,7 @@ export default function Preventive() {
       const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
       const a = document.createElement('a'); a.href = url; a.download = (w.code || 'informe') + '.pdf';
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    } catch { await avisar('No se pudo generar el informe.'); }
+    } catch (err) { await avisar(mensajeDeError(err, 'generar el informe')); }
   }
   function openNew() {
     // Bloque 168: vacío = lo decide el ambiente de la etapa y el último preventivo cerrado (servidor).

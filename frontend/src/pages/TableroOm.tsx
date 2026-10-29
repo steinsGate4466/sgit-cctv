@@ -238,7 +238,9 @@ export default function TableroOm() {
                repetirlo aquí era el doble vacío. Sólo lo que pasará. */
             <p className="muted">Cuando se abra una, aparece aquí con su avance.</p>
           ) : (
-            <table className="tabla">
+            /* En el celular la tabla se desliza dentro de su caja; sin esto
+               empujaba la pantalla entera ~300 px de lado (recorrido 8). */
+            <div className="desliza"><table className="tabla">
               <thead>
                 <tr>
                   <th>Orden</th>
@@ -288,7 +290,7 @@ export default function TableroOm() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
         </div>
       )}

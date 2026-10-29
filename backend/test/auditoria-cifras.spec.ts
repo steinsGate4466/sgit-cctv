@@ -15,7 +15,9 @@ describe('A1 · «Quién está dentro» deja de decir «0 personas trabajando»'
   it('el token de acceso lleva la sesión (`sid`) y la sesión nace con su última actividad', () => {
     const a = src('modules/auth/auth.service.ts');
     expect(a).toMatch(/sid: jti/);
-    expect(a).toMatch(/ultimoUsoEn: new Date\(\),\s*\},\s*\}\)\.catch/);
+    // Bloque 183: la sesión se crea con reintento y SIN tragarse el fallo.
+    expect(a).toMatch(/ultimoUsoEn: new Date\(\),\s*\};/);
+    expect(a).toMatch(/sesion\.create\(\{ data: datosSesion \}\)\.catch\(async/);
     expect(src('modules/auth/jwt.strategy.ts')).toContain('sid: payload.sid');
   });
 
@@ -23,7 +25,8 @@ describe('A1 · «Quién está dentro» deja de decir «0 personas trabajando»'
     const g = src('common/guards/acceso-vigente.guard.ts');
     expect(g).toContain('this.marcarUso(user.sid)');
     expect(g).toContain('ahora - ultima < 60_000');
-    expect(g).toMatch(/updateMany\(\{ where: \{ id: sid, revocadaEn: null \}[\s\S]*?\.catch\(\(\) => null\)/);
+    // Bloque 183: además apunta el PRIMER uso (respuesta de renovación perdida).
+    expect(g).toMatch(/WHERE "id" = \$\{sid\} AND "revocadaEn" IS NULL`\s*\.catch\(\(\) => null\)/);
   });
 });
 

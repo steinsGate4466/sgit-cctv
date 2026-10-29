@@ -93,17 +93,21 @@ prueba, `test/maintenance.service.spec.ts`, al fallar al cargar el módulo.
 
 ---
 
-## Las 3 moderadas que quedan abiertas, declaradas
+## Lo que queda abierto, declarado (medido el 29/10/2026)
 
-La puerta de la CI está en **`--audit-level=high`**, así que estas tres pasan.
-No es un descuido, es una decisión:
+La puerta de la CI está en **`--audit-level=high`**, así que esto pasa. No es
+un descuido, es una decisión. `npm audit` da **13 avisos —4 moderados y 9
+bajos—, ninguno alto ni crítico**, y lo único que propone para cerrarlos es
+BAJAR una directa de mayor: `minio` a la 7, `@nestjs/cli` a la 7, `jest` a la 25.
 
 | Cadena | Severidad | Por qué se acepta hoy |
 |---|---|---|
 | `minio` → `query-string` → `decode-uri-component` | MODERADA | El único parche es ESM y rompe el arranque (arriba). Es una denegación de servicio por entrada mal codificada en el porcentaje de una URL; las URL que se le pasan a MinIO las construye el propio backend, no el usuario |
+| `minio` → `stream-json` | MODERADA | No hay parche dentro de la 1.x que pide `minio`. Sólo lo usa su escucha de notificaciones del almacén, que este backend no llama |
+| `@nestjs/cli` y `jest` → `deepmerge` | BAJA · los 9 avisos son esta cadena | Herramientas de compilación y de pruebas: no viajan a producción |
 
 **Se revisa cuando `minio` publique un mayor que ya no dependa de
-`query-string@7`.** Ese día se sube la directa en un bloque propio, con sus
+`query-string@7` ni de `stream-json@1`.** Ese día se sube la directa en un bloque propio, con sus
 pruebas, no de rebote en un `audit fix`.
 
 ---
@@ -144,8 +148,57 @@ que es exactamente lo que este proyecto no hace a mitad de camino.
 instalación real, `require()` de `ajv`, `minio` y `express`, typecheck y las
 797 pruebas. `npm audit --audit-level=high` sale en **verde**.
 
-Los **7 avisos MODERADOS** que quedan siguen siendo la deuda declarada:
+En el bloque 92 quedaban **7 avisos MODERADOS** como deuda declarada:
 `qs`/`body-parser` bajo `express` y `decode-uri-component` bajo `minio`. Los
 dos exigen una versión mayor de una dependencia directa. La CI corta en ALTO,
 así que no la tumban — pero **no están tapados con un `|| true`**: salen en el
-informe cada vez.
+informe cada vez. `qs` y `body-parser` se cerraron en el bloque 184 (abajo); lo
+vigente está en «Lo que queda abierto».
+
+---
+
+## Bloque 184 — la CI en rojo otra vez: avisos nuevos, dos críticos (28/10/2026)
+
+Publicados después del bloque 92. Medido con `npm audit` antes de tocar nada:
+**backend 5 ALTAS y 2 CRÍTICAS, frontend 6 ALTAS.**
+
+### Backend — `overrides` a la versión parcheada
+
+| Paquete | Antes → ahora | Aviso |
+|---|---|---|
+| `handlebars` | 4.7.9 → 4.7.10 | CRÍTICA · inyección de JavaScript al incrustar plantillas precompiladas |
+| `proxy-addr` | 2.0.7 → 2.0.8 | CRÍTICA · suplantación de IP con una IPv4 mapeada en IPv6 |
+| `multer` | 2.2.0 → 2.5.0 | ALTA · denegación de servicio con nombres de campo multipart (por él salía también `@nestjs/platform-express`) |
+| `body-parser` | 1.20.6 → 2.4.0 | ALTA · denegación de servicio con bytes detrás de un cuerpo comprimido |
+| `brace-expansion` | 2.1.4 → 2.1.7 | ALTA · expansión de tiempo cuadrático |
+| `js-yaml` | 4.3.1 → 4.3.2 | ALTA · `maxTotalMergeKeys` no limita la CPU |
+| `qs` · `fast-uri` | 6.15.3 → 6.17.0 · 3.1.7 → 3.1.9 | de paso, a su parche |
+
+**`body-parser` es el que enseña algo.** `express` 5 pide `^2.2.1`, y un
+override anterior —`"body-parser": "^1.20.6"`, que no estaba escrito aquí— le
+OBLIGABA a usar la 1.x. El aviso alto lo traía nuestro propio override. Ahora
+pide lo mismo que pide `express`.
+
+> **Un override que fija un MAYOR distinto del que pide quien lo usa no cierra
+> nada: cambia un aviso por otro**, y desde el `package.json` de la directa no
+> se ve. Antes de escribir uno: `npm ls <paquete>` y mirar qué rango pide el
+> padre.
+
+### Frontend — sin overrides nuevos
+
+| Paquete | Antes → ahora | Cómo |
+|---|---|---|
+| `axios` | 1.18.1 → 1.21.0 | directa, dentro de la 1 |
+| `vite` | 8.2.2 → 8.3.5 | directa, dentro de la 8 (el aviso venía de `launch-editor`, en Windows) |
+| `follow-redirects` · `brace-expansion` · `source-map-js` · `zod` | al día | dentro del rango que ya pedía quien los usa: sólo cambia el lock |
+
+Dependencia NUEVA del bloque: **`pdfjs-dist`** (`^6.4.299`), que lee en el
+navegador el PDF de la ficha técnica. Se descarga sólo cuando alguien elige un
+PDF en esa pantalla.
+
+**Resultado:** backend sin altas ni críticas (lo que queda, arriba); frontend
+0 avisos. Ni un mayor directo, ni un `--force`. Comprobado como manda este
+archivo: instalación limpia sin rangos inválidos (`npm ls --all`), `require()`
+real de los ocho paquetes tocados, 1.849 pruebas, build, y los recorridos
+contra el servidor arrancado —el 9 sube un PDF, así que pasa de verdad por
+`multer` y `body-parser`—.

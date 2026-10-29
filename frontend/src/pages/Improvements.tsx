@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { useDialogos } from '../components/Dialogos';
 import { fecha } from '../formato';
+import { mensajeDeError } from '../avisos';
 
 /**
  * Mantenimiento de Mejora — trabajos que no son reparación ni rutina:
@@ -25,7 +26,7 @@ export default function Improvements() {
       const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
       const a = document.createElement('a'); a.href = url; a.download = (w.code || 'informe') + '.pdf';
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    } catch { await avisar('No se pudo generar el informe.'); }
+    } catch (err) { await avisar(mensajeDeError(err, 'generar el informe')); }
   }
 
   if (loading) return <div className="loading">Cargando mejoras…</div>;

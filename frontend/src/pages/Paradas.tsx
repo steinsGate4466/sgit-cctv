@@ -91,7 +91,7 @@ export default function Paradas() {
 
   async function abrirDetalle(id: string) {
     try { setDetalle(await api.get(`/paradas/${id}`).then((r) => r.data)); }
-    catch { setError('No se pudo abrir la parada.'); }
+    catch (err) { setError(mensajeDeError(err, 'abrir la parada')); }
   }
 
   async function crear() {

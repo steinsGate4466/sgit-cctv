@@ -5,15 +5,12 @@ import { AuditService } from '../audit/audit.service';
 import { defectosDeConjunto, revisarFicha, tieneBloqueantes, ActivoParaRevisar, Defecto } from './calidad-ficha';
 import { aTrenDePlanta } from '../../common/tren-de-planta';
 import { avanceDeMeta, esMapeo, estadoDelPlan, fechasMal, tipoCanonico } from './plan-de-campana';
+import { diaDePlanta } from '../../common/dia-de-planta';
 
 /* Un día del calendario (aaaa-mm-dd) se guarda a MEDIODÍA de la planta. A
    medianoche UTC sería el día ANTERIOR en Perú (UTC-5), y la zona saldría con
    un día menos en la pantalla y «atrasada» un día antes de tiempo. */
-const aFecha = (v: unknown): Date | null => {
-  if (!v) return null;
-  const t = String(v);
-  return new Date(/^\d{4}-\d{2}-\d{2}$/.test(t) ? `${t}T12:00:00-05:00` : t);
-};
+const aFecha = (v: unknown): Date | null => (v ? diaDePlanta(String(v)) : null);
 const ESTADOS_CAMPANA = ['PLANIFICADA', 'EN_CURSO', 'EN_REVISION', 'CERRADA', 'CANCELADA'];
 
 /**

@@ -10,6 +10,7 @@ import {
 } from '../../common/programacion-preventiva';
 import { resolverContextoDePlanta, intervaloParaAmbiente } from '../../common/plant-context';
 import { CriticidadService } from '../criticidad/criticidad.service';
+import { diaDePlanta } from '../../common/dia-de-planta';
 
 /* OM preventivas que cuentan como "ya en curso" (no se duplica la generación).
 
@@ -125,7 +126,7 @@ export class PreventiveService {
       const ctx = await resolverContextoDePlanta(this.prisma, [{ id: asset.id, locationId: asset.locationId, criticality: asset.criticality }]).catch(() => ({} as any));
       interval = dto.zoneCritical ? 30 : ((ctx as any)?.[asset.id]?.intervaloDias ?? 60);
     }
-    let last = dto.lastServiceAt ? new Date(dto.lastServiceAt) : null;
+    let last = dto.lastServiceAt ? diaDePlanta(dto.lastServiceAt) : null;
     if (!last) {
       const ultimo = await this.prisma.workOrder.findFirst({
         where: { assetId: asset.id, type: 'PREVENTIVO', status: 'CERRADA' },

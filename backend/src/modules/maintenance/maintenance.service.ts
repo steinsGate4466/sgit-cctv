@@ -35,6 +35,7 @@ import {
 } from '../../common/incidencia-sigue-a-la-om';
 import { exigirFirmanteConPermiso } from '../../common/firmante';
 import { motivoNumeroSapInvalido, motivoSinOmSap, normalizarNumeroSap, tipoDeOrdenSugerido } from '../../common/aviso-sap';
+import { diaDePlanta } from '../../common/dia-de-planta';
 // PDF: se carga con require para no depender de @types en el build.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PDFDocument = require('pdfkit');
@@ -228,7 +229,7 @@ export class MaintenanceService {
 
            El generador de preventivos y quien programe a futuro siguen mandando
            su fecha explícita, así que este valor por defecto no les afecta. */
-        scheduledDate: dto.scheduledDate ? new Date(dto.scheduledDate) : new Date(),
+        scheduledDate: dto.scheduledDate ? diaDePlanta(dto.scheduledDate) : new Date(),
         technicianId: dto.technicianId,
         /* QUIÉN LA PIDIÓ, COMO USUARIO — bloque 94. Convive con `requestedBy`
            y no lo sustituye: aquél es texto libre para quien NO es usuario del
@@ -735,7 +736,7 @@ export class MaintenanceService {
       data[campo] = codigo;
     }
     if (dto.scheduledDate) {
-      data.scheduledDate = new Date(dto.scheduledDate);
+      data.scheduledDate = diaDePlanta(dto.scheduledDate);
       const cambia = !cur.scheduledDate || cur.scheduledDate.getTime() !== data.scheduledDate.getTime();
       /* BLOQUE 135 · LA FECHA NO SE MUEVE POR LA PUERTA DE ATRÁS. Con `wo.update`
          cualquiera podía cambiar la fecha aquí y la orden dejaba de salir
@@ -1648,7 +1649,7 @@ export class MaintenanceService {
     }
 
     const programada = dto.scheduledDate
-      ? new Date(dto.scheduledDate)
+      ? diaDePlanta(dto.scheduledDate)
       : fechaLimite(criticidad, new Date());
     // Bloque 180: si ya existe en SAP, su número viene desde el principio.
     const sap = await this.numeroSapDeOm(dto.externalRef, null);

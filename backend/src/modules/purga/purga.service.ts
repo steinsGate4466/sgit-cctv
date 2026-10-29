@@ -822,6 +822,17 @@ export class PurgaService {
   /* ==================== USUARIOS ==================== */
 
   async vistaPreviaUsuario(id: string) {
+    /* BLOQUE 183 · EL RASTRO SE CUENTA ENTERO, NO SÓLO LAS FIRMAS.
+       Antes sólo miraba órdenes cerradas y aprobaciones de altura. Una persona
+       que había reportado incidencias, avanzado órdenes o retirado material
+       salía como «se puede borrar», y entonces:
+         · si había avisado una caída desde el púlpito, la base RECHAZABA el
+           borrado (esa relación no admite quedar en blanco) y la pantalla
+           enseñaba un error 500 sin explicación;
+         · y si no, su nombre desaparecía de partes y avances: trabajo hecho
+           por nadie.
+       La regla de fondo es la del bloque 15: con rastro de trabajo real NO se
+       borra, se DESACTIVA. Borrar es para la cuenta creada por error. */
     const u = await this.prisma.user.findUnique({
       where: { id },
       select: {
@@ -830,22 +841,30 @@ export class PurgaService {
         _count: {
           select: {
             auditLogs: true, sesiones: true,
+            woClosed: true, accessReviewed: true, materialesRetirados: true, stockMovements: true,
+            incidenciasReportadas: true, avisosDeProduccion: true, woProgress: true,
+            workOrders: true, woOpened: true, woSolicitadas: true, woAsignadas: true,
+            accessRequested: true, notasDeCampo: true, inspeccionesGrua: true,
+            equiposQueInstalo: true, equiposQueRetiro: true,
           },
         },
       },
     });
     if (!u) throw new NotFoundException('Ese usuario no existe.');
 
-    /* Un usuario que FIRMÓ algo no se borra: su nombre está en órdenes
-       cerradas, en aprobaciones de trabajo en altura y en retiros de
-       almacén. Borrarlo dejaría documentos firmados por nadie, y eso es
-       peor que tener una cuenta desactivada en la lista. */
-    const [cerro, aprobo, asignadas] = await Promise.all([
-      this.prisma.workOrder.count({ where: { closedById: id } }),
-      this.prisma.accessRequest.count({ where: { reviewedById: id } }).catch(() => 0),
-      this.prisma.workOrder.count({ where: { technicianId: id } }),
-    ]);
-    const firmas = cerro + aprobo;
+    const c = u._count;
+    const firmas = c.woClosed + c.accessReviewed + c.materialesRetirados + c.stockMovements;
+    const rastro: string[] = [];
+    const anota = (n: number, texto: string) => { if (n > 0) rastro.push(`${n} ${texto}`); };
+    anota(c.woClosed, 'orden(es) cerrada(s) con su firma');
+    anota(c.accessReviewed, 'permiso(s) de altura revisado(s)');
+    anota(c.materialesRetirados + c.stockMovements, 'movimiento(s) de almacén');
+    anota(c.incidenciasReportadas + c.avisosDeProduccion, 'incidencia(s) o aviso(s) reportado(s)');
+    anota(c.woProgress, 'avance(s) de orden');
+    anota(c.workOrders + c.woOpened + c.woSolicitadas + c.woAsignadas, 'orden(es) donde figura');
+    anota(c.accessRequested, 'pedido(s) de permiso de altura');
+    anota(c.notasDeCampo + c.inspeccionesGrua, 'nota(s) o inspección(es) de campo');
+    anota(c.equiposQueInstalo + c.equiposQueRetiro, 'equipo(s) instalado(s) o retirado(s)');
 
     return {
       usuario: {
@@ -853,14 +872,14 @@ export class PurgaService {
         activo: u.active, rol: u.role?.name ?? null,
       },
       firmas,
-      ordenesAsignadas: asignadas,
-      registrosAuditoria: u._count.auditLogs,
-      sesiones: u._count.sesiones,
-      sePuedePurgar: firmas === 0,
-      motivoSiNo: firmas > 0
-        ? `Esta persona firmó ${firmas} documento(s): órdenes cerradas o autorizaciones de altura. ` +
-          `Borrarla dejaría documentos firmados por nadie. Desactívala en su lugar: no puede entrar, ` +
-          `y su nombre sigue respaldando lo que firmó.`
+      rastro,
+      ordenesAsignadas: c.workOrders,
+      registrosAuditoria: c.auditLogs,
+      sesiones: c.sesiones,
+      sePuedePurgar: rastro.length === 0,
+      motivoSiNo: rastro.length > 0
+        ? `Esta persona tiene trabajo registrado: ${rastro.join(', ')}. Borrarla dejaría ese ` +
+          `trabajo hecho por nadie. Desactívala: no puede entrar y su nombre sigue respaldando lo que hizo.`
         : null,
     };
   }

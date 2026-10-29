@@ -45,6 +45,13 @@ test.describe('3 · Reportar una incidencia', () => {
     const marca = `E2E ${Date.now()}`;
     await modal.getByLabel('Título').fill(`Prueba automatica ${marca}`);
 
+    /* BLOQUE 180: «¿El equipo funciona?» es obligatorio —decide si cuenta como
+       falla en el MTBF— y la prueba no lo contestaba: el formulario avisaba y
+       la petición NO SALÍA. La CI estuvo roja por eso desde el bloque 180; la
+       prueba tiene que rellenar lo que rellena una persona (bloque 89). */
+    await modal.getByRole('group', { name: '¿El equipo funciona?' })
+      .getByRole('button', { name: 'No funciona' }).click();
+
     /* SE ESCUCHA LA RESPUESTA DEL SERVIDOR.
        -----------------------------------------------------------------------
        La primera versión sólo esperaba a ver el texto en la lista, y cuando

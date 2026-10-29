@@ -148,7 +148,7 @@ export default function Inventory() {
       await api.post('/inventory/' + checkRow.id + '/check', { countedQty: Number(chk.countedQty), note: chk.note || undefined });
       setCheckRow(null); setChk({ countedQty: '', note: '' });
       await load();
-    } catch { await avisar('No se pudo registrar la comprobación.'); }
+    } catch (err) { await avisar(mensajeDeError(err, 'registrar la comprobación')); }
   }
   async function submitMove(e: FormEvent) {
     e.preventDefault();

@@ -14,6 +14,7 @@ import { PRIORIDAD_ES, plural } from '../formato';
 import OrigenDelReparto from '../components/OrigenDelReparto';
 import { ComoSeCalcula } from '../components/Patron';
 import { OpcionesDeTren, useTrenes } from '../ubicaciones';
+import { descargarDeApi } from '../descargar';
 
 /**
  * INDICADORES DE GESTIÓN
@@ -277,19 +278,7 @@ export default function Indicadores() {
   async function descargar() {
     setBajando(true);
     try {
-      const r = await api.get('/indicadores/excel', {
-        params: { dias, tren: tren || undefined },
-        responseType: 'blob',
-      });
-      const nombre =
-        /filename="?([^";]+)"?/.exec(r.headers['content-disposition'] || '')?.[1]
-        || 'sgit_indicadores.xlsx';
-      const url = URL.createObjectURL(r.data);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = nombre;
-      a.click();
-      URL.revokeObjectURL(url);
+      await descargarDeApi('/indicadores/excel', 'sgit_indicadores.xlsx', { dias, tren: tren || undefined });
     } catch (e: any) {
       await avisar(mensajeDeError(e, 'preparar el Excel de indicadores'));
     } finally {

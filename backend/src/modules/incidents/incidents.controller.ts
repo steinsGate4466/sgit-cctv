@@ -11,6 +11,7 @@ import { UpdateIncidentDto } from './dto/update-incident.dto';
 import { QueryIncidentDto } from './dto/query-incident.dto';
 import { ResolveIncidentDto } from './dto/resolve-incident.dto';
 import { RequireAlguno, RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { disposicion } from '../../common/descarga';
 import { NumeroSapDto } from '../../common/numero-sap.dto';
 import { AmbitoDe } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -144,7 +145,7 @@ export class IncidentsController {
   async report(@Param('id') id: string, @Res() res: Response) {
     const { buffer, filename } = await this.incidents.buildReport(id);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Disposition', disposicion(filename));
     res.send(buffer);
   }
 }

@@ -180,6 +180,9 @@ model User {
   notasDeCampo          NotaDeCampo[]               @relation("NotaDeCampoAutor")
   notasResueltas        NotaDeCampo[]               @relation("NotaResueltaPor")
   modelosVerificados    ModeloEquipo[]              @relation("ModeloVerificadoPor")
+  modelosDeclarados     ModeloEquipo[]              @relation("ModeloDeclaradoPor")
+  fichasDeclaradas      FichaOptica[]               @relation("FichaOpticaDeclarada")
+  fichasVerificadas     FichaOptica[]               @relation("FichaOpticaVerificada")
   woAccompanied   WorkOrder[]     @relation("WoCompanion")
   woProgress      WorkOrderProgress[] @relation("WoProgressBy")
   sesiones        Sesion[]
@@ -671,11 +674,68 @@ model ModeloEquipo {
   verificadoPorId String?
   verificadoPor  User?     @relation("ModeloVerificadoPor", fields: [verificadoPorId], references: [id], onDelete: SetNull)
   verificadoEn   DateTime?
+  /// Bloque 184 · quién dio de alta el modelo en el catálogo. Lo verifica OTRA
+  /// persona (`verificadoPor`): el que declara no se aprueba a sí mismo.
+  declaradoPorId String?
+  declaradoPor   User?     @relation("ModeloDeclaradoPor", fields: [declaradoPorId], references: [id], onDelete: SetNull)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+  fichasOpticas  FichaOptica[]
 
   @@unique([tipoActivo, marca, modelo])
   @@map("modelos_equipo")
+}
+
+/// LO QUE VE UNA CÁMARA SEGÚN SU FICHA DEL FABRICANTE — bloque 184.
+///
+/// Una por modelo Y LENTE: el mismo domo con 2,8 mm y con 4 mm ve distinto.
+/// Las distancias DORI (norma IEC 62676-4: identificar 250 px/m, reconocer
+/// 125, observar ~62, detectar 25) se COPIAN de la ficha, no se calculan: la
+/// fórmula teórica se desvía un 20-40 % de lo que publica el fabricante
+/// (medido con dos fichas Hikvision reales). La fórmula sólo controla que no
+/// haya un error de dedo.
+///
+/// FEHACIENTE: el PDF de la ficha es OBLIGATORIO (`documento`), la declara un
+/// técnico y la verifica otra persona con permiso de cierre. Sin verificar,
+/// el mapa la pinta como «sin verificar».
+model FichaOptica {
+  id               String       @id @default(uuid())
+  modeloId         String
+  modelo           ModeloEquipo @relation(fields: [modeloId], references: [id], onDelete: Cascade)
+  /// Tal como la nombra la ficha: «2.8 mm», «2.8-12 mm», «5.9-188.8 mm».
+  lente            String
+  resolucionAncho  Int
+  resolucionAlto   Int
+  sensor           String?
+  /// Ángulo horizontal en gran angular (grados).
+  anguloH          Float
+  anguloV          Float?
+  /// Varifocal o PTZ: el ángulo más cerrado (tele).
+  anguloHTele      Float?
+  zoomOptico       Float?
+  /// El ángulo horizontal AL QUE la ficha da sus distancias DORI (el gran
+  /// angular en una fija; el tele en una PTZ, que es lo que publica Hikvision).
+  doriAnguloRef    Float
+  identificarM     Float
+  reconocerM       Float
+  observarM        Float
+  detectarM        Float
+  /// Alcance de la luz infrarroja: de noche no se ve más allá.
+  irM              Float?
+  documentoId      String
+  documento        Document     @relation("FichaOpticaPdf", fields: [documentoId], references: [id], onDelete: Restrict)
+  declaradaPorId   String?
+  declaradaPor     User?        @relation("FichaOpticaDeclarada", fields: [declaradaPorId], references: [id], onDelete: SetNull)
+  declaradaEn      DateTime     @default(now())
+  verificadaPorId  String?
+  verificadaPor    User?        @relation("FichaOpticaVerificada", fields: [verificadaPorId], references: [id], onDelete: SetNull)
+  verificadaEn     DateTime?
+  actualizadaEn    DateTime     @default(now()) @updatedAt
+  camaras          AssetCamera[]
+
+  @@unique([modeloId, lente])
+  @@index([documentoId])
+  @@map("fichas_opticas")
 }
 
 // =====================================================================
@@ -985,7 +1045,12 @@ model AssetCamera {
   switchPortId     String? @unique
   switchPort       SwitchPort? @relation(fields: [switchPortId], references: [id])
   wirelessUplinkId String? // antena suscriptora/PMP por la que cuelga
+  /// Bloque 184 · la ficha óptica (modelo + lente) de ESTA cámara. La elige el
+  /// técnico; de ella sale el cono del mapa.
+  fichaOpticaId    String?
+  fichaOptica      FichaOptica? @relation(fields: [fichaOpticaId], references: [id], onDelete: SetNull)
 
+  @@index([fichaOpticaId])
   @@map("asset_cameras")
 }
 
@@ -1900,6 +1965,8 @@ enum DocumentCategory {
   FOTO
   CONFIG
   BACKUP
+  /// Bloque 184 · la ficha técnica del fabricante (prueba de una ficha óptica).
+  FICHA_TECNICA
 }
 
 model Document {
@@ -1921,6 +1988,8 @@ model Document {
   workOrder     WorkOrder?    @relation("DocumentoDeOm", fields: [workOrderId], references: [id], onDelete: SetNull)
   uploadedBy String?
   createdAt  DateTime         @default(now())
+  /// Bloque 184 · las fichas ópticas que este PDF respalda.
+  fichasOpticas FichaOptica[] @relation("FichaOpticaPdf")
 
   @@index([assetId])
   @@index([locationId])
@@ -2640,6 +2709,13 @@ model Sesion {
   dispositivoId    String?
   /// Nombre del equipo conocido, si la IP estaba en el registro.
   equipo           String?
+  /// Bloque 183. La sesión que nació al rotar ésta. Si la respuesta de la
+  /// renovación se perdió (corte de wifi), el navegador vuelve con el token
+  /// viejo: con la sucesora SIN USAR no es un robo, es una respuesta perdida.
+  sucesoraId       String?
+  /// Bloque 183. Primera vez que un token de esta sesión llegó al servidor.
+  /// NULL = nadie la ha usado nunca (ver `sucesoraId`).
+  primerUsoEn      DateTime?
 
   @@index([userId])
   @@index([expiraEn])
@@ -4094,7 +4170,13 @@ model Plano {
   publicadoPor   User?       @relation("PlanoPublicadoPor", fields: [publicadoPorId], references: [id], onDelete: SetNull)
   publicadoEn    DateTime?
   creadoEn       DateTime    @default(now())
-  actualizadoEn  DateTime    @updatedAt
+  /// `@default(now())` además de `@updatedAt`: la migración del plano vivo
+  /// (20260928040000) creó la columna con DEFAULT CURRENT_TIMESTAMP y el
+  /// esquema no lo decía. Esa diferencia tuvo la CI en rojo desde el bloque 150
+  /// («el esquema tiene cambios SIN migración»). Se declara aquí en vez de
+  /// quitarlo en la base: así no hace falta migración y un INSERT a mano sigue
+  /// funcionando.
+  actualizadoEn  DateTime    @default(now()) @updatedAt
   posiciones     PosicionEnPlano[]
   zonas          ZonaEnPlano[]
   riesgos        ZonaDeRiesgo[]
@@ -4144,6 +4226,9 @@ model PosicionEnPlano {
   rumbo         Float?
   anguloVision  Float?
   alcanceM      Float?
+  /// Bloque 184 · a qué zoom queda la cámara (1 = gran angular). Sólo cuenta
+  /// si su ficha óptica tiene zoom: con él se cierra el cono y llega más lejos.
+  zoom          Float?
   colocadoPorId String?
   colocadoPor   User?    @relation("PosicionColocadaPor", fields: [colocadoPorId], references: [id], onDelete: SetNull)
   colocadoEn    DateTime @default(now())

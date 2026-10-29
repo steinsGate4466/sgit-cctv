@@ -85,8 +85,12 @@ export class AccesoVigenteGuard implements CanActivate {
     if (ahora - ultima < 60_000) return;
     if (AccesoVigenteGuard.usos.size > 5000) AccesoVigenteGuard.usos.clear();
     AccesoVigenteGuard.usos.set(sid, ahora);
-    void this.prisma.sesion
-      .updateMany({ where: { id: sid, revocadaEn: null }, data: { ultimoUsoEn: new Date() } })
+    /* Bloque 183: además del último uso, el PRIMERO. Una sesión cuyo token
+       nunca llegó aquí es la que nació de una renovación cuya respuesta se
+       perdió (auth.service, `respuestaPerdida`). */
+    void this.prisma.$executeRaw`
+      UPDATE "sesiones" SET "ultimoUsoEn" = now(), "primerUsoEn" = COALESCE("primerUsoEn", now())
+      WHERE "id" = ${sid} AND "revocadaEn" IS NULL`
       .catch(() => null);
   }
 

@@ -3,6 +3,7 @@ import { Response } from 'express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ElectricidadService } from './electricidad.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { disposicion } from '../../common/descarga';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { AmbitoDe, SinAmbito } from '../../common/ambito.decorator';
@@ -47,7 +48,7 @@ export class ElectricidadController {
   async qrTablero(@Param('id') id: string, @Res() res: Response) {
     const { buffer, filename } = await this.e.qrTablero(id);
     res.setHeader('Content-Type', 'image/png');
-    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    res.setHeader('Content-Disposition', disposicion(filename, 'inline'));
     res.send(buffer);
   }
 

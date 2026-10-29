@@ -82,7 +82,7 @@ export default function Electricidad() {
 
   async function abrir(id: string) {
     try { setDetalle(await api.get(`/electricidad/tableros/${id}`).then((r) => r.data)); setError(''); }
-    catch { setError('No se pudo abrir el tablero.'); }
+    catch (err) { setError(mensajeDeError(err, 'abrir el tablero')); }
   }
 
   async function guardarTablero() {

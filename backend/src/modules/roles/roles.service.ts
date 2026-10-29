@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CATALOGO_PERMISOS, CODIGOS_VALIDOS, PLANTILLAS_DE_ROL, soloMira } from './catalogo-permisos';
+import { CATALOGO_PERMISOS, CODIGOS_VALIDOS, PLANTILLAS_DE_ROL, soloMira, problemaPantallaFija } from './catalogo-permisos';
 import {
   estaDesfasado, informeDeDesfase, motivoParaNoPonerAlDia,
 } from '../../common/desfase-de-roles';
@@ -318,6 +318,10 @@ export class RolesService {
     if (raros.length) {
       throw new BadRequestException(`Permisos desconocidos: ${raros.join(', ')}.`);
     }
+    /* Bloque 183: la pantalla fija sólo en un rol que no puede tocar nada.
+       Se rechaza aquí, en el único sitio por donde pasan crear y editar. */
+    const problema = problemaPantallaFija(limpios);
+    if (problema) throw new BadRequestException(problema);
     return limpios;
   }
 }

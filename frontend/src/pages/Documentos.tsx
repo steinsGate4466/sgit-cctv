@@ -10,6 +10,7 @@ import { useDialogos } from '../components/Dialogos';
 import { fecha } from '../fechas';
 import { mensajeDeError } from '../avisos';
 import { OpcionesDeUbicacion } from '../ubicaciones';
+import { descargarDeApi } from '../descargar';
 
 /**
  * DOCUMENTOS: MANUALES, PLANOS Y FICHAS (bloque 12.7).
@@ -30,7 +31,11 @@ const CATEGORIAS = [
   { v: 'CONFIG', t: 'Configuración' },
   { v: 'BACKUP', t: 'Respaldo' },
 ];
-const ETIQUETA: Record<string, string> = Object.fromEntries(CATEGORIAS.map((c) => [c.v, c.t]));
+/* Bloque 184 · la ficha técnica del fabricante NO se sube aquí: es la prueba de
+   una ficha óptica y nace en Equipos › Fichas técnicas, con sus números. Aquí
+   se puede buscar y descargar, pero no subir ni borrar suelta. */
+const FICHA_TECNICA = { v: 'FICHA_TECNICA', t: 'Ficha técnica' };
+const ETIQUETA: Record<string, string> = Object.fromEntries([...CATEGORIAS, FICHA_TECNICA].map((c) => [c.v, c.t]));
 
 export default function Documentos() {
   const { confirmar, avisar } = useDialogos();
@@ -109,20 +114,14 @@ export default function Documentos() {
 
   async function descargar(id: string, titulo: string) {
     try {
-      const r = await api.get(`/documentos/${id}/descargar`, { responseType: 'blob' });
-      const nombre =
-        /filename="?([^";]+)"?/.exec(r.headers['content-disposition'] || '')?.[1] || titulo;
-      const url = URL.createObjectURL(r.data);
-      const a = document.createElement('a');
-      a.href = url; a.download = nombre; a.click();
-      URL.revokeObjectURL(url);
-    } catch { await avisar('No se pudo descargar.'); }
+      await descargarDeApi(`/documentos/${id}/descargar`, titulo);
+    } catch (e) { await avisar(mensajeDeError(e, 'descargar')); }
   }
 
   async function borrar(id: string, titulo: string, version: number) {
     if (!(await confirmar(`¿Borrar «${titulo}» v${version}?\n\nNo se puede deshacer.`))) return;
     try { await api.delete(`/documentos/${id}`); await cargar(); }
-    catch { await avisar('No se pudo borrar.'); }
+    catch (e) { await avisar(mensajeDeError(e, 'borrar el documento')); }
   }
 
   return (
@@ -132,7 +131,7 @@ export default function Documentos() {
           <input aria-label="Buscar documento" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por título" />
           <select aria-label="Filtrar por categoría" value={categoria} onChange={(e) => setCategoria(e.target.value)}>
             <option value="">Todas las categorías</option>
-            {CATEGORIAS.map((c) => <option key={c.v} value={c.v}>{c.t}</option>)}
+            {[...CATEGORIAS, FICHA_TECNICA].map((c) => <option key={c.v} value={c.v}>{c.t}</option>)}
           </select>
         </div>
         {puedeSubir && (
@@ -170,18 +169,18 @@ export default function Documentos() {
               <tr key={d.id}>
                 <td><strong>{d.title}</strong></td>
                 <td>{ETIQUETA[d.category] || d.category}</td>
-                <td>{d.asset?.assetCode || d.location?.name || (d.instalacion ? `Instalación ${d.instalacion.codigo}` : null) || (d.workOrder ? `Orden ${d.workOrder.code}` : null) || '—'}</td>
+                <td>{d.asset?.assetCode || d.location?.name || (d.instalacion ? `Instalación ${d.instalacion.codigo}` : null) || (d.workOrder ? `Orden ${d.workOrder.code}` : null) || (d.category === FICHA_TECNICA.v ? 'Fichas técnicas' : null) || '—'}</td>
                 <td>v{d.version}</td>
                 <td>{fecha(d.createdAt)}</td>
                 <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                   <button className="btn-mini" onClick={() => descargar(d.id, d.title)}>Descargar</button>
-                  {puedeSubir && (
+                  {puedeSubir && d.category !== FICHA_TECNICA.v && (
                     <button className="btn-mini" style={{ marginLeft: 6 }}
                             onClick={() => borrar(d.id, d.title, d.version)}>Borrar</button>
                   )}
 
                   {/* Borrado definitivo. Solo lo pinta si eres Jefe de Mantenimiento. */}
-                  <BotonPurgar recurso="documento" id={d.id} onBorrado={() => cargar()} />
+                  {d.category !== FICHA_TECNICA.v && <BotonPurgar recurso="documento" id={d.id} onBorrado={() => cargar()} />}
                 </td>
               </tr>
             ))}

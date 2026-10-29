@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Optica, vision } from '../modelos/vision';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { AuditService } from '../audit/audit.service';
@@ -16,6 +17,38 @@ import {
   NivelRiesgo, ORDEN_RIESGO, TOPE_UTP_M, avisosDeNorma, esNivel, largoPx, lineaPasaPorZona,
   nivelesEnPunto, recorrido, riesgosDeUbicacion, validarTrazado,
 } from './regulacion';
+
+/* =============================================================================
+   LO QUE VE CADA CÁMARA EN EL MAPA — bloque 184
+   Si la cámara tiene ficha técnica, el cono deja de ser «lo que alguien dibujó»
+   y pasa a ser lo que dice el fabricante: cuatro franjas DORI (identificar,
+   reconocer, observar, detectar) al zoom en que quedó, y de noche hasta donde
+   llega el infrarrojo. Se calcula AQUÍ, en un solo sitio (`modelos/vision.ts`):
+   la pantalla sólo dibuja lo que recibe.
+============================================================================= */
+const SELECT_OPTICA = {
+  id: true, lente: true, resolucionAncho: true, anguloH: true, anguloHTele: true, zoomOptico: true,
+  doriAnguloRef: true, identificarM: true, reconocerM: true, observarM: true, detectarM: true, irM: true,
+  verificadaEn: true, documentoId: true,
+  modelo: { select: { marca: true, modelo: true } },
+} as const;
+
+type OpticaDelPunto = Optica & {
+  id: string; lente: string; verificadaEn: Date | null; modelo: { marca: string; modelo: string } | null;
+};
+
+function visionDelPunto(f: OpticaDelPunto | null | undefined, zoom: number | null) {
+  if (!f) return null;
+  const v = vision(f, zoom ?? 1);
+  return {
+    ...v,
+    fichaId: f.id,
+    lente: f.lente,
+    marca: f.modelo?.marca ?? null,
+    modelo: f.modelo?.modelo ?? null,
+    verificada: !!f.verificadaEn,
+  };
+}
 
 const ES_RED = ['SWITCH', 'ROUTER', 'FIREWALL'];
 /** Lo que se espera ver colgado de un puerto: sin él, «sin conexión declarada». */
@@ -206,6 +239,8 @@ export class PlanosService {
             camera: {
               select: {
                 cameraStyle: true,
+                // Bloque 184 · lo que ve, según su ficha técnica.
+                fichaOptica: { select: SELECT_OPTICA },
                 ...(veRed ? { switchPort: { select: { portNumber: true, switchAsset: { select: { id: true, assetCode: true } } } } } : {}),
               },
             },
@@ -267,6 +302,8 @@ export class PlanosService {
         xM: mpp ? +(x.xPx * mpp).toFixed(1) : null,
         yM: mpp ? +(x.yPx * mpp).toFixed(1) : null,
         alturaM: x.alturaM, rumbo: x.rumbo, anguloVision: x.anguloVision, alcanceM: x.alcanceM,
+        zoom: x.zoom,
+        vision: visionDelPunto(x.asset.camera?.fichaOptica, x.zoom),
         estado: est.color, estadoTexto: est.texto, fuente: est.fuente,
         om: om ? { code: om.code, tipo: om.type, avance: om.progressPct, estado: om.status } : null,
         incidencia: inc ? {
@@ -629,6 +666,7 @@ export class PlanosService {
       xPx: dto.xPx, yPx: dto.yPx,
       alturaM: dto.alturaM ?? null, rumbo: dto.rumbo ?? null,
       anguloVision: dto.anguloVision ?? null, alcanceM: dto.alcanceM ?? null,
+      zoom: dto.zoom ?? null,
       colocadoPorId: userId, colocadoEn: new Date(),
     };
     const antes = await this.prisma.posicionEnPlano.findUnique({ where: { planoId_assetId: { planoId: id, assetId } } });

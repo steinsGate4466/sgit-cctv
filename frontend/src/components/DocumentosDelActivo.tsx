@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
+import { mensajeDeError } from '../avisos';
 import { useAuth } from '../auth/AuthContext';
 import { fecha } from '../fechas';
 import { useDialogos } from './Dialogos';
 import Icono from './Iconos';
+import { descargarDeApi } from '../descargar';
 
 const CATEGORIA_ES: Record<string, string> = {
   MANUAL: 'Manual', DIAGRAMA: 'Diagrama', PLANO: 'Plano', FOTO: 'Foto', CONFIG: 'Configuración', BACKUP: 'Respaldo',
@@ -34,13 +36,8 @@ export default function DocumentosDelActivo({ assetId, assetCode }: { assetId: s
 
   async function descargar(id: string, titulo: string) {
     try {
-      const r = await api.get(`/documentos/${id}/descargar`, { responseType: 'blob' });
-      const nombre = /filename="?([^";]+)"?/.exec(r.headers['content-disposition'] || '')?.[1] || titulo;
-      const url = URL.createObjectURL(r.data);
-      const a = document.createElement('a');
-      a.href = url; a.download = nombre; a.click();
-      URL.revokeObjectURL(url);
-    } catch { await avisar('No se pudo descargar.'); }
+      await descargarDeApi(`/documentos/${id}/descargar`, titulo);
+    } catch (e) { await avisar(mensajeDeError(e, 'descargar')); }
   }
 
   if (!puede) return <p className="muted">{'Los documentos los ve quien tiene permiso de documentos.'}</p>;

@@ -190,7 +190,29 @@ export class AuthService {
     // Bloque 170: la otra petición del mismo lote, no un robo. Ver rotacion.ts.
     const concurrente = esRotacionConcurrente(sesion);
 
-    if (sesion?.revocadaEn && !concurrente) {
+    /* BLOQUE 183 · ¿ROBO, O UNA RESPUESTA QUE SE PERDIÓ POR EL CAMINO?
+       Si la renovación anterior se hizo pero su respuesta no llegó (wifi de
+       la nave, celular que se bloquea), el navegador vuelve con este mismo
+       token pasados los 30 s de gracia. Antes eso cerraba TODO y la persona
+       salía «trabajando». Si la sucesora nunca se usó, no hay dos copias
+       circulando: se retira la sucesora y se entrega un par nuevo. */
+    const recuperable = !!sesion?.revocadaEn && !concurrente
+      && await this.respuestaPerdida(sesion, dispositivoId);
+
+    if (recuperable && sesion) {
+      if (sesion.sucesoraId) {
+        await this.prisma.sesion.updateMany({
+          where: { id: sesion.sucesoraId, revocadaEn: null },
+          data: { revocadaEn: new Date(), motivoRevocacion: 'reemplazada: respuesta perdida' },
+        });
+      }
+      await this.audit.record({
+        action: 'SESION_RECUPERADA', entity: 'auth', ip,
+        after: { userId: sesion.userId, sesion: sesion.id, sucesoraSinUsar: sesion.sucesoraId },
+      });
+    }
+
+    if (sesion?.revocadaEn && !concurrente && !recuperable) {
       // REUTILIZACIÓN DE UN TOKEN YA ROTADO.
       //
       // Cada refresh revoca el anterior. Si llega uno revocado, hay dos
@@ -218,15 +240,42 @@ export class AuthService {
     if (!user || !user.active) throw new UnauthorizedException('Usuario no válido');
 
     // ROTACIÓN: el token que se acaba de usar deja de valer. Es lo que
-    // permite detectar el robo en el párrafo de arriba.
-    if (sesion && !concurrente) {
+    // permite detectar el robo en el párrafo de arriba. Bloque 183: se apunta
+    // cuál es la sucesora, para reconocer después una respuesta perdida.
+    const nuevoJti = randomUUID();
+    if (sesion && (!concurrente || recuperable)) {
       await this.prisma.sesion.update({
         where: { id: sesion.id },
-        data: { revocadaEn: new Date(), motivoRevocacion: 'rotado', ultimoUsoEn: new Date() },
+        data: {
+          revocadaEn: recuperable ? sesion.revocadaEn : new Date(),
+          motivoRevocacion: 'rotado', ultimoUsoEn: new Date(), sucesoraId: nuevoJti,
+        },
       }).catch(() => null);
     }
 
-    return this.buildTokens(user, ip, resumirAgente(dispositivo), dispositivoId);
+    return this.buildTokens(user, ip, resumirAgente(dispositivo), dispositivoId, nuevoJti);
+  }
+
+  /**
+   * Bloque 183. ¿El token rotado vuelve porque su respuesta se perdió?
+   * Sí, si se rotó por renovación normal, su sucesora NUNCA se usó (ni se
+   * rotó, ni llegó una petición con ella) y viene del mismo aparato. Si la
+   * sucesora se usó, hay dos copias del token: robo, y se cierra todo.
+   */
+  private async respuestaPerdida(
+    sesion: { motivoRevocacion: string | null; sucesoraId: string | null; dispositivoId: string | null },
+    dispositivoId?: string | null,
+  ): Promise<boolean> {
+    if (sesion.motivoRevocacion !== 'rotado') return false;
+    if (sesion.dispositivoId && dispositivoId && sesion.dispositivoId !== dispositivoId) return false;
+    if (!sesion.sucesoraId) return false;
+    const sucesora = await this.prisma.sesion.findUnique({
+      where: { id: sesion.sucesoraId },
+      select: { revocadaEn: true, primerUsoEn: true },
+    });
+    // La sucesora no llegó a guardarse: el navegador no pudo recibir nada útil.
+    if (!sucesora) return true;
+    return !sucesora.revocadaEn && !sucesora.primerUsoEn;
   }
 
   /** Cerrar sesión de verdad: la sesión deja de valer al instante. */
@@ -284,14 +333,17 @@ export class AuthService {
    * Construye el par de tokens con los permisos del usuario resueltos.
    * El access token lleva rol y permisos; el refresh solo el id (sub).
    */
-  private async buildTokens(user: any, ip?: string | null, dispositivo?: string | null, dispositivoId?: string | null) {
+  private async buildTokens(
+    user: any, ip?: string | null, dispositivo?: string | null, dispositivoId?: string | null,
+    jtiElegido?: string,
+  ) {
     const permissions = user.role.permissions.map((rp: any) => rp.permission.code);
     /* `pv` = versión de permisos (bloque 82). Va DENTRO del token para poder
        compararlo en cada petición: subir el contador del usuario mata todos
        sus tokens a la vez. Es lo que convierte «desactivar» en un corte real
        en vez de una espera de quince minutos. */
     // El jti se elige ANTES del token de acceso: viaja dentro como `sid`.
-    const jti = randomUUID();
+    const jti = jtiElegido || randomUUID();
     const payload = {
       sub: user.id,
       email: user.email,
@@ -312,18 +364,27 @@ export class AuthService {
     // contraseña— sirva de algo de verdad.
     await apuntarAparato(this.prisma, dispositivoId, { ip: normalizarIp(ip), navegador: dispositivo, usuarioId: user.id });
     const dias = Number((process.env.JWT_REFRESH_EXPIRES_IN || '7d').replace(/\D/g, '')) || 7;
-    await this.prisma.sesion.create({
-      data: {
-        id: jti,
-        userId: user.id,
-        expiraEn: new Date(Date.now() + dias * 86400000),
-        ip: normalizarIp(ip),
-        dispositivo: dispositivo?.slice(0, 120) || null,
-        dispositivoId: dispositivoId || null,
-        equipo: await nombreDelEquipo(this.prisma, normalizarIp(ip), dispositivoId),
-        ultimoUsoEn: new Date(),
-      },
-    }).catch(() => null);
+    const datosSesion = {
+      id: jti,
+      userId: user.id,
+      expiraEn: new Date(Date.now() + dias * 86400000),
+      ip: normalizarIp(ip),
+      dispositivo: dispositivo?.slice(0, 120) || null,
+      dispositivoId: dispositivoId || null,
+      equipo: await nombreDelEquipo(this.prisma, normalizarIp(ip), dispositivoId),
+      ultimoUsoEn: new Date(),
+    };
+    /* BLOQUE 183 · SIN FILA NO HAY SESIÓN, Y ESO NO PUEDE CALLARSE.
+       Aquí había un `.catch(() => null)`: si el alta de la sesión fallaba, el
+       token salía igual, la persona entraba, y QUINCE MINUTOS DESPUÉS la
+       renovación decía «esta sesión ya no existe» y la echaba — trabajando y
+       sin ninguna pista. Ahora se reintenta una vez y, si vuelve a fallar, se
+       falla AHORA: al entrar se ve el error; al renovar el navegador lo toma
+       por un fallo pasajero y sigue dentro (api/client.ts, «temporal»). */
+    await this.prisma.sesion.create({ data: datosSesion }).catch(async () => {
+      await new Promise((r) => setTimeout(r, 300));
+      return this.prisma.sesion.create({ data: datosSesion });
+    });
 
     return {
       accessToken: await this.jwt.signAsync(payload, {

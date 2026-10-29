@@ -77,6 +77,7 @@ const Incidents = lazyConReintento(() => import('./pages/Incidents'));
 const Maintenance = lazyConReintento(() => import('./pages/Maintenance'));
 const Preventive = lazyConReintento(() => import('./pages/Preventive'));
 const HojasDeRuta = lazyConReintento(() => import('./pages/HojasDeRuta'));
+const FichasTecnicas = lazyConReintento(() => import('./pages/FichasTecnicas'));
 const Criticidad = lazyConReintento(() => import('./pages/Criticidad'));
 const Sesiones = lazyConReintento(() => import('./pages/Sesiones'));
 const Corrective = lazyConReintento(() => import('./pages/Corrective'));
@@ -171,6 +172,8 @@ export default function App() {
           <Route path="/criticidad" element={<Criticidad />} />
           <Route path="/sesiones" element={<Sesiones />} />
           <Route path="/hojas-de-ruta" element={<HojasDeRuta />} />
+          {/* Bloque 184 · catálogo de modelos y fichas técnicas (lo que ve cada cámara). */}
+          <Route path="/fichas" element={<FichasTecnicas />} />
           <Route path="/corrective" element={<Corrective />} />
           <Route path="/predictive" element={<Predictive />} />
           <Route path="/improvements" element={<Improvements />} />

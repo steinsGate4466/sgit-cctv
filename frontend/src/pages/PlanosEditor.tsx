@@ -13,6 +13,7 @@ import { fecha } from '../fechas';
 import { NOMBRE_DE_TIPO } from '../tipos-de-equipo';
 import LienzoPlano from '../components/mapa/LienzoPlano';
 import Marcador, { ConoDeVision } from '../components/mapa/Marcador';
+import LoQueVe from '../components/mapa/LoQueVe';
 import ZonasDelPlano, { Zona } from '../components/mapa/ZonasDelPlano';
 import { OpcionesDeUbicacion, tiposPara } from '../ubicaciones';
 
@@ -293,10 +294,14 @@ export default function PlanosEditor() {
     finally { setOcupado(false); }
   }
 
+  /* Lo que ya tiene el punto, para no perderlo al mover o apuntar: el servidor
+     guarda la posición ENTERA cada vez. Bloque 184 · el zoom también; sin él,
+     mover una PTZ la devolvía a gran angular sin que nadie lo pidiera. */
   const datosDe = (e: any) => ({
     xPx: e.xPx, yPx: e.yPx,
     alturaM: e.alturaM ?? undefined, rumbo: e.rumbo ?? undefined,
     anguloVision: e.anguloVision ?? undefined, alcanceM: e.alcanceM ?? undefined,
+    zoom: e.zoom ?? undefined,
   });
 
   async function alPulsar(x: number, y: number) {
@@ -546,7 +551,9 @@ export default function PlanosEditor() {
                   {zonaPuntos.map(([x, y], i) => (
                     <g key={'z' + i} transform={`translate(${x} ${y}) scale(${escala})`}><circle r={5} className="punto-calibrar" /></g>
                   ))}
-                  {equipos.filter((e) => e.tipo === 'CAMERA').map((e) => <ConoDeVision key={'c' + e.assetId} e={e} metrosPorPx={plano.metrosPorPx} />)}
+                  {equipos.filter((e) => e.tipo === 'CAMERA').map((e) => (
+                    <ConoDeVision key={'c' + e.assetId} e={e} metrosPorPx={plano.metrosPorPx} escala={escala} conCotas={sel === e.assetId} />
+                  ))}
                   {equipos.map((e) => {
                     const q = arrastreEq?.assetId === e.assetId ? { ...e, xPx: arrastreEq.x, yPx: arrastreEq.y } : e;
                     return (
@@ -733,19 +740,45 @@ export default function PlanosEditor() {
   );
 }
 
-/** Altura, ángulo y alcance de un equipo colocado. */
+/**
+ * Altura, ángulo y alcance de un equipo colocado.
+ *
+ * Bloque 184 · CON FICHA TÉCNICA, el ángulo y el alcance NO se escriben aquí:
+ * salen de la ficha del fabricante (verificada por otra persona). Escribirlos a
+ * mano sería tener dos verdades, y el mapa dibujaría la equivocada. Lo único
+ * que se decide en el plano es el ZOOM al que queda (si la cámara tiene) y el
+ * rumbo con «Apuntar».
+ */
 function FichaDePosicion({ e, ocupado, onGuardar }: { e: any; ocupado: boolean; onGuardar: (d: any) => void }) {
   const [altura, setAltura] = useState(e.alturaM ?? '');
   const [angulo, setAngulo] = useState(e.anguloVision ?? '');
   const [alcance, setAlcance] = useState(e.alcanceM ?? '');
-  useEffect(() => { setAltura(e.alturaM ?? ''); setAngulo(e.anguloVision ?? ''); setAlcance(e.alcanceM ?? ''); }, [e.assetId, e.alturaM, e.anguloVision, e.alcanceM]);
+  const [zoom, setZoom] = useState(e.zoom ?? '');
+  useEffect(() => {
+    setAltura(e.alturaM ?? ''); setAngulo(e.anguloVision ?? ''); setAlcance(e.alcanceM ?? ''); setZoom(e.zoom ?? '');
+  }, [e.assetId, e.alturaM, e.anguloVision, e.alcanceM, e.zoom]);
   const num = (v: any) => (v === '' || v === null ? undefined : Number(v));
+  const v = e.tipo === 'CAMERA' ? e.vision : null;
+  const conZoom = !!v && v.zoomMax > 1;
   return (
     <div>
       <label>Altura de montaje (m)
         <input type="number" min={0} step="0.1" value={altura} onChange={(ev) => setAltura(ev.target.value)} />
       </label>
-      {e.tipo === 'CAMERA' && (
+      {e.tipo === 'CAMERA' && (v ? (
+        <>
+          {conZoom && (
+            <label>{`Zoom al que queda (1 a ${v.zoomMax}x)`}
+              <input type="number" min={1} max={v.zoomMax} step="0.5" value={zoom} placeholder="1"
+                onChange={(ev) => setZoom(ev.target.value)} />
+            </label>
+          )}
+          <LoQueVe dia={v.dia} />
+          <p className="muted" style={{ fontSize: 12, margin: '4px 0 6px' }}>
+            {`Ángulo (${Math.round(v.angulo)}°) y alcance: de su ficha, ${v.lente}. Rumbo: ${e.rumbo != null ? `${e.rumbo}°` : 'sin marcar'}.`}
+          </p>
+        </>
+      ) : (
         <>
           <label>Ángulo de visión (°)
             <input type="number" min={5} max={360} value={angulo} onChange={(ev) => setAngulo(ev.target.value)} />
@@ -755,9 +788,12 @@ function FichaDePosicion({ e, ocupado, onGuardar }: { e: any; ocupado: boolean; 
           </label>
           <p className="muted" style={{ fontSize: 12, margin: '0 0 6px' }}>Rumbo: {e.rumbo != null ? `${e.rumbo}°` : 'sin marcar'} (usa «Apuntar»).</p>
         </>
-      )}
+      ))}
       <button type="button" className="btn-mini" disabled={ocupado}
-        onClick={() => onGuardar({ alturaM: num(altura), anguloVision: num(angulo), alcanceM: num(alcance) })}>Guardar datos</button>
+        onClick={() => onGuardar({
+          alturaM: num(altura), anguloVision: num(angulo), alcanceM: num(alcance),
+          zoom: conZoom ? Math.min(Math.max(num(zoom) ?? 1, 1), v.zoomMax) : undefined,
+        })}>Guardar datos</button>
     </div>
   );
 }

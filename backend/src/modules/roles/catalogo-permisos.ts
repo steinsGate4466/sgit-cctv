@@ -213,6 +213,17 @@ export const CATALOGO_PERMISOS: GrupoPermisos[] = [
         explica: 'Las zonas del propio tren que se han quedado ciegas, ordenadas por lo que se pierde en cada una.',
         cuidado: 'Sustituye a dar «Ver el tablero», que abría además el tablero de Mantenimiento, Mi bandeja e Indicadores.',
       },
+      /* Bloque 183. El PC del púlpito o de la sala con el mapa abierto todo
+         el turno. Sin esto, el cierre por inactividad lo echa cada 15
+         minutos aunque nadie lo haya abandonado. La regla que lo hace
+         seguro está en `problemaPantallaFija`: sólo en roles de SÓLO
+         LECTURA y sin credenciales, auditoría ni usuarios. */
+      {
+        code: 'sesion.pantalla_fija',
+        nombre: 'Pantalla fija (no se cierra sola)',
+        explica: 'Para el PC del púlpito o de la sala que deja el mapa abierto el turno entero: la sesión no se cierra por inactividad.',
+        cuidado: 'Sólo se puede dar a un rol de SÓLO LECTURA, sin credenciales, auditoría ni usuarios: el sistema rechaza el resto.',
+      },
       {
         code: 'purga.definitiva',
         nombre: 'Borrar definitivamente (sin vuelta atrás)',
@@ -247,6 +258,12 @@ export const CODIGOS_VALIDOS: ReadonlySet<string> = new Set(
    terminado en `.read` no modifica nada, y `wo.report` sólo descarga un PDF.
    Si algún día alguien mueve una casilla de sitio en la pantalla, esto no se
    entera — que es justo lo que se quiere. */
+/* Bloque 183. Declarado ANTES de NO_MODIFICAN_NUNCA a propósito: MODIFICAN se
+   calcula al cargar el módulo, y con la constante declarada más abajo valía
+   `undefined` en ese momento — la pantalla fija contaba como ESCRITURA y el
+   servidor rechazaba su propia plantilla. Lo cazó sesion-bloque-183.spec. */
+export const PERMISO_PANTALLA_FIJA = 'sesion.pantalla_fija';
+
 const NO_MODIFICAN_NUNCA = (code: string) =>
   code.endsWith('.read')
   /* LA FAMILIA `*.mirar` FALTABA — corregido en el bloque 62-A.
@@ -265,7 +282,9 @@ const NO_MODIFICAN_NUNCA = (code: string) =>
      Jefe de línea devolvió `om.mirar` y `cobertura.mirar` como si escribieran.
      Se arregla la función, no la prueba. */
   || code.endsWith('.mirar')
-  || code === 'wo.report';
+  || code === 'wo.report'
+  /* Bloque 183: no deja tocar nada; cambia cuándo se cierra la sesión. */
+  || code === PERMISO_PANTALLA_FIJA;
 
 const MODIFICAN = new Set(
   CATALOGO_PERMISOS
@@ -275,6 +294,33 @@ const MODIFICAN = new Set(
 
 export function soloMira(codigos: string[]): boolean {
   return codigos.length > 0 && !codigos.some((c) => MODIFICAN.has(c));
+}
+
+/* =============================================================================
+   PANTALLA FIJA — bloque 183
+   -----------------------------------------------------------------------------
+   Una sesión que no se cierra por inactividad es una puerta que se queda
+   abierta en un PC compartido. Es aceptable SÓLO si detrás de esa puerta no
+   hay nada que tocar ni nada delicado que leer. Por eso no basta con avisar
+   en pantalla (como `soloMira`): el servidor RECHAZA guardar un rol así.
+
+     · nada que modifique: ni reportar, ni crear órdenes, ni editar;
+     · ni las contraseñas de los equipos, ni la auditoría, ni los usuarios.
+
+   Lo que quiera escribir alguien en el púlpito lo escribe con SU cuenta: así
+   la incidencia sale con su nombre y no con el de «la pantalla».
+============================================================================= */
+const LECTURAS_DELICADAS = ['credential.read', 'audit.read', 'user.read'];
+
+/** `null` si el rol es aceptable; si no, el motivo para enseñarlo tal cual. */
+export function problemaPantallaFija(codigos: string[]): string | null {
+  if (!codigos.includes(PERMISO_PANTALLA_FIJA)) return null;
+  const escriben = codigos.filter((c) => MODIFICAN.has(c));
+  const delicadas = codigos.filter((c) => LECTURAS_DELICADAS.includes(c));
+  if (!escriben.length && !delicadas.length) return null;
+  return 'Un rol de pantalla fija no se cierra solo, así que sólo puede MIRAR. '
+    + `Quita: ${[...escriben, ...delicadas].join(', ')}. `
+    + 'Quien necesite reportar o editar lo hace con su propia cuenta.';
 }
 
 /**
@@ -570,6 +616,24 @@ export const PLANTILLAS_DE_ROL: {
     permisos: [
       'wo.read', 'wo.update', 'wo.report', 'asset.read', 'location.read',
       'access.request',
+    ],
+  },
+  /* Bloque 183 · la cuenta del monitor que se queda abierto. */
+  {
+    nombre: 'Pantalla fija (púlpito o sala)',
+    paraQuien: 'El PC del púlpito o de la sala de control que deja el mapa abierto todo el turno.',
+    descripcion:
+      'Mira el mapa, el estado del tren y las incidencias, y NO se cierra por inactividad. ' +
+      'No puede reportar ni tocar nada: quien quiera avisar lo hace con su propia cuenta.',
+    advertencia:
+      'Úsala sólo en un equipo fijo de la planta. El sistema no deja añadirle permisos que ' +
+      'modifiquen, ni credenciales, auditoría o usuarios.',
+    necesitaAmbito: true,
+    permisos: [
+      PERMISO_PANTALLA_FIJA,
+      'dashboard.read', 'location.read',
+      'activos.mirar', 'cobertura.mirar', 'om.mirar',
+      'incident.read', 'monitor.read',
     ],
   },
   {

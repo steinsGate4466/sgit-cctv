@@ -7,6 +7,7 @@
 // =============================================================================
 import * as argon2 from 'argon2';
 import { clienteDeScript } from './cliente';
+import { PERMISO_PANTALLA_FIJA, problemaPantallaFija } from '../src/modules/roles/catalogo-permisos';
 
 // Prisma 7 exige un adaptador de base de datos al crear el cliente. Se arma en
 // un solo sitio para que la semilla y la demo se conecten EXACTAMENTE igual
@@ -86,6 +87,8 @@ const PERMISSIONS = [
      pantalla de Roles, en vez de una cadena de texto enterrada en el código.
      ========================================================================== */
   'purga.definitiva',
+  // Bloque 183: pantalla fija (sin cierre por inactividad). No se reparte a nadie.
+  'sesion.pantalla_fija',
 
   /* ==========================================================================
      BLOQUE 39 — PRODUCCIÓN MIRA LA ORDEN, NO LA TOCA
@@ -147,8 +150,12 @@ const ROLES_SECTORIZADOS = [
 
 // ---- Roles y sus permisos ----
 const ROLES: Record<string, string[]> = {
-  // Jefe de Mantenimiento = administrador del sistema (control total).
-  'Jefe de Mantenimiento': PERMISSIONS,
+  // Jefe de Mantenimiento = administrador del sistema (control total)…
+  // …MENOS la pantalla fija (bloque 183): una cuenta que no se cierra sola sólo
+  // puede MIRAR. Con «todos los permisos» el Jefe salía como pantalla fija —sin
+  // cierre por inactividad— y además su propio rol no se podía volver a guardar.
+  // Lo cazó el recorrido de la CI sobre una base recién sembrada.
+  'Jefe de Mantenimiento': PERMISSIONS.filter((c) => c !== PERMISO_PANTALLA_FIJA),
   // Supervisor TI: supervisa y analiza TODO, pero SIN borrar, sin gestionar usuarios
   // y sin revelar/gestionar credenciales.
   // Supervisor TI: supervisa TODO, pero el CIERRE/resolución de incidencias y OM
@@ -334,6 +341,13 @@ async function main() {
   const permMap = new Map((await prisma.permission.findMany()).map((p) => [p.code, p.id]));
 
   // 2) Roles + asignación de permisos
+  /* La semilla obedece la misma regla que la pantalla de Roles: un rol con
+     pantalla fija sólo mira. Si alguien la rompe aquí, la semilla se niega
+     (y la CI con ella) en vez de dejar una cuenta abierta que puede escribir. */
+  for (const [name, perms] of Object.entries(ROLES)) {
+    const problema = problemaPantallaFija(perms);
+    if (problema) throw new Error(`Rol «${name}» de la semilla: ${problema}`);
+  }
   const roleIds: Record<string, string> = {};
   for (const [name, perms] of Object.entries(ROLES)) {
     /* BLOQUE 42 — `exigeAmbito` se ESCRIBE también al actualizar, y es
@@ -412,6 +426,12 @@ async function main() {
         fullName: 'Perfil estrecho (recorridos)',
         passwordHash: await argon2.hash(estrechoPass),
         roleId: roleIds['Jefe de Tren'],
+        /* Bloque 184: CON SU TREN. «Jefe de Tren» está sectorizado: sin tren no
+           ve NADA, así que el recorrido 5 comprobaba pantallas vacías y el
+           autochequeo lo marcaba como error. El Tren 1 es donde la semilla
+           pone los equipos de ejemplo: así el perfil estrecho ve datos de
+           verdad, que es lo que hay que probar. */
+        ambitoTrenes: ['T1'],
       },
     });
     console.log(`  Perfil estrecho para recorridos: ${estrechoEmail} (Jefe de Tren)`);

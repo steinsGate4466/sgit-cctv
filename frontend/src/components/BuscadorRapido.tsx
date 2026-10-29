@@ -47,6 +47,7 @@ const DESTINOS: Destino[] = [
   { ruta: '/cableado', nombre: 'Cableado', seccion: 'Infraestructura', alias: 'utp fibra metros tramo 90 metros categoria', permiso: 'asset.read' },
   { ruta: '/electricidad', nombre: 'Electricidad', seccion: 'Infraestructura', alias: 'tablero breaker termico llave circuito mcc corriente termografia', permiso: 'asset.read' },
   { ruta: '/mapeo', nombre: 'Avance del mapeo', seccion: 'Infraestructura', alias: 'levantamiento cuantas faltan progreso', permiso: 'asset.read' },
+  { ruta: '/fichas', nombre: 'Fichas técnicas', seccion: 'Infraestructura', alias: 'modelo datasheet dori lente alcance cono vision obsolescencia soporte', permiso: 'asset.read' },
   { ruta: '/campanas', nombre: 'Campañas de mapeo', seccion: 'Infraestructura', alias: 'revisar zona calidad aprobar levantamiento reparto', permiso: 'asset.read' },
   { ruta: '/grabadores', nombre: 'Grabadores', seccion: 'Infraestructura', alias: 'nvr dvr canales grabacion disco', permiso: 'asset.read' },
   { ruta: '/conexiones', nombre: 'Conexiones de red', seccion: 'Infraestructura', alias: 'puerto switch enlace fibra anillo poe vlan', permiso: 'asset.read' },

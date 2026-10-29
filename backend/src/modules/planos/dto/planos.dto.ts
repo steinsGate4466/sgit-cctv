@@ -27,6 +27,8 @@ export class ColocarEquipoDto {
   @IsOptional() @IsNumber() @Min(-360) @Max(360) rumbo?: number;
   @IsOptional() @IsNumber() @Min(5) @Max(360) anguloVision?: number;
   @IsOptional() @IsNumber() @Min(1) @Max(500) alcanceM?: number;
+  /** Bloque 184 · a qué zoom queda (PTZ / varifocal). 1 = gran angular. */
+  @IsOptional() @IsNumber() @Min(1) @Max(100) zoom?: number;
 }
 
 /** Bloque 165 · el polígono de una zona, en píxeles de la imagen: [[x, y], …]. */

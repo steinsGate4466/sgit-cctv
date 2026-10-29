@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { registrarSalida } from '../auth/salida';
 
 const baseURL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3000/api/v1';
 
@@ -94,16 +95,40 @@ export function limpiarAvisoDeRed() {
 
 // Adjunta el token JWT (guardado en localStorage) a cada petición.
 api.interceptors.request.use((config) => {
+  if (String(config.method || 'get').toLowerCase() !== 'get' && !(config as any)._escritura) {
+    (config as any)._escritura = true;
+    escrituras += 1;
+  }
   const token = localStorage.getItem('sgit_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
+/* Bloque 183 · la salida forzada DICE POR QUÉ. Antes llevaba a /login muda,
+   y la gente lo achacaba a la inactividad aunque fuera el servidor el que
+   había rechazado la sesión. Ver auth/salida.ts. */
+let ultimoRechazo = '';
+
 function hardLogout() {
+  registrarSalida('sesion', ultimoRechazo || undefined);
   localStorage.removeItem('sgit_token');
   localStorage.removeItem('sgit_refresh');
   localStorage.removeItem('sgit_user');
-  if (location.pathname !== '/login') location.href = '/login';
+  if (location.pathname !== '/login') location.href = '/login?motivo=sesion';
+}
+
+/* =============================================================================
+   ESCRITURAS EN CURSO — bloque 183
+   -----------------------------------------------------------------------------
+   El cierre por inactividad NO puede cortar un guardado a medias: quien subió
+   cinco fotos por la wifi de la nave y espera la respuesta está trabajando,
+   aunque no toque nada. Mientras haya una escritura sin contestar, el reloj
+   de inactividad espera (auth/useInactivity.ts).
+============================================================================= */
+let escrituras = 0;
+export function escriturasEnCurso(): number { return escrituras; }
+function terminaEscritura(config: any) {
+  if (config?._escritura) { config._escritura = false; escrituras = Math.max(0, escrituras - 1); }
 }
 
 
@@ -141,7 +166,7 @@ async function renovarAhora(enviado: string): Promise<Renovado> {
   if (actual && enviado && actual !== enviado) return actual;
 
   const refresh = localStorage.getItem('sgit_refresh');
-  if (!refresh) return null;
+  if (!refresh) { ultimoRechazo = 'No había sesión guardada en este navegador.'; return null; }
   try {
     /* Auditoría 20/10: la renovación va con axios suelto (sin el interceptor
        de `api`), así que el identificador del aparato no viajaba y la sesión
@@ -165,6 +190,8 @@ async function renovarAhora(enviado: string): Promise<Renovado> {
     const tras = localStorage.getItem('sgit_token');
     if (tras && tras !== enviado) return tras;
     const st = e?.response?.status;
+    const m = e?.response?.data?.message;
+    ultimoRechazo = typeof m === 'string' ? m.slice(0, 160) : '';
     return st === 401 || st === 403 ? null : 'temporal';
   }
 }
@@ -235,6 +262,7 @@ export function escucharUltimaCarga(f: (t: number | null) => void): () => void {
 
 api.interceptors.response.use(
   (res) => {
+    terminaEscritura(res.config);
     /* Bloque 112. Va antes de cualquier otra cosa: si algo de abajo lanzara,
        la hora quedaría sin registrar y la pantalla diría que no ha cargado. */
     if (String(res.config?.method || 'get').toLowerCase() === 'get') {
@@ -249,6 +277,7 @@ api.interceptors.response.use(
   },
   async (err) => {
     const original: any = err.config || {};
+    terminaEscritura(original);
     const status = err?.response?.status;
     const url = String(original.url || '');
 

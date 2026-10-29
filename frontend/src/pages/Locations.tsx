@@ -6,6 +6,7 @@ import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
 import { useDialogos } from '../components/Dialogos';
 import { padresPosibles } from '../ubicaciones';
+import { mensajeDeError } from '../avisos';
 
 /** Bloque 172 · lo que se puede CREAR aquí (ver el desplegable de «Tipo»). */
 const TIPOS_NUEVA = ['PLANTA', 'TREN', 'AREA', 'SALA', 'ZONA'];
@@ -105,7 +106,7 @@ export default function Locations() {
       await api.post('/locations/' + photoFor.id + '/photo', fd);
       setPhotoFor(null); setPhotoFile(null);
       await load();
-    } catch { await avisar('No se pudo subir la foto.'); }
+    } catch (err) { await avisar(mensajeDeError(err, 'subir la foto')); }
     finally { setUploading(false); }
   }
   async function viewPhoto(l: any) {
@@ -166,7 +167,7 @@ export default function Locations() {
   async function desactivar(s: any) {
     if (!(await confirmar(`¿Desactivar la etapa "${s.name}"?\n\nNo se borra: el historial de mantenimiento se conserva.`))) return;
     try { await api.delete('/locations/stages/' + s.id); await loadStages(); }
-    catch { await avisar('No se pudo desactivar la etapa.'); }
+    catch (err) { await avisar(mensajeDeError(err, 'desactivar la etapa')); }
   }
 
   const ambienteDe = (code: string) => ambientes.find((a) => a.code === code);

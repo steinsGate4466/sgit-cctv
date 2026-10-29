@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext';
+import { useAuth, PERMISO_PANTALLA_FIJA } from '../auth/AuthContext';
 import MiPin from './MiPin';
 import BotonTema from './BotonTema';
 import Icono from './Iconos';
@@ -117,6 +117,8 @@ const TITLES: Record<string, string> = {
   '/retirados': 'Equipos retirados',
   '/criticidad': 'Criticidad de activos',
   '/hojas-de-ruta': 'Hojas de ruta',
+  /* Bloque 184 · el catálogo de modelos y lo que ve cada cámara. */
+  '/fichas': 'Fichas técnicas',
 };
 
 /**
@@ -361,6 +363,15 @@ export default function Layout() {
               Va como `<button>` y no como `<div onClick>` para que también
               funcione con el teclado y lo anuncien los lectores de pantalla. */}
           <div className="user">
+            {/* Bloque 183 · una cuenta de PANTALLA FIJA no se cierra sola. Se
+                dice a la vista para que nadie la confunda con su sesión ni
+                crea que el sistema se olvidó de cerrarla. */}
+            {can(PERMISO_PANTALLA_FIJA) && (
+              <span className="distintivo-pantalla-fija"
+                title="Esta cuenta no se cierra por inactividad. Es de sólo lectura: no puede modificar nada.">
+                Pantalla fija
+              </span>
+            )}
             <button
               type="button"
               className="user-boton"

@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { fecha } from '../fechas';
 import { mensajeDeError } from '../avisos';
 import Icono from './Iconos';
+import { descargarDeApi } from '../descargar';
 
 /**
  * EL EXPEDIENTE DEL TRABAJO — bloque 155.
@@ -62,11 +63,7 @@ export default function ExpedienteDelTrabajo({ base, puedeSubir }: { base: strin
 
   async function descargar(d: any) {
     try {
-      const r = await api.get(`/documentos/${d.id}/descargar`, { responseType: 'blob' });
-      const nombre = /filename="?([^";]+)"?/.exec(r.headers['content-disposition'] || '')?.[1] || d.title;
-      const url = URL.createObjectURL(r.data);
-      const a = document.createElement('a'); a.href = url; a.download = nombre;
-      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      await descargarDeApi(`/documentos/${d.id}/descargar`, d.title);
     } catch (err) { setError(mensajeDeError(err, 'descargar')); }
   }
 

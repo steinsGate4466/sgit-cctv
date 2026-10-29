@@ -29,11 +29,16 @@ import { PLANTILLAS_DE_ROL } from '../src/modules/roles/catalogo-permisos';
 
 /** Reproduce la REGLA 2 de la migración, tal cual está escrita en el SQL. */
 const MIRA_O_INTERVIENE = ['activos.mirar', 'om.mirar', 'asset.update'];
+/* Bloque 183: la PANTALLA FIJA es la excepción escrita. Su sesión no se
+   cierra sola, así que el servidor le prohíbe toda escritura (también
+   reportar y abrir órdenes): quien avisa lo hace con SU cuenta. */
+const esPantallaFija = (permisos: string[]) => permisos.includes('sesion.pantalla_fija');
+
 const conservaReporte = (permisos: string[]) =>
-  MIRA_O_INTERVIENE.some((p) => permisos.includes(p));
+  !esPantallaFija(permisos) && MIRA_O_INTERVIENE.some((p) => permisos.includes(p));
 
 /** Reproduce la REGLA 1 de la migración. */
-const abreOrden = (permisos: string[]) => permisos.includes('om.mirar');
+const abreOrden = (permisos: string[]) => !esPantallaFija(permisos) && permisos.includes('om.mirar');
 
 const plantilla = (nombre: string) => {
   const p = PLANTILLAS_DE_ROL.find((x) => x.nombre === nombre);

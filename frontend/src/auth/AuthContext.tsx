@@ -1,6 +1,10 @@
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { api } from '../api/client';
 import { useInactivity } from './useInactivity';
+import { registrarSalida, olvidarSalida } from './salida';
+
+/** Bloque 183. Cuenta de pantalla fija: sin cierre por inactividad. */
+export const PERMISO_PANTALLA_FIJA = 'sesion.pantalla_fija';
 
 interface User {
   id: string;
@@ -35,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('sgit_token', data.accessToken);
     if (data.refreshToken) localStorage.setItem('sgit_refresh', data.refreshToken);
     localStorage.setItem('sgit_user', JSON.stringify(data.user));
+    olvidarSalida();
     setUser(data.user);
   }
 
@@ -123,8 +128,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  const cerrarPorInactividad = useCallback(() => logout('inactividad'), [logout]);
-  const { restante, seguir, minutosCierre } = useInactivity(!!user, cerrarPorInactividad);
+  /* BLOQUE 183 · EL CIERRE POR INACTIVIDAD VUELVE, BIEN HECHO.
+     El bloque 182 lo quitó; Cristhian lo pidió de vuelta como barrera de
+     seguridad «pero bien hecho». Lo que cambió está en useInactivity.ts.
+     La PANTALLA FIJA del púlpito (permiso `sesion.pantalla_fija`, sólo
+     lectura forzada en el servidor) no lleva reloj: un monitor con el mapa
+     abierto todo el turno no es una sesión abandonada. */
+  const pantallaFija = (user?.permissions || []).includes(PERMISO_PANTALLA_FIJA);
+  const cerrarPorInactividad = useCallback((minutos: number) => {
+    registrarSalida('inactividad', String(minutos));
+    logout('inactividad');
+  }, [logout]);
+  const { restante, seguir, minutosCierre } = useInactivity(!!user && !pantallaFija, cerrarPorInactividad);
+
+  /* CERRAR EN UNA PESTAÑA CIERRA EN TODAS. Antes la otra pestaña seguía
+     «dentro» con el token ya borrado y a los minutos fallaba sin explicar
+     nada, o te mandaba al acceso sin decir por qué. */
+  useEffect(() => {
+    if (!user) return;
+    const alCambiar = (e: StorageEvent) => {
+      if (e.key !== 'sgit_token' || e.newValue) return;
+      setUser(null);
+      if (location.pathname !== '/login') {
+        location.href = '/login?motivo=otra-pestana';
+      }
+    };
+    window.addEventListener('storage', alCambiar);
+    return () => window.removeEventListener('storage', alCambiar);
+  }, [user]);
 
   // Comprueba si el usuario tiene un permiso (para mostrar/ocultar acciones en la UI).
   const can = (permission: string) => (user?.permissions || []).includes(permission);
@@ -133,24 +164,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <Ctx.Provider value={{ user, login, logout, can, refrescarPerfil }}>
       {children}
       {restante !== null && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(15,23,42,.55)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
-        }}>
-          <div style={{
-            background: 'var(--card)', borderRadius: 12, padding: '26px 28px', maxWidth: 380,
-            width: 'calc(100% - 32px)', textAlign: 'center', boxShadow: '0 20px 50px rgba(0,0,0,.3)',
-          }}>
-            <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 8 }}>¿Sigues ahí?</div>
-            <div style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 6 }}>
-              Tu sesión se cerrará en <strong>{restante}</strong> segundo{restante === 1 ? '' : 's'}
-              {' '}por inactividad.
+        <div className="aviso-inactividad" role="alertdialog" aria-modal="true" aria-labelledby="aviso-inact-tit">
+          <div className="aviso-inactividad-caja">
+            <div id="aviso-inact-tit" className="aviso-inactividad-tit">¿Sigues ahí?</div>
+            <div className="aviso-inactividad-txt">
+              La sesión se cierra en <strong>{restante}</strong> segundo{restante === 1 ? '' : 's'}.
+              Mueve el ratón, toca la pantalla o pulsa el botón.
             </div>
-            <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 18 }}>
-              El sistema muestra direcciones IP y contraseñas de equipos de planta.
-              Por eso se cierra sola a los {minutosCierre} minutos sin uso.
+            <div className="aviso-inactividad-nota">
+              Se cierra a los {minutosCierre} minutos sin uso: aquí hay IP y contraseñas de equipos.
             </div>
-            <button className="btn-primary" style={{ width: '100%' }} onClick={seguir}>
+            <button className="btn-primary" style={{ width: '100%' }} onClick={seguir} autoFocus>
               Sigo aquí
             </button>
           </div>

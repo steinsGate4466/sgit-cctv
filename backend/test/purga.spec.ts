@@ -200,20 +200,55 @@ describe('candidatos a basura · es una pista, no un juicio', () => {
 describe('purga de usuarios · nadie firma en nombre de un fantasma', () => {
   const USUARIO = {
     id: 'u9', email: 'prueba@aasa.com.pe', fullName: 'Cuenta de prueba',
-    active: true, role: { name: 'Técnico' }, _count: { auditLogs: 3, sesiones: 1 },
+    active: true, role: { name: 'Técnico' },
+    _count: {
+      auditLogs: 3, sesiones: 1,
+      woClosed: 0, accessReviewed: 0, materialesRetirados: 0, stockMovements: 0,
+      incidenciasReportadas: 0, avisosDeProduccion: 0, woProgress: 0,
+      workOrders: 0, woOpened: 0, woSolicitadas: 0, woAsignadas: 0,
+      accessRequested: 0, notasDeCampo: 0, inspeccionesGrua: 0,
+      equiposQueInstalo: 0, equiposQueRetiro: 0,
+    },
   };
+  const conRastro = (extra: Record<string, number>) =>
+    ({ ...USUARIO, _count: { ...USUARIO._count, ...extra } });
 
   it('quien cerró una orden NO se borra: se desactiva', async () => {
     const prisma = prismaFalso();
     prisma.user.findUnique.mockImplementation(({ select }: any) =>
-      select?.role && select?.email ? USUARIO : conPermisos(LLAVE, 'user.manage'));
-    prisma.workOrder.count.mockImplementation(({ where }: any) =>
-      Promise.resolve(where.closedById ? 7 : 0));
+      select?.role && select?.email ? conRastro({ woClosed: 7 }) : conPermisos(LLAVE, 'user.manage'));
     const s = new PurgaService(prisma, auditFalso());
 
     const p = await s.vistaPreviaUsuario('u9');
     expect(p.sePuedePurgar).toBe(false);
     expect(p.motivoSiNo).toContain('Desactívala');
+  });
+
+  /* Bloque 183. Antes sólo se miraban las firmas: quien había avisado una
+     caída desde el púlpito salía «se puede borrar», y la base rechazaba el
+     borrado (esa relación no admite quedar en blanco) con un 500 mudo. */
+  it('quien reportó un aviso o avanzó una orden tampoco se borra', async () => {
+    const casos: Record<string, number>[] = [{ avisosDeProduccion: 1 }, { woProgress: 2 }, { incidenciasReportadas: 1 }];
+    for (const extra of casos) {
+      const prisma = prismaFalso();
+      prisma.user.findUnique.mockImplementation(({ select }: any) =>
+        select?.role && select?.email ? conRastro(extra) : conPermisos(LLAVE, 'user.manage'));
+      const s = new PurgaService(prisma, auditFalso());
+      const p = await s.vistaPreviaUsuario('u9');
+      expect(p.sePuedePurgar).toBe(false);
+      await expect(s.purgarUsuario('u9', 'prueba@aasa.com.pe', 'u1', null)).rejects.toThrow(/trabajo registrado/);
+      expect(prisma.user.delete).not.toHaveBeenCalled();
+    }
+  });
+
+  it('una cuenta sin trabajo (creada por error) SÍ se puede borrar', async () => {
+    const prisma = prismaFalso();
+    prisma.user.findUnique.mockImplementation(({ select }: any) =>
+      select?.role && select?.email ? USUARIO : conPermisos(LLAVE, 'user.manage'));
+    const s = new PurgaService(prisma, auditFalso());
+    const p = await s.vistaPreviaUsuario('u9');
+    expect(p.sePuedePurgar).toBe(true);
+    expect(p.rastro).toEqual([]);
   });
 
   it('no puedes borrarte a ti mismo', async () => {

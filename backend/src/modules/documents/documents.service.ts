@@ -166,27 +166,39 @@ export class DocumentsService {
     // del sistema — que es como se roban sesiones.
     return {
       buffer,
-      nombre: `${doc.title.replace(/[^\w\s.-]/g, '_')}.${ext}`,
+      // El nombre se limpia al armar la cabecera (`common/descarga.ts`), que
+      // conserva las tildes: «Ficha técnica» ya no sale «Ficha t_cnica».
+      nombre: `${doc.title}.${ext}`,
     };
   }
 
   async borrar(id: string, userId?: string | null, ip?: string | null) {
     const doc = await this.prisma.document.findUnique({
-      where: { id }, select: { id: true, title: true, fileId: true, version: true },
+      where: { id },
+      select: { id: true, title: true, fileId: true, version: true, _count: { select: { fichasOpticas: true } } },
     });
     if (!doc) throw new NotFoundException('Ese documento ya no existe.');
+    /* Bloque 184 · el PDF de una ficha técnica es su PRUEBA. Sin él la ficha
+       deja de ser fehaciente, así que no se borra suelto: se borra la ficha
+       (Equipos › Fichas técnicas), que se lleva su PDF. La base lo impediría
+       igual, pero con un «referencia inválida» que no dice nada. */
+    if (doc._count.fichasOpticas > 0) {
+      throw new BadRequestException(
+        'Este PDF es la prueba de una ficha técnica. Para quitarlo, borra la ficha en Equipos › Fichas técnicas.',
+      );
+    }
 
+    // Se audita ANTES de borrar (bloque 15), como el resto de borrados.
+    await this.audit.record({
+      userId: userId || null, action: 'DELETE_DOCUMENT', entity: 'documents',
+      entityId: id, ip, before: { title: doc.title, version: doc.version },
+    });
     await this.prisma.document.delete({ where: { id } });
     // El archivo se borra DESPUÉS de la fila. Si falla el borrado del
     // archivo queda un objeto huérfano en el almacén — molesto pero
     // inofensivo. Al revés dejaría una fila apuntando a nada, que sí rompe
     // la pantalla al intentar descargarlo.
     await this.storage.remove(doc.fileId).catch(() => undefined);
-
-    await this.audit.record({
-      userId: userId || null, action: 'DELETE_DOCUMENT', entity: 'documents',
-      entityId: id, ip, before: { title: doc.title, version: doc.version },
-    });
     return { ok: true };
   }
 }

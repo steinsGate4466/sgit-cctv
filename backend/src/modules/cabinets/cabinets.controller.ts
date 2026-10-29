@@ -7,6 +7,7 @@ import type { Response } from 'express';
 import { CabinetsService } from './cabinets.service';
 import { CreateCabinetDto, UpdateCabinetDto } from './dto/cabinet.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { disposicion } from '../../common/descarga';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequireAlguno, RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { AmbitoDe } from '../../common/ambito.decorator';
@@ -42,7 +43,7 @@ export class CabinetsController {
     // Bloque 142: por tren o área, como la lista de la pantalla.
     const { buffer, filename } = await this.cabinets.qrSheet(lista, { tren, etapa }, user?.userId);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Disposition', disposicion(filename));
     res.send(buffer);
   }
 
@@ -52,7 +53,7 @@ export class CabinetsController {
   async qr(@Param('id') id: string, @Res() res: Response) {
     const { buffer, filename } = await this.cabinets.qrPng(id);
     res.setHeader('Content-Type', 'image/png');
-    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    res.setHeader('Content-Disposition', disposicion(filename, 'inline'));
     res.send(buffer);
   }
 

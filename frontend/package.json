@@ -50,7 +50,8 @@
     "verificar:tema": "node scripts/verificar-tema.cjs"
   },
   "dependencies": {
-    "axios": "^1.7.7",
+    "axios": "^1.20.0",
+    "pdfjs-dist": "^6.4.299",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.2",
@@ -69,7 +70,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.11.0",
     "typescript": "^5.5.4",
-    "vite": "^8.2.2"
+    "vite": "^8.3.4"
   },
   "overrides": {
     "js-yaml": "^4.3.1",

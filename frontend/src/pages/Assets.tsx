@@ -348,10 +348,15 @@ export default function Assets() {
     setFormErr(''); setTries(5); setDetail(null); setFotosNuevas([]);
     // Precarga la ficha del tipo que ya tenga guardada. Se copian solo los
     // campos editables: el identificador y las relaciones no se envían de vuelta.
+    /* Bloque 184 · `switchPortId` tampoco: el puerto lo declara Red › Conexiones,
+       no este formulario. Se devolvía tal cual y el servidor —que no admite
+       campos que no son suyos— rechazaba con «camera.property switchPortId
+       should not exist»: NINGUNA cámara ni antena ya conectada a su switch se
+       podía editar desde aquí. Lo fija `test/editar-ficha-de-activo.spec.ts`. */
     const bloque = FICHA_DE[a.type];
     const guardada = bloque ? (a as any)[bloque] : null;
     if (guardada) {
-      const { assetId, asset, vlan, switchPort, poeSourcePort, outputs, cells, fedByOutputs, ...campos } = guardada;
+      const { assetId, asset, vlan, switchPort, switchPortId, poeSourcePort, outputs, cells, fedByOutputs, ...campos } = guardada;
       setSpec(campos);
     } else {
       setSpec({});
@@ -390,6 +395,10 @@ export default function Assets() {
         /* Optimización 21/10: la IP de la cámara se pedía DOS veces (general y en
            la ficha). Se escribe una vez y va a los dos sitios. */
         if (bloqueFicha === 'camera' && form.ipAddress) limpia.ipAddress = form.ipAddress;
+        /* Bloque 184 · quitar la ficha técnica es una respuesta, no un vacío:
+           `null` la desvincula. Sin esto el bucle de arriba la tiraba y la
+           cámara seguía con la ficha que alguien quiso quitar. */
+        if (bloqueFicha === 'camera' && form.id && spec?.fichaOpticaId === null) limpia.fichaOpticaId = null;
         if (Object.keys(limpia).length) body[bloqueFicha] = limpia;
       }
       /* SIN SEÑAL NO SE PIERDE LO ESCRITO.
@@ -523,7 +532,7 @@ export default function Assets() {
     try {
       const res = await api.get('/assets/' + a.id + '/qr', { responseType: 'blob' });
       setQrUrl(URL.createObjectURL(res.data));
-    } catch { await avisar('No se pudo generar el QR.'); }
+    } catch (err) { await avisar(mensajeDeError(err, 'generar el QR')); }
   }
   /* BLOQUE 142 · las etiquetas salen de LO QUE FILTRA LA PANTALLA —tren,
      área, tipo, estado, búsqueda— y no de toda la planta. La letra A/B/C no
@@ -561,7 +570,7 @@ export default function Assets() {
       setPhotoFile(null); setPhotoCaption('');
       const ph = await api.get('/assets/' + detail.id + '/photos').then((r) => r.data).catch(() => []);
       setPhotos(ph || []);
-    } catch { await avisar('No se pudo subir la foto.'); }
+    } catch (err) { await avisar(mensajeDeError(err, 'subir la foto')); }
     finally { setUploadingPhoto(false); }
   }
   async function viewPhoto(ph: any) {
@@ -570,7 +579,7 @@ export default function Assets() {
       // res.data ya es un Blob con su Content-Type (image/jpeg|png); usarlo directo
       // preserva el tipo para que el navegador lo muestre como imagen y no como texto.
       window.open(URL.createObjectURL(res.data), '_blank');
-    } catch { await avisar('No se pudo abrir la foto.'); }
+    } catch (err) { await avisar(mensajeDeError(err, 'abrir la foto')); }
   }
   async function delPhoto(ph: any) {
     if (!(await confirmar('¿Eliminar esta foto?'))) return;
@@ -602,7 +611,7 @@ export default function Assets() {
       a.href = url;
       a.download = (activo.assetCode || 'informe') + '.pdf';
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    } catch { await avisar('No se pudo generar el informe.'); }
+    } catch (err) { await avisar(mensajeDeError(err, 'generar el informe')); }
   }
 
   async function saveStatus() {
@@ -612,7 +621,7 @@ export default function Assets() {
       await api.patch('/assets/' + detail.id + '/status', { status: newStatus });
       setDetail({ ...detail, status: newStatus });
       await loadAssets();
-    } catch { await avisar('No se pudo actualizar el estado.'); }
+    } catch (err) { await avisar(mensajeDeError(err, 'actualizar el estado')); }
     finally { setSavingStatus(false); }
   }
 
@@ -622,7 +631,7 @@ export default function Assets() {
       await api.patch('/assets/' + detail.id + '/network', { ipAddress: ipEdit || undefined });
       setDetail({ ...detail, ipAddress: ipEdit });
       await loadAssets();
-    } catch { await avisar('No se pudo actualizar la IP.'); }
+    } catch (err) { await avisar(mensajeDeError(err, 'actualizar la IP')); }
     finally { setSavingIp(false); }
   }
 
@@ -641,7 +650,7 @@ export default function Assets() {
       }
       setQuick(null);
       await loadAssets();
-    } catch { await avisar('No se pudo actualizar la IP / contraseña.'); }
+    } catch (err) { await avisar(mensajeDeError(err, 'actualizar la IP / contraseña')); }
     finally { setQSaving(false); }
   }
 
@@ -659,7 +668,7 @@ export default function Assets() {
         setCreds(c || []);
       }
       await loadAssets();
-    } catch { await avisar('No se pudo guardar el acceso.'); }
+    } catch (err) { await avisar(mensajeDeError(err, 'guardar el acceso')); }
     finally { setSavingIp(false); }
   }
   async function addCredential() {
@@ -1514,6 +1523,8 @@ export default function Assets() {
               opciones={opciones}
               tren={trenDe(locations, form.locationId)?.code ?? null}
               propioId={form.id}
+              marca={form.brand}
+              modelo={form.model}
               sinIp
             />
 

@@ -46,6 +46,8 @@ export class CameraSpecDto {
   @IsOptional() @IsString() wirelessUplinkId?: string;
   /** Puerto del que recibe ENERGÍA. Distinto del puerto de datos. */
   @IsOptional() @IsString() poeSourcePortId?: string;
+  /** Bloque 184 · su ficha técnica (modelo + lente). `null` la quita. */
+  @IsOptional() @IsString() @MaxLength(40) fichaOpticaId?: string | null;
 }
 
 export class NvrSpecDto {

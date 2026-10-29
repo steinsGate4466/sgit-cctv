@@ -4,6 +4,7 @@ import type { Response } from 'express';
 import { IndicadoresService } from './indicadores.service';
 import { libroDeIndicadores } from './excel-indicadores';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { disposicion } from '../../common/descarga';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -67,7 +68,7 @@ export class IndicadoresController {
     const nombre = `sgit_indicadores_${new Date().toISOString().slice(0, 10)}.xlsx`;
     res.set({
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': `attachment; filename="${nombre}"`,
+      'Content-Disposition': disposicion(nombre),
       'Content-Length': String(buffer.length),
     });
     res.end(buffer);

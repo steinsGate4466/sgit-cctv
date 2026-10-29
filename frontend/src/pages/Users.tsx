@@ -6,6 +6,7 @@ import { EsqueletoTabla } from '../components/Esqueleto';
 import { mensajeDeError } from '../avisos';
 import { fechaHora } from '../fechas';
 import { useDialogos } from '../components/Dialogos';
+import BorrarDefinitivo from '../components/BorrarDefinitivo';
 
 export default function Users() {
   const [rows, setRows] = useState<any[]>([]);
@@ -42,6 +43,13 @@ export default function Users() {
      de VERLO desde aquí, ni de levantarlo. Ahora se ve y se levanta. */
   const [bloqueadas, setBloqueadas] = useState<Record<string, string>>({});
   const [desbloqueando, setDesbloqueando] = useState('');
+  /* BLOQUE 183 · ELIMINAR desde Usuarios. El borrado existía en Limpieza y
+     nadie lo encontraba: se busca donde están las personas. */
+  const [aBorrar, setABorrar] = useState<any>(null);
+  const [hecho, setHecho] = useState('');
+  /* Las cuentas desactivadas se quedan (su firma respalda lo que hicieron),
+     pero no tienen por qué ocupar la lista de todos los días. */
+  const [filtro, setFiltro] = useState<'activos' | 'desactivados' | 'todos'>('activos');
   const { can } = useAuth();
   const { pedirTexto } = useDialogos();
 
@@ -148,14 +156,25 @@ export default function Users() {
 
   if (loading) return <EsqueletoTabla filas={6} />;
 
+  const nActivos = rows.filter((u) => u.active).length;
+  const nDesactivados = rows.length - nActivos;
+  const visibles = rows.filter((u) =>
+    filtro === 'todos' ? true : filtro === 'activos' ? u.active : !u.active);
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 className="page-title">Usuarios</h1>
-          <p className="page-sub">{rows.length} usuarios</p>
+          <p className="page-sub">{nActivos} activos · {nDesactivados} desactivados</p>
         </div>
         {can('user.manage') && <button className="btn-primary" onClick={() => { setForm({ email: '', fullName: '', password: '', roleId: '' }); setShowForm(true); }}>+ Nuevo usuario</button>}
+      </div>
+      {hecho && <div className="tg-aviso" role="status" style={{ marginBottom: 10 }}>{hecho}</div>}
+      <div className="pestanas">
+        <button className={filtro === 'activos' ? 'act' : ''} onClick={() => setFiltro('activos')}>Activos ({nActivos})</button>
+        <button className={filtro === 'desactivados' ? 'act' : ''} onClick={() => setFiltro('desactivados')}>Desactivados ({nDesactivados})</button>
+        <button className={filtro === 'todos' ? 'act' : ''} onClick={() => setFiltro('todos')}>Todos</button>
       </div>
       <div className="card">
         <table>
@@ -171,7 +190,7 @@ export default function Users() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((u) => (
+            {visibles.map((u) => (
               <tr key={u.id}>
                 <td style={{ fontWeight: 600 }}>{u.fullName}</td>
                 <td className="muted">{u.email}</td>
@@ -214,12 +233,42 @@ export default function Users() {
                       })}
                       title="Cambiar su nombre, su rol o darle de baja">Editar</button>
                   )}
+                  {can('user.manage') && can('purga.definitiva') && (
+                    <button className="btn-mini" style={{ marginLeft: 6 }}
+                      onClick={() => { setHecho(''); setABorrar(u); }}
+                      title="Borrar la cuenta. Si tiene trabajo registrado, se ofrece desactivarla.">Eliminar</button>
+                  )}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {visibles.length === 0 && (
+        <p className="muted" style={{ fontSize: 13 }}>
+          {filtro === 'desactivados' ? 'No hay cuentas desactivadas.' : 'No hay usuarios en esta vista.'}
+        </p>
+      )}
+
+      {aBorrar && (
+        <BorrarDefinitivo
+          tipo="usuario"
+          id={aBorrar.id}
+          onCerrar={() => setABorrar(null)}
+          onBorrado={(r) => {
+            setHecho(`Borrada la cuenta ${r.email}.`);
+            setABorrar(null);
+            load();
+          }}
+          onDesactivar={async () => {
+            await api.patch(`/users/${aBorrar.id}`, { active: false });
+            setHecho(`${aBorrar.email} desactivada: ya no puede entrar. Su trabajo sigue a su nombre.`);
+            setABorrar(null);
+            await load();
+          }}
+        />
+      )}
 
       {editaUsuario && (
         <Modal title={`Editar a ${editaUsuario.email}`} onClose={() => setEditaUsuario(null)}>

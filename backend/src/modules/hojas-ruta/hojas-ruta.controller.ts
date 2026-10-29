@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { HojasRutaService } from './hojas-ruta.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { disposicion } from '../../common/descarga';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -51,7 +52,7 @@ export class HojasRutaController {
   async excelTodas(@Res() res: Response) {
     const { buffer, filename } = await this.hojas.excel();
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Disposition', disposicion(filename));
     res.send(buffer);
   }
 
@@ -67,7 +68,7 @@ export class HojasRutaController {
   async excelUna(@Param('id') id: string, @Res() res: Response) {
     const { buffer, filename } = await this.hojas.excel(id);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Disposition', disposicion(filename));
     res.send(buffer);
   }
 

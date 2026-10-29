@@ -90,6 +90,41 @@ export default function Modal({
 
   }, []);
 
+  /* BLOQUE 184 · EL AVISO DE ERROR SE VE, AUNQUE ESTÉS ABAJO DEL TODO.
+     ================================================================
+     Los formularios pintan su error ARRIBA del cuerpo, y el botón de guardar
+     vive en la barra fija de ABAJO. En uno largo —la ficha técnica, el alta de
+     un activo— se pulsaba «Guardar», el servidor contestaba que no, y en
+     pantalla NO PASABA NADA: el aviso estaba tres pantallazos más arriba. Lo
+     cazó el recorrido 9 al primer intento. Es el fallo del bloque 64 («el
+     aviso no puede vivir donde no se ve») con otra cara.
+
+     Se arregla AQUÍ, una vez para todas las ventanas: cuando aparece un
+     `role="alert"` en el cuerpo, se lleva a la vista. SALVO si la persona
+     está escribiendo en un campo de la ventana: un aviso en vivo no puede
+     arrancarle el campo de debajo del dedo. */
+  const cuerpo = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = cuerpo.current;
+    if (!el || typeof MutationObserver === 'undefined') return;
+    const escribiendo = () => {
+      const a = document.activeElement;
+      return !!a && el.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName);
+    };
+    const obs = new MutationObserver((cambios) => {
+      if (escribiendo()) return;
+      for (const c of cambios) {
+        for (const n of Array.from(c.addedNodes)) {
+          const nodo = n instanceof HTMLElement ? n : n.parentElement;
+          const aviso = nodo?.closest('[role="alert"]') ?? nodo?.querySelector('[role="alert"]');
+          if (aviso && el.contains(aviso)) { aviso.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }); return; }
+        }
+      }
+    });
+    obs.observe(el, { childList: true, subtree: true });
+    return () => obs.disconnect();
+  }, []);
+
   /* Bloque 167: la ventana se pinta en <body> (portal). Así ningún estilo de
      la pantalla de detrás (una animación, un filtro) la puede descentrar. */
   return createPortal(
@@ -106,7 +141,7 @@ export default function Modal({
           <h3>{title}</h3>
           <button className="modal-x" onClick={onClose} aria-label="Cerrar">×</button>
         </div>
-        <div className="modal-body">{children}</div>
+        <div className="modal-body" ref={cuerpo}>{children}</div>
         {acciones && <div className="modal-pie">{acciones}</div>}
       </div>
     </div>,

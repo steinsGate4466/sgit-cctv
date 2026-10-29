@@ -176,7 +176,7 @@ export default function Equipos() {
 
       <div className="filters">
         <input aria-label="Buscar equipo conocido" placeholder="Buscar por nombre, IP, MAC, área o responsable…"
-               value={q} onChange={(e) => setQ(e.target.value)} style={{ minWidth: 280 }} />
+               value={q} onChange={(e) => setQ(e.target.value)} style={{ flex: '1 1 280px', minWidth: 0 }} />
         {puedeEditar && (
           <button className="btn-primary" onClick={() => { setForm({ ...VACIO }); setError(''); }}>
             + Registrar equipo

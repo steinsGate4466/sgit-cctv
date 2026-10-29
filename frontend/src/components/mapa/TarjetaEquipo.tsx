@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { NOMBRE_DE_TIPO } from '../../tipos-de-equipo';
 import { IconoEquipo, NOMBRE_ICONO, iconoDe } from './Marcador';
+import LoQueVe from './LoQueVe';
 import ReportarCaida from '../ReportarCaida';
 import ReportarAveria from '../ReportarAveria';
 import { TIPO_DE_AVISO_ES, tipoDeAviso, tipoDeOrdenSugerido } from '../../avisoSap';
@@ -106,6 +107,34 @@ export default function TarjetaEquipo({ e, cable, cablesDelSwitch, onCerrar, onR
           <section>
             <h3>{tecnico ? 'Dónde' : 'Qué vigila'}</h3>
             <p>{e.referencia}</p>
+          </section>
+        )}
+
+        {/* Bloque 184 · LO QUE VE, según la ficha del fabricante. Para todos:
+            es la pregunta de Producción («¿esto se ve desde aquí?»). */}
+        {e.tipo === 'CAMERA' && (
+          <section>
+            <h3>Lo que ve</h3>
+            {e.estado === 'caida' && <div className="aviso-mapa grave">Ahora no se ve nada: está sin servicio.</div>}
+            {e.vision ? (
+              <>
+                <LoQueVe dia={e.vision.dia} noche irM={e.vision.irM} estado={e.estado} />
+                <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>
+                  {[
+                    [e.vision.marca, e.vision.modelo].filter(Boolean).join(' '),
+                    e.vision.lente,
+                    `${Math.round(e.vision.angulo)}° de ancho`,
+                    e.vision.zoomMax > 1 ? `zoom ${e.vision.zoom}x de ${e.vision.zoomMax}x` : '',
+                    e.vision.verificada ? 'ficha verificada' : 'ficha SIN verificar',
+                  ].filter(Boolean).join(' · ')}
+                </p>
+              </>
+            ) : (
+              <p className="muted" style={{ margin: 0, fontSize: 12 }}>
+                {'Sin ficha técnica: el cono es el que se dibujó a mano. '}
+                {tecnico && <Link to="/fichas">Fichas técnicas</Link>}
+              </p>
+            )}
           </section>
         )}
 

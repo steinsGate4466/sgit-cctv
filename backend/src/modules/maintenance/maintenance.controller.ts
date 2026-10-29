@@ -16,6 +16,7 @@ import { OpenWorkOrderDto } from './dto/open-work-order.dto';
 import { ProgressWorkOrderDto } from './dto/progress-work-order.dto';
 import { AsignarOmDto, DesdeIncidenciaDto, DetallarOmDto } from './dto/asignar-om.dto';
 import { RequirePermissions, RequireAlguno } from '../../common/decorators/permissions.decorator';
+import { disposicion } from '../../common/descarga';
 import { AmbitoDe } from '../../common/ambito.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { NumeroSapDto } from '../../common/numero-sap.dto';
@@ -302,7 +303,7 @@ export class MaintenanceController {
   async report(@Param('id') id: string, @Res() res: Response) {
     const { buffer, filename } = await this.wo.buildReport(id);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Disposition', disposicion(filename));
     res.send(buffer);
   }
 }

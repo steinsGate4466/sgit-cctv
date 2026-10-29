@@ -2,7 +2,7 @@ import { useEffect, useState, FormEvent } from 'react';
 import { api } from '../api/client';
 import Icono from './Iconos';
 import BotonConMotivo from './BotonConMotivo';
-import { queFalta } from '../avisos';
+import { queFalta, mensajeDeError } from '../avisos';
 import SelectorDeActivo from './SelectorDeActivo';
 
 /**
@@ -153,7 +153,7 @@ export default function AccessRequestForm({ assetId, assetCode, assets, onDone }
       setFile(null); setCaption('');
       const ph = await api.get('/access-requests/' + created.id + '/photos').then((r) => r.data).catch(() => []);
       setPhotos(ph || []);
-    } catch { setErr('No se pudo subir la imagen.'); }
+    } catch (err) { setErr(mensajeDeError(err, 'subir la imagen')); }
     finally { setUploading(false); }
   }
 

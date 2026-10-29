@@ -16,6 +16,7 @@ import { UpdateNetworkDto } from './dto/update-network.dto';
 import { InstalarAparatoDto, RetirarAparatoDto, CorregirAparatoDto } from './dto/aparato.dto';
 import { QueryAssetDto, QrSheetQueryDto } from './dto/query-asset.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { disposicion } from '../../common/descarga';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequireAlguno, RequirePermissions } from '../../common/decorators/permissions.decorator';
 import { AmbitoDe, SinAmbito } from '../../common/ambito.decorator';
@@ -229,7 +230,7 @@ export class AssetsController {
     const list = ids ? ids.split(',').map((s) => s.trim()).filter(Boolean) : undefined;
     const { buffer, filename } = await this.assets.qrSheet({ ...filtro, ids: list }, user?.userId);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Disposition', disposicion(filename));
     res.send(buffer);
   }
 
@@ -404,7 +405,7 @@ export class AssetsController {
   ) {
     const { buffer, filename } = await this.reemplazo.pdf(id, user?.userId, ip);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Disposition', disposicion(filename));
     res.send(buffer);
   }
 
@@ -415,7 +416,7 @@ export class AssetsController {
     const sensitive = (user?.permissions || []).includes('credential.read');
     const { buffer, filename } = await this.assets.buildReport(id, sensitive);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Disposition', disposicion(filename));
     res.send(buffer);
   }
 

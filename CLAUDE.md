@@ -236,17 +236,18 @@ cierto está tachado en su fila.)*
 5. **Módulo de documentos** — cerrar el permiso huérfano.
 6. **3G-bis** — mapeo de columnas del Excel de SAP. Espera un export real.
 
-### Hallazgos de seguridad abiertos (auditoría OWASP 2025, 04/08)
+### Hallazgos de seguridad (auditoría OWASP 2025, 04/08) — al 29/10/2026 sólo S-01 sigue abierto
 
 | | Riesgo | Estado |
 |---|---|---|
 | **S-01** | **`JWT_SECRET` filtrado sin rotar.** Con él se puede FIRMAR un token con permisos de administrador. No hace falta usuario ni contraseña | 🔴 **Abierto** |
-| **S-02** | Ámbito no aplicado en rutas por identificador (OWASP A01) | 🟠 Abierto |
+| **S-02** | ~~Ámbito no aplicado en rutas por identificador (OWASP A01)~~ | ✅ **CERRADO en 12.3** — `AmbitoGuard`: cada ruta con parámetro declara `@AmbitoDe` o `@SinAmbito` con su motivo, y `verificar:ambito` falla si falta uno. Responde 404, no 403 |
 | **S-03** | Sin límite de peticiones fuera de login/usuarios/monitoreo. `/exportacion/todo` genera el libro en memoria | ✅ **CERRADO en 12.2** — `RitmoGuard` es GLOBAL (`APP_GUARD`, el primero de la cadena) y cubre las 353 rutas, cero exentas. 600/min por usuario en general; 5/min en las 9 rutas que arman un Excel en memoria. Queda anotado que el contador vive en memoria del proceso: con dos instancias en Railway el tope efectivo se duplica |
-| **S-04** | Al desactivar un usuario, su token vive hasta 15 min. La estrategia JWT no consulta la base | 🟡 Conocido |
-| **S-05** | 26 `@Body() dto: any` | 🟡 Abierto |
-| **S-06** | CI no revisa dependencias. `exceljs` arrastró `glob@7`, `rimraf@2`, `fstream` | 🟡 Abierto |
+| **S-04** | ~~Al desactivar un usuario, su token vive hasta 15 min. La estrategia JWT no consulta la base~~ | ✅ **CERRADO en el bloque 82** — `AccesoVigenteGuard` compara en cada petición el contador `permisosVersion` del token con la base (caché de 15 s que se vacía al cortar). El bloque 86 lo extendió a los cambios de rol |
+| **S-05** | ~~26 `@Body() dto: any`~~ | ✅ **CERRADO** — `verificar:dto` (29/10/2026): 54 controladores, 0 endpoints sin validar. Buscar `@Body() x: any` da 20 líneas: todas son COMENTARIOS que cuentan la deuda ya cerrada |
+| **S-06** | ~~CI no revisa dependencias. `exceljs` arrastró `glob@7`, `rimraf@2`, `fstream`~~ | ✅ **CERRADO en el bloque 85** — la CI falla con un aviso ALTO o CRÍTICO, sin `continue-on-error`. Lo que queda abierto (moderado y bajo), con su motivo, en `docs/DEPENDENCIAS.md` |
 | **S-07** | ~~Falta CSP~~ | ✅ **CERRADO** — la CSP completa está en `main.ts` (líneas 60-90), a mano y sin dependencias, junto con otras cinco cabeceras. `'unsafe-inline'` se permite en ESTILOS a propósito (el frontend usa `style={}` de forma generalizada) y **no** en scripts. `connect-src *` queda abierto porque la API y el frontend viven en dominios distintos de Railway; se cierra el día que haya dominio propio. **Esta fila decía «Abierto» durante bloques con la CSP ya puesta.** |
+| **S-08** | **La IP del cliente sale del PRIMER valor de `X-Forwarded-For`** (freno del login por origen, límite sin sesión, auditoría). Sólo es de fiar si el edge de Railway DESCARTA el que manda el cliente, y su foro se contradice: unos dicen que lo reescribe y otros que lo añade. El bloqueo POR CUENTA no depende de esto | 🟡 **Por medir** (29/10/2026) — un login fallido con `X-Forwarded-For: 203.0.113.7` y mirar qué IP anota la auditoría. No se cambia a ciegas: con el número de saltos equivocado todos saldrían con la IP del proxy, y 20 intentos de entrar en 5 minutos, de quien sea, cerrarían el login a todos |
 
 **Procedimiento correcto hoy para dar de baja a alguien:** desactivar **y**
 cerrar todas sus sesiones. Si la salida fue conflictiva, rotar `JWT_SECRET`.
@@ -7046,3 +7047,137 @@ Pedido: «que la pantalla del mapa se extienda sobre toda la pantalla en el clic
 - Pendiente de decidir con él: con un aviso de CONDICIÓN abierto (punto verde) el mapa oculta
   «Reportar»; si ese equipo cae, la falla no se puede reportar desde el mapa. ¿Se permite y se escala
   el aviso a falla, como hace la inspección de grúa?
+
+## §106 · BLOQUES 182-183 — LA SESIÓN: INACTIVIDAD BIEN HECHA, PANTALLA FIJA Y ELIMINAR USUARIOS (28/10/2026)
+
+**182 (mismo día, sin commit propio):** se quitó el cierre por inactividad («genera bugs»).
+**183:** Cristhian lo pidió de vuelta: «regresa lo de la inactividad porque es una barrera de
+seguridad, pero hazla bien… a pesar de moverme entre módulos o hacer clics se cierra», más
+«un usuario para la pantalla fija del púlpito» y «eliminar usuarios».
+
+**Qué echaba a la gente trabajando (medido, no supuesto)**
+1. La mayoría NO era el reloj: era el servidor rechazando la renovación, y la pantalla de acceso
+   no decía nada, así que se achacaba a la inactividad. Causas encontradas:
+   - **Respuesta de renovación perdida** (wifi de la nave, celular que se bloquea): el servidor
+     ya había rotado el token; el navegador volvía con el viejo pasados los 30 s de gracia y se
+     tomaba por ROBO → cerraba todas las sesiones. Ahora `sesiones.sucesoraId` + `primerUsoEn`
+     (migración `20261028010000_sesion_sucesora`, aditiva): si la sucesora NUNCA se usó y viene del
+     mismo aparato, es una respuesta perdida → se retira la sucesora y se entrega un par nuevo
+     (auditoría `SESION_RECUPERADA`). Si la sucesora se usó → robo → se cierra todo, como siempre.
+     El guard apunta el primer uso con `COALESCE` en SQL.
+   - `sesion.create(...).catch(() => null)`: si el alta de la sesión fallaba salía un token
+     huérfano que echaba 15 min después. Ahora reintenta una vez y si no, falla EN EL ACTO.
+2. **Toda salida forzada dice por qué** (`auth/salida.ts`): inactividad (con minutos), «el servidor
+   dijo: …» (texto real del rechazo), u «otra pestaña». La pantalla de acceso lo enseña.
+3. El reloj (`useInactivity.ts`, rehecho): escucha en `document` en **CAPTURA** (un
+   `stopPropagation` ya no esconde clics), con eventos de **puntero**, teclado, rueda y toque, y
+   **sólo `isTrusted`**. NO cuentan `scroll` ni `focus`: lo cazó el recorrido — el botón «Sigo aquí»
+   tiene `autoFocus`, ese foco contaba como actividad y el aviso se borraba solo al salir; y la app
+   desplaza cosas sola. Una barrera que la pantalla mantiene abierta no es una barrera.
+   Con una escritura sin contestar (`escriturasEnCurso()` en `api/client.ts`) no se cierra.
+   Cerrar en una pestaña cierra en todas (evento `storage`). PC 15 min (aviso a los 13),
+   celular 30 (aviso a los 28). Cualquier gesto retira el aviso.
+
+**Pantalla fija** (permiso `sesion.pantalla_fija`, migración `20261028020000`, no se da a nadie)
+- Sin reloj de inactividad; cabecera con «Pantalla fija».
+- **El servidor rechaza** guardar un rol con ese permiso si además modifica algo (también
+  reportar) o lee credenciales, auditoría o usuarios (`problemaPantallaFija`, en `validarCodigos`:
+  crear y editar). Quien quiera avisar desde el púlpito lo hace con SU cuenta.
+- Plantilla «Pantalla fija (púlpito o sala)»: mapa, estado del tren, incidencias, monitoreo.
+- Cómo: Roles → plantilla «Pantalla fija» → Usuarios → nuevo usuario con ese rol (y su tren).
+- Trampa cazada por la prueba: `PERMISO_PANTALLA_FIJA` declarado DESPUÉS de `NO_MODIFICAN_NUNCA`
+  valía `undefined` al calcular `MODIFICAN` → la plantilla salía como «escribe» y el servidor la
+  rechazaba. Va declarado antes, con el porqué.
+
+**Eliminar usuarios desde Usuarios** (el borrado existía en Limpieza y nadie lo encontraba)
+- Botón «Eliminar» (exige `user.manage` + `purga.definitiva`), mismo diálogo `BorrarDefinitivo`.
+- La vista previa cuenta TODO el rastro de trabajo, no sólo firmas: antes una persona que había
+  avisado una caída desde el púlpito salía «se puede borrar» y la base lo rechazaba
+  (`incident_avisos.userId` es RESTRICT) con un 500 mudo. Con rastro → no se borra, se dice qué
+  tiene y se ofrece **«Desactivar ahora»** ahí mismo. Sin rastro (cuenta creada por error) → se borra
+  escribiendo el correo.
+- Filtro Activos / Desactivados / Todos (por defecto Activos).
+
+**Verificación**
+- `verificar:sesion` reescrito: captura, señales de persona (y que NO estén scroll/focus), `isTrusted`,
+  escrituras en curso, exención única por permiso, cierre entre pestañas, salida con motivo,
+  `useAutoOcultar`, renovación única (b. 170). Probado reintroduciendo 9 fallos: los caza todos.
+- Backend: `sesion-bloque-183.spec.ts` (14), `purga.spec` (+2); 1.787 pruebas, verificar, build.
+- Recorridos con reloj: 40 min sin un clic (rueda, tecla, puntero) sigue dentro; 13 min aviso; un
+  gesto lo retira; 15 min cierra y lo dice; dos pestañas; Salir cierra la otra; rechazo del servidor
+  dice el motivo; pantalla fija 8 h dentro; eliminar y «Desactivar ahora». Contra el servidor real:
+  respuesta perdida recuperada; sucesora usada → robo. Barrido de 61 pantallas: 0 errores.
+
+## §107 · BLOQUE 184 — FICHAS TÉCNICAS, EL CONO QUE DICE LO QUE VE, Y LA CI EN VERDE (28-29/10/2026)
+
+Pedido: que el cono del mapa refleje lo que ve cada cámara «con sus parámetros», datos que llena el
+técnico «pero fehacientes»; catálogo de modelos en Activos y un asistente que lea la ficha en PDF.
+Mapa en 2D (2,5D y obstáculos esperan la reunión); leer la cámara por ISAPI, más adelante.
+Y: «verifica todo el código, corrige bugs y fallas de seguridad, quiero mi GitHub verde».
+
+**Por qué la CI estaba en rojo (los tres trabajos)**
+- *Migraciones*: `planos.actualizadoEn` tenía DEFAULT en la base y no `@default(now())` en el esquema.
+  Se comprueba con el motor de Prisma en WASM (`@prisma/schema-engine-wasm` + adapter-pg): el `migrate
+  diff` de esquema contra migraciones da vacío. Sin binario nativo, se puede.
+- *Auditoría de dependencias*: backend 5 altas + 2 críticas, frontend 6 altas. Cerradas con
+  `overrides` a la versión PARCHEADA de la transitiva (multer, body-parser 2 —un override viejo
+  obligaba a express 5 a usar la 1—, qs, js-yaml, fast-uri, handlebars, proxy-addr). Cero majors
+  directas, nunca `--force`. Frontend: axios y vite dentro de su mayor. Detalle: `docs/DEPENDENCIAS.md`.
+- *Recorridos*: el 03 seguía el formulario de antes del bloque 180; el 05b recorría sólo el menú y
+  no las pestañas de cada módulo; el 08 cazó dos desbordes reales en 390 px (Avance de órdenes,
+  Equipos conocidos).
+
+**Lo construido**
+- `modelos/`: catálogo (alta, soporte del fabricante, verificar) y `fichas_opticas` (migración
+  `20261028030000_fichas_opticas`, aditiva). Una ficha = modelo + lente: resolución, ángulos (y en
+  tele), zoom óptico, las 4 distancias DORI y el IR. **Las distancias se COPIAN de la ficha**: la
+  fórmula se desvía 20-40 % (67 m publicado contra 43 m teóricos); sólo sirve para cazar un 670.
+- Fehaciente: **PDF obligatorio** (por sus bytes), una persona declara y **OTRA verifica**
+  (`wo.approve`); corregir un número quita la verificación; guardar SIN cambios no la quita. Borrar:
+  quien la cargó si nadie la verificó, o el jefe; nunca con cámaras que la usan. Se audita antes.
+- Asistente: el NAVEGADOR saca el texto del PDF (pdf.js, carga diferida) y `/modelos/leer-ficha`
+  PROPONE; con varias lentes no elige (va en la etiqueta de la cámara). `/modelos/revisar-ficha`
+  aplica las MISMAS reglas que el guardado mientras se escribe.
+- Mapa: con ficha, 4 franjas (cara / persona / qué hace / hay alguien) al zoom en que quedó la
+  cámara; borde punteado = sin verificar; cotas en metros sobre la elegida (sin pisarse); capa
+  «Noche» (sólo su IR, sin la luz de la planta); leyenda; «Lo que ve» en la tarjeta. Sin ficha, el
+  cono a mano de siempre: no se inventan franjas. Editor: el zoom (si tiene) y nada de ángulo/alcance.
+- Activos: la ficha se ELIGE en la cámara (las de su modelo primero; `null` la quita).
+- Documentos: el PDF de una ficha sale como «Ficha técnica» y no se borra suelto (es la prueba).
+
+**Bugs encontrados al revisar (ninguno rompía el build)**
+- **Ninguna cámara ni antena conectada a su switch se podía editar desde Activos**: el formulario
+  devolvía `switchPortId` (lo escribe Conexiones) y el servidor lo rechazaba. Fijado por
+  `editar-ficha-de-activo.spec.ts`, que cruza esquema, DTO y lo que el formulario quita.
+- **Un día de formulario salía un día antes**: `new Date('2026-10-30')` es medianoche UTC = 19:00
+  del 29 en Perú. Pasaba al asignar una OM con fecha, en el fin de soporte (retrocedía un día en
+  cada guardado), zonas, cables, preventivo. `diaDePlanta()` en `common/dia-de-planta.ts`: un día
+  suelto se guarda a mediodía de la planta. Lo histórico NO se toca.
+- **El QR o el informe de un equipo no se podía bajar** si su código llevaba una «—» o comillas
+  tipográficas: Node rechaza la cabecera entera (500). `common/descarga.ts` arma TODAS las
+  `Content-Disposition` (ASCII + `filename*` UTF-8); 16 sitios lo hacían a mano. Lo vigila una prueba.
+- 25 `catch { avisar('No se pudo X.') }` tiraban el motivo del servidor («contraseña incorrecta»
+  salía «No se pudo actualizar la IP»). Ahora `mensajeDeError`.
+- **El aviso de error de un formulario largo no se veía**: arriba del cuerpo, con el botón en la
+  barra de abajo. `Modal` lo trae a la vista al aparecer (salvo si se está escribiendo en un campo).
+  Lo cazó el recorrido 9 al primer intento.
+- Borrar un documento auditaba DESPUÉS de borrar (regla del bloque 15). P2003 decía «el registro
+  relacionado no existe» también cuando era un borrado bloqueado. `verificar-roles` daba un aviso
+  falso con permisos nombrados por constante (`can(PERMISO_PANTALLA_FIJA)`).
+
+**La CI, después**
+- Recorrido 9 (fichas): lee un PDF fabricado en la prueba con el texto de una ficha Hikvision real.
+  Para subirlo hace falta almacén: la CI levanta `s3rver@3.7.1` (S3 en Node, sin Docker) y fija
+  `LANG=C.UTF-8` (sin él, Chromium en Linux descarga «download» en vez de «Ficha técnica…pdf»).
+- El barrido del 05 leía «Cargando planos…» como pantalla vacía (carrera: pasaba al reintentar).
+  Espera a que termine de cargar, con el texto VISIBLE (`useInnerText`).
+- Resultado: 1.849 pruebas, verificadores de los dos lados, typecheck, lint, build, diff de
+  migraciones vacío y 29 recorridos en la réplica de la CI. WebKit no existe aquí: el perfil móvil
+  sólo corre en Chromium; lo de Safari sólo lo dice la CI.
+
+**Errores míos, que es lo que hay que recordar**
+- **`Write` sobre un archivo que YA EXISTÍA**: creí crear `common/dia-de-planta.ts` y pisé el del
+  bloque 158 (`omVencida`, `corteDeVencidas`). Lo cazó el typecheck al instante y se restauró de la
+  copia del equipo (md5 idéntico). Regla: antes de «crear» un archivo, `ls` de la ruta.
+- Un recorrido que crea datos con nombre fijo choca consigo mismo en el reintento y el informe dice
+  ESO en vez del fallo de verdad: nombre único por intento.

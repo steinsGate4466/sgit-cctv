@@ -8,6 +8,7 @@ import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
 import { useDialogos } from '../components/Dialogos';
 import { OpcionesDeUbicacion } from '../ubicaciones';
+import { mensajeDeError } from '../avisos';
 
 export default function Cabinets() {
   const { avisar } = useDialogos();
@@ -71,7 +72,7 @@ export default function Cabinets() {
       await api.post('/cabinets/' + photoFor.id + '/photo', fd);
       setPhotoFor(null); setFile(null);
       await load();
-    } catch { await avisar('No se pudo subir la foto.'); }
+    } catch (err) { await avisar(mensajeDeError(err, 'subir la foto')); }
     finally { setUploading(false); }
   }
   async function viewPhoto(g: any) {

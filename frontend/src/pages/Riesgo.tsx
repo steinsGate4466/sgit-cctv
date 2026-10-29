@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
+import { Link } from 'react-router-dom';
 import { plural } from '../formato';
 import { ComoSeCalcula } from '../components/Patron';
 
@@ -204,6 +205,11 @@ export default function Riesgo() {
                   <span key={m} className="chip">{m}</span>
                 ))}
               </div>
+              {/* Bloque 184 · la puerta de entrada: sin ella este aviso era un
+                  reproche sin tarea (el catálogo no tenía pantalla). */}
+              {can('asset.read') && (
+                <div style={{ marginTop: 8 }}><Link to="/fichas">{'Llenarlas en Fichas técnicas →'}</Link></div>
+              )}
             </div>
           )}
 
