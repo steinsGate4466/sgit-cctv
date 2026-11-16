@@ -370,7 +370,7 @@ export default function PlanosEditor() {
 
       <div className="planos-cabecera">
         <div className="desliza"><table className="tabla">
-          <thead><tr><th>Plano</th><th>Zona</th><th>Versión</th><th>Estado</th><th>Equipos</th><th></th></tr></thead>
+          <thead><tr><th>Plano</th><th>Zona</th><th>Versión</th><th>Estado</th><th>Equipos</th><th aria-label="Acciones"></th></tr></thead>
           <tbody>
             {planos.map((p) => (
               <tr key={p.id} className={abierto === p.id ? 'fila-activa' : undefined}>

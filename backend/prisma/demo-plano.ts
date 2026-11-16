@@ -220,6 +220,14 @@ async function cableadoYRiesgoDeDemo(planoId: string, zonaLoc: Map<string, strin
       create: { assetId: a.id, portCount: 16, poePorts: 8, vendor: 'TP-Link', switchRole: 'POE_ACCESO', capa: 'CAPA_2', gestionable: true, soportaVlan: true },
     });
     await colocar(planoId, a.id, enPx(sw.sitio), sw.sitio);
+    /* Bloque 186 · LA SUBIDA AL CORE. Sin ella el switch de línea no llegaba al grabador y la
+       capa «Impacto» no tenía nada que enseñar: sus cámaras ya estaban aisladas antes de quitarlo.
+       Se usa un puerto LIBRE del core de demo, si la demo de infraestructura está cargada. */
+    const core = await prisma.asset.findUnique({ where: { assetCode: 'DEMO-SW-T1-CORE' }, select: { id: true } });
+    if (core && !(await prisma.switchPort.findUnique({ where: { connectedAssetId: a.id } }))) {
+      const libre = await prisma.switchPort.findFirst({ where: { switchId: core.id, connectedAssetId: null }, orderBy: { portNumber: 'asc' } });
+      if (libre) await prisma.switchPort.update({ where: { id: libre.id }, data: { connectedAssetId: a.id } });
+    }
     let n = 0;
     for (const codigo of sw.camaras) {
       n += 1;

@@ -260,7 +260,7 @@ export default function Paradas() {
         <table className="tabla">
           <thead>
             <tr><th>Tren</th><th>Prevista</th><th>Real</th><th>Duró</th><th>Desvío</th>
-              <th>Estado</th><th>Origen</th><th className="num">Movida</th><th className="num">OM</th><th></th></tr>
+              <th>Estado</th><th>Origen</th><th className="num">Movida</th><th className="num">OM</th><th aria-label="Acciones"></th></tr>
           </thead>
           <tbody>
             {lista.map((p) => (

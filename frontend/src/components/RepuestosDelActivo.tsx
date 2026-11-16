@@ -50,7 +50,7 @@ export default function RepuestosDelActivo({ assetId }: { assetId: string }) {
     <>
       <div className="section-title">Repuestos para este equipo</div>
       <table className="tabla">
-        <thead><tr><th>Repuesto</th><th>SAP</th><th className="num">En almacén</th><th></th></tr></thead>
+        <thead><tr><th>Repuesto</th><th>SAP</th><th className="num">En almacén</th><th aria-label="Acciones"></th></tr></thead>
         <tbody>
           {lista.map((r: any) => {
             const sinStock = (r.currentStock ?? 0) <= 0;

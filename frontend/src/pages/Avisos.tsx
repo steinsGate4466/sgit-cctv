@@ -255,7 +255,7 @@ export default function Avisos() {
               <div className="card">
                 <table>
                   <thead>
-                    <tr><th>Cuándo</th><th>Qué era</th><th>Por qué falló</th><th></th></tr>
+                    <tr><th>Cuándo</th><th>Qué era</th><th>Por qué falló</th><th aria-label="Acciones"></th></tr>
                   </thead>
                   <tbody>
                     {lista.map((n) => (

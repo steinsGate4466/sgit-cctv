@@ -11,6 +11,7 @@ import { IconoEquipo, NOMBRE_ICONO, iconoDe } from './Marcador';
 import LoQueVe from './LoQueVe';
 import ReportarCaida from '../ReportarCaida';
 import ReportarAveria from '../ReportarAveria';
+import PanelDelEquipo from '../PanelDelEquipo';
 import { TIPO_DE_AVISO_ES, tipoDeAviso, tipoDeOrdenSugerido } from '../../avisoSap';
 
 /**
@@ -30,6 +31,10 @@ import { TIPO_DE_AVISO_ES, tipoDeAviso, tipoDeOrdenSugerido } from '../../avisoS
  * para quien trabaja órdenes), con sus permisos y su auditoría. El mapa no
  * gana una regla propia; sólo deja de mandarte al QR para decir «no veo».
  * `verificar:mapa` sólo admite ESOS dos formularios de escritura.
+ *
+ * GESTIONAR SIN SALIR DEL PLANO — bloque 186. «Gestionar» abre ENCIMA la ventana
+ * `PanelDelEquipo` (trabajo, historial, repuestos, documentos): son las piezas de
+ * cada módulo, con sus permisos. Al cerrarla sigues en el mismo punto.
  */
 const ESTADO: Record<string, string> = { ok: 'Operativo', alerta: 'Con alerta', caida: 'Sin servicio', sindato: 'Sin dato' };
 const TOPE_TIA = 90;
@@ -89,6 +94,7 @@ export default function TarjetaEquipo({ e, cable, cablesDelSwitch, onCerrar, onR
      número) se sigue viendo hasta cerrar la tarjeta. */
   const [reportado, setReportado] = useState(false);
   const alReportar = () => { setReportado(true); onReportado?.(); };
+  const [gestionar, setGestionar] = useState(false);
 
   return (
     <aside className="tarjeta-mapa" aria-live="polite">
@@ -263,7 +269,7 @@ export default function TarjetaEquipo({ e, cable, cablesDelSwitch, onCerrar, onR
             <Link className={e.estado === 'ok' ? 'btn-mini' : 'btn-primary'} to={generarOm}>Generar OM</Link>
           )}
           {(can('asset.read') || can('activos.mirar')) && (
-            <Link className="btn-mini" to={`/a/${e.assetId}`}>Ficha</Link>
+            <button type="button" className="btn-mini" onClick={() => setGestionar(true)}>Gestionar</button>
           )}
           {esSwitch && can('asset.update') && (
             <Link className="btn-mini" to={`/conexiones?switch=${encodeURIComponent(e.assetId)}`}>Editar puertos</Link>
@@ -282,6 +288,10 @@ export default function TarjetaEquipo({ e, cable, cablesDelSwitch, onCerrar, onR
           </section>
         )}
       </div>
+      {gestionar && (
+        <PanelDelEquipo assetId={e.assetId} codigo={e.codigo} generarOm={generarOm}
+          alCerrar={() => setGestionar(false)} alCambiar={onReportado} />
+      )}
     </aside>
   );
 }

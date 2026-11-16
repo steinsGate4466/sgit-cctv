@@ -9,7 +9,7 @@ import { Prisma, RootCause } from '../../generated/prisma/client';
 import * as argon2 from 'argon2';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
-import { descendientes, filtroDeUbicaciones } from '../../common/ambito-planta';
+import { descendientes } from '../../common/ambito-planta';
 import { filtroConAmbito } from '../../common/ambito-usuario';
 import { BandejaSalidaService } from '../notificaciones/bandeja-salida.service';
 import { omCerrada, omAsignada, omEnEspera, tuReporteSeResolvio } from '../notificaciones/plantillas';
@@ -196,7 +196,7 @@ export class MaintenanceService {
        viene del formulario (`dto.code`, un número de SAP escrito a mano) no se
        reintenta —repetirlo daría el mismo choque tres veces—: ese conflicto es
        real y tiene que llegarle a quien lo tecleó. */
-    const creada = await conReintentoDeCodigo(async (n) => this.prisma.workOrder.create({
+    const creada = await conReintentoDeCodigo(async () => this.prisma.workOrder.create({
       data: {
         code: dto.code || (await this.nextCode()),
         type: dto.type,

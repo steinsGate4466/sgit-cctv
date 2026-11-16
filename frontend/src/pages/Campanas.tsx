@@ -281,7 +281,7 @@ export default function Campanas() {
       ) : (
         <div className="desliza"><table className="tabla">
           <thead><tr><th>Campaña</th><th>Tren</th><th>Plan</th><th>Estado</th>
-            <th className="num">Aprobado</th><th></th></tr></thead>
+            <th className="num">Aprobado</th><th aria-label="Acciones"></th></tr></thead>
           <tbody>
             {lista.map((x) => (
               <tr key={x.id}>
@@ -380,7 +380,7 @@ export default function Campanas() {
               <p>Reparte las zonas: quién, cuándo y cuánto en cada una.</p></div>
           ) : (
             <div className="desliza"><table className="tabla">
-              <thead><tr><th>Zona</th><th>Plan</th><th className="num">Avance</th><th>Estado</th><th></th></tr></thead>
+              <thead><tr><th>Zona</th><th>Plan</th><th className="num">Avance</th><th>Estado</th><th aria-label="Acciones"></th></tr></thead>
               <tbody>
                 {abierta.zonas.map((z: any) => (
                   <tr key={z.id}>

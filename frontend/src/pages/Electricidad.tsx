@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client';
 import Modal from '../components/Modal';
-import BotonPurgar from '../components/BotonPurgar';
 import { EsqueletoTabla } from '../components/Esqueleto';
 import { useAuth } from '../auth/AuthContext';
 import { useDialogos } from '../components/Dialogos';
@@ -263,7 +262,7 @@ export default function Electricidad() {
       ) : (
         <div className="desliza"><table className="tabla">
           <thead><tr><th>Código</th><th>Nombre</th><th>Tipo</th><th>Dónde</th>
-            <th className="num">Circuitos</th><th></th></tr></thead>
+            <th className="num">Circuitos</th><th aria-label="Acciones"></th></tr></thead>
           <tbody>
             {tableros.map((t) => (
               <tr key={t.id}>
@@ -391,7 +390,7 @@ export default function Electricidad() {
           ) : (
             <div className="desliza"><table className="tabla">
               <thead><tr><th>N°</th><th>Qué alimenta</th><th>Protección</th><th>Estado</th>
-                <th>Equipos</th><th></th></tr></thead>
+                <th>Equipos</th><th aria-label="Acciones"></th></tr></thead>
               <tbody>
                 {detalle.circuitos.map((c: any) => (
                   <tr key={c.id}>

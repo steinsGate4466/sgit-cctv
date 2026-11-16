@@ -224,7 +224,7 @@ export default function Ipam() {
       ) : (
         <div className="desliza"><table className="tabla">
           <thead><tr><th>Subred</th><th>Nombre</th><th>Propósito</th><th>VLAN</th>
-            <th className="num">Útiles</th><th className="num">Ocupada</th><th></th></tr></thead>
+            <th className="num">Útiles</th><th className="num">Ocupada</th><th aria-label="Acciones"></th></tr></thead>
           <tbody>
             {subredes.map((s) => (
               <tr key={s.id}>
@@ -235,7 +235,7 @@ export default function Ipam() {
                 <td className="num">{s.vlan ?? <span className="muted">—</span>}</td>
                 <td className="num">{s.utiles}</td>
                 <td className="num">
-                  <b style={{ color: s.pctOcupada > 85 ? 'var(--crit)' : s.pctOcupada > 60 ? 'var(--warn)' : 'var(--ok)' }}>
+                  <b style={{ color: s.pctOcupada > 85 ? 'var(--crit)' : s.pctOcupada > 60 ? 'var(--warn-texto)' : 'var(--ok-texto)' }}>
                     {s.pctOcupada}%
                   </b>
                   <div className="muted" style={{ fontSize: 11 }}>{s.libres} libres</div>

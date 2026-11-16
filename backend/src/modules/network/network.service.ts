@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../../prisma/prisma.service';
 import { resolverContextoDePlanta } from '../../common/plant-context';
 import { alcanza, ambitoDelUsuario } from '../../common/ambito-usuario';
-import { GrafoRed, alcanzables, impactoDeCaida, porDanoPotencial } from './impacto';
+import { GrafoRed, alcanzables, enlacesDelGrafo, impactoDeCaida, porDanoPotencial } from './impacto';
 import { computeEffectiveStatuses } from '../../common/asset-status';
 import {
   soportesDeCamaras, cadenaDeCamara, resumirDependencias,
@@ -94,20 +94,7 @@ export class NetworkService {
       activos.filter((a) => a.type === 'NVR').map((a) => [a.assetCode.toUpperCase(), a.id]),
     );
 
-    const lista: GrafoRed['enlaces'] = [];
-    for (const p of puertos) {
-      if (p.connectedAssetId) lista.push({ a: p.switchId, b: p.connectedAssetId });
-    }
-    for (const e of enlaces) {
-      lista.push({ a: e.endpointAId, b: e.endpointBId, esAnillo: e.isRing });
-    }
-    for (const c of camaras) {
-      // 1) El campo bueno: la referencia al grabador.
-      let nvr = c.nvrId && idsDeNvr.has(c.nvrId) ? c.nvrId : null;
-      // 2) Sólo si no hay referencia, se intenta el nombre (datos antiguos).
-      if (!nvr) nvr = nvrPorCodigo.get((c.nvrName || '').trim().toUpperCase()) ?? null;
-      if (nvr) lista.push({ a: c.assetId, b: nvr });
-    }
+    const lista = enlacesDelGrafo({ puertos, enlaces, camaras, idsDeNvr, nvrPorCodigo });
 
     const g: GrafoRed = {
       nodos: activos.map((a) => a.id),

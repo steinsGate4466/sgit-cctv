@@ -71,9 +71,11 @@ export class CabinetsController {
     return f;
   }
 
+  /* Bloque 185 · la foto se ve en la MISMA ficha del QR: si la ficha se abre con
+     `activos.mirar` y la foto no, la ficha salía a medias (regla del bloque 77). */
   @AmbitoDe('cabinet')
   @Get(':id/photo')
-  @RequirePermissions('asset.read')
+  @RequireAlguno('asset.read', 'activos.mirar')
   async photo(@Param('id') id: string, @Res() res: Response) {
     const { buffer, contentType } = await this.cabinets.getPhoto(id);
     res.setHeader('Content-Type', contentType);

@@ -676,7 +676,7 @@ export class PurgaService {
     }));
   }
 
-  async vistaPreviaRecurso(clave: string, id: string, permisos?: string[], rol?: string | null) {
+  async vistaPreviaRecurso(clave: string, id: string, permisos?: string[], _rol?: string | null) {
     const R = porClave(clave);
     if (!R) throw new BadRequestException(`No sé borrar "${clave}".`);
 

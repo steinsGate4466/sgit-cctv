@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { api } from '../api/client';
-import FiltroAmbito, { Ambito, AMBITO_VACIO, AvisoAmbito } from '../components/FiltroAmbito';
+import FiltroAmbito, { Ambito, AMBITO_VACIO } from '../components/FiltroAmbito';
 import { plural, PRIORIDAD_ES } from '../formato';
 
 /**

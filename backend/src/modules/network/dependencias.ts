@@ -334,7 +334,6 @@ export function soportesDeCamaras(
   equipos: EquipoParaDependencias[],
   enlaces: EnlaceParaDependencias[],
 ): Soporte[] {
-  const porId = new Map(equipos.map((e) => [e.id, e]));
   const nodos = equipos.map((e) => e.id);
   const raices = equipos
     .filter((e) => papelDe(e.tipo) === 'GRABADOR' || papelDe(e.tipo) === 'SERVIDOR')

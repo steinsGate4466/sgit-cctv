@@ -188,7 +188,7 @@ export default function Limpieza() {
             </div>
             <div className="desliza"><table className="tabla">
               <thead>
-                <tr><th>Código</th><th>Tipo</th><th>Dónde</th><th>Creado</th><th>Señales</th><th></th></tr>
+                <tr><th>Código</th><th>Tipo</th><th>Dónde</th><th>Creado</th><th>Señales</th><th aria-label="Acciones"></th></tr>
               </thead>
               <tbody>
                 {candidatos.map((a) => (
@@ -264,7 +264,7 @@ export default function Limpieza() {
             )}
             <div className="desliza"><table className="tabla">
               <thead>
-                <tr><th>Código</th><th>Tipo</th><th>Estado</th><th>Equipo</th><th>Creada</th><th>Señales</th><th></th></tr>
+                <tr><th>Código</th><th>Tipo</th><th>Estado</th><th>Equipo</th><th>Creada</th><th>Señales</th><th aria-label="Acciones"></th></tr>
               </thead>
               <tbody>
                 {candidatosOm.map((o) => (
@@ -304,7 +304,7 @@ export default function Limpieza() {
             altura— <b>no se puede borrar</b>: dejaría documentos firmados por nadie. Se desactivan desde Usuarios.
           </div>
           <div className="desliza"><table className="tabla">
-            <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th><th></th></tr></thead>
+            <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th><th aria-label="Acciones"></th></tr></thead>
             <tbody>
               {usuarios.map((u: any) => (
                 <tr key={u.id}>

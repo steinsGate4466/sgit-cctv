@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import * as https from 'https';
 import { ConfiguracionService } from './configuracion.service';
 
@@ -21,8 +21,6 @@ import { ConfiguracionService } from './configuracion.service';
  */
 @Injectable()
 export class TelegramClient {
-  private readonly logger = new Logger('Telegram');
-
   constructor(private readonly config: ConfiguracionService) {}
 
   /**

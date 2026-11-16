@@ -148,7 +148,7 @@ export default function CatalogosEditables() {
         <div className="card" style={{ marginTop: 12 }}>
           <table>
             <thead>
-              <tr><th>Nombre</th><th>Familia</th><th>Código</th><th>Orden</th><th>Estado</th>{editable && <th></th>}</tr>
+              <tr><th>Nombre</th><th>Familia</th><th>Código</th><th>Orden</th><th>Estado</th>{editable && <th aria-label="Acciones"></th>}</tr>
             </thead>
             <tbody>
               {datos.items.map((i: any) => (

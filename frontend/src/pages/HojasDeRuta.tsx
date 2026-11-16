@@ -258,7 +258,7 @@ export default function HojasDeRuta() {
                   <th>Pasos</th>
                   <th>Equipos</th>
                   <th>Aprobada</th>
-                  <th></th>
+                  <th aria-label="Acciones"></th>
                 </tr>
               </thead>
               <tbody>

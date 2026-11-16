@@ -137,7 +137,7 @@ export default function Cabinets() {
       <div className="card">
         <table>
           <thead>
-            <tr><th>Rótulo</th><th>Nombre</th><th>Ubicación</th><th>Referencia</th><th>Equipos</th><th>Foto</th>{can('asset.update') && <th></th>}</tr>
+            <tr><th>Rótulo</th><th>Nombre</th><th>Ubicación</th><th>Referencia</th><th>Equipos</th><th>Foto</th>{can('asset.update') && <th aria-label="Acciones"></th>}</tr>
           </thead>
           <tbody>
             {rows.map((g) => (

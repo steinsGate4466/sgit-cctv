@@ -78,7 +78,7 @@ export default function Predictive() {
       <div className="card">
         <table>
           <thead>
-            <tr><th>Activo</th><th>Ubicación</th><th>Índice</th><th>Nivel</th><th>Señal principal</th><th></th></tr>
+            <tr><th>Activo</th><th>Ubicación</th><th>Índice</th><th>Nivel</th><th>Señal principal</th><th aria-label="Acciones"></th></tr>
           </thead>
           <tbody>
             {rows.map((r) => (

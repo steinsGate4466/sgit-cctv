@@ -152,7 +152,7 @@ export default function Preventive() {
       <div className="card">
         <table>
           <thead>
-            <tr><th>Activo</th><th>Ubicación</th><th>Zona</th><th>Intervalo</th><th>Último</th><th>Próximo</th><th>Estado</th>{can('wo.create') && <th></th>}</tr>
+            <tr><th>Activo</th><th>Ubicación</th><th>Zona</th><th>Intervalo</th><th>Último</th><th>Próximo</th><th>Estado</th>{can('wo.create') && <th aria-label="Acciones"></th>}</tr>
           </thead>
           <tbody>
             {plans.map((p) => (
@@ -180,7 +180,7 @@ export default function Preventive() {
       <div className="card">
         <table>
           <thead>
-            <tr><th>Código</th><th>Activo</th><th>Zona</th><th>Actividad</th><th>Estado</th><th>Programada</th><th></th></tr>
+            <tr><th>Código</th><th>Activo</th><th>Zona</th><th>Actividad</th><th>Estado</th><th>Programada</th><th aria-label="Acciones"></th></tr>
           </thead>
           <tbody>
             {oms.map((w) => (
@@ -286,7 +286,7 @@ function ProgramaPreventivo({ programa, puedeVincular, onVincular }: {
         <div className="desliza">
           <table>
             <thead>
-              <tr><th>Equipo</th><th>Toca</th><th>Programada</th><th>OM</th>{puedeVincular && <th></th>}</tr>
+              <tr><th>Equipo</th><th>Toca</th><th>Programada</th><th>OM</th>{puedeVincular && <th aria-label="Acciones"></th>}</tr>
             </thead>
             <tbody>
               {filas.map((f) => (

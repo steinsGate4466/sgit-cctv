@@ -29,7 +29,6 @@ export default function Dashboard() {
   const { can } = useAuth();
   const [kpis, setKpis] = useState<any>(null);
   const [ov, setOv] = useState<any>(null);
-  const [metrics, setMetrics] = useState<any>(null);
   const [causes, setCauses] = useState<any[]>([]);
   const [bandeja, setBandeja] = useState<any>(null);
   const [criticos, setCriticos] = useState<any[]>([]);
@@ -39,12 +38,6 @@ export default function Dashboard() {
     Promise.all([
       api.get('/dashboard/kpis').then((r) => r.data).catch(() => null),
       api.get('/dashboard/overview').then((r) => r.data).catch(() => null),
-      /* Bloque 171 · sólo si se puede leer: sin el permiso daba 403 y el aviso
-         «no tienes permiso» salía encima del Dashboard de quien SÍ lo tiene
-         en su menú (técnico, jefe de tren, consultor). */
-      can('troubleshooting.read')
-        ? api.get('/troubleshooting/metrics').then((r) => r.data).catch(() => null)
-        : Promise.resolve(null),
       api.get('/dashboard/root-causes').then((r) => r.data).catch(() => []),
       // La bandeja y los puntos criticos YA existian como pantallas; el
       // tablero solo trae su resumen para contestar lo primero que uno se
@@ -59,8 +52,8 @@ export default function Dashboard() {
          al lado; aquí va la foto de hoy, que es lo que se mira al entrar. */
       api.get('/indicadores', { params: { dias: 90 } })
         .then((r) => r.data?.reparto).catch(() => null),
-    ]).then(([k, o, m, c, b, cr, rep]) => {
-      setKpis(k); setOv(o); setMetrics(m); setCauses(c || []);
+    ]).then(([k, o, c, b, cr, rep]) => {
+      setKpis(k); setOv(o); setCauses(c || []);
       setBandeja(b); setCriticos(cr.slice(0, 3)); setReparto(rep); setLoading(false);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -323,17 +316,4 @@ function Kpi({ label, value, cls, hint, ir }: {
 
 function Panel({ title, children }: { title: string; children: ReactNode }) {
   return <div className="panel"><h3>{title}</h3>{children}</div>;
-}
-
-function availClass(pct: number | null | undefined) {
-  if (pct == null) return '';
-  if (pct >= 95) return 'ok';
-  if (pct >= 80) return 'warn';
-  return 'crit';
-}
-function complianceClass(pct: number | null | undefined) {
-  if (pct == null) return '';
-  if (pct >= 90) return 'ok';
-  if (pct >= 70) return 'warn';
-  return 'crit';
 }

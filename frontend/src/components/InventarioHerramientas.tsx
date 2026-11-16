@@ -138,7 +138,7 @@ export default function InventarioHerramientas() {
       <div className="card">
         <table>
           <thead>
-            <tr><th>Código</th><th>Herramienta</th><th>Familia</th><th>Se sugiere en</th><th>Revisada</th>{can('inventory.manage') && <th></th>}</tr>
+            <tr><th>Código</th><th>Herramienta</th><th>Familia</th><th>Se sugiere en</th><th>Revisada</th>{can('inventory.manage') && <th aria-label="Acciones"></th>}</tr>
           </thead>
           <tbody>
             {rows.map((t) => (

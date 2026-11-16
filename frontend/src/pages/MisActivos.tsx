@@ -4,7 +4,6 @@ import { api } from '../api/client';
 import Icono from '../components/Iconos';
 import { EsqueletoTablero } from '../components/Esqueleto';
 import { Cifras, ComoSeCalcula, Detalle, Titular, Tono } from '../components/Patron';
-import { useAuth } from '../auth/AuthContext';
 import {
   useVolverALaPantalla, useRefrescoDePulpito, useEdadDelDato,
 } from '../useVolverALaPantalla';
@@ -49,7 +48,6 @@ const LETRA_FONDO: Record<string, string> = { A: 'var(--crit-fondo)', B: 'var(--
 const LETRA_COLOR: Record<string, string> = { A: 'var(--crit-texto)', B: 'var(--naranja-texto)', C: 'var(--indigo-texto)' };
 
 export default function MisActivos() {
-  const { can } = useAuth();
 
   const [trenes, setTrenes] = useState<any[]>([]);
   const [code, setCode] = useState('');

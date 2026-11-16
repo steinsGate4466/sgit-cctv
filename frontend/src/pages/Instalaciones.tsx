@@ -378,7 +378,7 @@ export default function Instalaciones() {
       ) : (
         <table className="tabla">
           <thead>
-            <tr><th>Código</th><th>Qué</th><th>Dónde</th><th>Estado</th><th>Pidió</th><th>Falta</th><th></th></tr>
+            <tr><th>Código</th><th>Qué</th><th>Dónde</th><th>Estado</th><th>Pidió</th><th>Falta</th><th aria-label="Acciones"></th></tr>
           </thead>
           <tbody>
             {lista.map((i) => (

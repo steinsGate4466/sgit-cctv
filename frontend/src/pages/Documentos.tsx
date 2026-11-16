@@ -161,7 +161,7 @@ export default function Documentos() {
           <thead>
             <tr>
               <th>Título</th><th>Categoría</th><th>Pertenece a</th>
-              <th>Versión</th><th>Subido</th><th></th>
+              <th>Versión</th><th>Subido</th><th aria-label="Acciones"></th>
             </tr>
           </thead>
           <tbody>

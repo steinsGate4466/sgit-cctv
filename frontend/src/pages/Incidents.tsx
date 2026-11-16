@@ -10,7 +10,7 @@ import Icono from '../components/Iconos';
 import { useDialogos } from '../components/Dialogos';
 import { mensajeDeError } from '../avisos';
 import { fechaHora, PRIORIDAD_ES, plural } from '../formato';
-import { fechaCorta, fechaTabla, haceCuanto } from '../fechas';
+import { fechaTabla, haceCuanto } from '../fechas';
 import { useBusquedaEnVivo } from '../useBusquedaEnVivo';
 import ElegirConClics from '../components/ElegirConClics';
 import AvisoSapDeIncidencia from '../components/AvisoSapDeIncidencia';
@@ -26,7 +26,6 @@ const CATEGORY_GROUPS: { label: string; items: string[] }[] = [
   { label: 'Eléctrico', items: ['CORTE_ENERGIA', 'TABLERO_ELECTRICO', 'VARIACION_TENSION', 'CORTOCIRCUITO', 'SOBRECARGA', 'PUESTA_A_TIERRA', 'CABLEADO_ELECTRICO', 'TRANSFORMADOR', 'FALLA_UPS', 'FALLA_FUENTE_POE'] },
   { label: 'Entorno de planta', items: ['FALLA_GABINETE', 'AMBIENTAL_SIDERURGICO', 'SEGURIDAD_FISICA', 'CONFIGURACION_FIRMWARE', 'GENERAL'] },
 ];
-const CATEGORIES = CATEGORY_GROUPS.flatMap((g) => g.items);
 /* Bloque 172 · «Crítica» iba como VALOR: la base espera CRITICA y respondía
    «priority must be one of…». Elegir prioridad crítica al reportar daba error. */
 const PRIORITIES = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
@@ -414,7 +413,7 @@ export default function Incidents() {
                   tenía pantalla. */}
               <tr>
                 <th>Código</th><th>Título</th><th>Zona</th><th>Reportada</th>
-                <th>Prioridad</th><th>Estado</th><th>Activo</th><th></th>
+                <th>Prioridad</th><th>Estado</th><th>Activo</th><th aria-label="Acciones"></th>
               </tr>
           </thead>
           <tbody>
@@ -480,7 +479,7 @@ export default function Incidents() {
 
                   {i.resolvedAt
                     ? (
-                      <div style={{ fontSize: 11, color: 'var(--ok)' }}>
+                      <div style={{ fontSize: 11, color: 'var(--ok-texto)' }}>
                         resuelta {fechaTabla(i.resolvedAt)}
                       </div>
                     )

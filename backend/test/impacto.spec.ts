@@ -1,6 +1,4 @@
-import {
-  alcanzables, impactoDeCaida, impactoDeCorte, porDanoPotencial, GrafoRed,
-} from '../src/modules/network/impacto';
+import { alcanzables, impactoDeCaida, impactoDeCorte, porDanoPotencial, GrafoRed, enlacesDelGrafo } from '../src/modules/network/impacto';
 
 /**
  * El caso de planta, simplificado pero con su forma real:
@@ -163,5 +161,68 @@ describe('bordes', () => {
     // Y se dice así, en vez de suponer una raíz: suponerla haría que el
     // sistema informara de que todo va bien cuando no hay ni grabador.
     expect(alcanzables({ ...planta, raices: [] }).size).toBe(0);
+  });
+});
+
+/* =============================================================================
+   BLOQUE 185 · «SI CAE ESTE SWITCH, 0 CÁMARAS»
+   La asignación cámara → grabador se metía en el grafo como si fuera un cable:
+   toda cámara tenía un camino directo y quitar el switch del medio no rompía
+   nada. Se prueban las DOS mitades de la regla: con cable declarado, el camino
+   es el cable; sin cable declarado, la cámara va directa (analógica por coaxial).
+============================================================================= */
+describe('enlacesDelGrafo — la asignación al grabador no es un cable', () => {
+  const idsDeNvr = new Set(['NVR']);
+  const nvrPorCodigo = new Map([['AA-NVR-T2-01', 'NVR']]);
+  const esCamara = (id: string) => id.startsWith('CAM');
+  const grafo = (enlaces: ReturnType<typeof enlacesDelGrafo>): GrafoRed => ({
+    nodos: ['NVR', 'CORE', 'SW', 'CAM1', 'CAM2', 'CAM-ANALOGICA'], enlaces, raices: ['NVR'],
+  });
+  const datos = {
+    puertos: [
+      { switchId: 'CORE', connectedAssetId: 'NVR' }, { switchId: 'CORE', connectedAssetId: 'SW' },
+      { switchId: 'SW', connectedAssetId: 'CAM1' }, { switchId: 'SW', connectedAssetId: 'CAM2' },
+      { switchId: 'SW', connectedAssetId: null },
+    ],
+    enlaces: [],
+    camaras: [
+      { assetId: 'CAM1', nvrId: 'NVR' }, { assetId: 'CAM2', nvrId: 'NVR' },
+      { assetId: 'CAM-ANALOGICA', nvrId: 'NVR' },
+    ],
+    idsDeNvr, nvrPorCodigo,
+  };
+
+  it('cae el switch: se pierden las DOS cámaras enchufadas en él (antes salía 0)', () => {
+    const r = impactoDeCaida(grafo(enlacesDelGrafo(datos)), 'SW', esCamara);
+    expect(r.camarasAfectadas).toBe(2);
+    expect(r.pierden.sort()).toEqual(['CAM1', 'CAM2']);
+  });
+
+  it('una cámara enchufada a un switch NO lleva además una unión directa al grabador', () => {
+    const directas = enlacesDelGrafo(datos).filter((e) => e.supuesto);
+    expect(directas).toEqual([{ a: 'CAM-ANALOGICA', b: 'NVR', supuesto: true }]);
+  });
+
+  it('la cámara sin cable declarado va directa al grabador y NO se cae con el switch', () => {
+    const r = impactoDeCaida(grafo(enlacesDelGrafo(datos)), 'SW', esCamara);
+    expect(r.pierden).not.toContain('CAM-ANALOGICA');
+    expect(alcanzables(grafo(enlacesDelGrafo(datos))).has('CAM-ANALOGICA')).toBe(true);
+  });
+
+  it('una cámara que llega por un ENLACE declarado (radio, fibra) tampoco lleva la unión directa', () => {
+    const e = enlacesDelGrafo({
+      ...datos, puertos: [{ switchId: 'CORE', connectedAssetId: 'NVR' }],
+      enlaces: [{ endpointAId: 'CAM1', endpointBId: 'CORE', isRing: false }],
+      camaras: [{ assetId: 'CAM1', nvrId: 'NVR' }],
+    });
+    expect(e.filter((x) => x.supuesto)).toEqual([]);
+    expect(impactoDeCaida(grafo(e), 'CORE', esCamara).pierden).toContain('CAM1');
+  });
+
+  it('datos viejos: sin `nvrId`, el grabador sale del nombre; un nombre que no es un grabador no une nada', () => {
+    const e = enlacesDelGrafo({ ...datos, puertos: [], camaras: [
+      { assetId: 'CAM1', nvrName: 'aa-nvr-t2-01' }, { assetId: 'CAM2', nvrName: 'GRUA 2 PATIO' },
+    ] });
+    expect(e).toEqual([{ a: 'CAM1', b: 'NVR', supuesto: true }]);
   });
 });

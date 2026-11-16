@@ -184,7 +184,7 @@ export default function FichasTecnicas() {
         <div className="desliza">
           <table>
             <thead>
-              <tr><th>Modelo</th><th className="num">En planta</th><th>Lo que ve</th><th>Soporte del fabricante</th><th></th></tr>
+              <tr><th>Modelo</th><th className="num">En planta</th><th>Lo que ve</th><th>Soporte del fabricante</th><th aria-label="Acciones"></th></tr>
             </thead>
             <tbody>
               {lista.map((m) => (

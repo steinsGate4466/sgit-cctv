@@ -69,7 +69,7 @@ export default function Corrective() {
       <div className="card">
         <table>
           <thead>
-            <tr><th>Código</th><th>Activo</th><th>Zona</th><th>Actividad</th><th>Estado</th><th>Programada</th><th></th></tr>
+            <tr><th>Código</th><th>Activo</th><th>Zona</th><th>Actividad</th><th>Estado</th><th>Programada</th><th aria-label="Acciones"></th></tr>
           </thead>
           <tbody>
             {oms.map((w) => (

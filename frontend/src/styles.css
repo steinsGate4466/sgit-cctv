@@ -6,7 +6,7 @@
   --bg: #f4f6fa;
   --card: #ffffff;
   --text: #1f2733;
-  --muted: #6b7688;
+  --muted: #5f6b7e;
   --border: #e4e8ef;
   --ok: #16a34a;
   --warn: #d97706;
@@ -392,7 +392,7 @@ tr:last-child td { border-bottom: none; }
 .badge.CON_INCIDENCIA { background: #fff1e6; color: #ea580c; border-color: #f6d3ba; }
 .badge.STOCK { border-color: #d5e2f7; }
 .badge.CRITICA { border-color: #f6c9c9; }
-.badge.ALTA { background: #fff4e5; color: var(--warn); border-color: #f5dcb0; }
+.badge.ALTA { background: #fff4e5; color: var(--warn-texto); border-color: #f5dcb0; }
 .badge.MEDIA { background: #eef2f9; color: var(--steel); }
 .loading { padding: 40px; text-align: center; color: var(--muted); }
 .page-sub { color: var(--muted); }
@@ -402,7 +402,7 @@ tr:last-child td { border-bottom: none; }
 .btn-primary:hover { background: var(--navy-2); }
 .btn-mini { border: 1px solid var(--border); font-size: 12px; cursor: pointer; }
 /* Acción destructiva: se distingue para que no se pulse por error */
-.btn-mini.btn-danger { color: var(--crit); border-color: #f6c9c9; background: #fdecec; }
+.btn-mini.btn-danger { color: var(--crit-texto); border-color: #f6c9c9; background: #fdecec; }
 .btn-mini.btn-danger:hover { background: var(--crit); color: #fff; border-color: var(--crit); }
 
 /* ---------- Modal ---------- */
@@ -478,10 +478,10 @@ select optgroup { font-weight: 700; color: var(--navy); }
 .train-detail { font-size: 11px; color: var(--muted); }
 .train-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
 .chip { border: 1px solid transparent; }
-.chip.ok { background: #e7f7ee; color: var(--ok); border-color: #bfe9cf; }
+.chip.ok { background: #e7f7ee; color: var(--ok-texto); border-color: #bfe9cf; }
 .chip.warn { background: #fff1e6; color: #ea580c; border-color: #f6d3ba; }
-.chip.crit { background: #fdecec; color: var(--crit); border-color: #f6c9c9; }
-.chip.info { background: #fff4e5; color: var(--warn); border-color: #f5dcb0; }
+.chip.crit { background: #fdecec; color: var(--crit-texto); border-color: #f6c9c9; }
+.chip.info { background: #fff4e5; color: var(--warn-texto); border-color: #f5dcb0; }
 
 /* ---------- Ficha rápida por QR (uso en celular, en planta) ---------- */
 .scan-wrap { max-width: 560px; margin: 0 auto; padding: 18px 16px 40px; }
@@ -1149,7 +1149,7 @@ td { overflow-wrap: break-word; }
 
 /* ---------------------------------------------------------------- TABLAS */
 th {
-  font-size: 10.5px; letter-spacing: .7px; color: #7b8798;
+  font-size: 10.5px; letter-spacing: .7px; color: var(--muted);
   background: #f7f9fc; border-bottom: 1px solid var(--border);
 }
 td { color: #2b3648; }
@@ -2088,7 +2088,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 .page > .card.explica:first-child { border-left: 3px solid var(--steel); }
 .tabla td:first-child { font-weight: 500; }
 .tabla td strong, .tabla th:first-child { color: var(--navy); }
-.muted { color: #71809a; }
+.muted { color: var(--muted); }
 
 /* ---- 2. ESTADOS: se distinguen sin leer ---------------------------------
    Antes había que leer la palabra. Con color + peso se distingue de un
@@ -2105,7 +2105,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 .badge.EN_EVALUACION, .badge.EN_REVISION, .badge.EN_CAMPO { background: #fff4e5; color: #9a5b00; }
 .badge.ABIERTA, .badge.SOLICITADA, .badge.PENDIENTE, .badge.ANUNCIADA,
 .badge.PLANIFICADA { background: #eef2f9; color: #2e5496; }
-.badge.BAJA, .badge.STOCK { background: #f1f3f7; color: #6b7688; }
+.badge.BAJA, .badge.STOCK { background: #f1f3f7; color: var(--muted); }
 
 /* ============================================================================
    LA FAMILIA `est-*` — QUE NO EXISTÍA (bloque 57)
@@ -2131,7 +2131,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 .chip.est-FUERA_SERVICIO { background: #fdecec; color: #8c1414; }
 .chip.est-MANTENIMIENTO { background: #fff4e5; color: #9a5b00; }
 .chip.est-BAJA,
-.chip.est-STOCK         { background: #f1f3f7; color: #6b7688; }
+.chip.est-STOCK         { background: #f1f3f7; color: var(--muted); }
 
 /* Un estado que el backend añada mañana y aquí no esté no puede salir
    invisible: el borde punteado avisa de que falta declararlo, en vez de
@@ -2195,7 +2195,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 /* ---- 6. FORMULARIOS: que se entienda antes de equivocarse ---------------
    La ayuda debajo del campo y no en un `title`: en el celular el `title` no
    existe, y ahí es donde más falta hace. */
-.campo small.muted { color: #71809a; font-size: 11.5px; }
+.campo small.muted { color: var(--muted); font-size: 11.5px; }
 .campo > span:first-child { display: flex; align-items: baseline; gap: 4px; }
 .campo-req { font-size: 13px; }
 input:invalid, .campo-error input { border-color: var(--crit); }
@@ -3182,8 +3182,8 @@ a.ta-fila:focus-visible { outline: 2px solid #1f4e79; outline-offset: 2px; }
 .grupo-sub { font-size: 12.5px; color: var(--muted); margin: 4px 0 10px; line-height: 1.5; }
 .grupo-aviso { margin-bottom: 10px; font-size: 12.5px; }
 .badge.sindatos { background: #f1f4f7; color: #475569; border-color: #dbe2ea; }
-.badge.warn { background: #fff4e5; color: var(--warn); border-color: #f5dcb0; }
-.badge.crit { background: #fdecec; color: var(--crit); border-color: #f6c9c9; }
+.badge.warn { background: #fff4e5; color: var(--warn-texto); border-color: #f5dcb0; }
+.badge.crit { background: #fdecec; color: var(--crit-texto); border-color: #f6c9c9; }
 
 /* ---- Una tarjeta por equipo -----------------------------------------------
    Tarjeta y no fila de tabla: siete columnas no se leen en un teléfono, y esta
@@ -3196,14 +3196,14 @@ a.ta-fila:focus-visible { outline: 2px solid #1f4e79; outline-offset: 2px; }
 .activo-fila.caido { border-left-color: var(--crit); background: #fffafa; }
 .activo-id { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; font-size: 13.5px; }
 .activo-que { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
-.activo-ref { color: #94a3b8; }
+.activo-ref { color: var(--muted); }
 .activo-acceso { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
 .acc {
   display: inline-flex; align-items: center; gap: 5px;
   font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 6px;
   border: 1px solid transparent;
 }
-.acc-m { font-weight: 400; opacity: .8; }
+.acc-m { font-weight: 400; }
 .acc-elevador { background: #fff4e5; color: #b45309; border-color: #f5dcb0; }
 .acc-subida   { background: #eef4ff; color: #1d4ed8; border-color: #cfdefb; }
 .acc-pie      { background: #eaf5ed; color: #166534; border-color: #bfe9cf; }
@@ -3421,7 +3421,7 @@ a.ta-fila:focus-visible { outline: 2px solid #1f4e79; outline-offset: 2px; }
   border: 1px solid transparent; white-space: nowrap;
 }
 .red-chip b { font-family: 'Consolas', 'SF Mono', monospace; font-size: 11px; }
-.red-vlan { font-size: 10.5px; opacity: .75; }
+.red-vlan { font-size: 10.5px; }
 
 /* Cada red, su color. Y además su NOMBRE escrito: el color nunca es el único
    portador del dato, porque un daltónico no distingue estos dos azules. */
@@ -4094,7 +4094,7 @@ input::-webkit-datetime-edit { padding: 0; }
 .crit-tarjeta-activa { border-color: currentColor; }
 .crit-num { font-size: 26px; font-weight: 800; line-height: 1.1; }
 .crit-nom { font-size: 12px; font-weight: 600; }
-.crit-dias { font-size: 11px; opacity: 0.8; }
+.crit-dias { font-size: 11px; }
 
 .crit-numeros { margin: 4px 0 14px; }
 .crit-numeros-rejilla {
@@ -4151,7 +4151,7 @@ input::-webkit-datetime-edit { padding: 0; }
 .fi-dueno { font-size: 11px; color: #64748b; }
 /* La muestra SIEMPRE debajo del número. Un indicador sin su muestra se cree a
    ciegas, y aquí la muestra puede ser de dos averías. */
-.fi-muestra { font-size: 10px; color: #94a3b8; margin-top: 2px; }
+.fi-muestra { font-size: 10px; color: var(--muted); margin-top: 2px; }
 .fi-aviso {
   background: #fef3c7;
   border: 1px solid #fcd34d;
@@ -4270,7 +4270,7 @@ input::-webkit-datetime-edit { padding: 0; }
 .ea-activa { border-color: currentColor; }
 .ea-num { font-size: 28px; font-weight: 800; line-height: 1.05; }
 .ea-et { font-size: 12.5px; font-weight: 600; }
-.ea-pie { font-size: 11px; opacity: .8; }
+.ea-pie { font-size: 11px; }
 
 .ea-aviso {
   background: #eff6ff;
@@ -4397,12 +4397,12 @@ input::-webkit-datetime-edit { padding: 0; }
 .kpi-igual { background: #f1f5f9; color: #475569; font-weight: 600; }
 /* Sin comparación: apagado a propósito. No es una noticia, es la ausencia de
    una — y pintarlo con el mismo peso que un dato real sería mentir. */
-.kpi-sin   { background: transparent; color: #94a3b8; font-weight: 500; padding-left: 0; }
+.kpi-sin   { background: transparent; color: var(--muted); font-weight: 500; padding-left: 0; }
 
 .kpi-pct { font-weight: 600; opacity: .85; }
 .kpi-vs  { font-weight: 600; }
 
-.kpi-pie { font-size: 11px; color: #94a3b8; margin: 6px 0 16px; }
+.kpi-pie { font-size: 11px; color: var(--muted); margin: 6px 0 16px; }
 
 /* El botón de descarga, alineado con los desplegables de la barra de filtros.
    Sin esto queda pegado arriba, porque los `select` llevan su `<label>` encima
@@ -4521,6 +4521,9 @@ input::-webkit-datetime-edit { padding: 0; }
 .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 13px; }
 .kv dt { color: var(--muted); }
 .kv dd { margin: 0; }
+/* Bloque 186 · la ventana de gestión que se abre encima del mapa. */
+.panel-equipo-datos { margin: 14px 0 10px; }
+.panel-equipo-nota { margin: 0 0 10px; font-size: 12.5px; }
 
 /* Bloque 155 · el expediente de una instalación o de una orden. */
 .expediente { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
@@ -4763,6 +4766,8 @@ tbody tr:hover td { background: var(--brillo); }
 :root[data-tema="oscuro"] .acciones,
 :root[data-tema="oscuro"] .kpi { border-color: #1f2d47; }
 :root[data-tema="oscuro"] th { background: #0e1729; color: #8fa0bb; }
+/* Bloque 185 · el rojo de noche (#f25555) es para trazos: con texto blanco encima no llega al contraste AA. */
+:root[data-tema="oscuro"] .btn-peligro:not(.btn-mini) { background: #d93636; border-color: #d93636; }
 :root[data-tema="oscuro"] .modal { background: var(--card); }
 :root[data-tema="oscuro"] .modal-head { background: #0e1729; }
 :root[data-tema="oscuro"] .login-formside { background:

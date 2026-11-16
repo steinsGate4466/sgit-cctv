@@ -397,16 +397,6 @@ export default function Bandeja() {
   );
 }
 
-function Contador({ t, v, cls, hint }: { t: string; v: number; cls?: string; hint?: string }) {
-  return (
-    <div className={'kpi ' + (cls || '')}>
-      <div className="label">{t}</div>
-      <div className="value">{v}</div>
-      {hint && <div className="hint">{hint}</div>}
-    </div>
-  );
-}
-
 /**
  * Un bloque de la bandeja.
  *

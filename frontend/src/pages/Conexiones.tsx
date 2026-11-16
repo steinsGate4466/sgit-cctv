@@ -199,7 +199,7 @@ export default function Conexiones() {
               <thead>
                 <tr>
                   <th>Medio</th><th>Extremo A</th><th>Extremo B</th>
-                  <th>Anillo</th><th>Detalle</th>{puedeEditar && <th></th>}
+                  <th>Anillo</th><th>Detalle</th>{puedeEditar && <th aria-label="Acciones"></th>}
                 </tr>
               </thead>
               <tbody>

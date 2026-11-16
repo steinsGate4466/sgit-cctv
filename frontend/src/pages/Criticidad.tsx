@@ -322,7 +322,7 @@ export default function Criticidad() {
           <thead>
             <tr>
               <th>Equipo</th><th>Tipo</th><th>Letra</th>
-              <th>Se revisa</th><th>Por qué</th><th></th>
+              <th>Se revisa</th><th>Por qué</th><th aria-label="Acciones"></th>
             </tr>
           </thead>
           <tbody>

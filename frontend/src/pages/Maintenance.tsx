@@ -58,12 +58,6 @@ function Actividad({ texto }: { texto?: string | null }) {
     </details>
   );
 }
-// Estado efectivo del activo (coherente con el módulo de Activos).
-const ASSET_STATUS_ES: Record<string, string> = {
-  OPERATIVO: 'Operativo', FUERA_SERVICIO: 'Fuera de servicio', MANTENIMIENTO: 'En mantenimiento',
-  CON_INCIDENCIA: 'Con incidencia', BAJA: 'Baja', STOCK: 'En stock',
-};
-const aEs = (s: string) => ASSET_STATUS_ES[s] || s;
 
 // Checklist de condición del equipo (evidencia detallada del técnico).
 const CONDITION_ITEMS = ['Limpieza', 'Lente / imagen', 'Cableado', 'Fijación / soporte', 'Energía / PoE', 'Conectividad'];
@@ -604,7 +598,7 @@ export default function Maintenance() {
                 Y deja sitio para el solicitante, que va en el mismo hueco. */}
             <tr>
               <th>Código</th><th>Actividad</th><th>Estado</th><th>Avance</th>
-              <th>Activo / Ubicación</th><th>Programada</th><th></th>
+              <th>Activo / Ubicación</th><th>Programada</th><th aria-label="Acciones"></th>
             </tr>
           </thead>
           <tbody>

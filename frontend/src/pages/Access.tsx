@@ -111,7 +111,7 @@ export default function Access() {
                 repartidas en todo el ancho obligaban a seguir la fila con el
                 dedo. Medio y altura son UNA respuesta —cómo se llega—, y la
                 fecha va bajo el código. Quedan seis. */}
-            <tr><th>Solicitud</th><th>Activo</th><th>Cómo se llega</th><th>Evidencia</th><th>Estado</th><th></th></tr>
+            <tr><th>Solicitud</th><th>Activo</th><th>Cómo se llega</th><th>Evidencia</th><th>Estado</th><th aria-label="Acciones"></th></tr>
           </thead>
           <tbody>
             {data.map((r) => (

@@ -16,7 +16,7 @@ import { AmbitoGuard } from '../src/common/guards/ambito.guard';
  *  no**. Una sola de las dos no demuestra nada.
  */
 
-function contexto(handlerMeta: any, params: any, user: any = { userId: 'u1' }) {
+function contexto(_handlerMeta: any, params: any, user: any = { userId: 'u1' }) {
   return {
     getHandler: () => 'h',
     getClass: () => 'c',

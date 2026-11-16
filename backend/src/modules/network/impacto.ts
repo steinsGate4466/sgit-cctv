@@ -32,6 +32,60 @@ export interface Enlace {
   b: string;
   /** Sólo informativo: sirve para explicar por qué no hubo impacto. */
   esAnillo?: boolean;
+  /** La cámara va DIRECTA a su grabador sin que nadie haya declarado por dónde
+   *  (ni puerto ni enlace). Vale para una analógica por coaxial; en una IP es
+   *  un dato que falta. Se usa para poder decirlo, no cambia el cálculo. */
+  supuesto?: boolean;
+}
+
+/* =============================================================================
+   LOS ENLACES DEL GRAFO — bloque 185
+   -----------------------------------------------------------------------------
+   EL FALLO: «SI CAE ESTE SWITCH, 0 CÁMARAS»
+   Aquí se metían TRES fuentes como si fueran cable: los puertos, los enlaces
+   declarados y «esta cámara graba en tal grabador». La tercera NO es un cable:
+   es una asignación. Con ella, toda cámara tenía un camino directo a su
+   grabador y quitar el switch del medio no rompía nada: el impacto de un
+   switch con dieciséis cámaras detrás salía CERO. Afectaba a «Impacto de una
+   caída», a los puntos críticos y a la capa Impacto del mapa.
+
+   LA REGLA
+   La cámara va directa al grabador SÓLO si nadie declaró por dónde sale: sin
+   puerto de switch y sin enlace. Es el caso real de una analógica (coaxial al
+   grabador) y el de una IP todavía sin cablear en el sistema; esa unión se
+   marca `supuesto`. En cuanto la cámara tiene un puerto o un enlace, su camino
+   es ÉSE y se cae con él.
+============================================================================= */
+export interface DatosDeEnlaces {
+  puertos: { switchId: string; connectedAssetId: string | null }[];
+  enlaces: { endpointAId: string; endpointBId: string; isRing?: boolean | null }[];
+  camaras: { assetId: string; nvrId?: string | null; nvrName?: string | null }[];
+  idsDeNvr: Set<string>;
+  /** Código del grabador en MAYÚSCULAS → id. Sólo para datos viejos sin `nvrId`. */
+  nvrPorCodigo: Map<string, string>;
+}
+
+export function enlacesDelGrafo(d: DatosDeEnlaces): Enlace[] {
+  const lista: Enlace[] = [];
+  const conCable = new Set<string>();
+  for (const p of d.puertos) {
+    if (!p.connectedAssetId) continue;
+    lista.push({ a: p.switchId, b: p.connectedAssetId });
+    conCable.add(p.connectedAssetId);
+  }
+  for (const e of d.enlaces) {
+    lista.push({ a: e.endpointAId, b: e.endpointBId, esAnillo: !!e.isRing });
+    conCable.add(e.endpointAId); conCable.add(e.endpointBId);
+  }
+  for (const c of d.camaras) {
+    if (conCable.has(c.assetId)) continue;
+    // 1) El campo bueno: la referencia al grabador.
+    let nvr = c.nvrId && d.idsDeNvr.has(c.nvrId) ? c.nvrId : null;
+    // 2) Sólo si no hay referencia, el nombre (datos de antes de que existiera el campo).
+    if (!nvr) nvr = d.nvrPorCodigo.get((c.nvrName || '').trim().toUpperCase()) ?? null;
+    if (nvr) lista.push({ a: c.assetId, b: nvr, supuesto: true });
+  }
+  return lista;
 }
 
 export interface GrafoRed {

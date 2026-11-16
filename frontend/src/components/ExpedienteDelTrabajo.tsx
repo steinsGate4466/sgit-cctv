@@ -76,7 +76,7 @@ export default function ExpedienteDelTrabajo({ base, puedeSubir }: { base: strin
         <p className="muted">Todavía no hay documentos.</p>
       ) : (
         <table className="tabla">
-          <thead><tr><th>Documento</th><th>Tipo</th><th>Versión</th><th>Subido</th><th></th></tr></thead>
+          <thead><tr><th>Documento</th><th>Tipo</th><th>Versión</th><th>Subido</th><th aria-label="Acciones"></th></tr></thead>
           <tbody>
             {docs.map((d) => (
               <tr key={d.id}>

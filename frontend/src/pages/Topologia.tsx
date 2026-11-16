@@ -157,7 +157,7 @@ export default function Topologia() {
             <thead>
               <tr>
                 <th>Equipo</th><th>Tipo</th><th>Dónde</th><th>Tren</th>
-                <th>Si cae, se dejan de ver</th><th></th>
+                <th>Si cae, se dejan de ver</th><th aria-label="Acciones"></th>
               </tr>
             </thead>
             <tbody>

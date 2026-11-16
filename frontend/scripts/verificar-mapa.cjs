@@ -37,7 +37,10 @@ if (fs.existsSync(dir)) for (const f of fs.readdirSync(dir)) if (/\.tsx?$/.test(
 /* Bloque 176 · `RejillaDePuertos`: la MISMA rejilla del switch que usa
    Red › Conexiones, separada para que el mapa la enseñe. No escribe nada (no
    importa ni `api`): en el mapa, tocar un puerto sólo resalta su cable. */
-const PERMITIDOS = new Set(['Iconos', 'DibujoEquipo', 'ReportarCaida', 'ReportarAveria', 'RejillaDePuertos']);
+/* Bloque 186 · `PanelDelEquipo`: la ventana de gestión que se abre ENCIMA del mapa. No es
+   del mapa: reúne las piezas que ya usa cada módulo (trabajo del QR, historial, repuestos,
+   documentos), y son ellas las que guardan. El mapa sigue sin escribir por sí mismo. */
+const PERMITIDOS = new Set(['Iconos', 'DibujoEquipo', 'ReportarCaida', 'ReportarAveria', 'RejillaDePuertos', 'PanelDelEquipo']);
 
 const fallos = [];
 for (const f of archivos) {
@@ -48,7 +51,7 @@ for (const f of archivos) {
     const esComponente = /(^|\/)components\//.test(ruta) || (/^\.\.\/[A-Z]/.test(ruta) && f.includes(path.join('components', 'mapa')));
     if (!esComponente || ruta.includes('/mapa/') || ruta.startsWith('./')) continue;
     const nombre = ruta.split('/').pop();
-    if (!PERMITIDOS.has(nombre)) fallos.push(`${path.relative(SRC, f)} importa ${nombre}: el mapa sólo usa los formularios de reporte del QR.`);
+    if (!PERMITIDOS.has(nombre)) fallos.push(`${path.relative(SRC, f)} importa ${nombre}: el mapa sólo usa los formularios de reporte del QR y la ventana de gestión (PanelDelEquipo).`);
   }
   const lineas = texto.split('\n');
   lineas.forEach((l, i) => {

@@ -37,7 +37,7 @@ describe('crypto.util — cifrado de credenciales (AES-256-GCM)', () => {
 
   it('falla si el texto cifrado fue manipulado (integridad GCM)', () => {
     const cifrado = encryptSecret('SecretoDelNVR');
-    const [iv, tag, datos] = cifrado.split('.');
+    const [iv, tag] = cifrado.split('.');
     const manipulado = [iv, tag, Buffer.from('otro-contenido').toString('base64')].join('.');
     expect(() => decryptSecret(manipulado)).toThrow();
   });

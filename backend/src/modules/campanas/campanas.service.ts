@@ -2,7 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { TOPE_LISTA_PANTALLA, cabecerasDeRecorte } from '../../common/tope-de-filas';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
-import { defectosDeConjunto, revisarFicha, tieneBloqueantes, ActivoParaRevisar, Defecto } from './calidad-ficha';
+import { defectosDeConjunto, revisarFicha, ActivoParaRevisar, Defecto } from './calidad-ficha';
 import { aTrenDePlanta } from '../../common/tren-de-planta';
 import { avanceDeMeta, esMapeo, estadoDelPlan, fechasMal, tipoCanonico } from './plan-de-campana';
 import { diaDePlanta } from '../../common/dia-de-planta';

@@ -521,7 +521,7 @@ export default function TrainBoard() {
                      g.name || '—',
                      g.location?.name || '—',
                      g._count?.assets ?? 0,
-                     g.photoFileId ? 'sí' : <span style={{ color: 'var(--warn)' }}>falta</span>,
+                     g.photoFileId ? 'sí' : <span style={{ color: 'var(--warn-texto)' }}>falta</span>,
                    ]} />
           )}
 

@@ -203,7 +203,7 @@ export default function Cableado() {
       <div className="card">
         <table>
           <thead>
-            <tr><th>Tramo</th><th>Categoría</th><th>Metros</th><th>Ruta</th><th>Estado</th><th>Avisos</th>{can('asset.update') && <th></th>}</tr>
+            <tr><th>Tramo</th><th>Categoría</th><th>Metros</th><th>Ruta</th><th>Estado</th><th>Avisos</th>{can('asset.update') && <th aria-label="Acciones"></th>}</tr>
           </thead>
           <tbody>
             {rows.map((c) => (

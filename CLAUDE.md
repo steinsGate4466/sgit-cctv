@@ -7181,3 +7181,71 @@ Y: «verifica todo el código, corrige bugs y fallas de seguridad, quiero mi Git
   copia del equipo (md5 idéntico). Regla: antes de «crear» un archivo, `ls` de la ruta.
 - Un recorrido que crea datos con nombre fijo choca consigo mismo en el reintento y el informe dice
   ESO en vez del fallo de verdad: nombre único por intento.
+
+## §108 · BLOQUE 185 — VALIDACIÓN DE CÓDIGO: MEDIDA CON HERRAMIENTAS (15/11/2026)
+
+Pedido: «validación de código completa de cada módulo… que no haya mal código, mucho código, HTML raro,
+errores de interfaz». Se midió con herramientas (no a ojo) y se corrigió lo real.
+
+**Lo medido (antes)**
+- Duplicado (jscpd): 0,23 % en frontend y 0,04 % en backend. No hay copia y pega que quitar.
+- Reglas de fallos con tipos (typescript-eslint: promesas sin esperar, condiciones constantes…): backend limpio.
+- Todos los GET del API (210, con ids reales): 0 errores 5xx, ninguno lento.
+- 62 pantallas en modo desarrollo: 0 avisos de React al cargar.
+- **Contraste (axe, tema claro): 458 textos por debajo de 4,5:1 en 45 pantallas.** De noche, 1.
+- 25 declaraciones sin usar (15 front, 10 back); 1.595 estilos en línea (581 distintos).
+
+**Lo corregido**
+- **«Si cae este switch, 0 cámaras» (hallazgo 1.1).** La asignación cámara → grabador entraba en el grafo como
+  si fuera un cable, así que quitar el switch del medio no rompía nada. `network/impacto.ts › enlacesDelGrafo`:
+  la cámara va directa al grabador SÓLO si no tiene puerto ni enlace declarado (analógica por coaxial; se marca
+  `supuesto`). Afectaba a «Impacto de una caída», puntos críticos y la capa Impacto del mapa. 5 pruebas nuevas.
+- **Contraste:** `--muted` pasa a `#5f6b7e`; `th`, `.muted` y los grises a mano usan el token; el texto sobre fondo
+  de color usa `--warn-texto / --crit-texto / --ok-texto` (los `--warn/--crit/--ok` son para trazos); fuera las
+  opacidades sobre texto de 11 px. Quedan 0 en claro. De noche, el botón de peligro lleno.
+- **QR del gabinete:** la foto NO CARGABA NUNCA (`<img src>` al API no manda la sesión → 401); ahora se pide con
+  el cliente. La foto se abre con `activos.mirar` igual que la ficha. Estados y tipos en castellano; «Reportar una
+  falla» abre el formulario.
+- **Grúas:** `Casilla` y `Estado` eran componentes declarados dentro del componente: React los volvía a montar en
+  cada pintado y el foco del teclado se perdía al cambiar un desplegable. Ahora son funciones.
+- **Código muerto:** fuera las 25 declaraciones sin usar (entre ellas `saveIp` y `addCredential` de Activos, que
+  sustituyó la edición rápida, y una petición a `/troubleshooting/metrics` que el Dashboard hacía y no pintaba).
+  **`noUnusedLocals` y `noUnusedParameters` quedan ENCENDIDOS** en los dos `tsconfig`: lo que no se usa ya no
+  compila.
+- 45 cabeceras de tabla vacías (la columna de acciones) llevan nombre para el lector de pantalla.
+
+**Lo que queda anotado (no se tocó)**
+- 1.595 estilos en línea: los 30 más repetidos (`fontSize: 12` ×155…) se pueden pasar a clases con un cambio
+  mecánico comprobado con capturas idénticas.
+- Avisos «toca para cerrar» repetidos en 9 pantallas y ~14 elementos que se pulsan sin ser botón (sin teclado).
+- `pg` se importa en `common/aviso-de-permisos.ts` sin estar en `package.json` (llega por `@prisma/adapter-pg`);
+  los guiones `lint` y `format` del backend llaman a eslint y prettier, que no están instalados.
+- Archivos que nadie importa: `frontend/src/components/TablaAdaptable.tsx`,
+  `backend/src/modules/preventive/dto/autogen.dto.ts`. No se borran sin decirlo (regla del proyecto).
+- axe, menores: orden de títulos (h1 → h3) y la barra de pestañas fuera de una región.
+- La demo no tiene la cadena cámara → switch de línea → core → grabador completa: el impacto sale 0 por datos.
+
+**Método que se queda:** el entorno de la nube se pierde al reiniciarse el contenedor. Los guiones para rehacerlo
+(base, semilla, demo, réplica de la CI, barridos) se guardan fuera del repositorio.
+
+## §109 · BLOQUE 186 — GESTIONAR DESDE EL MAPA (16/11/2026)
+
+Pedido: «que desde el mapa se puedan realizar varias gestiones, de infraestructura y de información». La energía
+en cascada queda APARTADA por decisión de Cristhian («sería limitar toda la energía a un solo método; hay que
+analizarlo con calma»): no se toca Electricidad hasta que él lo ordene.
+
+- **`components/PanelDelEquipo.tsx`**: «Gestionar» en la tarjeta del mapa abre ENCIMA una ventana con pestañas
+  — Resumen (marca, modelo, serie, IP, criticidad A/B/C y cada cuántos días, próximo preventivo, por qué tiene ese
+  estado), Trabajo (la pieza del QR: anotar el avance de las órdenes vivas; «Generar OM» si no hay), Historial,
+  Repuestos y Documentos. Al cerrarla sigues en el mismo punto del plano. Sustituye al enlace «Ficha», que sacaba
+  del mapa; la ficha completa se abre desde el Resumen.
+- **No hay formularios nuevos**: cada pestaña es el componente que ya usa su módulo, con sus permisos. El mapa
+  sigue sin escribir por sí mismo: `verificar:mapa` admite `PanelDelEquipo` y nada más (regla del §58 con otras
+  palabras: el que guarda es el módulo).
+- **La demo ya enseña el impacto**: `demo-plano` sube los dos switches de línea al core de demo (puerto libre).
+  Con el arreglo del bloque 185, en la capa «Impacto»: DEMO-SW-T1-L1 → 4 cámaras, L2 → 5, core → 9.
+
+**Pendiente, sin empezar:** Dashboard propio de la planta (hoy son tartas de inventario y «Qué hago primero» repite
+«Lo que hay que atender»; el diseño usa `/dashboard/infra/trenes` y `/dashboard/infra/tren/:code/zonas`, que ya
+existen: la planta tren por tren, con sus zonas por salud); procesos que se llenan solos; frente del switch
+dibujado; gabinetes en el plano (falta decidir si se unen a su activo).

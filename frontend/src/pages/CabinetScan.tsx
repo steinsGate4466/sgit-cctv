@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import Icono from '../components/Iconos';
+import { legible } from '../formato';
+import { NOMBRE_DE_TIPO } from '../tipos-de-equipo';
 
 /**
  * FICHA RÁPIDA DEL GABINETE — destino del QR pegado en la puerta (5a).
@@ -27,6 +29,7 @@ export default function CabinetScan() {
   const [d, setD] = useState<any>(null);
   const [cargando, setCargando] = useState(true);
   const [fallo, setFallo] = useState('');
+  const [foto, setFoto] = useState<string | null>(null);
 
   /* Bloque 115: mismo caso que el QR del activo, con el armario delante. */
   useEffect(() => {
@@ -49,6 +52,19 @@ export default function CabinetScan() {
       .finally(() => { if (vivo) setCargando(false); });
     return () => { vivo = false; };
   }, [id]);
+
+  /* Bloque 185 · LA FOTO NO CARGABA NUNCA. Iba en un `<img src>` directo al API, y un
+     `<img>` no manda la sesión: el servidor contestaba 401 y salía el icono de imagen
+     rota. Se pide con el cliente (que sí lleva la sesión) y se pinta desde memoria. */
+  const idGabinete = d?.id; const tieneFoto = !!d?.tieneFoto;
+  useEffect(() => {
+    if (!idGabinete || !tieneFoto) { setFoto(null); return; }
+    let url: string | null = null; let vivo = true;
+    api.get(`/cabinets/${idGabinete}/photo`, { responseType: 'blob' })
+      .then((r) => { if (!vivo) return; url = URL.createObjectURL(r.data); setFoto(url); })
+      .catch(() => { if (vivo) setFoto(null); });
+    return () => { vivo = false; if (url) URL.revokeObjectURL(url); };
+  }, [idGabinete, tieneFoto]);
 
   if (cargando) return <div className="loading">Abriendo el gabinete…</div>;
 
@@ -126,10 +142,10 @@ export default function CabinetScan() {
               <span className="k">
                 <b>{a.assetCode}</b>
                 <br />
-                <span style={{ fontSize: 11 }}>{a.referencePlace || a.type}</span>
+                <span style={{ fontSize: 11 }}>{a.referencePlace || NOMBRE_DE_TIPO[a.type] || a.type}</span>
               </span>
               <span className="v">
-                <span className={'badge ' + a.estadoEfectivo}>{a.estadoEfectivo}</span>
+                <span className={'badge ' + a.estadoEfectivo}>{legible(a.estadoEfectivo)}</span>
                 {/* Se puede saltar del armario al equipo: es el recorrido
                     natural — llego, veo cuál falla, lo abro. */}
                 <br />
@@ -143,11 +159,11 @@ export default function CabinetScan() {
         </div>
       )}
 
-      {d.tieneFoto && (
+      {foto && (
         <>
           <div className="section-title">Foto del gabinete</div>
           <img
-            src={`${(import.meta as any).env?.VITE_API_URL || ''}/cabinets/${d.id}/photo`}
+            src={foto}
             alt={`Gabinete ${d.code}`}
             style={{ width: '100%', borderRadius: 12, border: '1px solid var(--border)' }}
           />
@@ -162,8 +178,8 @@ export default function CabinetScan() {
       )}
 
       <div className="scan-actions">
-        <button className="btn-primary" onClick={() => nav('/incidents')}>
-          Reportar algo de este gabinete
+        <button className="btn-primary" onClick={() => nav('/incidents?nueva=1')}>
+          Reportar una falla
         </button>
         <button className="btn-mini" onClick={() => nav('/cabinets')}>
           Ver todos los gabinetes

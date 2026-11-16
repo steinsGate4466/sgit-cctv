@@ -803,7 +803,7 @@ El MTTR de mantenimiento es <b>Reparar</b>.
           <>
             <table className="tabla">
               <thead><tr><th>Equipo</th><th>Tipo</th><th>Dónde</th>
-                <th className="num">Averías</th><th className="num">Tiempo medio</th><th></th></tr></thead>
+                <th className="num">Averías</th><th className="num">Tiempo medio</th><th aria-label="Acciones"></th></tr></thead>
               <tbody>
                 {t.peores.map((p: any) => (
                   <tr key={p.assetId}>
@@ -907,7 +907,7 @@ function PanelSatisfaccion({ s }: any) {
           {!s.sla.confirmado && (
             /* Se DICE que el plazo es una propuesta. Presentarla como acuerdo
                hace que en la reunión se discuta el número y no el trabajo. */
-            <div className="muted" style={{ fontSize: 12, color: 'var(--warn)' }}>
+            <div className="muted" style={{ fontSize: 12, color: 'var(--warn-texto)' }}>
               <b>Plazos sin fijar</b> (propuesta)
             </div>
           )}
@@ -945,7 +945,7 @@ function PanelSatisfaccion({ s }: any) {
           <div className="section-title" style={{ marginTop: 0 }}>Abiertas ahora</div>
           <table>
             <thead>
-              <tr><th>Incidencia</th><th>Prioridad</th><th>Abierta</th><th></th></tr>
+              <tr><th>Incidencia</th><th>Prioridad</th><th>Abierta</th><th aria-label="Acciones"></th></tr>
             </thead>
             <tbody>
               {s.enRiesgo.map((r: any) => (

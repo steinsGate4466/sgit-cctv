@@ -40,7 +40,6 @@ const RESULTADOS = [
   { v: 'FUERA_DE_SERVICIO', t: 'Fuera de servicio' },
   { v: 'NO_SE_PUDO_ACCEDER', t: 'No se pudo acceder' },
 ];
-const ETIQUETA_ESTADO: Record<string, string> = Object.fromEntries(ESTADOS.map((e) => [e.v, e.t]));
 const ETIQUETA_RESULTADO: Record<string, string> = Object.fromEntries(RESULTADOS.map((e) => [e.v, e.t]));
 
 const VACIO: any = {
@@ -132,7 +131,7 @@ export default function Gruas() {
     return () => { vivo = false; };
   }, [nueva, acciones.length]);
   async function elegirCamara(assetId: string) {
-    setF((v: any) => ({ ...VACIO, assetId }));
+    setF({ ...VACIO, assetId });
     setPropuesta(null);
     if (!assetId) return;
     try {
@@ -191,12 +190,15 @@ export default function Gruas() {
     } finally { setGuardando(false); }
   }
 
-  const Casilla = ({ k, t }: { k: string; t: string }) => (
+  /* Bloque 185 · son FUNCIONES que devuelven el campo, no componentes. Declaradas como
+     componente aquí dentro, React veía un tipo NUEVO en cada pintado y volvía a montar el
+     campo: al cambiar un desplegable con el teclado, el foco se perdía. */
+  const casilla = (k: string, t: string) => (
     <label className="casilla">
       <input type="checkbox" checked={!!f[k]} onChange={set(k)} /> {t}
     </label>
   );
-  const Estado = ({ k, t }: { k: string; t: string }) => (
+  const estado = (k: string, t: string) => (
     <label className="campo">
       <span>{t}</span>
       <select value={f[k]} onChange={set(k)}>
@@ -390,9 +392,9 @@ export default function Gruas() {
 
           <div className="section-title">Acceso</div>
           <div className="casillas">
-            <Casilla k="requiereManlift" t="Requiere manlift" />
-            <Casilla k="seBajaAPiso" t="La grúa se puede bajar a piso" />
-            <Casilla k="requiereParada" t="Hay que parar la grúa (coordinar con Producción)" />
+            {casilla('requiereManlift', 'Requiere manlift')}
+            {casilla('seBajaAPiso', 'La grúa se puede bajar a piso')}
+            {casilla('requiereParada', 'Hay que parar la grúa (coordinar con Producción)')}
           </div>
           <label className="campo">
             <span>Altura aproximada (m)</span>
@@ -400,17 +402,17 @@ export default function Gruas() {
           </label>
 
           <div className="section-title">Cámara</div>
-          <Estado k="camaraEstado" t="Estado de la cámara" />
+          {estado('camaraEstado', 'Estado de la cámara')}
           <div className="casillas">
-            <Casilla k="lenteSucio" t="Lente sucio" />
-            <Casilla k="carcasaDanada" t="Carcasa dañada" />
-            <Casilla k="soporteFlojo" t="Soporte flojo" />
+            {casilla('lenteSucio', 'Lente sucio')}
+            {casilla('carcasaDanada', 'Carcasa dañada')}
+            {casilla('soporteFlojo', 'Soporte flojo')}
           </div>
           <label className="campo"><span>Observaciones de la cámara</span>
             <textarea rows={2} value={f.camaraObs} onChange={set('camaraObs')} maxLength={600} /></label>
 
           <div className="section-title">Antena / radioenlace</div>
-          <Estado k="antenaEstado" t="Estado de la antena" />
+          {estado('antenaEstado', 'Estado de la antena')}
           <label className="campo">
             <span>Señal (dBm)</span>
             <input type="number" min={-100} max={0} value={f.senalDbm} onChange={set('senalDbm')} placeholder="Ej: -65" />
@@ -418,17 +420,17 @@ export default function Gruas() {
               −45 buena · −70 justa · −80 se cae.
             </small>
           </label>
-          <div className="casillas"><Casilla k="antenaAlineada" t="Antena alineada" /></div>
+          <div className="casillas">{casilla('antenaAlineada', 'Antena alineada')}</div>
           <label className="campo"><span>Observaciones de la antena</span>
             <textarea rows={2} value={f.antenaObs} onChange={set('antenaObs')} maxLength={600} /></label>
 
           <div className="section-title">Cableado</div>
-          <Estado k="cableEstado" t="Estado del cableado" />
+          {estado('cableEstado', 'Estado del cableado')}
           <div className="casillas">
-            <Casilla k="enCadenaPortacables" t="Va en cadena portacables / festón" />
-            <Casilla k="chicoteDanado" t="Chicote (tramo flexible) dañado" />
-            <Casilla k="prensaestopaOk" t="Prensaestopa en buen estado" />
-            <Casilla k="conectorOxidado" t="Conector oxidado o picado" />
+            {casilla('enCadenaPortacables', 'Va en cadena portacables / festón')}
+            {casilla('chicoteDanado', 'Chicote (tramo flexible) dañado')}
+            {casilla('prensaestopaOk', 'Prensaestopa en buen estado')}
+            {casilla('conectorOxidado', 'Conector oxidado o picado')}
           </div>
           <label className="campo">
             <span>Metros aproximados</span>
@@ -439,15 +441,15 @@ export default function Gruas() {
             <textarea rows={2} value={f.cableObs} onChange={set('cableObs')} maxLength={600} /></label>
 
           <div className="section-title">Alimentación</div>
-          <Estado k="alimentacionEstado" t="Estado de la alimentación" />
-          <div className="casillas"><Casilla k="poe" t="Alimentada por PoE" /></div>
+          {estado('alimentacionEstado', 'Estado de la alimentación')}
+          <div className="casillas">{casilla('poe', 'Alimentada por PoE')}</div>
           <label className="campo"><span>Observaciones</span>
             <textarea rows={2} value={f.alimentacionObs} onChange={set('alimentacionObs')} maxLength={600} /></label>
 
           <div className="section-title">Grabación</div>
           <div className="casillas">
-            <Casilla k="grabadorLocal" t="Tiene grabador local en la grúa" />
-            <Casilla k="grabaOk" t="Está grabando correctamente" />
+            {casilla('grabadorLocal', 'Tiene grabador local en la grúa')}
+            {casilla('grabaOk', 'Está grabando correctamente')}
           </div>
           <label className="campo"><span>Canal en el grabador</span>
             <input type="number" min={1} value={f.canalNvr} onChange={set('canalNvr')} /></label>
@@ -457,8 +459,8 @@ export default function Gruas() {
             <textarea rows={2} value={f.grabacionObs} onChange={set('grabacionObs')} maxLength={600} /></label>
 
           <div className="section-title">Gabinete en la grúa</div>
-          <Estado k="gabineteEstado" t="Estado del gabinete" />
-          <div className="casillas"><Casilla k="gabineteHermetico" t="Cierra hermético" /></div>
+          {estado('gabineteEstado', 'Estado del gabinete')}
+          <div className="casillas">{casilla('gabineteHermetico', 'Cierra hermético')}</div>
           <label className="campo"><span>Observaciones del gabinete</span>
             <textarea rows={2} value={f.gabineteObs} onChange={set('gabineteObs')} maxLength={600} /></label>
 
@@ -478,7 +480,7 @@ export default function Gruas() {
             opciones={acciones.map((a) => ({ valor: a.code, texto: a.name }))} onChange={setAccionesSel} />
           <label className="campo"><span>{'Detalle de las acciones (opcional)'}</span>
             <textarea rows={2} value={f.accionesRealizadas} onChange={set('accionesRealizadas')} maxLength={2000} /></label>
-          <div className="casillas"><Casilla k="requiereSeguimiento" t="Requiere volver" /></div>
+          <div className="casillas">{casilla('requiereSeguimiento', 'Requiere volver')}</div>
         </Modal>
       )}
     </div>

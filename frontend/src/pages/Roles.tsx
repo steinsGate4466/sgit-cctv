@@ -173,7 +173,7 @@ export default function Roles() {
         <table>
           <thead>
             <tr>
-              <th>Rol</th><th>Para qué es</th><th>Permisos</th><th>Usuarios</th><th></th>
+              <th>Rol</th><th>Para qué es</th><th>Permisos</th><th>Usuarios</th><th aria-label="Acciones"></th>
             </tr>
           </thead>
           <tbody>
@@ -335,7 +335,7 @@ function PanelDesfase({ info, poniendo, onPonerAlDia }: any) {
   const nombre = (c: string) => info.nombres[c] || c;
   return (
     <div className="card" style={{ borderLeft: '4px solid var(--warn)', marginBottom: 14 }}>
-      <h2 style={{ fontSize: 15, margin: '0 0 4px', color: 'var(--warn)' }}>
+      <h2 style={{ fontSize: 15, margin: '0 0 4px', color: 'var(--warn-texto)' }}>
         <span title="Las plantillas sólo se aplican al crear un rol: un rol viejo se desvía sin avisar.">
           {info.desviados.length === 1 ? '1 rol no coincide' : `${info.desviados.length} roles no coinciden`} con su plantilla
         </span>
@@ -355,12 +355,12 @@ function PanelDesfase({ info, poniendo, onPonerAlDia }: any) {
             </button>
           </div>
           {d.faltan.length > 0 && (
-            <div style={{ fontSize: 11.5, marginTop: 4, color: 'var(--ok)' }}>
+            <div style={{ fontSize: 11.5, marginTop: 4, color: 'var(--ok-texto)' }}>
               <b>Le faltan:</b> {d.faltan.map(nombre).join(' · ')}
             </div>
           )}
           {d.sobran.length > 0 && (
-            <div style={{ fontSize: 11.5, marginTop: 2, color: 'var(--warn)' }}>
+            <div style={{ fontSize: 11.5, marginTop: 2, color: 'var(--warn-texto)' }}>
               <b>Le sobran:</b> {d.sobran.map(nombre).join(' · ')}
             </div>
           )}

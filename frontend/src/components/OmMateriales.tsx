@@ -244,7 +244,7 @@ export default function OmMateriales({ wo, onClose }: { wo: any; onClose: () => 
             <table style={{ fontSize: 12, marginTop: 10 }}>
               <thead><tr>
                 <th>Material</th><th>SAP</th><th>Previsto</th><th>Retirado</th>
-                <th>Usado</th><th>Estado</th>{editable && <th></th>}
+                <th>Usado</th><th>Estado</th>{editable && <th aria-label="Acciones"></th>}
               </tr></thead>
               <tbody>
                 {items.map((m) => (

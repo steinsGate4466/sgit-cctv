@@ -160,7 +160,7 @@ export default function Sesiones() {
           <thead>
             <tr>
               <th>Persona</th><th>Rol</th><th>Desde dónde</th>
-              <th>Entró</th><th>Última actividad</th><th></th>
+              <th>Entró</th><th>Última actividad</th><th aria-label="Acciones"></th>
             </tr>
           </thead>
           <tbody>

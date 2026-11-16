@@ -199,7 +199,7 @@ export default function Locations() {
         <div className="card">
           <table>
             <thead>
-              <tr><th>Código</th><th>Nombre</th><th>Tipo</th><th>Pertenece a</th><th>Activos</th><th>Foto</th>{can('asset.update') && <th></th>}</tr>
+              <tr><th>Código</th><th>Nombre</th><th>Tipo</th><th>Pertenece a</th><th>Activos</th><th>Foto</th>{can('asset.update') && <th aria-label="Acciones"></th>}</tr>
             </thead>
             <tbody>
               {rows.map((l) => (
@@ -243,7 +243,7 @@ export default function Locations() {
                 <tr>
                   <th style={{ width: 50 }}>Orden</th><th>Código</th><th>Nombre</th>
                   <th>Ambiente</th><th>Criticidad mín.</th><th>Preventivo</th>
-                  <th>En trenes</th>{can('location.manage') && <th></th>}
+                  <th>En trenes</th>{can('location.manage') && <th aria-label="Acciones"></th>}
                 </tr>
               </thead>
               <tbody>

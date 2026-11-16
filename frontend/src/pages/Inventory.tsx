@@ -264,7 +264,7 @@ export default function Inventory() {
       <div className="card">
         <table>
           <thead>
-            <tr><th>Repuesto</th><th>Código SAP</th><th>Categoría</th><th>Stock</th><th>Mín.</th><th>Estado</th><th>Últ. comprobación</th><th></th></tr>
+            <tr><th>Repuesto</th><th>Código SAP</th><th>Categoría</th><th>Stock</th><th>Mín.</th><th>Estado</th><th>Últ. comprobación</th><th aria-label="Acciones"></th></tr>
           </thead>
           <tbody>
             {rows.map((r) => (

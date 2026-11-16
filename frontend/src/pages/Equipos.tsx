@@ -196,7 +196,7 @@ export default function Equipos() {
           <thead>
             <tr>
               <th>Equipo</th><th>IP</th><th>MAC</th><th>Tipo</th>
-              <th>Dónde</th><th>Responsable</th><th></th>
+              <th>Dónde</th><th>Responsable</th><th aria-label="Acciones"></th>
             </tr>
           </thead>
           <tbody>
@@ -407,7 +407,7 @@ function DispositivosPanel({ disp, acceso, msg, error, setMsg, setError, decidir
       ) : (
         <table className="tabla">
           <thead><tr><th>Aparato</th><th>Navegador</th><th>IP</th>
-            <th className="num">Veces</th><th>Último acceso</th><th>Estado</th><th></th></tr></thead>
+            <th className="num">Veces</th><th>Último acceso</th><th>Estado</th><th aria-label="Acciones"></th></tr></thead>
           <tbody>
             {disp.map((d: any) => (
               <tr key={d.id}>

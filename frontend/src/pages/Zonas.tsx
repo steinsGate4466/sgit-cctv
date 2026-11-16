@@ -211,7 +211,7 @@ export default function Zonas() {
                 <th>Equipos</th>
                 <th>Intervención</th>
                 <th>Firmada</th>
-                {(puedeDeclarar || puedeFirmar) && <th />}
+                {(puedeDeclarar || puedeFirmar) && <th aria-label="Acciones" />}
               </tr>
             </thead>
             <tbody>

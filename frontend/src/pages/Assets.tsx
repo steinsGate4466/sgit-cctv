@@ -78,7 +78,6 @@ const STATES = ['OPERATIVO', 'FUERA_SERVICIO', 'MANTENIMIENTO', 'BAJA', 'STOCK']
 /* Revisión de formularios: dar de BAJA no es «cambiar el estado» — tiene su
    flujo firmado con motivo (zona roja de la ficha). El cambio rápido no lo ofrece. */
 const STATES_RAPIDOS = STATES.filter((s) => s !== 'BAJA');
-const CRITS = ['BAJA', 'MEDIA', 'ALTA', 'CRITICA'];
 // Tipos montados en rack: es obligatorio indicar en qué gabinete están.
 /* Los colores de la letra A/B/C (bloque 78). Mismos que en la ficha y en la
    pantalla de Gestión: si un mismo dato se pinta de dos colores según dónde
@@ -625,16 +624,6 @@ export default function Assets() {
     finally { setSavingStatus(false); }
   }
 
-  async function saveIp() {
-    setSavingIp(true);
-    try {
-      await api.patch('/assets/' + detail.id + '/network', { ipAddress: ipEdit || undefined });
-      setDetail({ ...detail, ipAddress: ipEdit });
-      await loadAssets();
-    } catch (err) { await avisar(mensajeDeError(err, 'actualizar la IP')); }
-    finally { setSavingIp(false); }
-  }
-
   // Guarda IP + contraseña del equipo juntas (la contraseña va cifrada como credencial).
   function openQuickEdit(a: any) {
     setQuick(a); setQIp(a.ip || ''); setQPass(a.password || '');
@@ -670,18 +659,6 @@ export default function Assets() {
       await loadAssets();
     } catch (err) { await avisar(mensajeDeError(err, 'guardar el acceso')); }
     finally { setSavingIp(false); }
-  }
-  async function addCredential() {
-    if (!cred.secret) { await avisar('La contraseña del equipo es obligatoria.'); return; }
-    try {
-      await api.post('/credentials', { assetId: detail.id, username: cred.username || 'admin', secret: cred.secret, type: cred.type || undefined });
-      setCred({ username: '', type: '', secret: '' });
-      const c = await api.get('/credentials?assetId=' + detail.id).then((r) => r.data).catch(() => []);
-      setCreds(c || []);
-    } catch (err: any) {
-      const m = err?.response?.data?.message;
-      await avisar(Array.isArray(m) ? m.join(', ') : m || 'No se pudo guardar la credencial.');
-    }
   }
   /** Baja de activo: limpieza de registros de prueba o equipos retirados de planta. */
   async function removeAsset(a: any) {
@@ -866,7 +843,7 @@ export default function Assets() {
                   · el tipo baja debajo del código
                   · el tren y la etapa bajan debajo de la ubicación
                 Quedan las mismas once, con la fecha dentro y sin desplazar. */}
-            <tr><th>Equipo</th><th>Ficha</th><th>Marca / Modelo</th>{can('credential.read') && <th>IP</th>}{can('credential.read') && <th>Contraseña</th>}<th>Estado</th><th>Criticidad</th><th>Ubicación</th><th>Actualizado</th><th></th></tr>
+            <tr><th>Equipo</th><th>Ficha</th><th>Marca / Modelo</th>{can('credential.read') && <th>IP</th>}{can('credential.read') && <th>Contraseña</th>}<th>Estado</th><th>Criticidad</th><th>Ubicación</th><th>Actualizado</th><th aria-label="Acciones"></th></tr>
           </thead>
           <tbody>
             {visibles.map((a) => (
